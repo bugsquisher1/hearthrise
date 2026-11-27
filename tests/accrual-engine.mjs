@@ -1225,6 +1225,10 @@ async function shellGuard() {
        (hr_trait_drops_of, server rows only), built by hunt-settle.js traitDropsOf only when the read's `instance.trait_drops` is true
        (the server's switch); never hr_state_of, never a client field. */
     'traitDrops',
+    /* THE INNER FLAME (1074-inner-flame-luck.sql): the fire's fuel items, the instance read's `flame` (the server's hr_flame_fuel rows,
+       only while the company's fire is lit), built by hunt-settle.js flameDropsOf into the note the engine fills; never hr_state_of,
+       never a client field. */
+    'flameDrops',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

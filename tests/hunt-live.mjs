@@ -1239,7 +1239,9 @@ function rules(M) {
     const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
     console.log(`  LV-TGT closed (Glade trio, d8, ${SPAN / 1000} s): Follow on the leader's monster at ${n.onLead}/${n.lead} boundaries; Strongest on the strongest kind at ${n.onTop}/${n.mixed} mixed ones (the Nearest leader ${n.leaderOnTop})`);
     ok('LV-TGT', ended === null, `closed: the trio's hunt ended ${ended} ms in (a death or a refusal; the rule needs the whole span)`);
-    ok('LV-TGT', n.lead >= 40 && pct(n.onLead, n.lead) >= 85, `closed: "Follow" stood on the leader's monster at ${n.onLead} of ${n.lead} boundaries (want 40+ boundaries, 85%+)`);
+    /* 90%+ (lane/refhero-recut, 2026-11-27): on the Glade's rows re-derived on the clock's REF_HERO the follower stands on the leader's monster
+       at 77 of 80 (96%), and following the leader's last blow alone reads 72 of 85, 84.7%, which rounded onto the old 85% bar */
+    ok('LV-TGT', n.lead >= 40 && pct(n.onLead, n.lead) >= 90, `closed: "Follow" stood on the leader's monster at ${n.onLead} of ${n.lead} boundaries (want 40+ boundaries, 90%+)`);
     ok('LV-TGT', n.mixed >= 40 && pct(n.onTop, n.mixed) >= 80 && pct(n.onTop, n.mixed) >= pct(n.leaderOnTop, n.mixed) + 30,
       `closed: "Strongest" stood on the strongest kind at ${n.onTop} of ${n.mixed} mixed boundaries, the Nearest leader at ${n.leaderOnTop} (want 40+, 80%+, 30+ points above)`);
     /* viewed: b's browser */
@@ -1271,7 +1273,10 @@ function rules(M) {
     const HUNT = 'millrace_sewer', SHARE = 6;
     const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
       for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
-    const deadly = deadlyRows(M, HUNT, mk()[0], { share: SHARE });
+    /* A TO-HIT FLOOR OF 28% (lane/refhero-recut, 2026-11-27): the Sewer's aims re-derived on the clock's REF_HERO land less on this tank, and with
+       none the duo never fell in 10 minutes; at 28% the tank falls at 264 s, the set's fight to the tenth of a second (from 40% it falls in the
+       first pull, before the ranger fights) */
+    const deadly = deadlyRows(M, HUNT, mk()[0], { share: SHARE, hit: 0.28 });
     const tankHp = deadly.hp;
     deadly.put();
     try {

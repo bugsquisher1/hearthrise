@@ -53,91 +53,91 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 0.81,
-    "sd": 0.01,
+    "mean": 0.53,
+    "sd": 0,
     "n": 4,
     "perSeed": [
-     0.81,
-     0.82,
-     0.8,
-     0.83
+     0.53,
+     0.52,
+     0.52,
+     0.53
     ],
     "fromH": 4,
     "windowH": 6
    },
    "held": {
-    "mean": 84,
-    "sd": 4,
-    "se": 2,
+    "mean": 4.8,
+    "sd": 0.5,
+    "se": 0.3,
     "perSeed": [
-     82,
-     88,
-     80,
-     87
+     5,
+     5,
+     4,
+     4
     ]
    },
-   "drift": -5.1,
-   "within10": 69.1,
-   "within20": 95.7,
-   "changesPerH": 10.7,
-   "fallsPerH": 1,
-   "reachH": 0.5,
-   "pullsPerH": 55.6,
-   "killsPerH": 436,
-   "xpPerHeroH": 527684,
+   "drift": 0.6,
+   "within10": 96.5,
+   "within20": 100,
+   "changesPerH": 6.8,
+   "fallsPerH": 1.2,
+   "reachH": 0,
+   "pullsPerH": 64.2,
+   "killsPerH": 441,
+   "xpPerHeroH": 345616,
    "gold": {
     "coinPerHeroH": {
-     "mean": 19344,
-     "sd": 238,
+     "mean": 17160,
+     "sd": 72,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 23079,
-     "sd": 344,
+     "mean": 19995,
+     "sd": 171,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 3305,
-     "sd": 34,
+     "mean": 2913,
+     "sd": 7,
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 566,
-     "sd": 13,
+     "mean": 407,
+     "sd": 10,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 235,
-     "sd": 14,
+     "mean": 191,
+     "sd": 10,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 438,
-     "sd": 35,
+     "mean": 323,
+     "sd": 12,
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 2495,
-     "sd": 112,
+     "mean": 1914,
+     "sd": 119,
      "n": 4
     }
    },
    "kit": {
-    "meal": 148,
-    "drink": 1597,
-    "charge": 1560,
+    "meal": 308,
+    "drink": 1368,
+    "charge": 1237,
     "shot": 0
    },
    "kitIds": {
-    "salted_lobster": 6.2,
-    "plain_scored_fire_rune": 63.6,
-    "plain_carved_fire_rune": 71.1,
-    "plain_carved_ice_rune": 174.5,
-    "plain_earth_rune": 5.6,
-    "thin_carrot_juice": 99.8,
-    "plain_carved_poison_rune": 63.1,
-    "plain_carved_earth_rune": 72.6,
-    "plain_water_rune": 283.3
+    "salted_lobster": 12.8,
+    "plain_scored_fire_rune": 69.9,
+    "plain_etched_fire_rune": 78.2,
+    "plain_etched_ice_rune": 172.3,
+    "plain_earth_rune": 4.8,
+    "thin_carrot_juice": 85.5,
+    "plain_etched_poison_rune": 70.1,
+    "plain_etched_earth_rune": 72.5,
+    "plain_water_rune": 306.5
    },
    "deaths": 0,
    "wipes": 0,
@@ -150,113 +150,112 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 1766,
-    "climb": 422,
-    "fall": 35
+    "hold": 2281,
+    "climb": 233,
+    "fall": 51
    },
    "takenShare": [
     {
      "style": "hammer",
-     "mean": 0.862
+     "mean": 0.886
     },
     {
      "style": "bow",
-     "mean": 0.083
+     "mean": 0.011
     },
     {
      "style": "mage",
-     "mean": 0.036
+     "mean": 0.032
     },
     {
      "style": "healer",
-     "mean": 0.019
+     "mean": 0.072
     }
    ],
    "causes": {
-    "fall:yoke_ox@0": 10,
-    "fall:dead_teamster@0": 19,
-    "fall:wagonmaster@0": 5,
-    "fall:drover@0": 1
+    "fall:dead_teamster@0": 37,
+    "fall:yoke_ox@0": 11,
+    "fall:wagonmaster@0": 3
    },
    "seats": [
     {
      "style": "hammer",
-     "dps": 35.03,
-     "landedPct": 49.83,
-     "dmgPerSwing": 47.18,
-     "swingsPerH": 5944.75,
-     "takenPerH": 280451.5
+     "dps": 31.98,
+     "landedPct": 67.13,
+     "dmgPerSwing": 56.29,
+     "swingsPerH": 5463.5,
+     "takenPerH": 307550.5
     },
     {
      "style": "bow",
-     "dps": 34.02,
-     "landedPct": 90.3,
-     "dmgPerSwing": 29.7,
-     "swingsPerH": 913,
-     "takenPerH": 27118.5
+     "dps": 31.71,
+     "landedPct": 89.2,
+     "dmgPerSwing": 15.98,
+     "swingsPerH": 233.25,
+     "takenPerH": 3731
     },
     {
      "style": "mage",
-     "dps": 46.37,
-     "landedPct": 84.6,
-     "dmgPerSwing": 23.31,
-     "swingsPerH": 499,
-     "takenPerH": 11629.25
+     "dps": 38.68,
+     "landedPct": 82.98,
+     "dmgPerSwing": 20.55,
+     "swingsPerH": 534.75,
+     "takenPerH": 10999
     },
     {
      "style": "healer",
-     "dps": 20.62,
-     "landedPct": 90.85,
-     "dmgPerSwing": 20.29,
-     "swingsPerH": 296.25,
-     "takenPerH": 6015.25
+     "dps": 19.01,
+     "landedPct": 89.25,
+     "dmgPerSwing": 29.16,
+     "swingsPerH": 855.25,
+     "takenPerH": 24942.5
     }
    ],
    "kinds": {
     "dead_teamster": {
      "role": "swarm",
-     "killsPerH": 208.4,
-     "ttkS": 31.7,
-     "takenPerKill": 721
+     "killsPerH": 188.9,
+     "ttkS": 29.4,
+     "takenPerKill": 889
     },
     "yoke_ox": {
      "role": "brute",
-     "killsPerH": 81.7,
-     "ttkS": 46.3,
-     "takenPerKill": 1272
+     "killsPerH": 83.8,
+     "ttkS": 39.2,
+     "takenPerKill": 1228
     },
     "coal_runner": {
      "role": "caster",
-     "killsPerH": 82.1,
-     "ttkS": 50.9,
-     "takenPerKill": 545
+     "killsPerH": 94.3,
+     "ttkS": 42.2,
+     "takenPerKill": 428
     },
     "drover": {
      "role": "warder",
-     "killsPerH": 54.8,
-     "ttkS": 38.7,
-     "takenPerKill": 352
+     "killsPerH": 62.9,
+     "ttkS": 35.5,
+     "takenPerKill": 446
     },
     "wagonmaster": {
      "role": "brute",
-     "killsPerH": 9.1,
-     "ttkS": 28.3,
-     "takenPerKill": 782
+     "killsPerH": 10.5,
+     "ttkS": 25.2,
+     "takenPerKill": 764
     }
    },
    "abs": {
-    "level": 117.3,
-    "depth": 15
+    "level": 90.7,
+    "depth": 1
    },
    "sustain": {
-    "freePm": 131,
-    "spellPm": 856,
-    "foodPm": 14,
-    "takenPmS": 16.75
+    "freePm": 129,
+    "spellPm": 844,
+    "foodPm": 26,
+    "takenPmS": 17.89
    }
   }
  },
- "wallS": 86,
+ "wallS": 51,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

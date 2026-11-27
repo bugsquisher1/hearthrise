@@ -97,12 +97,12 @@ export default definePack({
       /* the swarm, the common majority: farmhands Krell pressed off the March's fields to hold his walls, in quilted jacks with a bill hook. Young
          and scared. Living, so the Human class with no override: weak to arrows, poison does 15% more. Their tithe grain, the press token they
          showed at the gate, the tier-6 boots and the Emberforged sword off the gate rack. */
-      drops: [{ id: 'bones', everyHours: 0.0513, ch: 0.5, band: 'common' }, { id: 'wheat', everyHours: 0.0855, ch: 0.3, band: 'common' }, { id: 'farmhands_tag', everyHours: 0.3205, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'wyvernhide_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' }, { id: 'sorcerer_boots', everyHours: 1.28, ch: 0.02, band: 'scarce' },
-        { id: 'rune_sword', everyHours: 1.28, ch: 0.02, band: 'scarce' },
+      drops: [{ id: 'bones', everyHours: 0.0513, ch: 0.474, band: 'common' }, { id: 'wheat', everyHours: 0.0855, ch: 0.284, band: 'common' }, { id: 'farmhands_tag', everyHours: 0.3205, ch: 0.0758, band: 'uncommon' },
+        { id: 'rune_boots', everyHours: 1.28, ch: 0.019, band: 'scarce' }, { id: 'wyvernhide_boots', everyHours: 1.28, ch: 0.019, band: 'scarce' }, { id: 'sorcerer_boots', everyHours: 1.28, ch: 0.019, band: 'scarce' },
+        { id: 'rune_sword', everyHours: 1.28, ch: 0.019, band: 'scarce' },
         /* the Emberforged Hatchets left the Pyre Field's Provosts with its one base (lane/scale-grounds-2): the ember ground's farmhands carry them */
-        { id: 'rune_hatchets', everyHours: 17, ch: 0.00151, band: 'rare' }],
-      hp: 125, atk: 86, aim: 115, evasion: 33, def: 3, xp: 1045, gp: [18, 56], formula: true },
+        { id: 'rune_hatchets', everyHours: 17, ch: 0.00143, band: 'rare' }],
+      hp: 125, atk: 86, aim: 88, evasion: 32, def: 3, xp: 1045, gp: [18, 56], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -113,13 +113,13 @@ export default definePack({
       range: 5,
       /* THE SHOOTER (src/data/monster-roles.js, wave 2; the Danger scale only): on the scale he keeps to the back row, the farthest of it */
       role: 'shooter',
-      drops: [{ id: 'bones', everyHours: 0.0833, ch: 0.5, band: 'common' }, { id: 'iron_bar', everyHours: 0.139, ch: 0.3, band: 'common' }, { id: 'lookouts_whistle', everyHours: 0.521, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_helm', everyHours: 1.6, ch: 0.026, band: 'scarce' }, { id: 'wyvernhide_helmet', everyHours: 1.6, ch: 0.026, band: 'scarce' }, { id: 'sorcerer_helmet', everyHours: 1.6, ch: 0.026, band: 'scarce' },
-        { id: 'yew_bow', everyHours: 1.6, ch: 0.026, band: 'scarce' },
-        { id: 'rune_gauntlets', everyHours: 23.1, ch: 0.0018, band: 'rare' }, { id: 'wyvernhide_gloves', everyHours: 23.1, ch: 0.0018, band: 'rare' }, { id: 'sorcerer_gloves', everyHours: 23.1, ch: 0.0018, band: 'rare' },
+      drops: [{ id: 'bones', everyHours: 0.0833, ch: 0.584, band: 'common' }, { id: 'iron_bar', everyHours: 0.139, ch: 0.35, band: 'common' }, { id: 'lookouts_whistle', everyHours: 0.521, ch: 0.0933, band: 'uncommon' },
+        { id: 'rune_helm', everyHours: 1.6, ch: 0.0304, band: 'scarce' }, { id: 'wyvernhide_helmet', everyHours: 1.6, ch: 0.0304, band: 'scarce' }, { id: 'sorcerer_helmet', everyHours: 1.6, ch: 0.0304, band: 'scarce' },
+        { id: 'yew_bow', everyHours: 1.6, ch: 0.0304, band: 'scarce' },
+        { id: 'rune_gauntlets', everyHours: 23.1, ch: 0.0021, band: 'rare' }, { id: 'wyvernhide_gloves', everyHours: 23.1, ch: 0.0021, band: 'rare' }, { id: 'sorcerer_gloves', everyHours: 23.1, ch: 0.0021, band: 'rare' },
         /* the Runewood Crossbow from the Provosts too (lane/scale-grounds-2): a sentry's crossbow */
-        { id: 'yew_crossbow', everyHours: 20.8, ch: 0.002, band: 'rare' }],
-      hp: 120, atk: 88, aim: 158, evasion: 33, def: 4, xp: 1215, gp: [18, 53], formula: true }, // atk: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+        { id: 'yew_crossbow', everyHours: 20.8, ch: 0.00234, band: 'rare' }],
+      hp: 120, atk: 88, aim: 122, evasion: 33, def: 4, xp: 1215, gp: [18, 53], formula: true }, // atk: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       role: 'brute',
@@ -130,11 +130,11 @@ export default definePack({
          HIS SHIELD ABOUT HOURLY (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: shields drop at every tier): it was a Rare here
          (0.12%); the Emberforged Warhammer he carried beside it went to the Gatekeeper's mace, so each body keeps one weapon. */
       spells: ['shield_slam'],
-      drops: [{ id: 'big_bones', everyHours: 0.0556, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.0556, ch: 0.5, band: 'common' }, { id: 'barrow_nail', everyHours: 0.3472, ch: 0.08, band: 'uncommon' },
-        { id: 'rune_platelegs', everyHours: 1.63, ch: 0.017, band: 'scarce' }, { id: 'wyvernhide_pants', everyHours: 1.63, ch: 0.017, band: 'scarce' }, { id: 'sorcerer_pants', everyHours: 1.63, ch: 0.017, band: 'scarce' },
-        { id: 'runebound_shield', everyHours: 1.63, ch: 0.017, band: 'scarce' },
-        { id: 'rune_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }, { id: 'wyvernhide_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }, { id: 'sorcerer_belt', everyHours: 23.1, ch: 0.0012, band: 'rare' }],
-      hp: 200, atk: 86, aim: 101, evasion: 50, def: 22, xp: 1889, gp: [29, 89], formula: true },
+      drops: [{ id: 'big_bones', everyHours: 0.0556, ch: 0.525, band: 'common' }, { id: 'grave_dust', everyHours: 0.0556, ch: 0.525, band: 'common' }, { id: 'barrow_nail', everyHours: 0.3472, ch: 0.084, band: 'uncommon' },
+        { id: 'rune_platelegs', everyHours: 1.63, ch: 0.0179, band: 'scarce' }, { id: 'wyvernhide_pants', everyHours: 1.63, ch: 0.0179, band: 'scarce' }, { id: 'sorcerer_pants', everyHours: 1.63, ch: 0.0179, band: 'scarce' },
+        { id: 'runebound_shield', everyHours: 1.63, ch: 0.0179, band: 'scarce' },
+        { id: 'rune_belt', everyHours: 23.1, ch: 0.00126, band: 'rare' }, { id: 'wyvernhide_belt', everyHours: 23.1, ch: 0.00126, band: 'rare' }, { id: 'sorcerer_belt', everyHours: 23.1, ch: 0.00126, band: 'rare' }],
+      hp: 200, atk: 86, aim: 79, evasion: 50, def: 22, xp: 1889, gp: [29, 89], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       role: 'warder',
@@ -142,10 +142,10 @@ export default definePack({
          a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
          wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (Mend the Dead, `spells` below). Kill him first. */
       spells: ['pyre_rite'],
-      drops: [{ id: 'bones', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'coal', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'priests_cord', everyHours: 0.833, ch: 0.08, band: 'uncommon' },
-        { id: 'yew_staff', everyHours: 1.36, ch: 0.049, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
-        { id: 'yew_wand', everyHours: 18, ch: 0.0037, band: 'rare' }, { id: 'yew_spellbook', everyHours: 18, ch: 0.0037, band: 'rare' }],
-      hp: 172, atk: 110, aim: 137, evasion: 38, def: 8, xp: 1496, gp: [25, 76], formula: true },
+      drops: [{ id: 'bones', everyHours: 0.1333, ch: 0.438, band: 'common' }, { id: 'coal', everyHours: 0.1333, ch: 0.438, band: 'common' }, { id: 'priests_cord', everyHours: 0.833, ch: 0.07, band: 'uncommon' },
+        { id: 'yew_staff', everyHours: 1.36, ch: 0.0429, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
+        { id: 'yew_wand', everyHours: 18, ch: 0.00324, band: 'rare' }, { id: 'yew_spellbook', everyHours: 18, ch: 0.00324, band: 'rare' }],
+      hp: 172, atk: 110, aim: 108, evasion: 38, def: 8, xp: 1496, gp: [25, 76], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       role: 'brute',
@@ -155,11 +155,11 @@ export default definePack({
          15 met an hour, so the 5% ceiling). He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
          loot-bands.js, about one every two hours). */
       spells: ['hot_pitch'], weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', everyHours: 0.556, ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', everyHours: 1.667, ch: 0.1, band: 'uncommon' },
-        { id: 'rune_platebody', everyHours: 3.333, ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_body', everyHours: 3.333, ch: 0.05, band: 'scarce' }, { id: 'sorcerer_body', everyHours: 3.333, ch: 0.05, band: 'scarce' },
-        { id: 'rune_warhammer', everyHours: 3.333, ch: 0.05, band: 'scarce' },
-        { id: 'hall_key', everyHours: 6.4, ch: 0.026, band: 'key' }],
-      hp: 290, atk: 115, aim: 140, evasion: 57, def: 32, xp: 2961, gp: [43, 128], formula: true },
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', everyHours: 0.556, ch: 0.262, band: 'common' }, { id: 'gatekeepers_chain', everyHours: 1.667, ch: 0.0875, band: 'uncommon' },
+        { id: 'rune_platebody', everyHours: 3.333, ch: 0.0438, band: 'scarce' }, { id: 'wyvernhide_body', everyHours: 3.333, ch: 0.0438, band: 'scarce' }, { id: 'sorcerer_body', everyHours: 3.333, ch: 0.0438, band: 'scarce' },
+        { id: 'rune_warhammer', everyHours: 3.333, ch: 0.0438, band: 'scarce' },
+        { id: 'hall_key', everyHours: 6.4, ch: 0.0228, band: 'key' }],
+      hp: 290, atk: 115, aim: 112, evasion: 59, def: 32, xp: 2961, gp: [43, 128], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority

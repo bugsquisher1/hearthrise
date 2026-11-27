@@ -119,8 +119,11 @@ ok(h2 && /topStep: 710, refKillsHead: 235, (?:rowsKillsHead: \d+, )?gearLevel/.t
    MID four's hold as refHeld; a rows ground's cut carries no refHeld (its refStep is that hold) */
 {
   const ev = evidenceOf('muster_barrows', PINS.muster_barrows), held = Math.round(ev.ref.cells['base:steady'].held.mean / BAND_RULE.topTo) * BAND_RULE.topTo;
+  /* a rows ground's refStep is the hold at the pay's grain (BAND_RULE.refTo), and it pins refHeld only where the hold at the band's grain
+     is another step (lane/refhero-recut: Muster's four holds 606, refStep 610 and refHeld 605) */
+  const refAt = Math.round(ev.ref.cells['base:steady'].held.mean / BAND_RULE.refTo) * BAND_RULE.refTo;
   const f = bandFromReports(ev, PAY, DEPTHS, BAND_RULE, null, { anchorStep: 560 }), r = cut(ev);
-  ok(f.band.refStep === 560 && f.band.refHeld === held && r.band.refStep === held && r.band.refHeld === undefined, 'NG-7 the anchor is not kept beside the measured hold: formula ' + JSON.stringify(f.band) + ', rows ' + JSON.stringify(r.band));
+  ok(f.band.refStep === 560 && f.band.refHeld === held && r.band.refStep === refAt && r.band.refHeld === (held === refAt ? undefined : held), 'NG-7 the anchor is not kept beside the measured hold: formula ' + JSON.stringify(f.band) + ', rows ' + JSON.stringify(r.band));
   ok(f.band.topStep <= 560 + PAY.gapMax, 'NG-7 the top ' + f.band.topStep + ' is past the anchor + gapMax (the pay stops there)');
   /* (lane/monster-roles-ford-wings) a formula ground anchored at its own formulaStep cuts refStep from the hold, a four that holds on its
      anchor pins no refHeld (refHeldOf reads refStep), and a hold off refStep at the band's grain is pinned (the Flooded Wing: 453.5 is

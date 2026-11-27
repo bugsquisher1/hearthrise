@@ -92,6 +92,7 @@ import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold
 import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
 import * as APPROVED_CUTS_REMOVALS from './chain-removals/1032-approved-cuts.mjs';
 import * as RESTED_CUT_REMOVALS from './chain-removals/1040-rested-bank-cut.mjs';
+import * as WORK_MIDNIGHT_REMOVALS from './chain-removals/1075-work-blocks-midnight.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -689,6 +690,9 @@ const ALSO_LINTED = [
   /* THE WATCHED STAMP (lane/watched-stamp, 2026-11-22): the engine grant (hr_hunt_watch_note, hr_engine only; the detector entry is
      1032's link 25), the section's and the gap's revokes and the table's are linted here. */
   '1060-watched-stamp.sql',
+  /* A WORK WINDOW ACROSS MIDNIGHT (lane/work-blocks-midnight, 2026-11-27): HR_APPLY_CHAIN's newest link (the chain end read back,
+     one call changed), hr_work_state restated (a SECURITY DEFINER, its ACL kept) and the helper's and the fold's revokes. */
+  '1075-work-blocks-midnight.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -754,6 +758,11 @@ const HR_APPLY_CHAIN = [
      bank's two delta keys and two SET lines. Chain depth 0 again. Its declared removals are FROZEN in
      tests/chain-removals/1040-rested-bank-cut.mjs, split there into the splices' replacements and the bank. */
   '1040-rested-bank-cut.sql',
+  /* A WORK WINDOW ACROSS MIDNIGHT COUNTS EACH UTC DAY'S OWN BOUGHT BLOCKS (lane/work-blocks-midnight, 2026-11-27). The chain-end
+     body read back with pg_get_functiondef (1040 plus 1059's four WORK-DAY edits and 1072's PIECE-VERBS edit) with ONE changed
+     call, the work fold's (a 1059 line). Chain depth 0 again. Its declared removals, the lines those two splices replaced, are
+     FROZEN in tests/chain-removals/1075-work-blocks-midnight.mjs. */
+  '1075-work-blocks-midnight.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -1171,13 +1180,15 @@ const SQL_MUTANTS = [
     from: "perform public.hr_reject('requirement_not_met', jsonb_build_object('item_id', v_item));",
     to: "perform public.hr_reject('requirement_met', jsonb_build_object('item_id', v_item));",
     expect: '2026-10-27-core-bodies.sql: its hr_apply DROPS 1 line(s)' },
+  /* The PART 1g lint reads HR_APPLY_CHAIN's LAST link, so these two plant into it (1075-work-blocks-midnight.sql since 2026-11-27;
+     planted into 1040, an earlier link, they would grade a body production no longer runs). */
   { name: 'hr_apply accepts a delta key nobody classified',
-    file: 'supabase/migrations/1040-rested-bank-cut.sql',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
     from: "\n    'level_xp',\n",
     to: "\n    'level_xp', 'free_gold',\n",
     expect: 'hr_apply accepts the delta key "free_gold"' },
   { name: 'a classified delta key leaves hr_apply',
-    file: 'supabase/migrations/1040-rested-bank-cut.sql',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
     from: "\n    'level_xp',\n",
     to: '\n',
     expect: 'DELTA_KEY_CLASS classifies "level_xp" but hr_apply no longer accepts it' },
@@ -2104,6 +2115,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_APPLY,
     '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_APPLY,
     '1040-rested-bank-cut.sql': RESTED_CUT_REMOVALS.HR_APPLY,
+    '1075-work-blocks-midnight.sql': WORK_MIDNIGHT_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -2736,6 +2748,11 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
       + 'validated against the caller own crew, clamped at c_max_xp_delta); worker OUTPUT rides the '
       + 'budgeted `items` key, so this xp moves no tradeable/rankable balance — no *_in column, no daily dimension'],
     workers_accrued_to: ['clock', 'the crew watermark; set to now() server-side on presence, never a value'],
+    /* 1059-company-trades.sql (WORK-DAY), read by this lint from 2026-11-27 (1075-work-blocks-midnight.sql restates the chain end,
+       so the LAST link is the body production runs again). */
+    work_to: ['clock', '1059 work day: the instant a town window\'s work ended, engine output only, held into [old watermark, the '
+      + 'new watermark] and refused bad_delta unless an instant beside an accrual; it can only SHORTEN what a window spends of the '
+      + 'hero\'s day, never pay more (payment is the window\'s own budgeted keys)'],
   };
 
   const m = applySql.match(/c_delta_keys constant text\[\] := array\[([\s\S]*?)\];/);

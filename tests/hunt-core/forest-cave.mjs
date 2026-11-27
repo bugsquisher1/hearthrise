@@ -549,7 +549,7 @@ const mutants = [
      so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
      72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
   { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 21-22 -> 84-88)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 81, atk: 23, aim: 73, evasion: 30, def: 8, xp: 346,', 'hp: 81, atk: 84, aim: 73, evasion: 29, def: 8, xp: 346,'], ['src/data/monsters.js', 'hp: 90, atk: 24, aim: 76, evasion: 32, def: 9,', 'hp: 90, atk: 88, aim: 76, evasion: 31, def: 9,']] },
+    edits: [['src/data/monsters.js', 'hp: 81, atk: 23, aim: 52, evasion: 23, def: 8, xp: 346,', 'hp: 81, atk: 84, aim: 52, evasion: 23, def: 8, xp: 346,'], ['src/data/monsters.js', 'hp: 90, atk: 24, aim: 54, evasion: 25, def: 9,', 'hp: 90, atk: 88, aim: 54, evasion: 25, def: 9,']] },
   { name: 'the fixture back on the client\'s compiled collision mask', case: 'sim-plays-the-server-map',
     edits: [['tests/hunt-core/fixtures/play-ground.mjs', "const { gridOfMap } = await import(u('src/core/hunt-ground.js'));",
       "const [MAPS, TER, MC, SETS, GRID, FS] = await Promise.all(['src/data/world/maps/index.js', 'src/data/world/terrain.js', 'src/world/core/map-compile.js', 'src/data/world/atlas-sets.js', 'src/core/hunt/grid.js'].map((p) => import(u(p))).concat(import('node:fs'))); const sprites = {}; for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(FS.readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites); const gridOfMap = (mapId) => { const map = MC.compileMap(MAPS.mapRowOf(mapId), { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} }); return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); }); };"]] },
@@ -561,18 +561,20 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 575, gp: [15, 42]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 645, gp: [12, 39]'],
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 1130, gp: [24, 69]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 1965, gp: [36, 108]'],
       ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 2280, gp: [39, 120]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 1280, gp: [24, 78]']] },
-  { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [2, 7]'],
-      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [5, 12]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [7, 19]'],
-      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [7, 20]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [5, 14]']] },
+  /* (lane/refhero-recut) the Glade's lone tank plays its rows, and the re-cut Sewer's floor party nets 1,407 g an hour, under the Glade's
+     halved coin (1,698): the plant is a third of its coin as well as of its XP, so it pays under the Sewer's party in both again */
+  { name: 'the glade\'s coin and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [2, 5]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [1, 4]'],
+      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [3, 8]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [4, 12]'],
+      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [4, 13]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [3, 9]']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 25, atk: 5, aim: 33, evasion: 15, def: 1, xp: 96,', 'hp: 25, atk: 48, aim: 33, evasion: 15, def: 1, xp: 96,'], ['src/data/monsters.js', 'hp: 28, atk: 5, aim: 20, evasion: 22, def: 3, xp: 91,', 'hp: 28, atk: 30, aim: 20, evasion: 20, def: 3, xp: 91,']] },
+    edits: [['src/data/monsters.js', 'hp: 25, atk: 5, aim: 24, evasion: 11, def: 1, xp: 96,', 'hp: 25, atk: 48, aim: 24, evasion: 11, def: 1, xp: 96,'], ['src/data/monsters.js', 'hp: 28, atk: 5, aim: 15, evasion: 16, def: 3, xp: 91,', 'hp: 28, atk: 30, aim: 15, evasion: 16, def: 3, xp: 91,']] },
   { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'xp: 580, gp: [13, 37]', 'xp: 132, gp: [7, 19]'], ['src/data/monsters.js', 'xp: 606, gp: [11, 31]', 'xp: 138, gp: [6, 16]'],
       ['src/data/monsters.js', 'xp: 949, gp: [18, 52]', 'xp: 216, gp: [9, 26]'], ['src/data/monsters.js', 'xp: 1597, gp: [27, 80]', 'xp: 363, gp: [14, 41]'],
       ['src/data/monsters.js', 'xp: 6137, gp: [94, 282]', 'xp: 1395, gp: [48, 142]']] },
   { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6]', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 200, gp: [6, 18]']] },
+    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 18, evasion: 10, def: 1, xp: 38, gp: [2, 6]', 'hp: 19, atk: 4, aim: 18, evasion: 10, def: 1, xp: 200, gp: [6, 18]']] },
   /* the party-built pack's climb is the four's (lane/d-open-march-balance). RE-AIMED (lane/d-flat-party-xp, one party table, Tyler 2026-11-16): the Slake's
      own four cell is gone, so its four at 55 earns about half the Muster's (368k against 689k Level XP an hour on set v0.2.135, cloth's smaller damage and Turning Cut in; it read 380k against 767k) and the old 0.76-fit slip (x0.94) no longer
      crosses it. The Muster's XP rows at x0.4 (about 275k) put the Slake back over it. */
@@ -585,7 +587,7 @@ const mutants = [
   { name: "Krell's Hold's Farmhands and Grave Guards pay two fifths less XP (a lone tank levels faster on the Pyre at 85)", case: 'harder-pays-more',
     edits: [['src/data/grounds/krells_hold/pack.js', 'def: 3, xp: 1045,', 'def: 3, xp: 627,'], ['src/data/grounds/krells_hold/pack.js', 'def: 22, xp: 1889,', 'def: 22, xp: 1133,']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
-    edits: [['src/data/monsters.js', 'hp: 11, atk: 4, aim: 17, evasion: 8, def: 0, xp: 18, gp: [1, 4]', 'hp: 11, atk: 4, aim: 17, evasion: 8, def: 0, xp: 18, gp: [3000, 4167]']] },
+    edits: [['src/data/monsters.js', 'hp: 11, atk: 4, aim: 15, evasion: 7, def: 0, xp: 18, gp: [1, 4]', 'hp: 11, atk: 4, aim: 15, evasion: 7, def: 0, xp: 18, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  good('copper_studs', 'gear'),", "  good('copper_studs', 'gear'),\n  good('leather_helmet', 'gear'),"]] },
   /* the tier is the rule's (lane/d-drop-homes): a tier-1 shield as regular loot on a walked ground competes with the outfitter's Bronze-Rimmed */
@@ -598,7 +600,7 @@ const mutants = [
     edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
       "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
-    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,', 'hp: 19, atk: 16, aim: 22, evasion: 12, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,']] },
+    edits: [['src/data/monsters.js', 'hp: 19, atk: 4, aim: 18, evasion: 10, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,', 'hp: 19, atk: 16, aim: 18, evasion: 10, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

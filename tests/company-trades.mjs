@@ -15,7 +15,9 @@
 //   CT-DATA    src/data/work-day.js is valid; the server's hr_work_day row is the data's; a skill is a company trade on the server
 //              exactly when its src/data/skills.js category is one of TRADE_CATS.
 //   CT-TWIN    src/core/work-day.js foldWork and the SQL twin hr_work_fold agree on 200 seeded windows (midnight crossings, a used day,
-//              bought work today); workStopMs is where the day runs out: the fold to it fits and a minute past it does not.
+//              bought work today, and an earlier day's own bought work: 1075-work-blocks-midnight.sql's eight-argument fold, with the
+//              seven-argument one its answer with none); workStopMs is where the day runs out: the fold to it fits and a minute past
+//              it does not; workStateOf reads the section's `bought` (yesterday's kept, today's and later dropped).
 //   CT-SHARED  ONE COMPANY, TWO HEROES, BOTH DOORS: hero 0 mines with the window open (the viewed settle), hero 1 with the browser
 //              closed (the world tick). The company's Mining is the sum of both heroes' journalled XP, both heroes read it, and a
 //              hero made afterwards is born at it. A combat skill stays each hero's own.
@@ -173,21 +175,41 @@ async function arms(db, edge, only = null) {
     const base0 = Date.UTC(2026, 10, 20);
     const today = Date.UTC(2026, 10, 21);
     const bad = [];
+    const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const flat = (q) => ({ ok: q.ok, day: q.day, used_ms: Number(q.used_ms), over_ms: Number(q.over_ms), left_ms: Number(q.left_ms) });
+    let crossed = 0;
     for (let i = 0; i < 200 && bad.length < 3; i++) {
-      const w = { dayMs: base0 + Math.floor(rnd() * 3) * CORE.DAY_MS, usedMs: Math.floor(rnd() * 9 * 3600000), baseMs: 8 * 3600000,
-        extraMs: rnd() < 0.3 ? 2 * 3600000 : 0, todayMs: today };
+      /* EACH DAY'S OWN BOUGHT WORK (1075-work-blocks-midnight.sql): an earlier day's blocks ride `boughtMs` (the section's `bought`),
+         keyed by day: yesterday's (a window from it crosses into today) and the day before's (out of every window's reach here) */
+      const boughtMs = {};
+      for (const d of [base0 - CORE.DAY_MS, base0]) if (rnd() < 0.35) boughtMs[d] = (1 + Math.floor(rnd() * 2)) * 2 * 3600000;
+      const w = { dayMs: base0 + Math.floor(rnd() * 3) * CORE.DAY_MS, usedMs: Math.floor(rnd() * 11 * 3600000), baseMs: 8 * 3600000,
+        extraMs: rnd() < 0.3 ? 2 * 3600000 : 0, todayMs: today, boughtMs };
       const from = base0 + Math.floor(rnd() * 2 * CORE.DAY_MS);
       const to = from + Math.floor(rnd() * 14 * 3600000);
+      const map = Object.fromEntries(Object.entries(boughtMs).map(([d, ms]) => [isoDay(Number(d)), ms]));
       const j = CORE.foldWork(w, from, to);
-      const q = await one(db, `select public.hr_work_fold($1::date, $2, to_timestamp($3::double precision / 1000), to_timestamp($4::double precision / 1000), $5, $6, $7::date)`,
-        [new Date(w.dayMs).toISOString().slice(0, 10), w.usedMs, from, to, w.baseMs, w.extraMs, new Date(today).toISOString().slice(0, 10)]);
-      const jj = { ok: j.ok, day: new Date(j.dayMs).toISOString().slice(0, 10), used_ms: j.usedMs, over_ms: j.overMs, left_ms: j.leftMs };
-      if (js(jj) !== js({ ok: q.ok, day: q.day, used_ms: Number(q.used_ms), over_ms: Number(q.over_ms), left_ms: Number(q.left_ms) })) bad.push({ w, from, to, js: jj, sql: q });
+      const args = [isoDay(w.dayMs), w.usedMs, from, to, w.baseMs, w.extraMs, isoDay(today)];
+      const q = await one(db, `select public.hr_work_fold($1::date, $2, to_timestamp($3::double precision / 1000), to_timestamp($4::double precision / 1000), $5, $6, $7::date, $8::jsonb)`,
+        [...args, JSON.stringify(map)]);
+      const jj = { ok: j.ok, day: isoDay(j.dayMs), used_ms: j.usedMs, over_ms: j.overMs, left_ms: j.leftMs };
+      if (js(jj) !== js(flat(q))) bad.push({ w, from, to, js: jj, sql: q });
+      /* the seven-argument fold is the eight with no earlier day's blocks, and both are foldWork without them */
+      if (!Object.keys(map).length) {
+        const q7 = await one(db, `select public.hr_work_fold($1::date, $2, to_timestamp($3::double precision / 1000), to_timestamp($4::double precision / 1000), $5, $6, $7::date)`, args);
+        if (js(flat(q7)) !== js(flat(q))) bad.push({ w, from, to, seven: q7, eight: q });
+      }
+      if (map[isoDay(from)] && CORE.utcDayStart(from) !== CORE.utcDayStart(to)) crossed++;
       const stop = CORE.workStopMs(w, from);
       if (stop - from < 14 * 3600000 && (!CORE.foldWork(w, from, stop).ok || CORE.foldWork(w, from, stop + MIN).ok)) bad.push({ w, from, stop, why: 'the stop is not where the day runs out' });
     }
-    arm('CT-TWIN', bad.length === 0, 'foldWork and hr_work_fold agree on 200 seeded windows, and workStopMs is where the day runs out',
-      `disagreements ${js(bad).slice(0, 600)}`);
+    /* the state the engine reads: the section's `bought` keyed by day, today's and later days dropped (today's is extra_ms) */
+    const ws = CORE.workStateOf({ today: '2026-11-21', day: '2026-11-20', used_ms: 5, base_ms: 8, extra_ms: 2,
+      bought: { '2026-11-20': 7200000, '2026-11-21': 1, '2026-11-22': 1, nope: 3, '2026-11-19': -4 } });
+    const wsOk = ws && js(ws.boughtMs) === js({ [Date.UTC(2026, 10, 20)]: 7200000 }) && js(CORE.workStateOf({ today: '2026-11-21', base_ms: 8 }).boughtMs) === '{}';
+    arm('CT-TWIN', bad.length === 0 && crossed >= 5 && wsOk,
+      `foldWork and hr_work_fold agree on 200 seeded windows (${crossed} cross midnight from a day with its own bought blocks), the seven-argument fold is the eight with none, workStopMs is where the day runs out, and workStateOf reads the section's bought`,
+      `disagreements ${js(bad).slice(0, 600)}; crossings ${crossed}; workStateOf ${js(ws)}`);
   }
 
   /* ── CT-SHARED: one company, two heroes, both doors ── */
@@ -310,6 +332,9 @@ const JS_MUTANTS = [
     from: '    char.workDay = { ...char.workDay, dayMs: f.dayMs, usedMs: f.usedMs };', to: '' },
 ];
 const SQL_MUTANTS = [
+  { arm: 'CT-TWIN', name: 'the SQL twin ignores an earlier day\'s own bought work (1075\'s eight-argument fold drifts from foldWork)',
+    fn: 'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date,jsonb)',
+    find: "when jsonb_typeof(v_b) = 'number' and v_b::text ~ '^[0-9]{1,15}$' then (v_b::text)::bigint", repl: 'when false then 0' },
   { arm: 'CT-REFUSE', name: 'hr_apply never refuses a window past the day', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
     find: "      if not (v_work->>'ok')::boolean then\n        perform public.hr_reject('work_cap', v_work - 'ok');", repl: "      if false then\n        perform public.hr_reject('work_cap', v_work - 'ok');" },
   { arm: 'CT-SHARED', name: 'the company total never reaches the other heroes (no fan-out)', fn: 'public.hr_trade_row_sync()',

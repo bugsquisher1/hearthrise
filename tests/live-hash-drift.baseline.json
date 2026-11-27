@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3260,
+  "replay_ms": 3336,
   "counts": {
-    "tracked_names": 1186,
-    "entries": 997
+    "tracked_names": 1187,
+    "entries": 999
   },
   "functions": [
     {
@@ -1393,6 +1393,7 @@
         "1059-company-trades.sql",
         "1072-piece-verbs.sql",
         "1074-setup-pieces.sql",
+        "1075-work-blocks-midnight.sql",
         "2026-08-11-apply-engine.sql",
         "2026-08-15-gem-daily-budget.sql",
         "2026-08-15-intent-key-hygiene.sql",
@@ -1451,12 +1452,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "a08c39cd568ee9639e6dcb65b81519ac",
-        "norm_len": 146037,
+        "md5": "6757941d8a55690a015da8a1956cd70e",
+        "norm_len": 146697,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql, 1040-rested-bank-cut.sql, 1059-company-trades.sql, 1072-piece-verbs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1072-piece-verbs.sql."
+      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql, 1040-rested-bank-cut.sql, 1059-company-trades.sql, 1072-piece-verbs.sql, 1074-setup-pieces.sql, 1075-work-blocks-midnight.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1075-work-blocks-midnight.sql."
     },
     {
       "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -22508,6 +22509,24 @@
       "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
     },
     {
+      "sig": "hr_work_bought(p_user uuid, p_slot integer, p_from timestamp with time zone)",
+      "name": "hr_work_bought",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1075-work-blocks-midnight.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "44312cd26fada55f93e2a94b70539c89",
+        "norm_len": 1544,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1075-work-blocks-midnight.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1075-work-blocks-midnight.sql."
+    },
+    {
       "sig": "hr_work_day_view(p_user uuid, p_slot integer)",
       "name": "hr_work_day_view",
       "tracked_by": [
@@ -22549,19 +22568,41 @@
       "sig": "hr_work_fold(p_day date, p_used bigint, p_from timestamp with time zone, p_to timestamp with time zone, p_base bigint, p_extra bigint, p_today date)",
       "name": "hr_work_fold",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1059-company-trades.sql"
+        "1059-company-trades.sql",
+        "1075-work-blocks-midnight.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "2f37708c62e3364000b198a55d9c907c",
-        "norm_len": 2224,
+        "md5": "93bb674f94f30eab79a5333e382079cc",
+        "norm_len": 645,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql, 1075-work-blocks-midnight.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1075-work-blocks-midnight.sql."
+    },
+    {
+      "sig": "hr_work_fold(p_day date, p_used bigint, p_from timestamp with time zone, p_to timestamp with time zone, p_base bigint, p_extra bigint, p_today date, p_bought jsonb)",
+      "name": "hr_work_fold",
+      "tracked_by": [
+        "pin",
+        "restate"
+      ],
+      "touched_by": [
+        "1059-company-trades.sql",
+        "1075-work-blocks-midnight.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7fbe3bc2182c24fa1802e336bc860e4d",
+        "norm_len": 2629,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql, 1075-work-blocks-midnight.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1075-work-blocks-midnight.sql."
     },
     {
       "sig": "hr_work_job_note()",
@@ -22603,19 +22644,21 @@
       "sig": "hr_work_state(p_user uuid, p_slot integer)",
       "name": "hr_work_state",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1059-company-trades.sql"
+        "1059-company-trades.sql",
+        "1075-work-blocks-midnight.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "6f82abf19068fcb1b5e980663bd9435e",
-        "norm_len": 882,
+        "md5": "e822d0b27c99e1ed46914beb945daf39",
+        "norm_len": 1412,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql, 1075-work-blocks-midnight.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1075-work-blocks-midnight.sql."
     },
     {
       "sig": "hr_world_finds_of(p_limit integer)",

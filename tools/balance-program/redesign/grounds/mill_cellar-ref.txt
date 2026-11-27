@@ -1,15 +1,15 @@
 
-V1 on mill_cellar (4 seeds x 4 h, held step read from hour 1; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
-levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady"}} readyPm 800
-held = the time-weighted step while all four hunt (to the first death), from hour 1; fourH = those hours a seed
+V1 on mill_cellar (4 seeds x 10 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady        55.2 +- 2.4      7.2  97.8   100    4.9      0     0.7     69.3      0     0  0 (0/0/0)                       3  {"hold":975,"climb":129}
+base:steady        60.9 +- 5.3      3.1  98.9   100      3    0.1     1.2     67.9      0     0  0 (0/0/0)                       6  {"hold":2496,"climb":214,"fall":4}
 
-pay from a held start (hour 1 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        0.93x  sd 0.02  n 4  window 3 h  seeds 0.91 0.93 0.95 0.91
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.91x  sd 0.01  n 4  window 6 h  seeds 0.92 0.93 0.92 0.89
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L3  coin 12681 +- 109  income 13031 +- 100  store 4164  kit share 0.32 (meal 52, drink 2646, charge 712, shot 754)  loot by band: common 325, uncommon 10, scarce 16, other 0  n 4
+  base:steady       L3  coin 13093 +- 213  income 13478 +- 216  store 4206  kit share 0.31 (meal 63, drink 2675, charge 714, shot 754)  loot by band: common 360, uncommon 11, scarce 13, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -17,12 +17,12 @@ the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), 
   base:steady       hammer 0.934  bow 0.063  mage 0  healer 0.003
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 3.28 land 70.85% hit 7.5 (6161/h) | bow dps 3.93 land 72.25% hit 3.58 (869.75/h) | mage dps 4.93 land null% hit null (0/h) | healer dps 2.7 land 100% hit 21.72 (8/h)
-                    rat(swarm) 374.5/h 23.1 s 92 | slime(brute) 97.5/h 31.4 s 126 | hive_wasp(stalker) 68.8/h 49.5 s 42
-                    broke off by: 
+  base:steady       hammer dps 3.31 land 70.93% hit 7.63 (6206.25/h) | bow dps 3.93 land 70.4% hit 3.61 (881.75/h) | mage dps 4.93 land null% hit null (0/h) | healer dps 2.69 land 100% hit 21.47 (8/h)
+                    rat(swarm) 369.6/h 23.5 s 94 | slime(brute) 98.4/h 32.5 s 132 | hive_wasp(stalker) 67.7/h 50.2 s 43
+                    broke off by: fall:slime@0 3, fall:rat@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 0.6 (depth 10)  free 100  spell 850  food 50  taken 18.91 pm/s
+  base:steady       abs 0.8 (depth 14)  free 96  spell 845  food 58  taken 19.37 pm/s
 
-wall 19 s
+wall 68 s

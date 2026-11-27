@@ -721,11 +721,21 @@ const CASES = {
      lowBy ride the world) and at odd instants, the events are the same, and each cut's analyzer reports, folded window by window
      (report.js addReport), hold the same falls and deepest step, each hero the company's. */
   falls(M) {
-    const plan = { risk: 'bold', danger: 700 };
+    /* THE DEPTH THAT SHOWS BOTH (lane/refhero-recut, 2026-11-27): which step a two-hero Bold party both falls back from and dies at moves
+       with the monster rows (the clock's REF_HERO moved every formula monster's aim: at 700 it now dies with no fall first), so the plan is
+       the first of these steps whose uncut run shows a fall and a death, and every check below reads that plan */
     const span = 2 * 60000;
-    const cuts = [[], Array.from({ length: span / 2000 }, (_, i) => T0 + (i + 1) * 2000), [T0 + 9300, T0 + 11650, T0 + 20000, T0 + 41700, T0 + 63000]];
-    const runs = cuts.map((c) => play(M, plan, span, c));
     const causes = (r) => r.danger.filter((e) => e.why === 'fall' || e.why === 'death');
+    const both = (r) => causes(r).some((e) => e.why === 'fall') && causes(r).some((e) => e.why === 'death');
+    let plan = null, uncut = null;
+    for (const danger of [700, 650, 750, 600, 800]) {
+      const p = { risk: 'bold', danger }, r = play(M, p, span, []);
+      if (!uncut) uncut = r;
+      if (both(r)) { plan = p; uncut = r; break; }
+    }
+    plan = plan || { risk: 'bold', danger: 700 };
+    const cuts = [[], Array.from({ length: span / 2000 }, (_, i) => T0 + (i + 1) * 2000), [T0 + 9300, T0 + 11650, T0 + 20000, T0 + 41700, T0 + 63000]];
+    const runs = [uncut, ...cuts.slice(1).map((c) => play(M, plan, span, c))];
     const one = causes(runs[0]);
     if (!one.some((e) => e.why === 'fall') || !one.some((e) => e.why === 'death')) return 'CONTROL: the deep Bold party ' + JSON.stringify(one.map((e) => e.why)) + ', not a fall back and a death';
     for (const e of one) {
@@ -883,13 +893,15 @@ const MUTANTS = [
   { name: 'the dial goes past the top', case: 'top', edits: [['src/core/hunt/danger.js', '  const s = stepOn(ground, step);', '  const s = clampStep(step);']] },
   { name: 'the top holds a ground off the scale', case: 'top', edits: [['src/core/hunt/danger.js', 'row && Number.isInteger(row.topStep) ? row.topStep : DANGER.stepMax', 'row && Number.isInteger(row.topStep) ? row.topStep : 710']] },
   { name: 'a start past the top opens past it', case: 'top', edits: [['src/core/combat-sim.js', '          if (plan) openDanger(world, plan.risk, tier.step);', '          if (plan) openDanger(world, plan.risk, plan.step);']] },
-  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700,", "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 650,"],
+  { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690,", "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 640,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
+  /* (lane/refhero-recut, 2026-11-27) a ladder piece's item Level rides its step since 8.3 (items.js ITEM_LEVELS), so the stamp is the one
+     door only for a ground's own one-off piece (`pieces`: the Thicket's Grayjaw's Ruff, no step). The plant voids the stamp there and in the
+     Ruff's generated row, which the generator wrote from it (the old plant, a mithril body's row, read its step and passed). "The wings
+     drop the ladder tier" retired with its subject: the wings drop their tier's base alone and stamp nothing (12-targets 8.6.1) */
   { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };', 'void SCALE_ITEM_LEVELS;'],
-    /* every piece's item Level also rides its generated stat row (lane/gear-catalogue-steps): a drop that kept its reqLv kept it there too */
-    ['src/data/gear-stats.generated.js', '"mithril_platebody": f({', '"mithril_platebody": f({ iL: 45 }), "mithril_platebody~shipped": f({']] },
-  { name: 'the wings drop the ladder tier', case: 'ilevel', edits: [['src/data/danger.js', "    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);", '']] },
+    ['src/data/gear-stats.generated.js', '"grayjaws_ruff": f({ iL: 0 }),', '"grayjaws_ruff": f({}),']] },
   { name: 'the power step reads reqLv over iL', case: 'ilevel', edits: [['src/core/hunt/danger.js', 'Number.isInteger(it.iL) ? it.iL : it.reqLv', 'it.reqLv']] },
   { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/hunt/play-rows.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },
   { name: 'a ground\'s rows go first', case: 'drops', edits: [['src/core/hunt/play-rows.js', "drops: (out[id].drops || []).concat(g.drops)", "drops: g.drops.concat(out[id].drops || [])"]] },

@@ -509,6 +509,12 @@ async function checks(overrides, shots, opts) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
         e.inventory = Object.assign({}, e.inventory, { bones: 23 });
+        /* Services as the server sends it (1071's time_blocks.hunt with its rule, the one Blessing, stamina's ms / max_ms): the shared
+           fixture has none of them, so the tab drew its loading lines, and with the label sweep's shorter lines it stopped scrolling
+           at this size (the CONTROL went red on set/v0.2.144, run 45974870746). Measured: 418 px of content in a 263 px body. */
+        e.stamina = { ms: 27780000, max_ms: 36000000, at: new Date().toISOString(), hunting: false };
+        e.time_blocks ={ hunt: { kind: 'hunt', available: true, why: null, ms: 27780000, max_ms: 36000000, ceiling_ms: 43200000, block_ms: 7200000, price: 1400, n: 1, bought: 0, per_day: 2, level: 10, auto: null } };
+        e.blessings = { held: [], permille: 0, free_until: 30, tiers: [{ tier: 1, permille: 500, price: 0, held: false }] };
       };
       /* The press takes a real click at its middle: nothing lies on it, and it is inside the column's view. */
       const takes = (page, sel) => page.evaluate((q) => {

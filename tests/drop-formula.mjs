@@ -25,13 +25,15 @@
 //   DF-6  DARK: GEAR_STEPS.traitsLive is false and no src or server file but the roller and its two engine readers names `traitDrops`
 //         (nothing hands the settle a roll); a made piece (drop-hours.js made, data until the bench verb) is a cape or a jewel, a slot no
 //         scale ground drops, named by a part a scale ground does drop
+//   DF-7  NO RARE ON A BODY UNDER ITS GROUND'S TIER (12-targets 8.6.1): every Trait base a scale ground offers is its tier's piece or a later
+//         tier's (the wings' Hearth Chest hats and boots were key-tier bodies stamped 160)
 //
-//   node tests/drop-formula.mjs            the guard and every planted mutant (each caught by its case)
+//   node tests/drop-formula.mjs           the guard and every planted mutant (each caught by its case)
 //
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js, src/data/items.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -256,12 +258,18 @@ const CASES = {
     const ground = groundRow({ id: 'muster_barrows', drops: ['rune_sword', 'runebound_shield', 'rune_platebody', 'rune_belt'].map((id) => ({ id, ch: 0, band: 'scarce' })) });
     const grid = gridOf(M);
     const SPAN = 12 * 60000;
+    /* A HEARTHFIND ON EVERY KILL'S STREAM AFTER THE ROLL (lane/refhero-recut, 2026-11-27): the kill's own stream draws last for the Hearthfind
+       (hunt-rewards.js payKill), so a roll that drew on it would move every find after it. With no Hearthfind row on the ground's monsters
+       nothing drew after the roll, and a roll on the kill's stream (the mutant) played the identical hunt once the clock's REF_HERO moved
+       Muster's kills. Each find is an item the run reads. */
+    const HF = Object.fromEntries(Object.keys(M.MONSTERS).map((id) => ['monster:' + id, { item: 'df5_find', kind: 'monster', id, oneIn: 2 }]));
     const run = (cuts, roll, forget) => {
       const items = { a: {}, b: {} };
-      const fx = (k) => ({ addItem: (id, q) => { items[k][id] = (items[k][id] || 0) + q; } });
+      const fx = (k) => ({ addItem: (id, q) => { items[k][id] = (items[k][id] || 0) + q; },
+        onHearthfind: (f) => { items[k]['find:' + f.id] = (items[k]['find:' + f.id] || 0) + 1; } });
       const ms = ['a', 'b'].map((k, i) => member(M, k, { seat: i, maxHp: 4000, hp: 4000, maxHit: 400, fx: fx(k) }));
       for (const m of ms) m.hero = { ...m.hero, risk: 'steady', danger: M.D.DANGER_GROUNDS.muster_barrows.refStep };
-      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('df5', 3, d, i), monsters: M.MONSTERS, ground, grid };
+      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('df5', 3, d, i), monsters: M.MONSTERS, ground, grid, hearthfind: HF };
       const edges = [T0, ...cuts, T0 + SPAN];
       let w = null, next = T0, tr = roll ? { luckPm: { a: 0, b: 300 }, pity: {}, found: [], hours: { rare: 0.01, very_rare: 0.04 } } : null;
       const events = [];
@@ -282,6 +290,7 @@ const CASES = {
     const forgot = run(Array.from({ length: SPAN / 10000 - 1 }, (_, i) => T0 + (i + 1) * 10000), true, true);
     if (one.found.length < 3) return 'CONTROL: ' + one.found.length + ' pieces found in twelve minutes on fast hours';
     if (new Set(one.found.map((p) => p.key)).size < 2) return 'CONTROL: only one hero found anything';
+    if (!one.rest.includes('"find:')) return 'CONTROL: no Hearthfind landed, so nothing drew on the kill\'s stream after the roll';
     const f = JSON.stringify(one.found);
     if (JSON.stringify(tens.found) !== f) return 'the pieces moved with 10 s windows';
     if (JSON.stringify(odd.found) !== f) return 'the pieces moved with odd cuts';
@@ -291,6 +300,27 @@ const CASES = {
     /* (lane/t1-traits-drop) the kill that made it: the dead monster's unit, never the hero's, and no hero lands one kill twice */
     if (one.found.some((p) => !Number.isInteger(p.kill) || p.kill === p.unit || typeof p.base !== 'string' || !Number.isInteger(p.step))) return 'a piece without its kill, base or step';
     if (new Set(one.found.map((p) => p.key + ':' + p.atMs + ':' + p.kill)).size !== one.found.length) return 'one kill made two pieces for one hero';
+    return null;
+  },
+  /* DF-7 NO RARE ON A BODY UNDER ITS GROUND'S TIER (the designer, 12-targets 8.6.1, built by lane/refhero-recut): every base a scale ground
+     offers a Trait piece (drop-rate.js traitBasesOf, the server's hr_piece_bases) carries the numbers of the ground's tier or a later one.
+     The Catacomb wings stamped the 24 Hearth Chest helmets and boots at item Level 160 on their key tiers' bodies (defense 2 to 50), so a wing
+     Rare could land on a bronze-tier hat; each wing drops its tier's base alone now (catacomb-wings.js, base-drops.js). */
+  'DF-7'(M) {
+    let read = 0;
+    for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      if (!g) continue;
+      const tier = row.gearLevel / M.GS.GEAR_STEPS.tierSteps + 1;
+      for (const [slot, ids] of Object.entries(M.DR.traitBasesOf(g, M.GS.GEAR_STEPS.traitSlots, row.gearLevel, M.MONSTERS, M.ITEMS))) {
+        for (const id of ids) {
+          read += 1;
+          const it = M.ITEMS[id];
+          if (!it || !(it.tier >= tier)) return gid + ' offers ' + id + ' (tier ' + (it && it.tier) + ') as a ' + slot + ' base, under its tier ' + tier;
+        }
+      }
+    }
+    if (read < 200) return 'CONTROL: only ' + read + ' Trait bases read';
     return null;
   },
   'DF-6'(M) {
@@ -347,6 +377,13 @@ const CASES = {
 };
 
 const MUTANTS = [
+  /* both halves of the old state: the wing's drop row, and the chest pieces carried at the wing's item Level (the stamp did it; the plant
+     gives them the Wolfram step so items.js ITEM_LEVELS writes 160). A row alone is no base: traitBasesOf takes the ground's item Level only */
+  { name: 'a wing drops a Hearth Chest hat again (a bronze-tier body at item Level 160)', case: 'DF-7', edits: [['src/data/catacomb-wings.js',
+    '  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n',
+    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"],
+    ['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };',
+      'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };\nfor (const [id, it] of Object.entries(ITEMS)) if (it && it.catacombTier) ITEMS[id] = { ...it, step: 8 };']] },
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */

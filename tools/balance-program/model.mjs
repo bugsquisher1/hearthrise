@@ -234,6 +234,11 @@ export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
      (K1 there: Level XP 1,201.9k -> 378.9k, kills 1,503 -> 569) */
   Object.freeze({ why: 'the tier rows retired: a recorded Deadly four plays the ground as built (lane/retire-tier-chain)',
     mult: Object.freeze({ levelXp: 0.313, kills: 0.376, income: 0.389, store: 0.072 }) }),
+  /* every band re-cut on the clock's REF_HERO (lane/refhero-recut, 2026-11-27): MEASURED on the two recorded Deadly fours' replay (tests/
+     balance-calibration.mjs DECLARED_SHIFTS (7), calibration-shift.mjs, 2 h x 2 seeds, origin/set/v0.2.144 at 414ccd436 against the lane): Level
+     XP x1.000, kills x1.000, coin x1.003, store x0.925. Not re-measured on K1's own cell */
+  Object.freeze({ why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ levelXp: 1, kills: 1, income: 1.003, store: 0.925 }) }),
 ]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */

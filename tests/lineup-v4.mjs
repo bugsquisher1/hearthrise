@@ -21,7 +21,7 @@
 //
 //   node tests/lineup-v4.mjs           the guard (about 20 s on 8 workers)
 //   node tests/lineup-v4.mjs --mutate  planted readings, and one engine mutant: the one-style four 40 Levels over the mixed one must win
-// ci-step: client-guards-2 | Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
+// ci-step: client-guards-6 | Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
 // ci-run: node tests/lineup-v4.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate
 // mutant-anchors: none — every mutant is a planted reading or an engine cell played in memory, never a file

@@ -145,6 +145,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_time_buy: 'buy the next 2 h block of bought time at the quoted price: `hunt` (stamina, two a day) or `work` (town work today, four a day, refused day_ending); the server counts the day\'s blocks and prices x1.5 each (CharacterSession.buyTime; 1058-hunting-blocks.sql, 1071-work-blocks.sql)',
   hr_time_auto_set: 'a SETTING: the hero\'s standing rule, buy up to N blocks of a kind a UTC day (0 = off, the default); the server\'s sweep buys them (time-intents.js setTimeRule; 1071-work-blocks.sql)',
   hr_time_offer_answer: 'a SETTING: the account\'s one answer to the block-rule card; a choice sets every hero\'s rule, 0 is Not now (time-intents.js answerTimeOffer; 1071-work-blocks.sql)',
+  /* THE KIT TRADES' JOBS (1073-k1-job-slice.sql; src/session/trade-intents.js), dark until `trade_jobs`: the recipe and count the server quoted, its fee echoed */
+  hr_trade_job_start: 'MONEY: start a kit-trade job, a catalogue recipe for the count the server quoted (a work day at most), the fee checked; the inputs and the fee leave at the start (trade-intents.js startTradeJob)',
+  hr_trade_job_end: 'MONEY: collect a finished kit-trade job (not_due until the server\'s clock says so) or stop one now; the goods from the server\'s seed (trade-intents.js endTradeJob)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',

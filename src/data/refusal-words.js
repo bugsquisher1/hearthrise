@@ -55,6 +55,25 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Dispatch loot works in town',
     storage_full: 'Storage full, nothing stored',
   }),
+  /* A kit-trade job (1073-k1-job-slice.sql hr_trade_job_start / hr_trade_job_end): the server's own reasons, in its order. */
+  trade_job: Object.freeze({
+    not_open: 'Jobs are not open yet',
+    bad_recipe: 'Not a job you can run',
+    bad_count: 'Pick how many first',
+    bad_quote: 'Price unknown, try again',
+    busy: 'This hero is busy',
+    rung_locked: 'Trade Level too low',
+    band_locked: 'Hunt a ground of this metal first',
+    work_cap: 'No town work left today · Resets 00:00 UTC',
+    count_cap: 'More than one work day',
+    quote_changed: 'Price changed, check it again',
+    short_inputs: 'Not enough materials',
+  }),
+  trade_job_end: Object.freeze({
+    not_open: 'Jobs are not open yet',
+    no_job: 'No job running',
+    not_due: 'Not done yet',
+  }),
   /* Many stacks in one press (2027-04-13-bank-move-many.sql): all of them went, or none did. */
   bank_move_many: Object.freeze({
     hunt_open: 'Storage is in town, nothing moved',
@@ -381,6 +400,9 @@ export const REFUSAL_WORDS = Object.freeze({
   offer_closed: 'Not offered yet',
   /* Town work (1059-company-trades.sql hr_apply): the hero's town work for the day is used up (Tyler 2026-11-22 CR-Q3 b). */
   work_cap: 'No town work left today · Resets 00:00 UTC',
+  /* a kit-trade job (1073-k1-job-slice.sql): more attempts than one work day, and materials short across the bag and Storage */
+  count_cap: 'More than one work day',
+  short_inputs: 'Not enough materials',
   already_blessed: 'Already blessed',
   needs_previous: 'Buy the previous Blessing first',
   unknown_tier: 'No such Blessing',

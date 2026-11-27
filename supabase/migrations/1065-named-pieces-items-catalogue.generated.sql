@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3
---   rows: 750 items (27 untradeable) ·
+--   catalogue digest: 0867b77cedf923ac9852d522ee0ba2cbc638cab9af8269876744363f8e1c1244
+--   rows: 757 items (27 untradeable) ·
 --         464 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
@@ -264,6 +264,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bonesetters_staff','Bonesetter''s Staff',true,'weapon',130,'level',10,null,false,null,true),
   ('bramble_blade','Bramble Blade',true,'weapon',130,'level',10,null,false,null,false),
   ('briar_burr','Briar Burr',true,null,20,null,null,null,false,null,false),
+  ('bronze_arrowheads','Bronze Arrowheads',true,null,20,null,null,null,false,null,false),
   ('bronze_arrows','Bronze Arrows',true,'ammo',0,'ranged',1,null,false,null,false),
   ('bronze_axe','Bronze Axe',true,'tool',60,null,null,null,false,null,false),
   ('bronze_bar','Bronze Bar',true,null,25,null,null,null,false,null,false),
@@ -381,6 +382,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_ring','Dawnsteel Ring',true,'jewelry',72000,'level',110,null,false,null,false),
   ('dawn_shield','Dawnsteel Shield',true,'offhand',27000,'level',110,null,false,null,false),
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'level',110,null,false,null,false),
+  ('dawn_temper_salts','Dawnsteel Tempering Salts',true,null,230,null,null,null,false,null,false),
   ('dawn_warhammer','Dawnsteel Warhammer',true,'weapon',39600,'level',110,null,false,null,true),
   ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',100,'melee',168,null,false,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'level',86,null,false,null,false),
@@ -535,6 +537,11 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('houndskin_cloak','Houndskin Cloak',true,'armor',310,'level',22,null,false,null,false),
   ('hunter_necklace','Hunter Necklace',true,'jewelry',180,'level',1,null,false,null,false),
   ('ice_cutters_boots','Ice-Cutter''s Boots',true,'armor',28800,'level',150,null,false,'heavy',false),
+  ('imbue_brute_edge','Brute Edge',true,null,2140,null,null,null,false,null,false),
+  ('imbue_fire_edge','Fire Edge',true,null,2180,null,null,null,false,null,false),
+  ('imbue_fire_ward','Fire Ward',true,null,504,null,null,null,false,null,false),
+  ('imbue_life_leech','Life Leech',true,null,524,null,null,null,false,null,false),
+  ('imbue_mana_leech','Mana Leech',true,null,604,null,null,null,false,null,false),
   ('iron_arrows','Iron Arrows',true,'ammo',1,'ranged',1,null,false,null,false),
   ('iron_axe','Iron Axe',true,'tool',125,null,null,null,false,null,false),
   ('iron_bar','Iron Bar',true,null,30,null,null,null,false,null,false),
@@ -1897,7 +1904,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3', now())
+  values (true, '0867b77cedf923ac9852d522ee0ba2cbc638cab9af8269876744363f8e1c1244', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1925,11 +1932,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 750 then raise exception 'hr_items has % rows, generator emitted 750', v_n; end if;
+  if v_n <> 757 then raise exception 'hr_items has % rows, generator emitted 757', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'f912445c7bd66e3b82b1ebe27289dbac' then
-    raise exception 'hr_items names differ from src/data (expected digest f912445c7bd66e3b82b1ebe27289dbac)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '3659314f0fb31037d3279236b24749fa' then
+    raise exception 'hr_items names differ from src/data (expected digest 3659314f0fb31037d3279236b24749fa)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2127,7 +2134,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d999686d84efd17e92803b3aa6520a3dbf95c5b5400971d65f6c0d0467b442e3',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 0867b77cedf923ac9852d522ee0ba2cbc638cab9af8269876744363f8e1c1244',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

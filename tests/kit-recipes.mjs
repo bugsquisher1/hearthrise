@@ -7,7 +7,7 @@
 //   node tests/kit-recipes.mjs            the guard (pure, Node)
 //   node tests/kit-recipes.mjs --mutate   every planted defect must turn its named arm red (each on a temp copy of src/)
 //
-// mutant-anchors: src/core/trades.js src/data/trades.js
+// mutant-anchors: src/core/trades.js src/data/trades.js src/data/job-faces.js
 //   (the mutants patch a temp copy of src/; no tracked file is patched)
 // ci-step: economy-selftests | Kit trades sample - one recipe a trade at band 0, rung by band, every face sourced and used, the store the fallback
 // ci-run: node tests/kit-recipes.mjs
@@ -127,7 +127,9 @@ const ARMS = {
       if (!used.has(f) && !((live(f) || KR.NEW_FACES[f]) && has(uses, f))) out.push(`KR-SOURCE ${id}: output ${f} is used by no row and has no use`);
     }
     for (const id of Object.keys(KR.NEW_FACES)) {
-      if (ITEMS[id]) out.push(`KR-SOURCE new face ${id} is an ITEMS row before its door exists`);
+      /* the job slice (lane/k1-job-slice) is the door: a new face is an item exactly when its trade makes it (catalogue-coherence's
+         'made by <trade>', the hr_trade_job_start door), never before (W0) */
+      if (ITEMS[id] && !(sources.get(id) || []).some((l) => /^made by /.test(l))) out.push(`KR-SOURCE new face ${id} is an ITEMS row before its door exists`);
       if (!made.has(id) || !(used.has(id) || has(uses, id))) out.push(`KR-SOURCE new face ${id} is not made by a row and used by a row or a declared use`);
     }
     for (const f of made.keys()) if (f && !live(f) && !KR.NEW_FACES[f]) out.push(`KR-SOURCE ${f} is neither a live item nor a new face`);
@@ -200,7 +202,7 @@ const MUTANTS = [
   ['a band ignores the kind\'s own rung', 'KR-RUNG', 'src/core/trades.js', 'Math.max(kind.opens, Math.min(', 'Math.max(1, Math.min('],
   ['a band past the ladder opens past the last rung', 'KR-RUNG', 'src/core/trades.js', 'Math.min(TRADE_PM.rungCount, Math.max(0,', 'Math.min(99, Math.max(0,'],
   ['an input face with no door', 'KR-SOURCE', 'src/data/trades.js', "shaft: Object.freeze(['normal_plank'])", "shaft: Object.freeze(['normal_shaft'])"],
-  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/trades.js', "remains: Object.freeze(['bones'])", "remains: Object.freeze(['cellar_dust'])"],
+  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/job-faces.js', "remains: Object.freeze(['bones', null", "remains: Object.freeze(['cellar_dust', null"],
   ['the store sells at the hero\'s own band', 'KR-STORE', 'src/core/trades.js', 'bandStep(bandOf(heroStep)) - TRADE_PM.storeLag', 'bandStep(bandOf(heroStep))'],
   ['the store sells at the crafted price', 'KR-STORE', 'src/core/trades.js',
     'BigInt(TRADE_PM.storeCeiling) * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n',

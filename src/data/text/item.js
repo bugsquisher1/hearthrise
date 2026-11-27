@@ -105,6 +105,8 @@ export const ITEM_TEXT = Object.freeze({
      "1 Bones" (live v0.2.135). One row per countable stack whose name is plural. A pair (Iron Boots) and a mass (Tempering
      Salts, Coal Tongs) keep their name, so they have none. tests/alpha-windows.mjs TK-8b asks every other plural stack for its row. */
   one_bones: 'Bone',
+  /* the job slice's part (lane/k1-job-slice): one head of an arrow */
+  one_bronze_arrowheads: 'Bronze Arrowhead',
   one_big_bones: 'Big Bone',
   one_dragon_bones: 'Dragon Bone',
   one_bone_chips: 'Bone Chip',

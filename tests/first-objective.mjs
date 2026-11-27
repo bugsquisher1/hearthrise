@@ -10,11 +10,13 @@
 //   FO-2  the control the card rings is on screen, and its box does not touch Chat's box
 //   FO-3  the card's ring is a screen control (an icon, a menu line or a control in a window), never the World behind the windows
 //   FO-4  pressed, the ringed control opens its window; the card and the control it rings there stay clear of Chat
+//   FO-5  the server's block offer (time-offer-card.js) in the coach's box at 1440x900, 1280x720 and 922x423 touch: on screen, clear of
+//         Chat, its three answers on one line inside the card (a thumb's height on the phone), and no ring on a tip's control
 //
 //   node tests/first-objective.mjs            the guard
 //   node tests/first-objective.mjs --mutate   each planted defect must turn its own line red
 //
-// mutant-anchors: src/styles/shell.css src/data/shell-windows.js
+// mutant-anchors: src/styles/shell.css src/data/shell-windows.js src/shell/launcher-coach.js
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
@@ -110,18 +112,76 @@ export async function check(size, overrides) {
   return fails;
 }
 
+/* FO-5: THE BLOCK OFFER IN THE COACH'S BOX (src/shell/time-offer-card.js; lane/roads-polish 2026-11-26). The server's offer in the envelope
+   (time_blocks.offer and the hunting block's quote, 1071 hr_time_offer_of): the card on screen and clear of Chat, its three answers
+   (both choices and Not now) on ONE line inside the card ("Not now" wrapped to a line of its own at the tips' 260 px), and no gold ring
+   on a tip's control while it stands (launcher-coach.js offerOwnsCoach). On the phone (touch) each answer a thumb's height. */
+export const OFFER_SIZES = Object.freeze([{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 922, height: 423, touch: true }]);
+const OFFER = { offer: { kind: 'hunt', choices: [1, 2], threshold: 1000 }, hunt: { available: true, price: 53404, block_ms: 7200000, bought: 0, per_day: 2 } };
+export async function checkOffer(size, overrides) {
+  const fails = [];
+  const served = {};
+  for (const [rel, fn] of Object.entries(overrides || {})) served[rel] = fn(await readFile(join(ROOT, rel), 'utf8'));
+  const { server, port } = await serve(served);
+  const browser = await leaseBrowser(chromium);
+  const ctx = await browser.newContext({ viewport: { width: size.width, height: size.height }, hasTouch: !!size.touch, isMobile: !!size.touch });
+  const tag = 'FO-5 [' + size.width + 'x' + size.height + ']';
+  try {
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(20000);
+    const env = clone(BASE_ENV); fresh(env);
+    env.time_blocks = Object.assign({}, env.time_blocks || {}, clone(OFFER));
+    const s = { env, version: 1, residue: {} };
+    await stub(page, s);
+    await page.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load', timeout: 45000 });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await page.click('[data-app="play"][data-slot="0"]');
+    if (!(await wait(page, () => document.querySelector('.hs-pointer.is-offer')))) { fails.push(tag + ' CONTROL: the offer card never came up'); return fails; }
+    await page.waitForTimeout(600);
+    const o = await page.evaluate(() => {
+      const box = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, h: r.height }; };
+      const card = document.querySelector('.hs-pointer.is-offer'), chat = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
+      return { card: box(card), chat: chat ? box(chat) : null, answers: [...card.querySelectorAll('.hs-coach-answers > button')].map((b) => ({ ...box(b), w: b.textContent })),
+        rings: [...document.querySelectorAll('[data-coach-ring]')].filter((e) => e.getClientRects().length).map((e) => e.getAttribute('data-hs-open') || e.className),
+        vw: innerWidth, vh: innerHeight };
+    });
+    const c = o.card;
+    if (c.l < 0 || c.t < 0 || c.r > o.vw || c.b > o.vh) fails.push(tag + ' the offer card leaves the screen: ' + JSON.stringify(c));
+    if (o.chat && touch(c, o.chat)) fails.push(tag + ' the offer card touches Chat');
+    if (o.answers.length !== 3) fails.push(tag + ' the card shows ' + o.answers.length + ' answers, not the server\'s two and Not now');
+    const tops = new Set(o.answers.map((a) => Math.round(a.t)));
+    if (tops.size !== 1) fails.push(tag + ' the answers stand on ' + tops.size + ' lines: ' + o.answers.map((a) => a.w + '@' + Math.round(a.t) + ' ' + Math.round(a.r - a.l) + ' px').join(', ') + ' in a card ' + Math.round(c.r - c.l) + ' px');
+    if (o.answers.some((a) => a.l < c.l || a.r > c.r)) fails.push(tag + ' an answer runs out of the card: ' + JSON.stringify(o.answers));
+    if (size.touch && o.answers.some((a) => a.h < 40)) fails.push(tag + ' an answer is under a thumb\'s height: ' + o.answers.map((a) => a.w + ' ' + Math.round(a.h)).join(', '));
+    if (o.rings.length) fails.push(tag + ' a tip\'s control is ringed while the offer stands: ' + o.rings.join(', '));
+  } finally { await ctx.close(); server.close(); }
+  return fails;
+}
+
 /* Each mutant is served over the page's own copy, never written to the tree. */
 const MUTANTS = [
   /* Chat's home moved under the icon row, where the card docks (the icon row itself, and so the ring on Hunts, stays clear) */
   ['Chat opens where the card docks (FO-1)', { 'src/styles/shell.css': (css) => css + '\n[data-hs-win="chat"] { left: auto !important; right: 0 !important; top: 58px !important; bottom: auto !important; }\n' }, 'FO-1'],
   ['Chat opens over the icon row (FO-2)', { 'src/styles/shell.css': (css) => css + '\n[data-hs-win="chat"] { left: auto !important; right: 0 !important; top: 0 !important; bottom: auto !important; }\n' }, 'FO-'],
+  /* lane/roads-polish: the offer card at a tip's width again, and the tip's ring left on while the offer owns the box */
+  ['the offer card at a tip\'s 260 px (FO-5)', { 'src/styles/shell.css': (css) => swapOnce(css, '.hs-pointer.is-offer:not(.is-min) { width: 400px; }', '.hs-pointer.is-offer:not(.is-min) { width: 260px; }') }, 'FO-5', OFFER_SIZES[0]],
+  ['the tip\'s ring stays while the offer stands (FO-5)', { 'src/shell/launcher-coach.js': (js) => swapOnce(js, '  return !!cs && !!offerShown(cs) && !coachCovered(wm);', '  return false;') }, 'FO-5', OFFER_SIZES[0]],
 ];
+/* a mutant's one swap: its anchor must stand exactly once, or the mutant is a harness fault (never a silent no-op) */
+function swapOnce(text, from, to) {
+  if (text.split(from).length !== 2) throw new Error('mutant anchor not found exactly once: ' + from);
+  return text.replace(from, () => to);
+}
 
 async function main() {
   if (process.argv.includes('--mutate')) {
     let missed = 0;
-    for (const [name, overrides, expect] of MUTANTS) {
-      const fails = await check(SIZES[0], overrides);
+    for (const [name, overrides, expect, offerSize] of MUTANTS) {
+      const fails = offerSize ? await checkOffer(offerSize, overrides) : await check(SIZES[0], overrides);
       const caught = fails.some((f) => f.startsWith(expect));
       console.log((caught ? '  ✓ ' : '  ✗ MISSED ') + name + (caught ? '' : ' (' + fails.join(' | ') + ')'));
       if (!caught) missed++;
@@ -131,8 +191,9 @@ async function main() {
   }
   const fails = [];
   for (const size of SIZES) fails.push(...await check(size));
+  for (const size of OFFER_SIZES) fails.push(...await checkOffer(size));
   for (const f of fails) console.log('  ✗ ' + f);
-  console.log(fails.length ? 'first-objective: RED, ' + fails.length + ' finding(s)' : 'first-objective: the card and the control it rings stand clear of Chat at 1280x720 and 1920x1080');
+  console.log(fails.length ? 'first-objective: RED, ' + fails.length + ' finding(s)' : 'first-objective: the card and the control it rings stand clear of Chat at 1280x720 and 1920x1080; the block offer\'s answers on one line, no ring while it stands');
   process.exit(fails.length ? 1 : 0);
 }
 if (isMain(import.meta.url)) await main();

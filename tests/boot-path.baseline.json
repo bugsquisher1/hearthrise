@@ -86,6 +86,12 @@
         "gzipBytes": 206702,
         "on": "2026-11-27",
         "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207095,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
       }
     ],
     "town": [
@@ -460,6 +466,12 @@
         "gzipBytes": 988390,
         "on": "2026-11-27",
         "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 988966,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
       }
     ]
   }

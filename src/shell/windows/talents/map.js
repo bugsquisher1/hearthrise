@@ -198,7 +198,10 @@ export function paintMap(M, v) {
     const p = at(v.sel), r = MARK_R[NODE_INDEX[v.sel].kind] || 8;
     attr(M.sel, 'transform', 'translate(' + r1(p.x) + ',' + r1(p.y) + ') scale(' + r1((r + 5) / 16) + ')');
     attr(M.sel, 'hidden', null);
-  } else attr(M.sel, 'hidden', '');
+    /* a watermark keeps off the pick's brackets too (placeMarks; the pick moves M.key) */
+    const R = r + 10;
+    M.selBox = [p.x - R, p.y - R, p.x + R, p.y + R];
+  } else { attr(M.sel, 'hidden', ''); M.selBox = null; }
   const target = v.route && v.route.cost > 0 ? v.route.id : null;
   if (target) {
     const p = at(target), r = MARK_R[NODE_INDEX[target].kind] || 8;
@@ -256,6 +259,7 @@ function placeMarks(M, v) {
   const plate = M.tools.box ? [[M.tools.box[0] - tx, M.tools.box[1] - ty, M.tools.box[2] - tx, M.tools.box[3] - ty]] : [];
   /* nor off the route's cost badge (its place moves with the route, which moves M.key and so this pass's key) */
   if (M.badgeBox) plate.push(M.badgeBox);
+  if (M.selBox) plate.push(M.selBox);
   /* nor over any stone Road view draws (a rank stone, a waystone, an open road: the main pass keeps off decision stones only), once a scale */
   if (!M.stones || M.stones.s !== s) {
     M.stones = { s, boxes: TALENT_NODES.filter((n) => !BLOCKS.has(n.kind)).map((n) => { const p = M.L.pos[n.id], r = (MARK_R[n.kind] || 5) + 2; return [p.x * s - r, p.y * s - r, p.x * s + r, p.y * s + r]; }) };

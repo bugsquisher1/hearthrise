@@ -269,8 +269,8 @@ const marksNow = (page) => page.evaluate(({ W }) => {
   if (win.querySelector('svg.rdm').getAttribute('data-tier') !== 'road') return { tier: false, out: [] };
   const shown = [...win.querySelectorAll('[data-rd-label]:not([hidden])')];
   const out = [];
-  /* the other labels, the route's cost badge and Find talent's plate */
-  const others = shown.concat([...win.querySelectorAll('.rdm-badge:not([hidden]), .rdw-tools')]);
+  /* the other labels, the route's cost badge, the pick's brackets and Find talent's plate */
+  const others = shown.concat([...win.querySelectorAll('.rdm-badge:not([hidden]), .rdm-sel:not([hidden]), .rdw-tools')]);
   for (const m of shown.filter((e) => e.classList.contains('rdl-country'))) {
     const a = m.getBoundingClientRect();
     if (a.left < st.left || a.right > st.right || a.top < st.top || a.bottom > st.bottom) out.push(m.textContent + ' cut at the stage\'s edge');

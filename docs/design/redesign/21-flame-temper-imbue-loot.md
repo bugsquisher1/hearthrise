@@ -590,3 +590,28 @@ MEASURED: `node tools/balance-program/redesign/drops/hero-week.mjs --ground <g> 
 - **The first week runs a little over the luck:** +36% luck is +42 to +46% pieces in 70 hours, because pity starts low and a luckier roll fills it faster. Over the long run it is the luck.
 - Not measured: the account-day model (F3, F4: a leveling company losing gold by burning, Flame Level pace) is owed with its model; `fuelRef` is still ASSUMED (F1).
 
+
+## 9. Personal loot in the settle (2026-11-27, backend architect, `lane/p1-personal-loot`; `20` lane P1; STAGED in `1076-personal-loot.sql`, dark)
+
+### 9.1 How it plays
+
+- Every hero that fought a kill rolls its drops itself: it struck at the monster's pull or healed someone in it, and it was alive when the monster fell. What it finds is its own, in its own bag.
+- A party drops what its heroes would apart. Each hero rolls each row at its share of the kill, so four heroes find what one would, split four ways by luck instead of by turns.
+- There is no rare roll and no waiting a turn. A Rare goes to the hero who rolled it, and the drop moment names that hero.
+- A watched hunt and a closed one hand the same finds to the same heroes.
+
+### 9.2 What is built
+
+| Piece | Where | Test |
+|---|---|---|
+| Who takes part: a mark on each hero, set by a blow struck at a monster (landed or missed, or a tick it set) or a heal or shield given a hero, cleared at each pull. A kill's rollers are the living heroes holding a mark, or every living hero when none does | `src/core/hunt/took-part.js` (persisted on the hero unit as `took`), read in order by the rewards walk | `tests/personal-loot-play.mjs` PLP-1, PLP-2 |
+| The roll: each roller rolls the kill's whole table on its own odds (its weakness and drop buff), each row at 1 / (the rollers) of its chance after every multiplier and the cap, a guarantee's too, on its own loot stream (seed domain `l:<unit>`, one a swing, made only when it rolls) | `src/core/hunt-rewards.js` payPersonal, `src/core/drops.js` effectiveDropChance `share`, `src/core/combat-sim.js` lootStreams, `src/core/action-rules.js` SEED_DOMAIN | PLP-2, PLP-3 (12 mutants) |
+| The Trait roll follows the same rollers, one in (how many of them) | `src/core/hunt-rewards.js` payKill | PLP-2 |
+| The rule, frozen per instance when its hunt is made or moves ground, never a caller's value; the read hands it; the edge hands the engine `personalLoot` only when it is true | `hunt_instances.personal_loot`, trigger `hr_hunt_loot_freeze`, `hr_hunt_instance_read` restated whole, `hunt-settle.js`, `accrue-hunt.js` | `tests/personal-loot-db.mjs` PLD-1, the file's §5 |
+| Each seat's bag and journal, both doors | `hr_hunt_apply_member` unchanged: its own delta, its own ledger row, its own item bound | PLD-2 (a closed and a viewed four store one bag and one journal a seat), PLD-3 (a seat past its bound refused `value_over`; 5 mutants) |
+
+Off (the switch as applied), every hunt plays its party roll byte for byte: `tests/hunt-core/engine-parity.mjs` holds every timeline and tally pin, and only the stored world's field list grew (the mark).
+
+### 9.3 Readings
+
+MEASURED, one seed, `tests/personal-loot-play.mjs` PLP-4: a Level 60 four in steel on Muster Barrows on Steady, 10 minutes, 87 kills. Personal loot hands the seats 26 / 42 / 41 / 31 units (140), the party roll 42 / 34 / 35 / 39 (150). Every seat finds something, and the watched cut (twenty 30 s windows) and the closed one (one 10-minute window) store the same bags. The "no flood" verdict is Lab run L1 (section 4.7), still owed: this is one sample, not a rate. The calls the spec left open are CONFLICTS 2026-11-27 personal loot, the designer's to re-rule.

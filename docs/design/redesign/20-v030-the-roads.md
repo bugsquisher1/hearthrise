@@ -26,7 +26,7 @@
 | **The 10 h day and bought hunting blocks** | Yes | BUILT (1058) | 2 blocks a day, ×1.5. Bought work blocks (4 a day) and the standing rule: STAGED (B1: 1071, 1072) |
 | **Wave 2: monster roles and rows** | Yes | BUILT as a sample (Muster, Krell Lookout) | Every monster needs a role. Caster and Warder have no body yet |
 | **Wave 2: depth pay** | Yes | BUILT on Muster | Goes to every ground with R10 |
-| **Wave 2: personal loot** | Yes | DESIGNED (02 package 4) | Per-hero drop rates: NOT DESIGNED |
+| **Wave 2: personal loot** | Yes | BUILT and dark (P1, 2026-11-27: `1076-personal-loot.sql` STAGED, the switch `personal_loot` off; 21 section 9) | Each hero that took part in a kill rolls its own drops at 1 / n of each row, on its own odds and stream. Lab L1 and L2 owed |
 | **Wave 2: plan copying between players** | Yes, as a share code | DESIGNED | Copying between your own heroes is BUILT |
 | **The moves pass** (`23-spell-audit.md`) | Yes, before any road is written past the sample | DESIGNED | The Challenge's condition and the tank's 15% line on Steady, Shelter's condition, Greater Mend's re-size, Undertow and Updraft cut, the Mark and Precision Shot targets. Wave 3 adds Stagger, Parry and Gash |
 | **The Roads** (talent map, rank stones, crossroads, vows, borders, borrowing) | Yes, all seven weapon countries | DESIGNED (17 v3, 19) | Shield, Restoration, Club, Dual Axe laid out, with the moves pass applied. Sword, Ranged, Destruction: NOT DESIGNED at node level. Stagger, Parry and Gash roads open with wave 3 |
@@ -145,7 +145,7 @@ For each step: what the player holds and can reach from earlier steps only, plus
 | 10 | "Outgrown the Mill Cellar", one press for 3 recruits | Hero at Level 5. Recruits at Level 5 (`levelsUnder` 0), jobs from `tank`, `healer`, `ranger`, `club` that the first hero doesn't play. Their Roads points are spent as suggested for their job | `recruits.js RECRUITS` (live, atLevel 5). Path `first_level_5`. 1053 STAGED. Recruits' points: the standing rule, `1069-talent-standing-rule.sql` STAGED (dark behind the Talents switch). The bow recruit's arrows load at creation (`1038` THE SHOT) | Yes once applied |
 | 11 | Pick the Sewer, see the Risk pick | Four heroes at Level 5. Sewer band [5, 25]: Drain Rat, Culvert Bat, Sump Slime, Kobold Tosher, Cistern Spider | `hunts.js millrace_sewer`. `text/hunts.js stance_careful/steady/bold`. The R1 picker is BUILT on Muster. The Sewer on the scale: **NEW (R10)** | After R10 |
 | 12 | Each monster plays a role | Step 11's monsters | `monster-roles.js` (BUILT, sample only). Sewer rows: **NEW (C2)** | After C2 |
-| 13 | Personal loot | Each hero rolls its own drops | **NEW (P1)** | After P1 |
+| 13 | Personal loot | Each hero rolls its own drops | P1 BUILT and dark (`1076-personal-loot.sql` STAGED, 21 section 9) | Once lit |
 | 14 | First fall back, explained | Report `falls[]` with hero, pct, monster | 1057 STAGED, R5 cause line BUILT | Yes once applied |
 | 15 | Rest plan set (10 min in) | The company's trades from R12. Shrimp and Turnip Seed from step 2 | Path `rest_plan` (`event party_hunt_10min`). `1059-company-trades` STAGED. The flag `FB6_REST` (`src/data/company.js`) **is missing**: the row is off today | **Blocked until H1 adds the flag export** |
 | 16 | "Safe to close" (15 min in) | A running hunt | Path `safe_to_close` (always on) | Yes |

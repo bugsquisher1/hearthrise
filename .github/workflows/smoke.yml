@@ -1141,6 +1141,12 @@ jobs:
         run: |
           node tests/kit-recipes.mjs
           node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
+      # tests/personal-loot-play.mjs
+      - name: Personal loot in the engine (who took part, each roller's own roll at ch / n, both paths)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/personal-loot-play.mjs
+          node tools/mutant-gate.mjs node tests/personal-loot-play.mjs --mutate
       # tests/personal-loot.mjs
       - name: Personal loot (ch / n a hero, the flame's luck, per-hero pity at the stated rate)
         if: ${{ !cancelled() }}
@@ -5680,6 +5686,12 @@ jobs:
         run: |
           node tests/flame-settle-db.mjs
           node tools/mutant-gate.mjs node tests/flame-settle-db.mjs --mutate
+      # tests/personal-loot-db.mjs
+      - name: Personal loot - the instance's frozen rule, each seat's own bag both paths, the per-seat bound through the real commit (1076)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/personal-loot-db.mjs
+          node tools/mutant-gate.mjs node tests/personal-loot-db.mjs --mutate
       # tests/piece-verbs-db.mjs
       - name: Trait piece verbs - the wear, the equip doors that never copy a piece, the store sale, both paths (1072)
         if: ${{ !cancelled() }}

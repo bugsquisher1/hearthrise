@@ -583,6 +583,11 @@
         "bytes": 3898399,
         "on": "2026-11-27",
         "why": "lane/work-blocks-midnight (re-run on the merged set after f1-inner-flame): src/core/work-day.js counts each UTC day's own bought work blocks (boughtOn, boughtOf, the section's bought key), so a hero inside yesterday's block at midnight is not stopped"
+      },
+      {
+        "bytes": 3907085,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: personal loot in the engine (+8,686 B): src/core/hunt/took-part.js new (who took part in a kill, persisted on the hero unit), hunt-rewards.js payPersonal and its walk, drops.js effectiveDropChance share, combat-sim.js lootStreams, hunt-settle.js / accrue-hunt.js personalLoot"
       }
     ]
   }

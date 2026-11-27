@@ -28,7 +28,7 @@ import { draftOf, serverBar } from './bar-draft.js';
 import { trackOnce } from '../net/observability.js';
 import { SHELL_WINDOWS } from '../data/shell-windows.js';
 import { partyGroundFor } from './hunt-list.js';
-import { offerCardHtml, actTimeOffer } from './time-offer-card.js';
+import { offerCardHtml, actTimeOffer, offerShown } from './time-offer-card.js';
 
 /**
  * THE TUTORIAL POINTER (Tyler 10-18: "I'm confused right away"). One line under the icon row: the
@@ -50,6 +50,15 @@ export function pointerFor(ctx, hunting) {
   if (offer) return offer;
   const card = heldCard(ctx);
   return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';
+}
+
+/**
+ * Does the block rule's offer own the coach's box (pointerFor draws it there)? Then no ring marks the held tip's control: the ring
+ * belongs to the card on screen, and the offer names no control (visual read 2026-11-26). A window over the box gives the tip back.
+ */
+export function offerOwnsCoach(ctx) {
+  const { character: cs, wm } = ctx;
+  return !!cs && !!offerShown(cs) && !coachCovered(wm);
 }
 
 /** Is a window open that takes the card's place? Every window but the ones the catalogue marks `besideCoach` (Chat). */
@@ -417,7 +426,7 @@ export function actCoach(ctx, el, action, ev) {
 /** The icon the coach rings in the icon row (coachIcon of the held card), once a card rested in a window that has shut lets go. */
 export function rowRing(ctx, open) {
   if (ctx.character && RESTED.has(ctx.character) && !open.has(RESTED.get(ctx.character))) RESTED.delete(ctx.character);
-  return ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
+  return ctx.character && !offerOwnsCoach(ctx) ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
 }
 
 /* The group a window's icon lives in, or null (its icon stands in the row): the ring's way reaches a grouped window through it. */
@@ -519,7 +528,8 @@ export function ringCoach(ctx, card, roots) {
   const cs = ctx.character;
   const tl = cs && tallyOf(cs);
   const bar = barEditOf(cs);
-  const plan = ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, cond0: bar.cond0, weight: tl ? !!tl.weight : null });
+  /* the offer in the coach's box rings nothing (offerOwnsCoach): every ring the held tip set goes */
+  const plan = offerOwnsCoach(ctx) ? [] : ringPlan(card, { open: (id) => ctx.wm.isOpen(id), configuring: bar.configuring, edited: bar.edited, cond0: bar.cond0, weight: tl ? !!tl.weight : null });
   let target = null;
   for (const q of plan) {
     for (const r of roots) { const el = r.querySelector(q); if (el && shown(el)) { target = el; break; } }

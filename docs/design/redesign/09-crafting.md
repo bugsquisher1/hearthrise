@@ -731,6 +731,43 @@ At V the same kit is 0.135 of gross and from the store 0.187. So a 10 h day sits
 
 **Not built (handed on):** the bundle unit in the hunt engine (a kit good opening into its hour of uses, Systems); Fine and Master goods spent by the hunt and by `hr_imbue_apply` (they wait in `company_stock`); the stock rules and the planned day (3.4); the standing work-block rule buying for a job (its sweep reads the pointer); Mastery, the bench bonus and tools (the roller takes them, nothing passes them yet).
 
+### 4.11 One town work: the job slice's six calls, ruled (2026-11-27, game designer, lane/designer-calls-1127)
+
+**How it plays:** your company has one list of trades, and each trade has one Level. A resting hero opens the Work window, picks a recipe and works it for the day. That is the only town work in the game. Every company starts every trade at Level 1.
+
+**The ruling, one rule a line.**
+
+| # | Call (CONFLICTS 2026-11-26, k1-job-slice) | Ruling | Why |
+|---|---|---|---|
+| 1 | Two XP stores for one trade name | **The job slice is the town work. The live bench is cut in the release that lights `trade_jobs`, and nothing converts.** Cut together: the gather and artisan windows (`hr_activities`' town kinds, `gathering.js` nodes as town work, the `recipes.js` bench), the trade rows of `player_skills`, `company_trades` and its sync trigger (1059), the old curve for trades, and the skills Crafting and Runecrafting. **One store:** `company_trade_xp`, on 4.5's table (seconds of work, 1,000 hours to 99). Every writer of trade XP writes it in seconds of work: a job its worked time (built), a farm harvest one raw unit of work a crop (4.8's raw unit, 252 s). The switch is never lit beside the live bench | One number read on two curves gives two Mining Levels, so one curve has to go, and the redesign's is 4.5's. Converting the old XP is pointless: v0.3.0 starts new accounts (`20` "No hero conversion"), and CLAUDE.md section 1 has no back-compat. The farm stays because a harvest is already one press for a day of growing (the first principle at work). Only its XP unit moves |
+| 1a | What the player sees | **One Skills list.** The combat skills read as now. The trade lines read the `trade_jobs` section's `trades` (xp, level): Mining, Woodcutting, Fishing, Farming, Cooking, Smithing, Woodcrafting, Runecutting, Artificing. Alchemy shows no line until it ships. The Work window is the only place town work starts. The release note says every trade starts at Level 1 | A trade with no recipe on its list is a half-built feature, and those stay hidden (CLAUDE.md 3.5) |
+| 1b | What the cut needs first | **Band 0's second batch, so the job list makes every good the first day needs.** Today it does not: an arrow needs a Bronze Bar and a Normal Plank, a rune needs a Blank Rune, and only the live bench makes them (`KIT_RECIPES` has no gather or refine row, and `validateKitRecipes` refuses a refine row in the sample). The batch: the gather rows (Normal Log, Shrimp, Rune Essence, the grain), the refine rows (Bronze Bar, Normal Plank, Blank Rune), the honing stone and the drink. The sample's cap becomes "band 0 whole". It is built after the sample of five is played on `tools/qa/local-world.mjs` with `trade_jobs` lit (CLAUDE.md section 10), and the cut ships with it | The walk-through below is doable only with these rows. Without them the cut would leave Fletch Bronze Arrows and Cut Chalked Fire Runes with no way to make their inputs |
+| 2 | An hour-unit of a hunted stream, in goods | **Kept: 4 Remains an hour-unit, 0.75 rare parts. A rune takes one bone a set, never a fraction, with no carried remainder** | 21's imbuement recipe is the one count anybody authored, so it defines the unit. A carried remainder is state a player can't see. A rune's bone costs 1.67x its share of the cover, but that is one bone for an hour of runes against the dozen or more bones a Cellar hour drops (the Giant Rat's 0.21 a kill), so it never binds |
+| 3 | Remains a band | **Kept** (Bones at bands 0 and 2, Razor Claw at band 3, `STREAM_FACES.remains`) | Each band's Remains face drops where that band's parts drop, so the binder comes from the grounds the band hunts |
+| 4 | The imbuement's band and rung | **Kept: imbuements open at Artificing 1**, their band from their part's entry Level | Gating the first imbuement at Artificing 21 with nothing under it would leave the trade untrainable. The band still keeps a far company's parts out of a new player's market |
+| 5 | A stop burns the fee | **Overruled: a stop refunds the fee of every set it never attempted.** Kept: `fee - ceil(fee x attempted / count)` comes back, through one `hr_apply` gold credit journalled `trade_fee_refund`, the same instant the materials come back | The fee is the sink on goods made (4.3). Charging it on goods never made taxes changing your mind, and a misclicked whole-day job would cost a day's fee for nothing. No exploit: the refund is at most the fee the same job burned, and the attempted sets keep theirs. A gold credit, so Security's (S-10, S-27) |
+| 6 | Fine and Master goods with nothing that spends them | **Quality is dark until something spends it: in v0.3.0 every job lands Plain.** The cascade's numbers stay in `TRADE_LEVERS.quality`, and a switch there (off) zeroes Fine and Master for the roller and its twin. Quality lights with its first consumer: the hunt's bundle unit reading a meal's item step, or `hr_imbue_apply` reading an imbuement's life. `company_stock` stays, empty until then | A Fine meal the hunt can't read is the same meal. A pile the player can't spend is a dead reward, and the return card would say 40 made with 32 in Storage. Half-built features stay hidden (CLAUDE.md 3.5) |
+| 7 | The work-block rule doesn't buy blocks for a job | **The standing work rule buys for the job.** When a hero's open job would stop at the day's cap with sets left, the rule buys the next work block (up to its count a day) and the job runs on. 1073 already raises `ends_at` when bought work lengthens the day. The pointer the sweep reads leaves with the live bench | With one town work, the job is what bought work is for. A rule that buys for nothing would be a decision with no effect |
+
+**Walk-through: the first day after the cut, on real data.** The starting kit is `src/data/start-kit.js`: 3,200 gold, 10 Shrimp, 20 Cooked Shrimp, 50 Bronze Arrows, 10 Coarse Whetstone, 8 Turnip Seed. "Sample" is a row in `KIT_RECIPES` today, and "batch 2" is row 1b's, which ships with the cut. Every id below was grepped on the set (`items.js`, `gathering.js`, `trades.js KIT_FACES`).
+
+| # | Step | Holds and can reach (steps before only, plus the kit) | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Mill Cellar | The kit | `hunts.js mill_cellar`, the Giant Rat drops `bones` | Yes |
+| 1 | Cook Shrimp, Cooking 1 | The kit's 10 Shrimp. The fee is 113 a meal, 1,130 for ten, from 3,200 gold | `meal_b0` (sample), `shrimp` to `cooked_shrimp` | Yes once lit |
+| 2 | Mine Copper Ore, Mining 1 | Nothing needed, band 0 is open to all | `ore_b0` (sample), `copper_ore` | Yes once lit |
+| 3 | Smelt Bronze Bars, Smithing 1 | Ore from step 2 | `bar` at band 0, `bronze_bar` | Batch 2 |
+| 4 | Forge Bronze Arrowheads, Smithing 1 | Bars from step 3 | `arrowhead_b0` (sample), `bronze_arrowheads` | Batch 2 (its input) |
+| 5 | Chop logs, saw planks, Woodcutting 1 and Woodcrafting 1 | Nothing needed | `log` and `shaft` at band 0, `normal_log`, `normal_plank` | Batch 2 |
+| 6 | Fletch Bronze Arrows, Woodcrafting 1 | Arrowheads from step 4, planks from step 5 | `arrow_b0` (sample), `bronze_arrows` | Batch 2 (its inputs) |
+| 7 | Mine Rune Essence, cut Blank Runes | Nothing needed | `rune_stone`, `cut_stone` at band 0, `rune_essence`, `rune_blank` | Batch 2 |
+| 8 | Cut Chalked Fire Runes, Runecutting 1 | Blank Runes from step 7, bones from step 0 | `rune_fire_b0` (sample), `chalked_fire_rune` | Batch 2 (its input) |
+| 9 | Read the trades | Steps 1 to 8 each paid XP into `company_trade_xp` | The `trade_jobs` section's `trades`, one Level each | Yes once lit |
+
+The walk found the gap in row 1b: with the sample alone, steps 4, 6 and 8 have inputs only the live bench makes. So the cut and batch 2 are one release.
+
+**Built here:** `src/data/trades.js` `TRADES.was` now says what it is for (the live skill the trade replaces, which the cut deletes; nothing carries over). Everything else above is the backend's cut slice and the batch-2 data lane (HANDOFFS 2026-11-27, designer-calls-1127). No new migration from this lane.
+
 ---
 
 ## 5. The supply and demand lifecycle

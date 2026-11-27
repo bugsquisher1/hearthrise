@@ -81,7 +81,8 @@ export const BORROWED = Object.freeze({
 });
 
 /* THE TEN TRADES (09 section 1; 20 section 1.4 for what v0.3.0 opens). `tool` is the working name of its tool (09 3.7). `was` names the
-   live skill a renamed trade replaces (09 2.2, 2.9), for the job slice that moves company_trades onto these ids. */
+   live skill a renamed trade replaces (09 2.2, 2.9): the cut that lights the job slice deletes that skill, and nothing carries over (09 4.11:
+   one town work, its XP in company_trade_xp on 09 4.5's table, every company's trades at Level 1). */
 export const TRADES = Object.freeze({
   mining: Object.freeze({ name: 'Mining', stage: 'gather', tool: 'pick', ships: 'v030' }),
   woodcutting: Object.freeze({ name: 'Woodcutting', stage: 'gather', tool: 'axe', ships: 'v030' }),

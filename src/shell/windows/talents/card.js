@@ -17,16 +17,28 @@ import { whole } from '../../../render/format.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { t } from '../../../render/player-text.js';
 import { planFor, patchPlanNone, patchPlanPick } from './road-plan.js';
+import { markOf } from './marks.js';
+
+/* the map's key (18 section 4): a stone's four states and the plan's mark, each drawn as a crossroads (the kind is the shape, the
+   state the fill) */
+const KEY = Object.freeze(['locked', 'open', 'route', 'plan', 'owned']);
+const KEY_STONE = Object.freeze({ kind: 'crossroads' });
 
 /** The card's skeleton. */
 export function cardHtml() {
   return '<aside class="rdw-card" aria-live="polite">'
+    /* NOTHING PICKED (visual read 2026-11-26: the desktop column held three rows over 450 px of floor): the points, the next suggested
+       stone and its rule, the plan, and the map's key */
     + '<div class="rdw-none"><p class="rdw-row"><span></span><b class="rdw-none-points"></b></p><p class="rdw-row"><span></span><b class="rdw-none-fork"></b></p>'
+    + '<p class="rdw-none-tip"></p>'
     + '<button type="button" class="hh-tool is-link rdw-none-show" data-hs-act="rd-show"></button>'
     /* the plan (./road-plan.js): the server's saved build for the hero's hunt */
-    + '<div class="rdw-plan"><p class="rdw-row"><span></span><b></b></p><p class="rdw-row"><span></span><b></b></p>'
+    + '<div class="rdw-plan"><p class="rdw-row"><span></span><b></b></p><p class="rdw-row"><span></span><b></b></p><p class="rdw-row"><span></span><b></b></p>'
     + '<div class="rdw-do"><button type="button" class="hh-tool" data-hs-act="rd-plan-pay"></button>'
-    + '<button type="button" class="hh-tool is-link" data-hs-act="rd-plan-clear"></button><p class="hs-note rdw-plan-why"></p></div></div></div>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="rd-plan-clear"></button><p class="hs-note rdw-plan-why"></p></div></div>'
+    /* the key: one stone in each state, in the map's own marks and classes (src/styles/roads.css), so it can never draw them otherwise */
+    + '<div class="rdw-key"><h4 class="hs-sub"></h4><ul>' + KEY.map((k) => '<li data-key="' + k + '"><svg class="rdw-key-mark" width="24" height="24" viewBox="-12 -12 24 24" aria-hidden="true">'
+      + '<g class="rdm-n is-crossroads ' + (k === 'plan' ? 'is-locked is-plan' : 'is-' + k) + '">' + markOf(KEY_STONE) + '</g></svg><span></span></li>').join('') + '</ul></div></div>'
     + '<div class="rdw-sel">'
     + '<div class="rdw-card-head"><p class="rdw-kind"></p><button type="button" class="hh-tool is-link rdw-x" data-hs-act="rd-clear"></button></div>'
     + '<h3 class="rdw-name"></h3><p class="rdw-tip"></p><p class="rdw-state"></p><p class="rdw-state rdw-planned"></p>'
@@ -42,8 +54,10 @@ export function cardHtml() {
 }
 
 const COUNTRY = (c) => t('talents.country_' + c);
-/* a stone's name as the card says it: a rank stone by its move ("Greater Mend +1 rank"), any other by its own */
-const nameOf = (n) => (n.kind === 'rank' && n.move && ABILITIES[n.move] ? t('talents.rank_name', { move: ABILITIES[n.move].n }) : n.n);
+/* a stone's name as the card says it: a rank stone by its move ("Greater Mend +1 rank"), an open road by its move alone (its kind line
+   says Open road, so the card never says it twice: visual read 2026-11-26), any other by its own */
+const nameOf = (n) => (!n.move || !ABILITIES[n.move] ? n.n
+  : n.kind === 'rank' ? t('talents.rank_name', { move: ABILITIES[n.move].n }) : n.kind === 'open' ? ABILITIES[n.move].n : n.n);
 const kindWords = (n) => {
   const k = t('talents.kind_' + n.kind);
   if (n.move && ABILITIES[n.move]) return t('talents.kind_of', { kind: k, of: ABILITIES[n.move].n });
@@ -78,9 +92,17 @@ export function patchCard(root, ctx, v) {
     const f = v.fork && NODE_INDEX[v.fork];
     text(ps[1].querySelector('span'), t('talents.next_label')); text(ps[1].querySelector('b'), f ? nameOf(f) : '');
     attr(ps[1], 'hidden', f ? null : '');
+    /* the next suggested stone's rule (a choice: its options) */
+    text(none.querySelector('.rdw-none-tip'), !f ? '' : PICK_KINDS.includes(f.kind) ? optionsOf(f).map((o) => o.n).join(' · ') : f.tip || '');
     const show = none.querySelector('.rdw-none-show');
     text(show, t('talents.show')); attr(show, 'hidden', f ? null : '');
-    patchPlanNone(none.querySelector('.rdw-plan'), tl, v.plan, pending);
+    /* the plan's next step is the server's walk's (nextPlanStep, 1073's twin): a choice by the option the plan holds */
+    const step = v.plan.step && NODE_INDEX[v.plan.step.id];
+    const opt = step && v.plan.step.pick ? optionsOf(step).find((o) => o.id === v.plan.step.pick) : null;
+    patchPlanNone(none.querySelector('.rdw-plan'), tl, v.plan, pending, step ? (opt ? opt.n : nameOf(step)) : '');
+    const key = none.querySelector('.rdw-key');
+    text(key.querySelector('h4'), t('talents.key'));
+    for (const li of key.querySelectorAll('[data-key]')) text(li.querySelector('span'), t('talents.state_' + li.getAttribute('data-key')));
     return;
   }
   text(root.querySelector('.rdw-x'), t('talents.close'));

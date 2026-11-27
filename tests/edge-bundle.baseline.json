@@ -540,9 +540,14 @@
         "why": "lane/k1-job-slice +5,125 B: src/data/job-faces.js (the hunted streams' faces and the imbuement jobs) and the made imbuements' item rows in items.js"
       },
       {
-        "bytes": 3934343,
+        "bytes": 3937159,
         "on": "2026-11-27",
-        "why": "lane/f1-inner-flame: the Inner Flame claim (hunt-settle.js flameDropsOf/flameFor, the giveDrop note in hunt-rewards.js, its plumbing through accrue-hunt.js and combat-sim.js, 1074-inner-flame-luck.sql); the fuel list comes from the server read, so no flame data module ships"
+        "why": "lane/piece-gear-fixes +5,686 B: src/core/upgrade-pick.js weighs a worn Trait piece in steps (plainStepsPm, pieceStepsPm, wornPiecesIn; the company Start's pick reads the envelope's pieces section through company-wear.js), no new import"
+      },
+      {
+        "bytes": 3940029,
+        "on": "2026-11-27",
+        "why": "lane/f1-inner-flame +2,870 B: the Inner Flame claim (hunt-settle.js flameDropsOf/flameFor, the giveDrop note in hunt-rewards.js, its plumbing through accrue-hunt.js and combat-sim.js, 1074-inner-flame-luck.sql); the fuel list comes from the server read, so no flame data module ships"
       }
     ]
   }

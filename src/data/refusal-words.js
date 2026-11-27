@@ -503,6 +503,8 @@ export const REFUSAL_WORDS = Object.freeze({
   unknown_preset: 'Setup gone, pick another',
   /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */
   missing_item: 'Setup gear missing, nothing equipped',
+  /* hr_hunt_preset_apply (1074-setup-pieces.sql): a Trait piece the setup wears was sold; nothing is worn in its place. */
+  piece_gone: 'Setup piece sold, nothing equipped',
   unknown_action_set: 'Setup gone, pick another',
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names: 1 to 24 characters',

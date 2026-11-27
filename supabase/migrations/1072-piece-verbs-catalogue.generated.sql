@@ -5,9 +5,9 @@
 --   src/core/piece-value.js. Any hand edit FAILS `node tools/gen-piece-value.mjs --check`.
 --
 -- WHAT (lane/t1b-piece-verbs, backend-architect, 2026-11-26; 13-market.md 3.2, 20-v030-the-roads.md 1.2): the numbers 1072-piece-verbs.sql
--- prices a sale with, so none is typed twice: hr_piece_value_rules (one row: share_pm 100, rank_value_pm 250, sell_day 20),
--- hr_piece_value_hours (3 rarities), rewritten whole; hr_piece_store_bid(rarity, item_level, top_rank), internal (no client grant),
--- the twin of piece-value.js pieceStoreBid, its floor share read from hr_trade_levers, pinned at 91 points (§3).
+-- prices a sale with, so none is typed twice: hr_piece_value_rules (one row: share_pm 100, rank_value_pm 250, floor_share_pm 250,
+-- sell_day 20), hr_piece_value_hours (3 rarities), rewritten whole; hr_piece_store_bid(rarity, item_level, top_rank), internal
+-- (no client grant), the twin of piece-value.js pieceStoreBid, the piece's own floor share (12-targets 8.7), pinned at 91 points (§3).
 -- ORDER: 1072 in its name, before 1072-piece-verbs.sql (its reader). Idempotent: the tables are made if missing and their rows rewritten
 -- whole, the function restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; one internal function revoked from every
@@ -18,8 +18,8 @@
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
 do $mig$
 begin
-  if to_regclass('public.hr_trade_levers') is null or to_regprocedure('public.hr_wage(integer)') is null then
-    raise exception 'PRECONDITION: the trades catalogue and the wage first (hr_trade_levers, hr_wage)'; end if;
+  if to_regprocedure('public.hr_wage(integer)') is null then
+    raise exception 'PRECONDITION: the wage first (hr_wage)'; end if;
 end $mig$;
 
 -- ── §1 THE TABLES ────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ create table if not exists public.hr_piece_value_rules (
   id            boolean primary key default true check (id),
   share_pm      int not null check (share_pm between 0 and 1000),
   rank_value_pm int not null check (rank_value_pm between 0 and 1000),
+  floor_share_pm int not null check (floor_share_pm between 0 and 1000),
   sell_day      int not null check (sell_day >= 1)
 );
 create table if not exists public.hr_piece_value_hours (
@@ -49,23 +50,22 @@ delete from public.hr_piece_value_hours where rarity not in ('rare', 'signature'
 insert into public.hr_piece_value_hours (rarity, hours_pm) values
   ('rare', 40000), ('signature', 45000), ('very_rare', 400000)
 on conflict (rarity) do update set hours_pm = excluded.hours_pm;
-insert into public.hr_piece_value_rules (id, share_pm, rank_value_pm, sell_day) values (true, 100, 250, 20)
-on conflict (id) do update set share_pm = excluded.share_pm, rank_value_pm = excluded.rank_value_pm, sell_day = excluded.sell_day;
+insert into public.hr_piece_value_rules (id, share_pm, rank_value_pm, floor_share_pm, sell_day) values (true, 100, 250, 250, 20)
+on conflict (id) do update set share_pm = excluded.share_pm, rank_value_pm = excluded.rank_value_pm, floor_share_pm = excluded.floor_share_pm, sell_day = excluded.sell_day;
 
 -- ── §2b THE TWIN (internal; plpgsql, so a call is plan-cached: tests/settle-budget.mjs SB-3) ──
 create or replace function public.hr_piece_store_bid(p_rarity text, p_item_level int, p_top_rank int)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare r public.hr_piece_value_rules%rowtype; v_h bigint; v_floor int; v_v numeric;
+declare r public.hr_piece_value_rules%rowtype; v_h bigint; v_v numeric;
 begin
   -- PIECE-VALUE (1072-piece-verbs-catalogue.generated.sql; src/core/piece-value.js pieceStoreBid): floor(floor_share x V / 1000), V = floor(share x hours x
-  -- (1000 + rank_value x (top - 1)) x wage(item Level) / 10^9). null for a rarity with no hours: the store does not buy it.
+  -- (1000 + rank_value x (top - 1)) x wage(item Level) / 10^9), floor_share the piece's own. null for a rarity with no hours.
   select * into r from public.hr_piece_value_rules where id;
   select h.hours_pm into v_h from public.hr_piece_value_hours h where h.rarity = p_rarity;
-  select c.floor_share_pm into v_floor from public.hr_trade_levers c;
-  if r.id is null or v_h is null or v_floor is null then return null; end if;
+  if r.id is null or v_h is null then return null; end if;
   v_v := div(r.share_pm::numeric * v_h * (1000 + r.rank_value_pm::numeric * (greatest(coalesce(p_top_rank, 1), 1) - 1))
              * public.hr_wage(case when p_item_level is null then 1 else p_item_level end), 1000000000);
-  return div(v_floor::numeric * v_v, 1000)::bigint;
+  return div(r.floor_share_pm::numeric * v_v, 1000)::bigint;
 end $fn$;
 revoke execute on function public.hr_piece_store_bid(text, int, int) from public, anon, authenticated, service_role;
 
@@ -80,29 +80,29 @@ begin
                  or has_function_privilege(g.r, 'public.hr_piece_store_bid(text,integer,integer)', 'execute')) then
     raise exception 'VERIFY(b): a client role reads the piece price'; end if;
   for v_r in select * from (values
-    ('rare', 0, 1, 20689::bigint), ('rare', 1, 1, 20689::bigint), ('rare', 20, 1, 22320::bigint), ('rare', 40, 1, 24174::bigint),
-    ('rare', 60, 1, 26184::bigint), ('rare', 80, 1, 28361::bigint), ('rare', 100, 1, 30718::bigint), ('rare', 140, 1, 36036::bigint),
-    ('rare', 200, 1, 45790::bigint), ('rare', 500, 1, 151667::bigint), ('rare', 1000, 1, 1116216::bigint), ('rare', 2000, 1, 60459068::bigint),
-    ('rare', 4000, 1, 177372824441::bigint), ('rare', 0, 2, 25862::bigint), ('rare', 1, 2, 25862::bigint), ('rare', 20, 2, 27900::bigint),
-    ('rare', 40, 2, 30218::bigint), ('rare', 60, 2, 32730::bigint), ('rare', 80, 2, 35452::bigint), ('rare', 100, 2, 38398::bigint),
-    ('rare', 140, 2, 45046::bigint), ('rare', 200, 2, 57238::bigint), ('rare', 500, 2, 189584::bigint), ('rare', 1000, 2, 1395270::bigint),
-    ('rare', 2000, 2, 75573836::bigint), ('rare', 4000, 2, 221716030552::bigint), ('rare', 0, 3, 31034::bigint), ('rare', 1, 3, 31034::bigint),
-    ('rare', 20, 3, 33480::bigint), ('rare', 40, 3, 36261::bigint), ('rare', 60, 3, 39276::bigint), ('rare', 80, 3, 42542::bigint),
-    ('rare', 100, 3, 46077::bigint), ('rare', 140, 3, 54055::bigint), ('rare', 200, 3, 68685::bigint), ('rare', 500, 3, 227500::bigint),
-    ('rare', 1000, 3, 1674324::bigint), ('rare', 2000, 3, 90688603::bigint), ('rare', 4000, 3, 266059236662::bigint), ('signature', 0, 1, 23275::bigint),
-    ('signature', 1, 1, 23275::bigint), ('signature', 20, 1, 25110::bigint), ('signature', 40, 1, 27196::bigint), ('signature', 60, 1, 29456::bigint),
-    ('signature', 80, 1, 31906::bigint), ('signature', 100, 1, 34558::bigint), ('signature', 140, 1, 40541::bigint), ('signature', 200, 1, 51514::bigint),
-    ('signature', 500, 1, 170625::bigint), ('signature', 1000, 1, 1255742::bigint), ('signature', 2000, 1, 68016452::bigint), ('signature', 4000, 1, 199544427496::bigint),
-    ('very_rare', 0, 1, 206896::bigint), ('very_rare', 1, 1, 206896::bigint), ('very_rare', 20, 1, 223200::bigint), ('very_rare', 40, 1, 241744::bigint),
-    ('very_rare', 60, 1, 261840::bigint), ('very_rare', 80, 1, 283616::bigint), ('very_rare', 100, 1, 307184::bigint), ('very_rare', 140, 1, 360368::bigint),
-    ('very_rare', 200, 1, 457904::bigint), ('very_rare', 500, 1, 1516672::bigint), ('very_rare', 1000, 1, 11162160::bigint), ('very_rare', 2000, 1, 604590688::bigint),
-    ('very_rare', 4000, 1, 1773728244416::bigint), ('very_rare', 0, 2, 258620::bigint), ('very_rare', 1, 2, 258620::bigint), ('very_rare', 20, 2, 279000::bigint),
-    ('very_rare', 40, 2, 302180::bigint), ('very_rare', 60, 2, 327300::bigint), ('very_rare', 80, 2, 354520::bigint), ('very_rare', 100, 2, 383980::bigint),
-    ('very_rare', 140, 2, 450460::bigint), ('very_rare', 200, 2, 572380::bigint), ('very_rare', 500, 2, 1895840::bigint), ('very_rare', 1000, 2, 13952700::bigint),
-    ('very_rare', 2000, 2, 755738360::bigint), ('very_rare', 4000, 2, 2217160305520::bigint), ('very_rare', 0, 3, 310344::bigint), ('very_rare', 1, 3, 310344::bigint),
-    ('very_rare', 20, 3, 334800::bigint), ('very_rare', 40, 3, 362616::bigint), ('very_rare', 60, 3, 392760::bigint), ('very_rare', 80, 3, 425424::bigint),
-    ('very_rare', 100, 3, 460776::bigint), ('very_rare', 140, 3, 540552::bigint), ('very_rare', 200, 3, 686856::bigint), ('very_rare', 500, 3, 2275008::bigint),
-    ('very_rare', 1000, 3, 16743240::bigint), ('very_rare', 2000, 3, 906886032::bigint), ('very_rare', 4000, 3, 2660592366624::bigint)) p(rarity, il, rank, bid) loop
+    ('rare', 0, 1, 12931::bigint), ('rare', 1, 1, 12931::bigint), ('rare', 20, 1, 13950::bigint), ('rare', 40, 1, 15109::bigint),
+    ('rare', 60, 1, 16365::bigint), ('rare', 80, 1, 17726::bigint), ('rare', 100, 1, 19199::bigint), ('rare', 140, 1, 22523::bigint),
+    ('rare', 200, 1, 28619::bigint), ('rare', 500, 1, 94792::bigint), ('rare', 1000, 1, 697635::bigint), ('rare', 2000, 1, 37786918::bigint),
+    ('rare', 4000, 1, 110858015276::bigint), ('rare', 0, 2, 16163::bigint), ('rare', 1, 2, 16163::bigint), ('rare', 20, 2, 17437::bigint),
+    ('rare', 40, 2, 18886::bigint), ('rare', 60, 2, 20456::bigint), ('rare', 80, 2, 22157::bigint), ('rare', 100, 2, 23998::bigint),
+    ('rare', 140, 2, 28153::bigint), ('rare', 200, 2, 35773::bigint), ('rare', 500, 2, 118490::bigint), ('rare', 1000, 2, 872043::bigint),
+    ('rare', 2000, 2, 47233647::bigint), ('rare', 4000, 2, 138572519095::bigint), ('rare', 0, 3, 19396::bigint), ('rare', 1, 3, 19396::bigint),
+    ('rare', 20, 3, 20925::bigint), ('rare', 40, 3, 22663::bigint), ('rare', 60, 3, 24547::bigint), ('rare', 80, 3, 26589::bigint),
+    ('rare', 100, 3, 28798::bigint), ('rare', 140, 3, 33784::bigint), ('rare', 200, 3, 42928::bigint), ('rare', 500, 3, 142188::bigint),
+    ('rare', 1000, 3, 1046452::bigint), ('rare', 2000, 3, 56680377::bigint), ('rare', 4000, 3, 166287022914::bigint), ('signature', 0, 1, 14547::bigint),
+    ('signature', 1, 1, 14547::bigint), ('signature', 20, 1, 15693::bigint), ('signature', 40, 1, 16997::bigint), ('signature', 60, 1, 18410::bigint),
+    ('signature', 80, 1, 19941::bigint), ('signature', 100, 1, 21598::bigint), ('signature', 140, 1, 25338::bigint), ('signature', 200, 1, 32196::bigint),
+    ('signature', 500, 1, 106641::bigint), ('signature', 1000, 1, 784839::bigint), ('signature', 2000, 1, 42510282::bigint), ('signature', 4000, 1, 124715267185::bigint),
+    ('very_rare', 0, 1, 129310::bigint), ('very_rare', 1, 1, 129310::bigint), ('very_rare', 20, 1, 139500::bigint), ('very_rare', 40, 1, 151090::bigint),
+    ('very_rare', 60, 1, 163650::bigint), ('very_rare', 80, 1, 177260::bigint), ('very_rare', 100, 1, 191990::bigint), ('very_rare', 140, 1, 225230::bigint),
+    ('very_rare', 200, 1, 286190::bigint), ('very_rare', 500, 1, 947920::bigint), ('very_rare', 1000, 1, 6976350::bigint), ('very_rare', 2000, 1, 377869180::bigint),
+    ('very_rare', 4000, 1, 1108580152760::bigint), ('very_rare', 0, 2, 161637::bigint), ('very_rare', 1, 2, 161637::bigint), ('very_rare', 20, 2, 174375::bigint),
+    ('very_rare', 40, 2, 188862::bigint), ('very_rare', 60, 2, 204562::bigint), ('very_rare', 80, 2, 221575::bigint), ('very_rare', 100, 2, 239987::bigint),
+    ('very_rare', 140, 2, 281537::bigint), ('very_rare', 200, 2, 357737::bigint), ('very_rare', 500, 2, 1184900::bigint), ('very_rare', 1000, 2, 8720437::bigint),
+    ('very_rare', 2000, 2, 472336475::bigint), ('very_rare', 4000, 2, 1385725190950::bigint), ('very_rare', 0, 3, 193965::bigint), ('very_rare', 1, 3, 193965::bigint),
+    ('very_rare', 20, 3, 209250::bigint), ('very_rare', 40, 3, 226635::bigint), ('very_rare', 60, 3, 245475::bigint), ('very_rare', 80, 3, 265890::bigint),
+    ('very_rare', 100, 3, 287985::bigint), ('very_rare', 140, 3, 337845::bigint), ('very_rare', 200, 3, 429285::bigint), ('very_rare', 500, 3, 1421880::bigint),
+    ('very_rare', 1000, 3, 10464525::bigint), ('very_rare', 2000, 3, 566803770::bigint), ('very_rare', 4000, 3, 1662870229140::bigint)) p(rarity, il, rank, bid) loop
     if public.hr_piece_store_bid(v_r.rarity, v_r.il, v_r.rank) is distinct from v_r.bid then
       raise exception 'VERIFY(c): a % rank % at item Level % sells for % in SQL, % in the core', v_r.rarity, v_r.rank, v_r.il,
         public.hr_piece_store_bid(v_r.rarity, v_r.il, v_r.rank), v_r.bid; end if;

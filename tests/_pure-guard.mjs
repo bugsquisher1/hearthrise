@@ -11,8 +11,10 @@
 //                                                  `mutate` (the guard's own --mutate branch) [--only <words>]: two clean controls (the repository; a temp
 //                                                  copy of src with nothing planted, so a copy that cannot load never reads
 //                                                  as a catch), then each mutant planted into its own temp copy and judged
-//   planted(over, run)                             a temp copy of src (the vendored SDK left out) with `over` (file -> text)
-//                                                  written in, `run(base)` from it, the copy removed
+//   planted(over, run, copy)                       a temp copy of src (the vendored SDK left out) with `over` (file -> text)
+//                                                  written in, `run(base)` from it, the copy removed. `copy`: more directories
+//                                                  of the repository copied beside src (an edge file a rule imports, so its
+//                                                  own mutants plant and its imports of src read the planted copy)
 //
 // A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs scopedMutants); the nightly all.
 // mutant-anchors: none — a helper, not a guard
@@ -27,10 +29,11 @@ import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** `run(base)` from a temp copy of src with `over` written in; the copy is removed whatever happens. */
-export async function planted(over, run) {
+export async function planted(over, run, copy = []) {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-pure-'));
   try {
     cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor([\\/]|$)/.test(p.slice(ROOT.length)) });
+    for (const d of copy) cpSync(join(ROOT, d), join(tmp, d), { recursive: true });
     for (const [f, text] of Object.entries(over)) writeFileSync(join(tmp, f), text);
     return await run(tmp);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
@@ -39,9 +42,10 @@ export async function planted(over, run) {
 /**
  * The guard's command line. Exit code (plain: 0 green, 1 red; --mutate: tests/_mutant-verdict.mjs exitOf).
  * The guard branches on its own --mutate and hands the answer over as `mutate` (tests/guard-hygiene.mjs reads the branch in the guard).
- * @param {{ guard: string, green: string, pure: (base: string) => Promise<string[]>, mutants: any[], mutate: boolean, argv?: string[] }} g
+ * @param {{ guard: string, green: string, pure: (base: string) => Promise<string[]>, mutants: any[], mutate: boolean, argv?: string[], copy?: string[] }} g
+ *        `copy`: directories besides src each temp copy holds (planted)
  */
-export async function runPureGuard({ guard, green, pure, mutants, mutate, argv = process.argv }) {
+export async function runPureGuard({ guard, green, pure, mutants, mutate, argv = process.argv, copy = [] }) {
   const name = guard.replace(/^tests\//, '').replace(/\.mjs$/, '');
   if (!mutate) {
     const fails = await pure(ROOT);
@@ -55,7 +59,7 @@ export async function runPureGuard({ guard, green, pure, mutants, mutate, argv =
   if (!picked.length) { console.log('  ✗ --only ' + words + ' selects no mutant'); return 2; }
   const mine = scopedMutants(guard, picked);
   if (!mine.length) return 0;
-  for (const [label, run] of [['', () => pure(ROOT)], [' (a temp copy of src, nothing planted)', () => planted({}, pure)]]) {
+  for (const [label, run] of [['', () => pure(ROOT)], [' (a temp copy of src, nothing planted)', () => planted({}, pure, copy)]]) {
     const clean = await cleanControl(run);
     console.log(clean.line + label);
     if (clean.code) return clean.code;
@@ -67,7 +71,7 @@ export async function runPureGuard({ guard, green, pure, mutants, mutate, argv =
     const missing = pairs.find(([x]) => !text.includes(x));
     if (missing) { console.log('  ✗ ' + n + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     for (const [x, y] of pairs) text = text.replace(x, y);
-    console.log(report(n, await judge(() => planted({ [file]: text }, pure)), counts));
+    console.log(report(n, await judge(() => planted({ [file]: text }, pure, copy)), counts));
   }
   console.log(exitOf(counts) ? name + ' --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
     : name + ' --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine.length === mutants.length ? '' : ' (of ' + mutants.length + ')'));

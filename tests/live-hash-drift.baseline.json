@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3759,
+  "replay_ms": 2817,
   "counts": {
-    "tracked_names": 1177,
-    "entries": 1001
+    "tracked_names": 1179,
+    "entries": 1003
   },
   "functions": [
     {
@@ -1392,6 +1392,7 @@
         "1040-rested-bank-cut.sql",
         "1059-company-trades.sql",
         "1072-piece-verbs.sql",
+        "1074-setup-pieces.sql",
         "2026-08-11-apply-engine.sql",
         "2026-08-15-gem-daily-budget.sql",
         "2026-08-15-intent-key-hygiene.sql",
@@ -10196,6 +10197,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2026-12-05-hunt-setup-per-ground.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
@@ -10207,11 +10209,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "36e763fef9934b42e516d2d7f21f5dbc",
-        "norm_len": 9263,
+        "md5": "f57315e5753bee241bba6ca6bbbe0fd6",
+        "norm_len": 10824,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_preset_delete(p_slot integer, p_preset integer, p_idem uuid)",
@@ -10312,6 +10315,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2026-11-15-preset-names.sql",
         "2027-02-28-setup-slots.sql"
@@ -10323,11 +10327,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "355b2fc5d944fd41bb22f6a9bc57253e",
-        "norm_len": 4571,
+        "md5": "9775e3409272a812e0576dadbc51ea32",
+        "norm_len": 5121,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_presets_view(p_user uuid, p_slot integer)",
@@ -10338,6 +10343,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2027-02-10-settle-plan-cache.generated.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
@@ -10349,11 +10355,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "56b8e82f83eb61aeb1654488a7fa308b",
-        "norm_len": 1294,
+        "md5": "c447f9681a548773157016f923da1d20",
+        "norm_len": 1864,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_report_add(p_a jsonb, p_b jsonb)",
@@ -15014,8 +15021,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "2e70b70e8cade0caf76405a14d1eb0b0",
-        "norm_len": 1141,
+        "md5": "cd89721eb9405382c7d1dfc5a1077bcc",
+        "norm_len": 1052,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -16870,10 +16877,12 @@
       "sig": "hr_setup_gear_follow()",
       "name": "hr_setup_gear_follow",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-12-05-hunt-setup-per-ground.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
       ],
@@ -16884,11 +16893,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "707c91275bda32a6b69320ba20019083",
-        "norm_len": 1045,
+        "md5": "5f1e042099bd1c892b9f6e3fcffea3b2",
+        "norm_len": 647,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_gear_owner()",
@@ -16912,6 +16922,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_setup_gear_write(p_user uuid, p_slot integer)",
+      "name": "hr_setup_gear_write",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-setup-pieces.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "13b4f9d3f1df313a63b72f3ccaabe315",
+        "norm_len": 1250,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_locked(p_user uuid, p_slot integer, p_preset integer)",
@@ -16959,6 +16987,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_setup_piece_follow()",
+      "name": "hr_setup_piece_follow",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-setup-pieces.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "511059177b750268bdb3a6f92501b4db",
+        "norm_len": 679,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_slots_view(p_user uuid, p_slot integer)",

@@ -12,7 +12,8 @@
 // ci-run: node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate
 //
 //   OC-PLAY    THE CARD, PLAYED: an empty purse shows no card; once the server offers (a purse of 3 days' pay) the coach's own box
-//              (launcher-coach.js pointerFor) shows the card before any tip, with the server's choices and Not now; a press on "Up to
+//              (launcher-coach.js pointerFor) shows the card before any tip, with the server's choices and Not now, and no gold ring
+//              marks a tip's control while it owns the box (ringCoach, rowRing; it comes back after the answer); a press on "Up to
 //              2 a day" goes through the coach's act, every button is off while the answer is out and a second press sends nothing;
 //              the answer lands, the server holds the rule, the card is gone, and A RELOAD (a new CharacterSession) shows none; a
 //              choice the server did not offer is never sent
@@ -70,9 +71,14 @@ async function client(base, db, uid) {
   const cs = new CharacterSession({ slot: 0, uid, server, viewed: true, setTimer: () => 0, clearTimer: () => {}, now: () => Date.now() });
   await cs.load();
   const account = { server, characters: () => [cs] };
-  const wm = { openIds: () => [], rows: () => [] };
+  const wm = { openIds: () => [], rows: () => [], isOpen: () => false };
   return { cs, calls, ctx: { character: cs, account, wm, now: null, doc: null } };
 }
+/* A shell box whose every control is on screen (ringCoach's roots): the ring lands on the first selector of the card's way. */
+const ringRoot = () => {
+  const el = { getClientRects: () => [1], closest: () => null, parentElement: null, hasAttribute: () => false, setAttribute: () => {}, removeAttribute: () => {} };
+  return { querySelector: () => el, querySelectorAll: () => [] };
+};
 /* A press on one of the card's buttons, as the shell hands it to the coach's act. */
 const pressOn = (n) => ({ type: 'click', target: { closest: (q) => (q === '[data-hs-act="time-offer"]' ? { getAttribute: (a) => (a === 'data-n' ? String(n) : null) } : null) } });
 const settle = async (card, cs) => { for (let i = 0; i < 400 && /time_offer:wait/.test(card.offerCardHtml(cs)); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -81,6 +87,7 @@ const ARMS = {
   'OC-PLAY': async (base, db) => {
     const p = [];
     const card = await imp(base, 'src/shell/time-offer-card.js'), coach = await imp(base, 'src/shell/launcher-coach.js');
+    const { HUNT_TUTORIAL } = await imp(base, 'src/data/hunt-tutorial.js');
     const X = U(1);
     await makeHero(db, X, 1);
     await setPurse(db, X, 0);
@@ -92,6 +99,9 @@ const ARMS = {
     const buttons = [...html.matchAll(/data-hs-act="time-offer" data-n="(\d+)"/g)].map((m) => Number(m[1]));
     if (js(buttons) !== js([1, 2, 0]) || !/Up to 2 a day/.test(html) || !/Not now/.test(html)) p.push('the offered card reads ' + html.slice(0, 200));
     if (!coach.pointerFor(c.ctx).includes('data-tutorial="time_offer"')) p.push('the coach box shows a tip, not the offer: ' + coach.pointerFor(c.ctx).slice(0, 120));
+    /* while the offer owns the coach's box no ring marks a tip's control: neither the icon row's (rowRing) nor the shell's (ringCoach) */
+    const tip = HUNT_TUTORIAL.find((k) => k.id === 'to_the_cellar');
+    if (coach.ringCoach(c.ctx, tip, [ringRoot()]) || coach.rowRing(c.ctx, new Set()) !== null) p.push('a tip\'s control is ringed while the offer is up');
     /* a choice the server did not offer is never sent */
     const bad = await card.answerOffer(c.ctx, 3);
     if (bad.ok || c.calls.includes('hr_time_offer_answer')) p.push('a choice of 3 was sent: ' + js(bad));
@@ -104,6 +114,8 @@ const ARMS = {
     if (twice.ok || c.calls.filter((n) => n === 'hr_time_offer_answer').length !== 1) p.push('a second press while the first was out was sent: ' + js(c.calls));
     if (js(await rulesOf(db, X)) !== js([{ slot: 0, up_to: 2 }])) p.push('the server holds the rule ' + js(await rulesOf(db, X)));
     if (card.offerCardHtml(c.cs) || /time_offer/.test(coach.pointerFor(c.ctx))) p.push('the card stays after the answer: ' + card.offerCardHtml(c.cs).slice(0, 120));
+    /* the offer gone, the tip's ring comes back (the control the card names) */
+    if (!coach.ringCoach(c.ctx, tip, [ringRoot()])) p.push('the tip\'s ring did not come back after the answer');
     /* a reload: a new CharacterSession, read from the server */
     c = await client(base, db, X);
     if (card.offerCardHtml(c.cs)) p.push('a reload shows the card again');
@@ -150,6 +162,8 @@ const MUTANTS = [
   { arm: 'OC-PLAY', why: 'a choice the server did not offer is sent', over: () => swap(CARD, 'if (!o || !(n === 0 || o.choices.includes(n)))', 'if (!o)') },
   { arm: 'OC-PLAY', why: 'a tip takes the offer\'s place', over: () => swap(COACH, '  if (offer) return offer;\n', '') },
   { arm: 'OC-PLAY', why: 'the coach does not route the card\'s press', over: () => swap(COACH, '  if (actTimeOffer(ctx, el, action, ev)) return true;\n', '') },
+  { arm: 'OC-PLAY', why: 'the tip\'s ring stays on its control while the offer is up', over: () => swap(COACH, '  const plan = offerOwnsCoach(ctx) ? [] : ringPlan(', '  const plan = false ? [] : ringPlan(') },
+  { arm: 'OC-PLAY', why: 'the ring never comes back after the answer', over: () => swap(COACH, '  return !!cs && !!offerShown(cs) && !coachCovered(wm);', '  return !!cs;') },
   { arm: 'OC-NOT-NOW', why: 'Not now is never sent', over: () => swap(CARD, 'if (b) answerOffer(ctx, Number(b.getAttribute(\'data-n\'))', 'if (b && b.getAttribute(\'data-n\') !== \'0\') answerOffer(ctx, Number(b.getAttribute(\'data-n\'))') },
 ];
 

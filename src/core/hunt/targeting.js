@@ -278,7 +278,8 @@ export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
   for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
-  if (took.length) queueOn(inst, k, 'taunt', { n: took.length });
+  /* (the taunt's moment names how many it took and which: Bannerman's Pavise lays its status on each, src/core/hunt/reactions.js) */
+  if (took.length) queueOn(inst, k, 'taunt', { n: took.length, ms: took });
   return took.length;
 }
 

@@ -8,16 +8,26 @@
 // 10 s an ally), kept on the hero's cooldowns as '~r:<id>[:<target>]' (persisted with them, so a settle cut keeps it).
 //
 // WHAT IT DOES (`do`):
-//   cast    the hero casts `move` now (abilities.js castNow: out of turn, never its lane; `free` costs no mana)
+//   cast    the hero casts `move` now (abilities.js castNow: out of turn, never its lane; `free` costs no mana; `again` waits on no
+//           cooldown and spends no supply: Charred Sabre's Flame Strike cast again on a kill), at the nearest monster for a strike
 //   reset   `move`'s cooldown `ms` sooner, never sooner than its cycle's ready time less `capMs` (one cut a cycle can take at most capMs,
 //           15 "1 s per kill, up to 4 s"), never before now; the cycle's ready time kept as '~cut:<move>' beside it
 //   mana    pm of the hero's max mana, never past it
 //   heal    to 'self': pm of its max health; to 'lowest': pm of the moment's damage on the living ally with the lowest share of health
-//   shield  pm of the hero's max health for each monster the moment took (a taunt's count), on the hero, under the one shield rule
-//   status  `status` on the moment's source ('hit_taken': the attacker) or target, lasting `ms` when named
+//   shield  pm of the hero's max health for each monster the moment took (a taunt's count, a cast's monsters its status landed on: none,
+//           no shield), at most capPm of it, on the hero, under the one shield rule
+//   status  `status` on the moment's monsters: every monster within `r` tiles of the hero when the row names `r`, else each the moment
+//           took (a taunt's), else its source ('hit_taken': the attacker) or target; lasting `ms` when named; with `pm` a ticking status
+//           lands a fixed tick, pm of the moment's damage over its time (Floodwater Hatchets' Poison); a ground status is a patch the hero
+//           holds on the moment's target's tile. A ticking stack reads the hero's blow as a cast does (on the scale its top, PIPE_TOP)
 //   echo    a second hit: pm of the moment's damage on its target, `ms` later (statuses.js echo, a fixed tick: status.js layStack)
 //   carry   an overkill carried: pm of what the killing blow had past the HP it took, at most capPm of the fallen's max health, on the
 //           nearest living engaged monster within `r` tiles of it (ties by id)
+//   burst   an explosion on a kill: pm of the fallen's max health on every living engaged monster within `r` tiles of it, in id order
+//           (Hall Fire Wand); an exact amount, so it sets off nothing and never explodes again
+//   reflect pm of the moment's damage (an `absorb`: what the hero's shell took) back on the monster that dealt it, exact (Drover's Hat)
+//   ready   `move` ready now; pass  what the fallen carried moves on; boon  `status` on the moment's hero, `ms` long, at `pw` permille of
+//           its strength when named (a branch's status strength, status-effects.js)
 // Numbers that can land (heal, shield, mana, echo, carry) are x ramp(L) already (src/core/talents.js grantsOf).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
@@ -25,7 +35,8 @@
 
 import { STATUSES } from '../../data/statuses.js';
 import { castNow } from './abilities.js';
-import { landHit } from './damage.js';
+import { landHit, PIPE_TOP } from './damage.js';
+import { stepsOn } from './amount.js';
 import { applyStatus, statusRow, layStack } from './status.js';
 import { healIn } from './heal-cut.js';
 import { offerShield } from './shields.js';
@@ -82,8 +93,33 @@ export function cutCooldown(u, move, ms, capMs, atMs) {
   return true;
 }
 
+/* THE BLOW A REACTION'S TICKING STATUS READS (statuses.js blowPm): the hero's own largest blow, on the scale its top, as a cast's status
+   reads it (abilities.js effect: the spell rule), so a Bleed from a reaction ticks as a Bleed from Rend */
+const blowOf = (inst, u) => (stepsOn(inst) ? PIPE_TOP : Math.max(1, int(u.maxHit)));
+
+/* THE MONSTERS A `status` LANDS ON (the header): every living engaged foe within `r` tiles of the hero (in id order) when the row names a
+   reach, else each the moment took (a taunt's `ms`), else the moment's source or target; never an ally, never a fallen one */
+function foesFor(inst, u, row, ctx) {
+  const list = Number.isInteger(row.r) ? inst.world.units.filter((o) => isMonster(o) && Number.isInteger(o.target) && cheb(o, u) <= row.r)
+    : Array.isArray(ctx.ms) ? ctx.ms : [ctx.src || ctx.t];
+  return list.filter((m) => !!m && m.alive === true && !isAlly(u, m));
+}
+
+/* ONE STATUS ON `m` FROM HERO `u` (a `status` reaction): with `pm`, a fixed tick of that share of the moment's damage over the row's time
+   (status.js layStack); else the row's own landing at the hero's blow, its time `ms` when named. Answers whether it landed. */
+function statusOn(inst, sc, u, row, ctx, st, m) {
+  if (row.pm) {
+    const ms = row.ms || st.durationMs, n = Math.max(1, Math.floor(ms / st.everyMs));
+    const amt = Math.floor((int(ctx.dmg) * row.pm) / 1000 / n);
+    return amt > 0 && layStack(inst, sc, m, st, u, amt, ms, false) !== null;
+  }
+  if (applyStatus(inst, m, st, { u: u.id, maxHit: blowOf(inst, u), runeTier: 1 }, sc) === null) return false;
+  if (row.ms) for (const s of m.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
+  return true;
+}
+
 const DO = Object.freeze({
-  cast: (inst, sc, u, row, ctx) => castNow(inst, sc, u, row.move, { target: ctx.t || null, free: row.free === true }),
+  cast: (inst, sc, u, row, ctx) => castNow(inst, sc, u, row.move, { target: ctx.t || null, free: row.free === true, again: row.again === true }),
   reset: (inst, sc, u, row) => cutCooldown(u, row.move, row.ms, row.capMs || row.ms, sc.atMs),
   mana: (inst, sc, u, row) => {
     const max = int(u.maxMana);
@@ -98,14 +134,23 @@ const DO = Object.freeze({
     const n = Math.floor((int(ctx.dmg) * row.pm) / 1000);
     return !!t && n > 0 && healNow(inst, sc, u, t, n, row.id) > 0;
   },
-  shield: (inst, sc, u, row, ctx) => offerShield(sc, u, u, Math.floor((int(u.maxHp) * row.pm * Math.max(1, int(ctx.n))) / 1000)),
+  shield: (inst, sc, u, row, ctx) => {
+    /* (a moment that counts: a taunt's monsters, a cast's monsters its status landed on; every other moment one) */
+    const k = ctx.n === undefined ? 1 : int(ctx.n);
+    if (!(k > 0)) return false;
+    const n = Math.floor((int(u.maxHp) * row.pm * k) / 1000);
+    return offerShield(sc, u, u, row.capPm ? Math.min(n, Math.floor((int(u.maxHp) * row.capPm) / 1000)) : n);
+  },
   status: (inst, sc, u, row, ctx) => {
-    const m = ctx.src || ctx.t;
-    if (!m || m.alive !== true || isAlly(u, m)) return false;
     const st = statusRow(row.status);
-    if (applyStatus(inst, m, st, { u: u.id, maxHit: Math.max(1, int(u.maxHit)), runeTier: 1 }, sc) === null) return false;
-    if (row.ms) for (const s of m.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
-    return true;
+    /* A GROUND STATUS (burning ground): a patch the hero holds on the moment's target's tile */
+    if (st.ground) {
+      const t = ctx.t;
+      return !!t && applyStatus(inst, u, st, { u: u.id, maxHit: blowOf(inst, u), runeTier: 1, at: [t.x, t.y] }, sc) !== null;
+    }
+    let did = false;
+    for (const m of foesFor(inst, u, row, ctx)) if (statusOn(inst, sc, u, row, ctx, st, m)) did = true;
+    return did;
   },
   echo: (inst, sc, u, row, ctx) => {
     const t = ctx.t, n = Math.floor((int(ctx.dmg) * row.pm) / 1000);
@@ -118,6 +163,19 @@ const DO = Object.freeze({
     const m = nearestEngaged(inst, dead, row.r, () => true);
     return !!m && landHit(inst, sc, u, m, n, null, { id: 'carry', dot: true, exact: true }).dmg > 0;
   },
+  burst: (inst, sc, u, row, ctx) => {
+    const dead = ctx.t, n = Math.floor((int(dead && dead.maxHp) * row.pm) / 1000);
+    if (!dead || !(n > 0)) return false;
+    let did = false;
+    for (const m of inst.world.units.filter((o) => o !== dead && o.alive === true && isMonster(o) && Number.isInteger(o.target) && cheb(o, dead) <= row.r).sort((a, b) => a.id - b.id)) {
+      if (m.alive === true && landHit(inst, sc, u, m, n, null, { id: 'burst', dot: true, exact: true }).dmg > 0) did = true;
+    }
+    return did;
+  },
+  reflect: (inst, sc, u, row, ctx) => {
+    const m = ctx.src, n = Math.floor((int(ctx.dmg) * row.pm) / 1000);
+    return !!m && m.alive === true && isMonster(m) && n > 0 && landHit(inst, sc, u, m, n, null, { id: 'reflect', dot: true, exact: true }).dmg > 0;
+  },
   ready: (inst, sc, u, row) => readyNow(u, row.move, sc.atMs),
   pass: (inst, sc, u, row, ctx) => passOn(inst, sc, u, row.what, ctx),
   boon: (inst, sc, u, row, ctx) => {
@@ -125,6 +183,8 @@ const DO = Object.freeze({
     if (!t || t.alive !== true || (t !== u && !isAlly(u, t))) return false;
     const st = statusRow(row.status);
     if (applyStatus(inst, t, st, { u: u.id, maxHit: 1, runeTier: 1 }, sc) === null) return false;
+    /* (its strength, a branch's share of what the row does: status-effects.js reads `pw`; Bargeman's Pole's Guarded at twice its row) */
+    if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;
     if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
     return true;
   },

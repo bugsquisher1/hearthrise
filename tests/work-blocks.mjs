@@ -9,9 +9,10 @@
 //   node tests/work-blocks.mjs --mutate   the proof: each SQL mutant planted in the live body, and each JS mutant in a temporary copy of
 //                                         the engine, must turn its arm red
 //
-// mutant-anchors: src/core/work-day.js
+// mutant-anchors: src/core/work-day.js supabase/migrations/1075-work-blocks-midnight.sql
 //   (the JS mutant patches a temporary copy of src/core, src/data and the edge; every SQL mutant is planted in a live function body
-//   read from the replayed chain (pg_get_functiondef), inside the arm's rolled-back transaction; no tracked file is patched)
+//   read from the replayed chain (pg_get_functiondef), inside the arm's rolled-back transaction; the §6 clock mutant plants into the
+//   text WB-MIDNIGHT-CHECK reads, in memory; no tracked file is patched)
 //
 // ci-step: db-replay | Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
 // ci-run: node tests/work-blocks.mjs
@@ -36,6 +37,8 @@
 //   WB-MIDNIGHT THE UTC MIDNIGHT, BOTH DOORS: a hero that worked its free day and 90 minutes of a block bought at 21:00 starts a new
 //              job at 23:50; at 00:04 the next UTC day the world tick (browser closed) and the viewed settle each land the 14 minutes,
 //              the 10 before midnight on yesterday's own cap and the 4 after on today's, the job running on (no work_cap, the new day)
+//   WB-MIDNIGHT-CHECK 1075's own §6 self-check completes with the server clock pinned at a day's last tenth of a second, its first
+//              instant, inside and either side of its first minute, at 00:04:30 and at 10:00 (an apply is never refused by its hour)
 //   WB-OFFER   THE OFFER ONCE: none under 3 days of the company's pay, one over it (the client's reader sees it); "Up to 2 a day" sets
 //              both heroes' rule and the offer is gone; a second answer is offer_answered; a hero's rule stays its own to change; Not
 //              now on another account sets nothing and is never asked again
@@ -390,6 +393,32 @@ const ARMS = {
     return p;
   },
 
+  /* 1075's OWN §6 SELF-CHECK AT EVERY HOUR THAT DECIDES IT (the class of 1073's 2026-11-27 rehearsal red): run on the server clock pinned
+     at a day's last tenth of a second, its first instant, inside its first minute, either side of 00:01, inside the five-minute window
+     tests/utc-midnight-replay.mjs replays the chain in, and mid-morning, it must complete at every one, so the hour never refuses an apply. */
+  'WB-MIDNIGHT-CHECK': async (db) => {
+    const p = [];
+    let text = readFileSync(join(ROOT, 'supabase', 'migrations', '1075-work-blocks-midnight.sql'), 'utf8').replace(/\r/g, '');
+    if (S6_PLANT) {
+      if (text.split(S6_PLANT.from).length !== 2) throw Object.assign(new Error('the §6 plant is not found once in 1075'), { harness: true });
+      text = text.replace(S6_PLANT.from, () => S6_PLANT.to);
+    }
+    const s6 = text.indexOf('-- ── §6 SELF-CHECK');
+    const from = s6 < 0 ? -1 : text.indexOf('\ndo $$', s6);
+    const to = text.lastIndexOf('end $$;');
+    if (from < 0 || to < from) throw Object.assign(new Error('the §6 self-check block is not found in 1075-work-blocks-midnight.sql'), { harness: true });
+    const check = text.slice(from + 1, to + 'end $$;'.length);
+    const next = new Date(Date.parse(DAY + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+    for (const iso of [DAY + 'T23:59:59.900Z', next + 'T00:00:00.000Z', next + 'T00:00:00.400Z', next + 'T00:00:59.999Z',
+      next + 'T00:01:00.001Z', next + 'T00:04:30.000Z', next + 'T10:00:00.000Z']) {
+      await db.query('savepoint wb_s6');
+      await pin(db, iso);
+      try { await db.exec(check); } catch (e) { p.push('1075\'s §6 self-check run at ' + iso + ' raised: ' + String(e.message).split('\n')[0].slice(0, 300)); }
+      await db.query('rollback to savepoint wb_s6');
+    }
+    return p;
+  },
+
   'WB-RULE-HUNT': async (db, M) => {
     const p = [];
     const ends = {};
@@ -529,6 +558,15 @@ const JS_MUTANTS = [
 const townDoors = async (dir) => ({ tick: await import(pathToFileURL(join(dir, FN, 'tick.js')).href),
   sa: await import(pathToFileURL(join(dir, FN, 'set-activity.js')).href) });
 
+/* A CLOCK MUTANT of 1075's §6 text (WB-MIDNIGHT-CHECK reads the file): the window's end taken as a fixed minute past midnight, not the
+   server's now, so in a day's first minute the probe proposes an instant past now and the check refuses its own apply at that hour. */
+let S6_PLANT = null;
+const S6_MUTANTS = [
+  { arm: 'WB-MIDNIGHT-CHECK', name: 'the self-check\'s window ends past now in a day\'s first minute (an hour that refuses the apply)',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
+    from: "    v_end := least(now(), v_t + interval '1 minute');", to: "    v_end := v_t + interval '1 minute';" },
+];
+
 async function main() {
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(2); }
@@ -571,7 +609,16 @@ async function main() {
         else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + first.slice(0, 110) + ')');
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }
-    console.log(bad ? 'work-blocks --mutate: ' + bad + ' failure(s)' : 'work-blocks --mutate: all ' + (MUTANTS.length + JS_MUTANTS.length) + ' mutants killed');
+    for (const m of S6_MUTANTS) {
+      S6_PLANT = m;
+      try {
+        const first = ((await runArms(db, M, edge, [m.arm]))[m.arm] || [])[0];
+        if (!first) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); bad++; }
+        else if (/^threw|^harness/.test(first)) { console.error('✗ harness: ' + m.arm + ' broke on: ' + m.name + ' (' + first.slice(0, 200) + ')'); bad++; }
+        else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + first.slice(0, 110) + ')');
+      } finally { S6_PLANT = null; }
+    }
+    console.log(bad ? 'work-blocks --mutate: ' + bad + ' failure(s)' : 'work-blocks --mutate: all ' + (MUTANTS.length + JS_MUTANTS.length + S6_MUTANTS.length) + ' mutants killed');
     process.exit(bad ? 1 : 0);
   }
   const oi = process.argv.indexOf('--only');

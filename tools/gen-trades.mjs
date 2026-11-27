@@ -152,6 +152,9 @@ export function rowsOf({ data, core, rng, powerStep, stepMax, grounds, tierSteps
     quality_steps: P.qualitySteps, speed_at99_pm: P.speedAt99, xp_window: P.xpWindow, xp_floor_pm: P.xpFloor, job_fee_pm: P.jobFee,
     town_wage_share_pm: P.townWageShare, store_ceiling_pm: P.storeCeiling, store_lag: P.storeLag, floor_share_pm: P.floorShare,
     store_budget_pm: P.storeBudget, tool_ms: P.toolMs, tool_life_rung_pm: P.toolLifeRung, tier_steps: P.tierSteps,
+    /* one town work (lane/one-town-work, 09 4.11): the quality switch (rows 6: 0 dark, every job Plain) and a farm harvest's XP a crop
+       (row 1: one raw unit of work in seconds, 4.8's raw unit) */
+    quality_live: P.qualityLive, crop_xp: core.cropXp(cat),
   };
   /* THE JOB SLICE: the recipes a job may run, the ground bands a depth record opens, the band's rung, and the roller pinned exactly */
   const recipes = core.jobRecipes(cat);
@@ -174,8 +177,16 @@ export function rowsOf({ data, core, rng, powerStep, stepMax, grounds, tierSteps
     if (!s) throw new Error('gen-trades: recipe ' + r.id + ' at Level ' + level + ' does not settle');
     rolls.push({ kind: r.kind, rung: r.rung, level, mastery: false, benchPm: 0, toolPm: 1000, count: 1000, elapsedMs: 8 * 3600000, seed, s });
   }
+  /* THE LIT CASCADE, pinned while it is dark (09 4.11 row 6): every sample settled with quality on, which the self-check rolls under a
+     lit lever row (VERIFY(m)), so the day the switch lights the twin is already the JS's */
+  const litRolls = SAMPLES.filter((j) => cat.kinds[j.kind]).map((j) => {
+    const opt = { mastery: !!j.mastery, benchPm: j.benchPm || 0, toolPm: j.toolPm || 1000, count: j.count, elapsedMs: j.elapsedMs };
+    return { kind: j.kind, rung: j.rung, level: j.level, ...opt, seed: j.seed, s: core.settleJob(cat.kinds[j.kind], j.rung, j.level, { ...opt, seed: j.seed, quality: true }) };
+  });
+  if (!litRolls.some((j) => j.s.fine > 0) || !litRolls.some((j) => j.s.master > 0)) throw new Error('gen-trades: the lit pins walk no Fine or no Master branch');
+  if (!P.qualityLive && rolls.some((j) => j.s.fine || j.s.master)) throw new Error('gen-trades: quality is dark and a pinned roll is not Plain');
   return { cat, kinds, lever, powerStep, xp, curve, bench, speed, levelPins, values, fees, asks, behind, toolSpeed, toolLife, rents, jobs, refused,
-    recipes, groundBands, bandRungs, draws, rolls };
+    recipes, groundBands, bandRungs, draws, rolls, litRolls };
 }
 
 const lit = (s) => (s === null || s === undefined ? 'null' : "'" + String(s).replace(/'/g, "''") + "'");
@@ -242,7 +253,7 @@ end $mig$;
 -- ── §1 THE TABLES ────────────────────────────────────────────────────────────
 create table if not exists public.hr_trade_levers (
   id boolean primary key default true check (id),
-${cols.map((c) => `  ${c.padEnd(18)} ${c === 'tool_ms' ? 'bigint' : 'int   '} not null check (${c} >= 0),`).join('\n')}
+${cols.map((c) => `  ${c.padEnd(18)} ${c === 'tool_ms' ? 'bigint' : 'int   '} not null check (${c === 'quality_live' ? c + ' between 0 and 1' : c + ' >= 0'}),`).join('\n')}
   power_step         float8 not null check (power_step > 0 and power_step < 0.05),
   check (at_req_pm < cap_pm and cap_pm >= 1000 and fine_top_pm >= fine_base_pm and floor_share_pm < store_ceiling_pm)
 );
@@ -564,7 +575,8 @@ begin
   v_r := 1 + (p_rung - 1) * c.rung_span;
   v_y := (b->>'yield_pm')::int;
   v_n := (b->>'attempts')::bigint;
-  if k.rolls is not null then
+  -- QUALITY IS DARK while quality_live is 0 (09 4.11 row 6): no good rolls it, no quality draw is made, every good is Plain
+  if k.rolls is not null and c.quality_live = 1 then
     v_fine := public.hr_trade_fine_pm(p_level, v_r)::float8 / 1000::float8;
     v_master := public.hr_trade_master_pm(p_level, v_r, p_mastery)::float8 / 1000::float8;
   end if;
@@ -592,7 +604,7 @@ begin
       v_a := mod(v_a + 1831565813, 4294967296);
       if not (public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8) then continue; end if;
     end if;
-    if k.rolls is null then v_plain := v_plain + 1; continue; end if;
+    if k.rolls is null or c.quality_live <> 1 then v_plain := v_plain + 1; continue; end if;
     if v_master > 0 then
       v_a := mod(v_a + 1831565813, 4294967296);
       if public.hr_trade_mulberry(v_a) < v_master then v_ms := v_ms + 1; continue; end if;
@@ -747,6 +759,19 @@ ${vals(r.rolls, (j) => `${lit(j.kind)}, ${j.rung}, ${j.level}, ${!!j.mastery}, $
       raise exception 'VERIFY(l): % on rung % at Level % seed % rolls % in SQL, attempts % plain % fine % master % returned % XP % in settleJob',
         v_r.k, v_r.rung, v_r.l, v_r.seed, v_j, v_r.att, v_r.plain, v_r.fine, v_r.master, v_r.ret, v_r.xp; end if;
   end loop;
+  -- (m) THE LIT CASCADE, while quality is dark (09 4.11 row 6): the lever row lit for these pins only, settleJob with quality on exactly,
+  --     then the shipped switch put back
+  update public.hr_trade_levers set quality_live = 1;
+  for v_r in select * from (values
+${vals(r.litRolls, (j) => `${lit(j.kind)}, ${j.rung}, ${j.level}, ${!!j.mastery}, ${j.benchPm || 0}, ${j.toolPm || 1000}, ${j.count}, ${j.elapsedMs}::bigint, ${j.seed}::bigint, ${j.s.plain}::bigint, ${j.s.fine}::bigint, ${j.s.master}::bigint, ${j.s.returned}::bigint`)}) p(k, rung, l, m, b, t, n, ms, seed, plain, fine, master, ret) loop
+    v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
+    if v_j is null or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine or (v_j->>'master')::bigint <> v_r.master
+       or (v_j->>'returned')::bigint <> v_r.ret then
+      raise exception 'VERIFY(m): % lit at Level % seed % rolls % in SQL, plain % fine % master % returned % in settleJob', v_r.k, v_r.l, v_r.seed, v_j,
+        v_r.plain, v_r.fine, v_r.master, v_r.ret; end if;
+  end loop;
+  update public.hr_trade_levers set quality_live = ${L.quality_live};
+  if (select quality_live from public.hr_trade_levers) <> ${L.quality_live} then raise exception 'VERIFY(m): the quality switch was not put back'; end if;
   raise notice 'gen-trades: % kinds, % Levels, % recipes, the twins pinned at % points, % settles admitted, % rolled exactly; all green', ${r.kinds.length}, ${r.xp.length},
     ${r.recipes.length}, ${r.curve.length + r.bench.length + r.speed.length + r.levelPins.length + r.values.length + r.fees.length + r.asks.length + r.behind.length + r.toolSpeed.length + r.toolLife.length + r.rents.length + r.bandRungs.length + r.draws.length}, ${r.jobs.length}, ${r.rolls.length};
 end $mig$;
@@ -783,12 +808,13 @@ async function selftest() {
   plant('a raw unit read off something other than a meal', (k) => { k.meal.line = 'draught'; });
   plant('a made kind with no input', (k) => { delete k.honing_stone.from; });
   plant('a refined good that rolls quality', (k) => { k.bar.rolls = 'step'; });
+  plant('a quality switch that is not a boolean', (k, l) => { l.quality.live = 'off'; });
   if (base.data.validate().length) bites.push('the shipped rows are refused: ' + base.data.validate().join('; '));
   const sql = buildSql(rowsOf(base));
   for (const f of FUNS) if (!sql.includes('public.' + f.replace(/\(.*/, '') + '(')) bites.push('twin ' + f + ' is not written');
-  for (const v of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'VERIFY(d)', 'VERIFY(e)', 'VERIFY(f)', 'VERIFY(g)', 'VERIFY(h)', 'VERIFY(i)', 'VERIFY(j)', 'VERIFY(k)', 'VERIFY(l)']) if (!sql.includes(v)) bites.push(v + ' is not checked');
+  for (const v of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'VERIFY(d)', 'VERIFY(e)', 'VERIFY(f)', 'VERIFY(g)', 'VERIFY(h)', 'VERIFY(i)', 'VERIFY(j)', 'VERIFY(k)', 'VERIFY(l)', 'VERIFY(m)']) if (!sql.includes(v)) bites.push(v + ' is not checked');
   if (bites.length) { console.error('gen-trades --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-trades --selftest: 17 refusals bite, every twin is written and pinned');
+  console.log('gen-trades --selftest: 18 refusals bite, every twin is written and pinned');
 }
 
 if (isMain(import.meta.url)) {

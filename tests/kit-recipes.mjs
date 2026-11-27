@@ -9,13 +9,16 @@
 //
 // mutant-anchors: src/core/trades.js src/data/trades.js src/data/job-faces.js
 //   (the mutants patch a temp copy of src/; no tracked file is patched)
-// ci-step: economy-selftests | Kit trades sample - one recipe a trade at band 0, rung by band, every face sourced and used, the store the fallback
+// ci-step: economy-selftests | Kit trades band 0 - the first day whole, its chains closed on jobs alone, rung by band, every face sourced and used, the store the fallback
 // ci-run: node tests/kit-recipes.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
 //
-//   KR-ROWS    the first day's sample is five band 0 rows, one a trade: Cooking, Smithing, Woodcrafting, Runecutting and one gathering
-//              trade; batch 2 (lane/tp-im-steps, 21 section 2.2) is the Temper kit a band, Iron to Dawnsteel, and nothing else past band 0;
-//              a row holds only its kind, band, derived id and a short label (no time, count, XP or price); validate() is clean
+//   KR-ROWS    band 0 is the first day whole (09 4.11 row 1b): the sample's five and batch 2 (the gather rows, the refine rows, the honing
+//              stone and the drink), one row a kind, every v0.3.0 gathering and making trade with a first job; the Temper kit a band,
+//              Iron to Dawnsteel (lane/tp-im-steps, 21 section 2.2), and nothing else past band 0; a row holds only its kind, band, derived
+//              id and a short label (no time, count, XP or price); validate() is clean
+//   KR-CLOSED  ONE TOWN WORK (09 4.11): every town input of every band 0 job is made by another band 0 job (never only by the live bench,
+//              the store or the start kit), and every hunted input is its stream's face a monster drops, so the cut leaves no gap
 //   KR-RUNG    a band's recipe opens at the band's rung (band b at rung b + 1, the last rung for every band past it, never before the
 //              kind's own rung), swept over every kind and bands 0 to 12; every band 0 row opens at trade Level 1, so the first day can
 //              make it
@@ -66,13 +69,16 @@ const ARMS = {
     for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
     for (const p of KR.validate()) out.push('KR-ROWS trades: ' + p);
     const all = KR.KIT_RECIPES, rows = all.filter((r) => r.band === 0);
-    if (rows.length !== 5) out.push('KR-ROWS the first day sample is ' + rows.length + ' band 0 rows, not five');
+    /* BAND 0 WHOLE (09 4.11 row 1b): exactly the first day's kinds, one row each: the sample's five, then the gather rows (logs, shrimp,
+       rune essence, the crop), the refine rows (bars, planks, blank runes), the honing stone and the drink */
+    const want = ['ore', 'arrowhead', 'arrow', 'meal', 'rune_fire', 'log', 'fish', 'rune_stone', 'grain', 'bar', 'shaft', 'cut_stone', 'honing_stone', 'drink'];
+    const kinds = rows.map((r) => r.kind);
+    if (kinds.slice().sort().join() !== want.slice().sort().join()) out.push('KR-ROWS band 0 is ' + kinds.join(', ') + ', not the first day whole (' + want.join(', ') + ')');
+    for (const t of ['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', 'runecutting']) {
+      if (!rows.some((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade === t)) out.push('KR-ROWS band 0 has no ' + t + ' row: the trade has no first job');
+    }
     const later = all.filter((r) => r.band !== 0);
     if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '1,2,3,4,5,6') out.push('KR-ROWS batch 2 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at bands 1 to 6');
-    const trades = rows.map((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade);
-    for (const t of ['cooking', 'smithing', 'woodcrafting', 'runecutting']) if (trades.filter((x) => x === t).length !== 1) out.push('KR-ROWS ' + t + ' has ' + trades.filter((x) => x === t).length + ' rows, not one');
-    const gather = rows.filter((r) => cat.kinds[r.kind] && cat.kinds[r.kind].stage === 'gather');
-    if (gather.length !== 1) out.push('KR-ROWS ' + gather.length + ' gathering rows, not one');
     for (const r of all) {
       const extra = Object.keys(r).filter((k) => !['id', 'kind', 'band', 'name'].includes(k));
       if (extra.length) out.push('KR-ROWS ' + r.id + ' types ' + extra.join(', '));
@@ -135,6 +141,24 @@ const ARMS = {
     for (const f of made.keys()) if (f && !live(f) && !KR.NEW_FACES[f]) out.push(`KR-SOURCE ${f} is neither a live item nor a new face`);
     return out;
   },
+  /* ONE TOWN WORK (09 4.11 rows 1 and 1b): the live bench is cut in the release that lights the jobs, so band 0's chains must close on the
+     job list alone. Every town input of a band 0 job is made by another band 0 job (no bench, no store, no start kit: a door that
+     outlives the kit), and every hunted input is its stream's face that a monster drops */
+  'KR-CLOSED'({ T, cat, sources }) {
+    const out = [];
+    const jobs = T.jobRecipes(cat).filter((r) => r.band === 0);
+    const made = new Map(jobs.map((r) => [r.face, r.id]));
+    const hunted = new Set(cat.named.filter((r) => r.band === 0).flatMap((r) => r.hunted.map((h) => h.face)));
+    for (const r of jobs) {
+      for (const item of Object.keys(r.inputs)) {
+        if (made.has(item)) continue;
+        if (hunted.has(item) && (sources.get(item) || []).includes('monster drop')) continue;
+        out.push(`KR-CLOSED ${r.id}: input ${item} is made by no band 0 job (only the bench, the store or the kit): the first day breaks when the bench is cut`);
+      }
+    }
+    for (const id of ['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0']) if (!jobs.some((r) => r.id === id)) out.push(`KR-CLOSED the sample's ${id} is not a job`);
+    return out;
+  },
   'KR-STORE'({ T, KR, cat, STORE_KIT }) {
     const out = [];
     const ts = T.TRADE_PM.tierSteps;
@@ -189,8 +213,13 @@ async function runPure(X, only = null) {
 
 /* each row: name, the arm that must name it, the file (a literal, so tools/guard-anchors.mjs reads it), the anchor, its replacement */
 const MUTANTS = [
-  ['a sixth recipe and a second Smithing row before the sample is read', 'KR-ROWS', 'src/data/trades.js',
-    "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n", "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),\n"],
+  ['band 0 carries a kind the first day does not hold (the bolt)', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('drink', 0, 'Press Turnip Juice'),\n", "  kitRow('drink', 0, 'Press Turnip Juice'),\n  kitRow('bolt', 0, 'Fletch Bronze Bolts'),\n"],
+  ['band 0 without its planks (the arrow has no shaft once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js',
+    "  kitRow('shaft', 0, 'Saw Normal Planks'),\n", ''],
+  ['band 0 without its blank runes', 'KR-CLOSED', 'src/data/trades.js', "  kitRow('cut_stone', 0, 'Cut Blank Runes'),\n", ''],
+  ['band 0 without its bars (the arrowhead and the whetstone have no metal)', 'KR-CLOSED', 'src/data/trades.js',
+    "  kitRow('bar', 0, 'Smelt Bronze Bars'),\n", ''],
   ['batch 2 carries a kind that is no Temper kit', 'KR-ROWS', 'src/data/trades.js',
     "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('meal', 1, 'Cook Trout'),\n"],
   ['a recipe row types its own time', 'KR-ROWS', 'src/data/trades.js',

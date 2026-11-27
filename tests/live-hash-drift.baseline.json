@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 11537,
+  "replay_ms": 3046,
   "counts": {
-    "tracked_names": 1163,
-    "entries": 987
+    "tracked_names": 1180,
+    "entries": 1004
   },
   "functions": [
     {
@@ -1392,6 +1392,7 @@
         "1040-rested-bank-cut.sql",
         "1059-company-trades.sql",
         "1072-piece-verbs.sql",
+        "1074-setup-pieces.sql",
         "2026-08-11-apply-engine.sql",
         "2026-08-15-gem-daily-budget.sql",
         "2026-08-15-intent-key-hygiene.sql",
@@ -10196,6 +10197,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2026-12-05-hunt-setup-per-ground.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
@@ -10207,11 +10209,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "36e763fef9934b42e516d2d7f21f5dbc",
-        "norm_len": 9263,
+        "md5": "f57315e5753bee241bba6ca6bbbe0fd6",
+        "norm_len": 10824,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_preset_delete(p_slot integer, p_preset integer, p_idem uuid)",
@@ -10312,6 +10315,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2026-11-15-preset-names.sql",
         "2027-02-28-setup-slots.sql"
@@ -10323,11 +10327,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "355b2fc5d944fd41bb22f6a9bc57253e",
-        "norm_len": 4571,
+        "md5": "9775e3409272a812e0576dadbc51ea32",
+        "norm_len": 5121,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_presets_view(p_user uuid, p_slot integer)",
@@ -10338,6 +10343,7 @@
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-10-25-hunt-presets.sql",
         "2027-02-10-settle-plan-cache.generated.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
@@ -10349,11 +10355,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "56b8e82f83eb61aeb1654488a7fa308b",
-        "norm_len": 1294,
+        "md5": "c447f9681a548773157016f923da1d20",
+        "norm_len": 1864,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_hunt_report_add(p_a jsonb, p_b jsonb)",
@@ -15014,8 +15021,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "2e70b70e8cade0caf76405a14d1eb0b0",
-        "norm_len": 1141,
+        "md5": "cd89721eb9405382c7d1dfc5a1077bcc",
+        "norm_len": 1052,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -16870,10 +16877,12 @@
       "sig": "hr_setup_gear_follow()",
       "name": "hr_setup_gear_follow",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
+        "1074-setup-pieces.sql",
         "2026-12-05-hunt-setup-per-ground.sql",
         "2027-05-04-setup-swap-mid-hunt.sql"
       ],
@@ -16884,11 +16893,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "707c91275bda32a6b69320ba20019083",
-        "norm_len": 1045,
+        "md5": "5f1e042099bd1c892b9f6e3fcffea3b2",
+        "norm_len": 647,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_gear_owner()",
@@ -16912,6 +16922,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_setup_gear_write(p_user uuid, p_slot integer)",
+      "name": "hr_setup_gear_write",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-setup-pieces.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "13b4f9d3f1df313a63b72f3ccaabe315",
+        "norm_len": 1250,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_locked(p_user uuid, p_slot integer, p_preset integer)",
@@ -16959,6 +16987,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_setup_piece_follow()",
+      "name": "hr_setup_piece_follow",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-setup-pieces.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "511059177b750268bdb3a6f92501b4db",
+        "norm_len": 679,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-setup-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-setup-pieces.sql."
     },
     {
       "sig": "hr_setup_slots_view(p_user uuid, p_slot integer)",
@@ -19294,19 +19340,21 @@
       "sig": "hr_time_auto_buy(p_user uuid, p_slot integer, p_kind text)",
       "name": "hr_time_auto_buy",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1071-work-blocks.sql"
+        "1071-work-blocks.sql",
+        "1073-k1-job-slice.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "2a2c0bd313d7419a1d3149e37e2ddcde",
-        "norm_len": 6122,
+        "md5": "ddd73177a99ee99f24e3536ee84ca4fa",
+        "norm_len": 6375,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql, 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_time_auto_set(p_kind text, p_slot integer, p_up_to integer, p_max_price bigint, p_idem uuid)",
@@ -19330,19 +19378,21 @@
       "sig": "hr_time_auto_sweep(p_limit integer)",
       "name": "hr_time_auto_sweep",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1071-work-blocks.sql"
+        "1071-work-blocks.sql",
+        "1073-k1-job-slice.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "7088732d3260a62caed90b7ff8694c7a",
-        "norm_len": 2286,
+        "md5": "a7fbe7ad4d6ede46b904097e63cbbbe8",
+        "norm_len": 2513,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql, 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_time_block_price(p_kind text, p_level integer, p_n integer)",
@@ -21053,6 +21103,42 @@
       "agree": true
     },
     {
+      "sig": "hr_trade_band_open(p_user uuid, p_band integer)",
+      "name": "hr_trade_band_open",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "16917f00cd4ef1e476529af54a8fa5cc",
+        "norm_len": 620,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_band_rung(p_kind text, p_band integer)",
+      "name": "hr_trade_band_rung",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "ea9e9a142d9e530cedd273223d38ef74",
+        "norm_len": 730,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_trade_behind_pm(p_steps integer)",
       "name": "hr_trade_behind_pm",
       "tracked_by": [
@@ -21125,6 +21211,60 @@
       "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
     },
     {
+      "sig": "hr_trade_job_busy()",
+      "name": "hr_trade_job_busy",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "52bc2c623ed1c03bc808a94d7f622e7b",
+        "norm_len": 697,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_job_close(p_user uuid, p_slot integer, p_at timestamp with time zone, p_early boolean)",
+      "name": "hr_trade_job_close",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "fa898397d51cae374f9272d27b3810ce",
+        "norm_len": 9150,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_job_end(p_slot integer, p_early boolean, p_idem uuid)",
+      "name": "hr_trade_job_end",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "29c9c3afb0e66d409e12c9c9034a6a19",
+        "norm_len": 2339,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
       "sig": "hr_trade_job_fee(p_kind text, p_band integer, p_count integer)",
       "name": "hr_trade_job_fee",
       "tracked_by": [
@@ -21143,6 +21283,114 @@
       "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
     },
     {
+      "sig": "hr_trade_job_quote(p_user uuid, p_slot integer, p_recipe text, p_count integer)",
+      "name": "hr_trade_job_quote",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "5f004efbe89211b1787cc81ae5ba4098",
+        "norm_len": 3498,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_job_start(p_slot integer, p_recipe text, p_count integer, p_fee bigint, p_idem uuid)",
+      "name": "hr_trade_job_start",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "e0d36e13374f9b7f3bb098e4929d71a2",
+        "norm_len": 6938,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_job_wants_block(p_user uuid, p_slot integer)",
+      "name": "hr_trade_job_wants_block",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d7fdf8da90301fae14c504c0ebd1fd54",
+        "norm_len": 836,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_jobs_prune(p_limit integer)",
+      "name": "hr_trade_jobs_prune",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "747eeaa5d33e222a5d9878d8f1a1a34f",
+        "norm_len": 700,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_jobs_sweep(p_limit integer, p_user uuid)",
+      "name": "hr_trade_jobs_sweep",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "cbea77918bb574ff94f9ffe3d28f7d23",
+        "norm_len": 2336,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
+      "sig": "hr_trade_jobs_view(p_user uuid, p_slot integer)",
+      "name": "hr_trade_jobs_view",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "bdd3eedb8a5149c0195ed2f5fdcee4d1",
+        "norm_len": 4531,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
       "sig": "hr_trade_level(p_xp bigint)",
       "name": "hr_trade_level",
       "tracked_by": [
@@ -21159,6 +21407,24 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_level_of(p_user uuid, p_trade text)",
+      "name": "hr_trade_level_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "67d20c2ac70ea2a30fb2c96bb28679e4",
+        "norm_len": 398,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_trade_lock(p_user uuid)",
@@ -21191,6 +21457,42 @@
       "replay": {
         "md5": "aa1ed37a89b2a3ab91b4fe8d8507b335",
         "norm_len": 667,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_mulberry(p_a bigint)",
+      "name": "hr_trade_mulberry",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "eaf3c4ae91efa275b0ea75619cc16941",
+        "norm_len": 976,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_roll(p_kind text, p_rung integer, p_level integer, p_mastery boolean, p_bench_pm integer, p_tool_pm integer, p_count integer, p_elapsed_ms bigint, p_seed bigint)",
+      "name": "hr_trade_roll",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1063-trade-formulas-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a438adb1c5f6c11054990bc25987f587",
+        "norm_len": 3472,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -21357,6 +21659,24 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1063-trade-formulas-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-trade-formulas-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_trade_work_stop(p_user uuid, p_slot integer, p_from timestamp with time zone)",
+      "name": "hr_trade_work_stop",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "29d15cbe9c790d15994fdd3d259a23a7",
+        "norm_len": 1686,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_trade_xp_pm(p_level integer, p_r integer)",

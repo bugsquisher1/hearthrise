@@ -14,6 +14,14 @@
 //                         hr_trade_value, hr_trade_job_fee, hr_trade_store_step, hr_trade_store_ask, hr_trade_store_bid,
 //                         hr_trade_behind_pm, hr_trade_tool_speed_pm, hr_trade_tool_life_ms, hr_trade_tool_rent, hr_trade_job_bound;
 //                         each pinned to the JS at every pin below (§4), and the job bound pinned to ADMIT settleJob's own result
+//   THE JOB SLICE (lane/k1-job-slice, backend-architect, 2026-11-26; 09 sections 4.9 and 6):
+//   hr_trade_recipes      one row a recipe a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs),
+//                         its kind, trade, band, rung, opening Level, face and inputs as whole goods a set { item: n }; a recipe not here
+//                         is refused bad_recipe by hr_trade_job_start (1073-k1-job-slice.sql)
+//   hr_trade_ground_bands one row a Danger scale ground: its band (its gearLevel over tierSteps), what a depth record there opens
+//   hr_trade_band_rung    the twin of bandRung; hr_trade_mulberry, the twin of src/core/rng.js mulberry32's draw; hr_trade_roll, the
+//                         twin of settleJob, line for line, pinned EXACTLY (attempts, goods by quality, returned sets, XP, time) at every
+//                         sample and every recipe's own job, so the server settles a job itself from the stored seed (no engine call)
 //
 //   node tools/gen-trades.mjs            write OUT_NAME
 //   node tools/gen-trades.mjs --check    exit 1 if OUT_NAME is not what it would write
@@ -52,9 +60,14 @@ const PIN_BENCH = Object.freeze([0, 60, 100, 250]);
 async function load(root) {
   const q = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + q);
-  const [data, core, danger] = await Promise.all([imp('src/data/trades.js'), imp('src/core/trades.js'), imp('src/data/danger.js')]);
-  return { data, core, powerStep: danger.DANGER.powerStep, stepMax: danger.DANGER.stepMax };
+  const [data, core, danger, rng] = await Promise.all([imp('src/data/trades.js'), imp('src/core/trades.js'), imp('src/data/danger.js'), imp('src/core/rng.js')]);
+  return { data, core, rng, powerStep: danger.DANGER.powerStep, stepMax: danger.DANGER.stepMax, grounds: danger.DANGER_GROUNDS, tierSteps: danger.GEAR_STEPS.tierSteps };
 }
+
+/* THE ROLLER'S PINS (the job slice): mulberry32's draws from a spread of states (0, the edges of the uint32 range, a run), and every
+   recipe's own job at its opening Level and fifteen Levels on, a whole work day asked, seeded so the cascade's every branch is walked */
+const PIN_DRAWS = Object.freeze([0, 1, 2, 1831565813, 2147483647, 2147483648, 4294967295, 123456789, 987654321, 3000000000]);
+const RECIPE_SEEDS = Object.freeze([1, 4294967295]);
 
 /* THE SETTLE SAMPLES: one job per stage and kind of curve (under, at and over no-fail, with and without Mastery and a bench, a tool behind,
    a count that binds and one the clock binds). The bound must admit each: attempts and XP equal, units and returns under the bound */
@@ -75,7 +88,7 @@ const SAMPLES = Object.freeze([
 ]);
 
 /** The resolved catalogue, the lever row and every pin, refused on a defect. */
-export function rowsOf({ data, core, powerStep, stepMax }, plant = null) {
+export function rowsOf({ data, core, rng, powerStep, stepMax, grounds, tierSteps }, plant = null) {
   const kindsIn = plant && plant.kinds ? plant.kinds : data.KINDS;
   const leversIn = plant && plant.levers ? plant.levers : data.TRADE_LEVERS;
   const linesIn = plant && plant.lines ? plant.lines : data.LINE_SHARE;
@@ -139,8 +152,41 @@ export function rowsOf({ data, core, powerStep, stepMax }, plant = null) {
     quality_steps: P.qualitySteps, speed_at99_pm: P.speedAt99, xp_window: P.xpWindow, xp_floor_pm: P.xpFloor, job_fee_pm: P.jobFee,
     town_wage_share_pm: P.townWageShare, store_ceiling_pm: P.storeCeiling, store_lag: P.storeLag, floor_share_pm: P.floorShare,
     store_budget_pm: P.storeBudget, tool_ms: P.toolMs, tool_life_rung_pm: P.toolLifeRung, tier_steps: P.tierSteps,
+    /* one town work (lane/one-town-work, 09 4.11): the quality switch (rows 6: 0 dark, every job Plain) and a farm harvest's XP a crop
+       (row 1: one raw unit of work in seconds, 4.8's raw unit) */
+    quality_live: P.qualityLive, crop_xp: core.cropXp(cat),
   };
-  return { cat, kinds, lever, powerStep, xp, curve, bench, speed, levelPins, values, fees, asks, behind, toolSpeed, toolLife, rents, jobs, refused };
+  /* THE JOB SLICE: the recipes a job may run, the ground bands a depth record opens, the band's rung, and the roller pinned exactly */
+  const recipes = core.jobRecipes(cat);
+  if (!recipes.length) throw new Error('gen-trades: no job recipe resolves');
+  for (const r of recipes) {
+    if (!/^[a-z][a-z0-9_]{1,63}$/.test(r.id) || !/^[a-z0-9_]{1,64}$/.test(r.face)) throw new Error('gen-trades: recipe ' + r.id + ' has no clean id or face');
+    if (!cat.kinds[r.kind]) throw new Error('gen-trades: recipe ' + r.id + ' names no kind');
+  }
+  if (new Set(recipes.map((r) => r.id)).size !== recipes.length) throw new Error('gen-trades: two job recipes share an id');
+  const groundBands = Object.entries(grounds || {}).map(([id, g]) => ({ id, band: Math.floor(g.gearLevel / tierSteps) }))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  for (const g of groundBands) if (!Number.isInteger(g.band) || g.band < 0) throw new Error('gen-trades: ground ' + g.id + ' has no band');
+  const bandRungs = [];
+  for (const k of kinds) for (const band of [0, 1, 2, 5, 9, 10, 12, 400]) bandRungs.push({ k: k.id, band, rung: core.bandRung(k, band) });
+  const draws = PIN_DRAWS.map((s) => ({ a: (s + 0x6D2B79F5) % 4294967296, u: rng.mulberry32(s)() }));
+  const rolls = jobs.map((j) => ({ kind: j.kind, rung: j.rung, level: j.level, mastery: j.mastery, benchPm: j.benchPm, toolPm: j.toolPm, count: j.count,
+    elapsedMs: j.elapsedMs, seed: j.seed, s: j.s }));
+  for (const r of recipes) for (const level of [r.R, Math.min(99, r.R + 15)]) for (const seed of RECIPE_SEEDS) {
+    const s = core.settleJob(cat.kinds[r.kind], r.rung, level, { count: 1000, elapsedMs: 8 * 3600000, seed });
+    if (!s) throw new Error('gen-trades: recipe ' + r.id + ' at Level ' + level + ' does not settle');
+    rolls.push({ kind: r.kind, rung: r.rung, level, mastery: false, benchPm: 0, toolPm: 1000, count: 1000, elapsedMs: 8 * 3600000, seed, s });
+  }
+  /* THE LIT CASCADE, pinned while it is dark (09 4.11 row 6): every sample settled with quality on, which the self-check rolls under a
+     lit lever row (VERIFY(m)), so the day the switch lights the twin is already the JS's */
+  const litRolls = SAMPLES.filter((j) => cat.kinds[j.kind]).map((j) => {
+    const opt = { mastery: !!j.mastery, benchPm: j.benchPm || 0, toolPm: j.toolPm || 1000, count: j.count, elapsedMs: j.elapsedMs };
+    return { kind: j.kind, rung: j.rung, level: j.level, ...opt, seed: j.seed, s: core.settleJob(cat.kinds[j.kind], j.rung, j.level, { ...opt, seed: j.seed, quality: true }) };
+  });
+  if (!litRolls.some((j) => j.s.fine > 0) || !litRolls.some((j) => j.s.master > 0)) throw new Error('gen-trades: the lit pins walk no Fine or no Master branch');
+  if (!P.qualityLive && rolls.some((j) => j.s.fine || j.s.master)) throw new Error('gen-trades: quality is dark and a pinned roll is not Plain');
+  return { cat, kinds, lever, powerStep, xp, curve, bench, speed, levelPins, values, fees, asks, behind, toolSpeed, toolLife, rents, jobs, refused,
+    recipes, groundBands, bandRungs, draws, rolls, litRolls };
 }
 
 const lit = (s) => (s === null || s === undefined ? 'null' : "'" + String(s).replace(/'/g, "''") + "'");
@@ -153,7 +199,10 @@ const FUNS = [
   'hr_trade_job_fee(text,integer,integer)', 'hr_trade_store_step(integer)', 'hr_trade_store_ask(text,integer)', 'hr_trade_store_bid(text,integer,integer)',
   'hr_trade_behind_pm(integer)', 'hr_trade_tool_speed_pm(integer,integer)', 'hr_trade_tool_life_ms(integer)', 'hr_trade_tool_rent(text,integer)',
   'hr_trade_job_bound(text,integer,integer,boolean,integer,integer,integer,bigint)',
+  /* the job slice (lane/k1-job-slice) */
+  'hr_trade_band_rung(text,integer)', 'hr_trade_mulberry(bigint)', 'hr_trade_roll(text,integer,integer,boolean,integer,integer,integer,bigint,bigint)',
 ];
+const TABLES = ['hr_trade_levers', 'hr_trade_kinds', 'hr_trade_xp', 'hr_trade_recipes', 'hr_trade_ground_bands'];
 
 export function buildSql(r) {
   const L = r.lever;
@@ -178,14 +227,20 @@ export function buildSql(r) {
 --   hr_trade_xp       ${r.xp.length} rows: XP (seconds of work) to reach each trade Level; ${Math.round(r.xp[98] / 3600)} hours to 99.
 --   twins (internal)  the curve (yield, Fine, Master, speed, XP factor), the Level from XP, V and the job fee, the store's step, ask and bid,
 --                     the contest curve behind a band, a tool's speed, life and rent, and the job's bound; each pinned to the JS (§4).
--- READERS: none yet. The job slice (09 section 6: the job row, its start and settle verbs, banded stacks) reads them; until it lands no
--- verb, engine or client reads this file, and the live town work (hr_activities, the old rows) is untouched.
+--   THE JOB SLICE (lane/k1-job-slice, 2026-11-26; 09 sections 4.9 and 6):
+--   hr_trade_recipes  ${r.recipes.length} recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
+--                     trade, band, rung, opening Level, face, and inputs as whole goods a set. A recipe not here is refused bad_recipe.
+--   hr_trade_ground_bands  ${r.groundBands.length} Danger scale grounds and their band (gearLevel / tierSteps): a depth record there opens its band.
+--   twins (internal)  hr_trade_band_rung (bandRung), hr_trade_mulberry (src/core/rng.js mulberry32's draw) and hr_trade_roll (settleJob, line
+--                     for line), pinned EXACTLY at ${r.rolls.length} jobs, so the server settles a job from its stored seed itself.
+-- READERS: 1073-k1-job-slice.sql (hr_trade_job_start, its settle and the \`trade_jobs\` section). The live town work (hr_activities, the old
+-- rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
--- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
--- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
+-- missing and their rows upserted (a kind or recipe the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- EXPLOIT SURFACE: none added. Five catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
 -- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-10): V anchors the job fee, the store's
--- ask and bid and the market's bands once the job slice reads it.
--- REVERSIBLE: drop the functions and the three tables.
+-- ask and bid and the market's bands; the recipe rows and the roller decide what a job takes and makes.
+-- REVERSIBLE: drop the functions and the five tables.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -198,7 +253,7 @@ end $mig$;
 -- ── §1 THE TABLES ────────────────────────────────────────────────────────────
 create table if not exists public.hr_trade_levers (
   id boolean primary key default true check (id),
-${cols.map((c) => `  ${c.padEnd(18)} ${c === 'tool_ms' ? 'bigint' : 'int   '} not null check (${c} >= 0),`).join('\n')}
+${cols.map((c) => `  ${c.padEnd(18)} ${c === 'tool_ms' ? 'bigint' : 'int   '} not null check (${c === 'quality_live' ? c + ' between 0 and 1' : c + ' >= 0'}),`).join('\n')}
   power_step         float8 not null check (power_step > 0 and power_step < 0.05),
   check (at_req_pm < cap_pm and cap_pm >= 1000 and fine_top_pm >= fine_base_pm and floor_share_pm < store_ceiling_pm)
 );
@@ -221,13 +276,29 @@ create table if not exists public.hr_trade_xp (
   level int    primary key check (level between 1 and 99),
   xp    bigint not null check (xp >= 0)
 );
-alter table public.hr_trade_levers enable row level security;
-alter table public.hr_trade_kinds enable row level security;
-alter table public.hr_trade_xp enable row level security;
-revoke all on public.hr_trade_levers, public.hr_trade_kinds, public.hr_trade_xp from public, anon, authenticated, service_role;
+create table if not exists public.hr_trade_recipes (
+  recipe  text   primary key check (recipe ~ '^[a-z][a-z0-9_]{1,63}$'),
+  kind    text   not null references public.hr_trade_kinds (kind),
+  trade   text   not null check (trade ~ '^[a-z]{1,16}$'),
+  band    int    not null check (band >= 0),
+  rung    int    not null check (rung >= 1),
+  r_level int    not null check (r_level >= 1),
+  face    text   not null check (face ~ '^[a-z0-9_]{1,64}$'),
+  name    text   not null check (length(name) between 3 and 48),
+  inputs  jsonb  not null check (jsonb_typeof(inputs) = 'object'),
+  imbue   text
+);
+create table if not exists public.hr_trade_ground_bands (
+  hunt_id text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  band    int  not null check (band >= 0)
+);
+${TABLES.map((t) => `alter table public.${t} enable row level security;`).join('\n')}
+revoke all on ${TABLES.map((t) => 'public.' + t).join(', ')} from public, anon, authenticated, service_role;
 comment on table public.hr_trade_levers is '${OUT_NAME}: the trades'' levers as whole numbers (src/data/trades.js through tools/gen-trades.mjs).';
 comment on table public.hr_trade_kinds is '${OUT_NAME}: one row a kind of good, its work and inputs derived by src/core/trades.js tradeCatalogue.';
 comment on table public.hr_trade_xp is '${OUT_NAME}: the XP (seconds of work) to reach each trade Level (src/core/trades.js tradeXpTable).';
+comment on table public.hr_trade_recipes is '${OUT_NAME}: the recipes a job may run (src/core/trades.js jobRecipes), inputs as whole goods a set.';
+comment on table public.hr_trade_ground_bands is '${OUT_NAME}: each Danger scale ground''s band (src/data/danger.js DANGER_GROUNDS gearLevel / tierSteps).';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 -- Upserted, never deleted and re-made: once the job slice points a row at a kind (a job, a stack), a catalogue change rewrites the kind
@@ -240,7 +311,16 @@ ${kindRows}
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
   ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
+delete from public.hr_trade_recipes where recipe <> all (array[${r.recipes.map((x) => lit(x.id)).join(', ')}]);
+insert into public.hr_trade_recipes (recipe, kind, trade, band, rung, r_level, face, name, inputs, imbue) values
+${r.recipes.map((x) => `  (${lit(x.id)}, ${lit(x.kind)}, ${lit(x.trade)}, ${x.band}, ${x.rung}, ${x.R}, ${lit(x.face)}, ${lit(x.name)}, ${jsonLit(x.inputs)}, ${lit(x.imbue)})`).join(',\n')}
+on conflict (recipe) do update set kind = excluded.kind, trade = excluded.trade, band = excluded.band, rung = excluded.rung,
+  r_level = excluded.r_level, face = excluded.face, name = excluded.name, inputs = excluded.inputs, imbue = excluded.imbue;
 delete from public.hr_trade_kinds where kind <> all (array[${r.kinds.map((k) => lit(k.id)).join(', ')}]);
+delete from public.hr_trade_ground_bands where hunt_id <> all (array[${r.groundBands.map((g) => lit(g.id)).join(', ')}]);
+insert into public.hr_trade_ground_bands (hunt_id, band) values
+${r.groundBands.map((g) => `  (${lit(g.id)}, ${g.band})`).join(',\n')}
+on conflict (hunt_id) do update set band = excluded.band;
 insert into public.hr_trade_xp (level, xp) values
   ${xpRows}
 on conflict (level) do update set xp = excluded.xp;
@@ -446,6 +526,96 @@ begin
     'xp', (v_spent * public.hr_trade_xp_pm(p_level, v_r)) / 1000000);
 end $fn$;
 
+create or replace function public.hr_trade_band_rung(p_kind text, p_band int)
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare c public.hr_trade_levers%rowtype; v_opens int;
+begin
+  -- TRADES (${OUT_NAME}; src/core/trades.js bandRung; 09 4.9): band b opens at rung b + 1, every band past the ladder at its last
+  -- rung, never before the kind's own rung. Null for no such kind.
+  select * into c from public.hr_trade_levers;
+  select opens into v_opens from public.hr_trade_kinds where kind = p_kind;
+  if v_opens is null then return null; end if;
+  return greatest(v_opens, least(c.rung_count, greatest(0, coalesce(p_band, 0)) + 1));
+end $fn$;
+
+create or replace function public.hr_trade_mulberry(p_a bigint)
+returns float8 language plpgsql immutable set search_path = public, pg_catalog as $fn$
+declare
+  m constant bigint := 4294967296; t bigint; x bigint; y bigint;
+begin
+  -- TRADES (${OUT_NAME}; src/core/rng.js mulberry32): the draw for the generator state p_a (already advanced by 0x6D2B79F5), in [0, 1).
+  -- Every value is a uint32 held in a bigint, so XOR, OR and the shifts are the JS bits, and Math.imul is the low 32 bits of the product,
+  -- taken in two 16-bit halves so no product passes 2^48. The division by 2^32 is exact in float8, as in JS.
+  t := mod(greatest(0, coalesce(p_a, 0)), m);
+  x := t # (t >> 15); y := t | 1;
+  t := mod(mod((x >> 16) * y, 65536) * 65536 + (x & 65535) * y, m);
+  x := t # (t >> 7); y := t | 61;
+  t := t # mod(t + mod(mod((x >> 16) * y, 65536) * 65536 + (x & 65535) * y, m), m);
+  return (t # (t >> 14))::float8 / m::float8;
+end $fn$;
+
+create or replace function public.hr_trade_roll(p_kind text, p_rung int, p_level int, p_mastery boolean, p_bench_pm int,
+  p_tool_pm int, p_count int, p_elapsed_ms bigint, p_seed bigint)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare
+  c public.hr_trade_levers%rowtype; k public.hr_trade_kinds%rowtype; b jsonb; v_r int; v_y int; v_n bigint; v_i bigint;
+  v_a bigint; v_fine float8 := 0; v_master float8 := 0; v_plain bigint := 0; v_fn bigint := 0; v_ms bigint := 0; v_ret bigint := 0;
+begin
+  -- TRADES (${OUT_NAME}; src/core/trades.js settleJob, line for line; 09 section 6): THE CLOSED-FORM SETTLE on the job's seed, so the
+  -- same seed always lands the same goods and a stop only ever cuts the same sequence shorter. The attempts, the time and the XP are the
+  -- bound's (hr_trade_job_bound); the dice are mulberry32 from the seed, drawn in the JS order:
+  --   gather  a unit with the yield's chance under 1000 (no draw at or over it), a second with (yield - 1000)'s over it
+  --   make    over 1000 the set comes back with chance 1 - 1000 / yield; under 1000 a miss loses the set; a good that rolls quality is
+  --           Master first (with the Mastery), then Fine, else Plain
+  -- Null when the bound refuses the job.
+  b := public.hr_trade_job_bound(p_kind, p_rung, p_level, p_mastery, p_bench_pm, p_tool_pm, p_count, p_elapsed_ms);
+  if b is null then return null; end if;
+  select * into c from public.hr_trade_levers;
+  select * into k from public.hr_trade_kinds where kind = p_kind;
+  v_r := 1 + (p_rung - 1) * c.rung_span;
+  v_y := (b->>'yield_pm')::int;
+  v_n := (b->>'attempts')::bigint;
+  -- QUALITY IS DARK while quality_live is 0 (09 4.11 row 6): no good rolls it, no quality draw is made, every good is Plain
+  if k.rolls is not null and c.quality_live = 1 then
+    v_fine := public.hr_trade_fine_pm(p_level, v_r)::float8 / 1000::float8;
+    v_master := public.hr_trade_master_pm(p_level, v_r, p_mastery)::float8 / 1000::float8;
+  end if;
+  v_a := mod(greatest(0, coalesce(p_seed, 0)), 4294967296);
+  v_i := 0;
+  while v_i < v_n loop
+    v_i := v_i + 1;
+    if k.stage = 'gather' then
+      if v_y >= 1000 then v_plain := v_plain + 1;
+      else
+        v_a := mod(v_a + 1831565813, 4294967296);
+        if public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8 then v_plain := v_plain + 1; end if;
+      end if;
+      if v_y > 1000 then
+        v_a := mod(v_a + 1831565813, 4294967296);
+        if public.hr_trade_mulberry(v_a) < (v_y - 1000)::float8 / 1000::float8 then v_plain := v_plain + 1; end if;
+      end if;
+      continue;
+    end if;
+    if v_y > 1000 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if public.hr_trade_mulberry(v_a) < 1::float8 - 1000::float8 / v_y::float8 then v_ret := v_ret + 1; end if;
+    end if;
+    if v_y < 1000 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if not (public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8) then continue; end if;
+    end if;
+    if k.rolls is null or c.quality_live <> 1 then v_plain := v_plain + 1; continue; end if;
+    if v_master > 0 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if public.hr_trade_mulberry(v_a) < v_master then v_ms := v_ms + 1; continue; end if;
+    end if;
+    v_a := mod(v_a + 1831565813, 4294967296);
+    if public.hr_trade_mulberry(v_a) < v_fine then v_fn := v_fn + 1; else v_plain := v_plain + 1; end if;
+  end loop;
+  return jsonb_build_object('attempts', v_n, 'spent_ms', (b->>'spent_ms')::bigint, 'xp', (b->>'xp')::bigint,
+    'plain', v_plain, 'fine', v_fn, 'master', v_ms, 'returned', v_ret, 'yield_pm', v_y);
+end $fn$;
+
 do $mig$
 declare v_sig text; v_role text;
 begin
@@ -471,11 +641,11 @@ begin
      or (select sum(own_uh) from public.hr_trade_kinds) <> ${r.kinds.reduce((a, k) => a + k.ownUh, 0)}
      or (select count(*) from public.hr_trade_kinds where final) <> ${r.kinds.filter((k) => k.final).length} then
     raise exception 'VERIFY(a): the kinds'' work is not the data''s'; end if;
-  if exists (select 1 from pg_class t where t.oid in ('public.hr_trade_levers'::regclass, 'public.hr_trade_kinds'::regclass, 'public.hr_trade_xp'::regclass)
+  if exists (select 1 from pg_class t where t.oid in (${TABLES.map((t) => `'public.${t}'::regclass`).join(', ')})
               and not t.relrowsecurity)
-     or exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_trade_levers', 'hr_trade_kinds', 'hr_trade_xp')) then
+     or exists (select 1 from pg_policies where schemaname = 'public' and tablename in (${TABLES.map((t) => `'${t}'`).join(', ')})) then
     raise exception 'VERIFY(b): a trade catalogue table has RLS off or a policy'; end if;
-  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_trade_levers', 'public.hr_trade_kinds', 'public.hr_trade_xp']) t(n)
+  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array[${TABLES.map((t) => `'public.${t}'`).join(', ')}]) t(n)
               where has_table_privilege(g.r, t.n, 'select') or has_table_privilege(g.r, t.n, 'insert') or has_table_privilege(g.r, t.n, 'update'))
      or exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array[${FUNS.map((f) => `'public.${f}'`).join(', ')}]) f(s)
               where has_function_privilege(g.r, f.s, 'execute')) then
@@ -552,8 +722,58 @@ ${vals(r.refused, (p) => `${lit(p.k)}, ${p.rung}, ${p.level}`)}) p(k, rung, l) l
     if public.hr_trade_job_bound(v_r.k, v_r.rung, v_r.l, false, 0, 1000, 10, 3600000) is not null then
       raise exception 'VERIFY(h): the bound admits % on rung % at Level %', v_r.k, v_r.rung, v_r.l; end if;
   end loop;
-  raise notice 'gen-trades: % kinds, % Levels, the twins pinned at % points, % settles admitted; all green', ${r.kinds.length}, ${r.xp.length},
-    ${r.curve.length + r.bench.length + r.speed.length + r.levelPins.length + r.values.length + r.fees.length + r.asks.length + r.behind.length + r.toolSpeed.length + r.toolLife.length + r.rents.length}, ${r.jobs.length};
+  -- (i) THE JOB SLICE'S ROWS: every recipe the data's, inputs as whole goods; every ground's band
+  if (select count(*) from public.hr_trade_recipes) <> ${r.recipes.length} or (select count(*) from public.hr_trade_ground_bands) <> ${r.groundBands.length} then
+    raise exception 'VERIFY(i): % recipes and % ground bands, not % and %', (select count(*) from public.hr_trade_recipes),
+      (select count(*) from public.hr_trade_ground_bands), ${r.recipes.length}, ${r.groundBands.length}; end if;
+  for v_r in select * from (values
+${vals(r.recipes, (x) => `${lit(x.id)}, ${lit(x.kind)}, ${lit(x.trade)}, ${x.band}, ${x.rung}, ${x.R}, ${lit(x.face)}, ${jsonLit(x.inputs)}`)}) p(id, k, t, band, rung, rl, face, inputs) loop
+    if not exists (select 1 from public.hr_trade_recipes x where x.recipe = v_r.id and x.kind = v_r.k and x.trade = v_r.t and x.band = v_r.band
+                    and x.rung = v_r.rung and x.r_level = v_r.rl and x.face = v_r.face and x.inputs = v_r.inputs) then
+      raise exception 'VERIFY(i): recipe % is not the data''s (%)', v_r.id, (select to_jsonb(x) from public.hr_trade_recipes x where x.recipe = v_r.id); end if;
+  end loop;
+  for v_r in select * from (values
+${vals(r.groundBands, (g) => `${lit(g.id)}, ${g.band}`)}) p(id, band) loop
+    if (select band from public.hr_trade_ground_bands where hunt_id = v_r.id) is distinct from v_r.band then
+      raise exception 'VERIFY(i): ground % is not band %', v_r.id, v_r.band; end if;
+  end loop;
+  -- (j) the band's rung (bandRung)
+  for v_r in select * from (values
+${vals(r.bandRungs, (p) => `${lit(p.k)}, ${p.band}, ${p.rung}`)}) p(k, band, rung) loop
+    if public.hr_trade_band_rung(v_r.k, v_r.band) is distinct from v_r.rung then
+      raise exception 'VERIFY(j): % at band % opens at rung % in SQL, % in JS', v_r.k, v_r.band, public.hr_trade_band_rung(v_r.k, v_r.band), v_r.rung; end if;
+  end loop;
+  -- (k) mulberry32's draw, to the last bit
+  for v_r in select * from (values
+${vals(r.draws, (d) => `${d.a}::bigint, '${d.u}'::float8`)}) p(a, u) loop
+    if public.hr_trade_mulberry(v_r.a) is distinct from v_r.u then
+      raise exception 'VERIFY(k): the draw at state % is % in SQL, % in JS', v_r.a, public.hr_trade_mulberry(v_r.a), v_r.u; end if;
+  end loop;
+  -- (l) THE ROLL: settleJob's result exactly, at every sample and every recipe's own job
+  for v_r in select * from (values
+${vals(r.rolls, (j) => `${lit(j.kind)}, ${j.rung}, ${j.level}, ${!!j.mastery}, ${j.benchPm || 0}, ${j.toolPm || 1000}, ${j.count}, ${j.elapsedMs}::bigint, ${j.seed}::bigint, ${j.s.attempts}::bigint, ${j.s.plain}::bigint, ${j.s.fine}::bigint, ${j.s.master}::bigint, ${j.s.returned}::bigint, ${j.s.xp}::bigint, ${j.s.spentMs}::bigint`)}) p(k, rung, l, m, b, t, n, ms, seed, att, plain, fine, master, ret, xp, spent) loop
+    v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
+    if v_j is null or (v_j->>'attempts')::bigint <> v_r.att or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine
+       or (v_j->>'master')::bigint <> v_r.master or (v_j->>'returned')::bigint <> v_r.ret or (v_j->>'xp')::bigint <> v_r.xp
+       or (v_j->>'spent_ms')::bigint <> v_r.spent then
+      raise exception 'VERIFY(l): % on rung % at Level % seed % rolls % in SQL, attempts % plain % fine % master % returned % XP % in settleJob',
+        v_r.k, v_r.rung, v_r.l, v_r.seed, v_j, v_r.att, v_r.plain, v_r.fine, v_r.master, v_r.ret, v_r.xp; end if;
+  end loop;
+  -- (m) THE LIT CASCADE, while quality is dark (09 4.11 row 6): the lever row lit for these pins only, settleJob with quality on exactly,
+  --     then the shipped switch put back
+  update public.hr_trade_levers set quality_live = 1;
+  for v_r in select * from (values
+${vals(r.litRolls, (j) => `${lit(j.kind)}, ${j.rung}, ${j.level}, ${!!j.mastery}, ${j.benchPm || 0}, ${j.toolPm || 1000}, ${j.count}, ${j.elapsedMs}::bigint, ${j.seed}::bigint, ${j.s.plain}::bigint, ${j.s.fine}::bigint, ${j.s.master}::bigint, ${j.s.returned}::bigint`)}) p(k, rung, l, m, b, t, n, ms, seed, plain, fine, master, ret) loop
+    v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
+    if v_j is null or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine or (v_j->>'master')::bigint <> v_r.master
+       or (v_j->>'returned')::bigint <> v_r.ret then
+      raise exception 'VERIFY(m): % lit at Level % seed % rolls % in SQL, plain % fine % master % returned % in settleJob', v_r.k, v_r.l, v_r.seed, v_j,
+        v_r.plain, v_r.fine, v_r.master, v_r.ret; end if;
+  end loop;
+  update public.hr_trade_levers set quality_live = ${L.quality_live};
+  if (select quality_live from public.hr_trade_levers) <> ${L.quality_live} then raise exception 'VERIFY(m): the quality switch was not put back'; end if;
+  raise notice 'gen-trades: % kinds, % Levels, % recipes, the twins pinned at % points, % settles admitted, % rolled exactly; all green', ${r.kinds.length}, ${r.xp.length},
+    ${r.recipes.length}, ${r.curve.length + r.bench.length + r.speed.length + r.levelPins.length + r.values.length + r.fees.length + r.asks.length + r.behind.length + r.toolSpeed.length + r.toolLife.length + r.rents.length + r.bandRungs.length + r.draws.length}, ${r.jobs.length}, ${r.rolls.length};
 end $mig$;
 `;
 }
@@ -588,12 +808,13 @@ async function selftest() {
   plant('a raw unit read off something other than a meal', (k) => { k.meal.line = 'draught'; });
   plant('a made kind with no input', (k) => { delete k.honing_stone.from; });
   plant('a refined good that rolls quality', (k) => { k.bar.rolls = 'step'; });
+  plant('a quality switch that is not a boolean', (k, l) => { l.quality.live = 'off'; });
   if (base.data.validate().length) bites.push('the shipped rows are refused: ' + base.data.validate().join('; '));
   const sql = buildSql(rowsOf(base));
   for (const f of FUNS) if (!sql.includes('public.' + f.replace(/\(.*/, '') + '(')) bites.push('twin ' + f + ' is not written');
-  for (const v of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'VERIFY(d)', 'VERIFY(e)', 'VERIFY(f)', 'VERIFY(g)', 'VERIFY(h)']) if (!sql.includes(v)) bites.push(v + ' is not checked');
+  for (const v of ['VERIFY(a)', 'VERIFY(b)', 'VERIFY(c)', 'VERIFY(d)', 'VERIFY(e)', 'VERIFY(f)', 'VERIFY(g)', 'VERIFY(h)', 'VERIFY(i)', 'VERIFY(j)', 'VERIFY(k)', 'VERIFY(l)', 'VERIFY(m)']) if (!sql.includes(v)) bites.push(v + ' is not checked');
   if (bites.length) { console.error('gen-trades --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-trades --selftest: 17 refusals bite, every twin is written and pinned');
+  console.log('gen-trades --selftest: 18 refusals bite, every twin is written and pinned');
 }
 
 if (isMain(import.meta.url)) {

@@ -418,14 +418,15 @@ export const COMBAT = [
     touches: 'damage over time of the ways that bleed', out: KILL, f: ['C-STATUS'],
     perturb: P(),
     ev: 'CONFIRMED (read)' }),
-  L('spell.statuses-hidden', 'spells', 'content', 'The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground', {
+  L('spell.statuses-hidden', 'spells', 'content', 'The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled', {
     at: [at('src/data/statuses.js', "  poison: Object.freeze({ id: 'poison'"), at('src/data/statuses.js', "  armor_break: Object.freeze({ id: 'armor_break'"),
       at('src/data/statuses.js', "  weakened: Object.freeze({ id: 'weakened'"), at('src/data/statuses.js', "  silenced: Object.freeze({ id: 'silenced'"),
       at('src/data/statuses.js', "  burning_ground: Object.freeze({ id: 'burning_ground'"), at('src/data/statuses.js', "  guarded: Object.freeze({ id: 'guarded'"),
       at('src/data/statuses.js', "  emboldened: Object.freeze({ id: 'emboldened'"), at('src/data/statuses.js', "  renewing: Object.freeze({ id: 'renewing'"),
       at('src/data/statuses.js', "  mending: Object.freeze({ id: 'mending'"), at('src/data/statuses.js', "  echo: Object.freeze({ id: 'echo'"),
-      at('src/data/statuses.js', "  sapped: Object.freeze({ id: 'sapped'"), at('src/data/statuses.js', "  frozen_ground: Object.freeze({ id: 'frozen_ground'")],
-    def: 'status rows no move lands yet: a tick (blowPm of the source\'s blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster\'s defence), silence (Silenced 3 s), each for durationMs',
+      at('src/data/statuses.js', "  sapped: Object.freeze({ id: 'sapped'"), at('src/data/statuses.js', "  frozen_ground: Object.freeze({ id: 'frozen_ground'"),
+      at('src/data/statuses.js', "  blunted: Object.freeze({ id: 'blunted'"), at('src/data/statuses.js', "  kindled: Object.freeze({ id: 'kindled'")],
+    def: 'status rows no move lands yet: a tick (blowPm of the source\'s blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster\'s defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16), each for durationMs',
     range: 'permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23\'s numbers',
     touches: 'nothing while hidden; then the party\'s damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)', out: [...KILL, ...SURVIVE], f: ['C-STATUS'],
     tests: [['tests/hunt-core/status-effects.mjs', 'each status ticks or applies, keys and caps'], ['tests/hunt-core/talent-effects.mjs', 'heal-over-time, status-strength, echo-and-carry'], ['tests/hunt-core/monster-spells.mjs', 'silenced-starts-nothing']], testReads: ['STATUSES', 'STATUS_KEYS'],

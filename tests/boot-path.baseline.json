@@ -83,7 +83,31 @@
       },
       {
         "modules": 13,
-        "gzipBytes": 206427,
+        "gzipBytes": 206702,
+        "on": "2026-11-27",
+        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207095,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207097,
+        "on": "2026-11-27",
+        "why": "lane/piece-gear-fixes: Wear upgrades weighs a piece's Traits (upgrade-pick.js pieceStepsPm) and other open heroes read pieces from the account copy (piece-sections, item-sections)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207102,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206836,
         "on": "2026-11-27",
         "why": "a cut locked in"
       }
@@ -457,7 +481,31 @@
       },
       {
         "modules": 25,
-        "gzipBytes": 972872,
+        "gzipBytes": 988390,
+        "on": "2026-11-27",
+        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 988966,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 989560,
+        "on": "2026-11-27",
+        "why": "lane/piece-gear-fixes: Wear upgrades weighs a piece's Traits (upgrade-pick.js pieceStepsPm) and other open heroes read pieces from the account copy (piece-sections, item-sections)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 991880,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981425,
         "on": "2026-11-27",
         "why": "a cut locked in"
       }

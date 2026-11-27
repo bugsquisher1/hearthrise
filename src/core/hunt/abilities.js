@@ -58,7 +58,8 @@ import { stepsOn, healAmount, manaOn } from './amount.js';
 import { challengeable, challengeFrom, holderTank } from './targeting.js';
 import { roleOf as monsterRoleOf } from './monster-roles.js';
 import { MONSTER_ROLES } from '../../data/monster-roles.js';
-import { applyStatus, statusRow, stretchStatus } from './status.js';
+import { applyStatus, statusRow, stretchStatus, spendCastPm } from './status.js';
+import { queueOn, reactsOn } from './react-queue.js';
 import { interrupt } from './monster-spells.js';
 import { rowsFor } from './talent-rows.js';
 import { reachOf, allyOrder, allyTargets, partyOf, onlyOne, tuneAfflict } from './cast-targets.js';
@@ -499,10 +500,13 @@ function effect(inst, u, row, t, sc, v) {
   /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
      that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
   const back = v && v.back ? v.back : null;
+  /* (the cast's tally, fire's: kept only for a hero that reacts to its own cast, the HP its hits took and the monsters its status landed on) */
+  const tally = v && v.tally ? v.tally : null;
   const strike = (m) => {
     const r = landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
     if (row.leechPm) leechBack(u, row, r.dmg, sc);
     if (back) { if (r.dmg > 0) back.hits++; if (r.killed) back.kills++; }
+    if (tally) tally.dmg += r.dmg;
   };
   /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, its own largest blow (a
      ticking status's tick is a share of it: statuses.js blowPm, the spell rule) and the version's rune tier. A marking status (Green
@@ -512,6 +516,7 @@ function effect(inst, u, row, t, sc, v) {
     const own = blow;
     const hit = Number.isInteger(own) && own > 0 ? own : 1;
     applyStatus(inst, m, statusRow(row.status), { u: u.id, maxHit: hit, runeTier: (v && v.version) || 1 }, sc);
+    if (tally && holds(m, row.status)) tally.n.add(m.id);
     /* a Roads modifier's longer status (talent-rows.js moddedRow statusMs: Long Frost, Lingering Sickness) on the stack this cast laid */
     if (row.statusMs > 0) stretchStatus(m, row.status, u.id, row.statusMs);
     if (fx) tuneAfflict(inst, sc, u, m, row, fx, hit, (v && v.version) || 1);
@@ -601,7 +606,10 @@ export function fire(inst, u, pick, sc) {
   for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
   const row = pick.row;
   const version = Number.isInteger(pick.version) ? pick.version : 1;
-  const pm = Number.isInteger(pick.pm) ? pick.pm : 1000;
+  /* A NEXT CAST RAISED (statuses.js castPm, Kindled: a Signature's boon) lands its share on this cast's output, as a version's step, and is
+     spent on it; a hero that carries none casts at the pick's own output */
+  const raise = spendCastPm(u, row.id, sc);
+  const pm = Math.floor(((Number.isInteger(pick.pm) ? pick.pm : 1000) * (1000 + raise)) / 1000);
   /* THE MANA THE CAST COSTS: its version's, less a self-shield's refund of the shell it replaces (shieldRefund). The
      cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
   const paid = Number.isInteger(pick.mana) ? pick.mana : manaOn(inst, u, row.mana);
@@ -632,6 +640,10 @@ export function fire(inst, u, pick, sc) {
   /* THE PIECES' CONTEXT (heal-rules.js), for a row that carries any */
   const cast = row.fx ? { inst, fx: row.fx, spent, near: false } : null;
   if (cast) v.cast = cast;
+  /* THE CAST'S OWN MOMENT (a reaction's `cast`, react-queue.js: Ossuary Helm, Floodwater Hatchets): what it landed, tallied only for a
+     hero that reacts to one */
+  const tally = reactsOn(u, 'cast') ? { n: new Set(), dmg: 0 } : null;
+  if (tally) v.tally = tally;
   /* A CAST THAT GIVES MANA BACK (abilities.js manaPerHit / manaPerKill, the Storm spells): its effect runs first with its events held,
      so the cast event, written once, carries the mana the cast KEPT (`back` came back: Magic XP is paid on the rest, as on a shell's
      refund), and the held events follow it in the order they happened, the order every other cast's take. Every other row: the cast,
@@ -655,6 +667,7 @@ export function fire(inst, u, pick, sc) {
   if (held) for (const ev of held) sc.emit(ev);
   else effect(inst, u, row, pick.target, sc, v);
   castReturns(u, row, cast);
+  if (tally) queueOn(inst, u, 'cast', { t: pick.target, ability: row.id, n: tally.n.size, dmg: tally.dmg });
   return true;
 }
 

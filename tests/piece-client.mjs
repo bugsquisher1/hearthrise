@@ -11,7 +11,7 @@
 // ci-run: node tests/piece-client.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/piece-client.mjs --mutate
 //
-// mutant-anchors: src/session/piece-sections.js src/session/piece-intents.js src/shell/piece-words.js src/shell/windows/away.js src/shell/share-card.js
+// mutant-anchors: src/session/piece-sections.js src/session/piece-intents.js src/shell/piece-words.js src/shell/windows/away.js src/shell/share-card.js src/core/upgrade-pick.js supabase/functions/hr-accrue/company-wear.js src/shell/widgets/upgrade-line.js src/session/item-sections.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 //   PC-1  THE READERS (src/session/piece-sections.js): dark (no section) reads null and nothing; lit, a row reads as the server sent it, a
@@ -25,6 +25,16 @@
 //   PC-4  THE INTENTS (src/session/piece-intents.js): the wear sends the slot, the piece's id, the equip slot and a fresh key, nothing else;
 //         the sale sends the price the section showed, never another; an ok answer IS the character (taken, no second read: rule 11); a
 //         refusal re-reads once; a piece with no price is never sent to the store
+//   PC-5  EQUIP UPGRADES WEIGHS A WORN PIECE IN STEPS, BOTH PATHS (src/core/upgrade-pick.js; lane/piece-gear-fixes): the window's plan (the
+//         browser, upgrade-line.js upgradeOf) and the Start's wear lines (the server's pick over the envelope, hr-accrue/company-wear.js, the
+//         browser closed) agree: a plain body one tier up takes a plain steel body (CONTROL) and never a Rare one; a plain piece of MORE
+//         steps than the Rare's base and Traits takes it, one of exactly as many does not (a tie keeps it), a higher rank holds its slot
+//         longer, a Signature is never taken off, a piece another hero wears is no reason; the Start never hands a freed Rare's base on
+//   PC-6  ANOTHER OPEN HERO READS THE NEWEST LIST (item-sections.js storageOf / accountSection): a piece sold on one hero is gone from the
+//         other's list at once, its sales left with it; a hero read alone keeps its own
+//   PC-7  A SETUP SAYS ITS PIECE WAS SOLD (item-sections.js presetsOf, 1074-setup-pieces.sql): a setup's pieces read as the server sent them
+//         (a malformed id dropped) and its `gone` slots only among them; a setup with none reads neither; piece_gone and the Setups line's
+//         label have words
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -117,6 +127,57 @@ async function pure(base) {
   sent.length = 0;
   const none = await PI.sellPiece({ server: server({ ok: true, body: env }) }, cs, Object.assign({}, pa, { sell: null }));
   if (none.ok || sent.length) out.push('PC-4 a piece with no price went to the store');
+
+  /* PC-5 */
+  const UL = await u('src/shell/widgets/upgrade-line.js'), CW = await u('supabase/functions/hr-accrue/company-wear.js');
+  const KIT = { body: 'steel_platebody', helmet: 'steel_helm', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' };
+  /* a Level 140 hero in the steel kit, the bag's pieces and the pieces it wears (each a row of the section, worn by hero 0 in its slot) */
+  const heroEnv = (bag, worn, o = {}) => ({ ok: true, inventory: bag, equipment: Object.assign({}, KIT, o.equipment || {}), skills: {},
+    level: { xp: 1, level: 140, into: 0, need: 100 }, tally: null, hunt_settings: null,
+    pieces: { pieces: worn.map(([k, p], i) => row([A, B, C, D][i], Object.assign({ base: KIT[k], slot: k, worn: { slot: o.slot || 0, equip_slot: k } }, p))), sell_left: 20 } });
+  /* what each path would put on: the window's plan (the browser, upgrade-line.js upgradeOf) and the Start's wear lines (the server's pick over
+     the envelope, hr-accrue/company-wear.js: the browser closed) */
+  const viewed = (e) => UL.upgradeOf(Object.assign(csOf(e), { slot: 0 })).ops;
+  const closed = (e) => Object.fromEntries(CW.wearLinesFor([{ slot: 0, env: e }]).filter((l) => l.slot === 0).map((l) => [l.equip_slot, l.item]));
+  const both = (label, e, slot, want) => {
+    for (const [path, ops] of [['viewed', viewed(e)], ['closed', closed(e)]]) {
+      if ((ops[slot] || null) !== want) out.push('PC-5 (' + path + ') ' + label + ': ' + slot + ' takes ' + JSON.stringify(ops[slot] || null) + ', want ' + JSON.stringify(want));
+    }
+  };
+  const R1 = [{ id: 'first_rank', rank: 1 }], R3 = [{ id: 'first_rank', rank: 3 }];
+  /* CONTROL: the plain steel body takes the Mithril one tier up (the pick sees the bag) */
+  both('a plain steel body (CONTROL)', heroEnv({ mithril_platebody: 1 }, []), 'body', 'mithril_platebody');
+  both('a Rare steel body (First Rank I) against a plain body one tier up', heroEnv({ mithril_platebody: 1 }, [['body', { traits: R1 }]]), 'body', null);
+  both('a Rare steel body (First Rank I) against a plain body two tiers up (more steps)', heroEnv({ rune_platebody: 1 }, [['body', { traits: R1 }]]), 'body', 'rune_platebody');
+  both('a Rare steel body (First Rank III) against a plain body two tiers up', heroEnv({ rune_platebody: 1 }, [['body', { traits: R3 }]]), 'body', null);
+  both('a Rare steel sword (File Breaker I) against a plain sword of exactly its steps (a tie keeps the Rare)',
+    heroEnv({ mithril_sword: 1 }, [['weapon', { traits: [{ id: 'file_breaker', rank: 1 }] }]]), 'weapon', null);
+  both('a Signature steel body against a plain body two tiers up', heroEnv({ rune_platebody: 1 }, [['body', { rarity: 'signature', traits: [], signature: 'cairn_belt' }]]), 'body', null);
+  both('a piece another hero wears (not this one\'s)', heroEnv({ mithril_platebody: 1 }, [['body', { traits: R1 }]], { slot: 1 }), 'body', 'mithril_platebody');
+  /* a Rare taken off for a better plain piece is freed by the server, never a bag copy: the Start never hands its base to another hero */
+  const two = CW.wearLinesFor([{ slot: 0, env: heroEnv({ rune_platebody: 1 }, [['body', { traits: R1 }]]) },
+    { slot: 1, env: Object.assign(heroEnv({}, [], { slot: 1 }), { equipment: Object.assign({}, KIT, { body: 'bronze_platebody' }) }) }]);
+  if (two.some((l) => l.item === 'steel_platebody')) out.push('PC-5 the Start passed a freed Rare\'s base to a hero: ' + JSON.stringify(two));
+
+  /* PC-6 */
+  const older = csOf({ pieces: SECTION, now: '2026-11-27T10:00:00Z', bank: {} });
+  const newer = csOf({ pieces: { pieces: SECTION.pieces.filter((p) => p.id !== B), sell_left: 18 }, now: '2026-11-27T10:00:05Z', bank: {} });
+  const IS = await u('src/session/item-sections.js');
+  const acct = IS.storageOf(newer);
+  const shown = PS.piecesOf(Object.assign(older, { accountStorage: () => acct }));
+  if (!shown || shown.pieces.some((p) => p.id === B) || shown.sellLeft !== 18) out.push('PC-6 another open hero still lists a piece sold on this one: ' + JSON.stringify(shown && { ids: shown.pieces.map((p) => p.id), left: shown.sellLeft }));
+  const alone = PS.piecesOf(csOf({ pieces: SECTION, now: '2026-11-27T10:00:00Z', bank: {} }));
+  if (!alone || !alone.pieces.some((p) => p.id === B)) out.push('PC-6 a hero read alone lost its own list');
+
+  /* PC-7 */
+  const RW = await u('src/data/refusal-words.js'), TX = await u('src/render/player-text.js');
+  const sets = IS.presetsOf(csOf({ hunt_presets: [
+    { preset: 1, name: 'Rare', action_set: 1, gear: { body: 'steel_platebody' }, pieces: { body: A, ring1: 'nope' }, gone: ['body', 'ring1'] },
+    { preset: 2, name: 'Plain', action_set: 2, gear: { body: 'bronze_platebody' } }] }));
+  const rare = sets && sets.find((x) => x.preset === 1), plain = sets && sets.find((x) => x.preset === 2);
+  if (!rare || JSON.stringify(rare.pieces) !== JSON.stringify({ body: A }) || JSON.stringify(rare.gone) !== '["body"]') out.push('PC-7 a setup with a sold piece reads ' + JSON.stringify(rare && { pieces: rare.pieces, gone: rare.gone }));
+  if (!plain || Object.keys(plain.pieces).length || plain.gone.length) out.push('PC-7 a setup with no piece reads ' + JSON.stringify(plain && { pieces: plain.pieces, gone: plain.gone }));
+  if (!RW.REFUSAL_WORDS.piece_gone || !TX.hasText('prep.piece_sold')) out.push('PC-7 piece_gone or the line\'s label has no words');
   return out;
 }
 
@@ -131,7 +192,20 @@ const MUTANTS = [
   ['an ok answer is read again', 'src/session/piece-intents.js', 'await cs.load(b);', 'await cs.load();'],
   ['the return card drops the pieces', 'src/shell/windows/away.js', 'pieces: hunt && cs && a.session ? piecesFoundIn(cs, a.session) : [],', 'pieces: [],'],
   ['the share card stands the base', 'src/shell/share-card.js', "standing: standingOf(a.piece && typeof a.piece === 'object' ? a.piece : a.item)", 'standing: standingOf(a.item)'],
+  ['Equip upgrades weighs a worn piece as its base', 'src/core/upgrade-pick.js', 'if (piece && !(plainStepsPm(slot, id) > pieceAt)) continue;', 'if (false) continue;'],
+  ['a Trait is worth no steps', 'src/core/upgrade-pick.js', 'steps += (row.trade === true ? GEAR_STEPS.tradeSteps : GEAR_STEPS.traitSteps)[x.rank - 1];', 'steps += 0;'],
+  ['a tie strips the Rare', 'src/core/upgrade-pick.js', '!(plainStepsPm(slot, id) > pieceAt)', '!(plainStepsPm(slot, id) >= pieceAt)'],
+  ['a Signature is priced as its base', 'src/core/upgrade-pick.js', "if (!piece || piece.rarity === 'signature' || piece.signature || !ITEMS[piece.base]) return null;", 'if (!piece || !ITEMS[piece.base]) return null;'],
+  ['a piece reads as worn by every hero', 'src/core/upgrade-pick.js', 'if (!w || w.slot !== slot ||', 'if (!w ||'],
+  ['the Start reads no pieces', 'supabase/functions/hr-accrue/company-wear.js', 'wearInputOf((k) => h.env[k], h.slot)', 'wearInputOf((k) => h.env[k])'],
+  ['the window reads no pieces', 'src/shell/widgets/upgrade-line.js', 'pieces: wornPiecesOf(cs),', 'pieces: null,'],
+  ['another hero reads its own old list', 'src/session/piece-sections.js', "accountSection(cs, 'pieces')", "cs.read('pieces')"],
+  ['the account copy carries no pieces', 'src/session/item-sections.js', "pieces: isObj(read(cs, 'pieces')) ? read(cs, 'pieces') : null } : null;", 'pieces: null } : null;'],
+  ['a setup never says its piece was sold', 'src/session/item-sections.js', "const gone = Array.isArray(r.gone) ? r.gone.filter((s) => typeof s === 'string' && s in pieces) : [];", 'const gone = [];'],
+  ['a setup\'s pieces are any text', 'src/session/item-sections.js', "typeof id === 'string' && UUID.test(id)) pieces[slot] = id;", "typeof id === 'string') pieces[slot] = id;"],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/piece-client.mjs', pure, mutants: MUTANTS,
+  /* the Start's wear lines are the edge's own file (PC-5 closed), its imports of src the planted copy's */
+  copy: ['supabase/functions/hr-accrue'],
   green: 'Trait pieces in the browser: the readers, the drop said once, the return card line, ids and the server\'s price only' });

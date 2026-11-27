@@ -318,6 +318,12 @@ export const REASONS = Object.freeze({
     { cond: '!can || !!sc.wblockConfirm', words: "q.why === 'day_ending' ? t('work.block_day_ending') : t('work.block_used', { max: whole(q.perDay) })", where: 'the work block quote line: not enough of today left, all of today\'s blocks bought, or how much more gold (work.block_quote_short); off while its own confirmation is open' },
     { cond: '!can || !!sc.wblockConfirm', words: "t(purse !== null && purse < q.price ? 'work.block_quote_short' : 'work.block_quote'", where: 'the work block quote line: how much more gold the next block needs' },
   ],
+  'src/shell/windows/work-jobs.js': [
+    /* a kit-trade job (1073-k1-job-slice.sql): the row's quote line is the server's refusal in words; the job line above names a running job */
+    { cond: '!(q && q.ok) || !!job || sc.pending', words: 'shutWords(r)', where: 'a job row\'s Start: its quote line says why it is shut (the trade Level, the band\'s depth record, the day used, the materials); while a job runs the line above names it' },
+    { cond: '!done || sc.pending', words: "t('work.job_now'", where: 'the job line\'s Collect: off until the server\'s end, and the line says the time left' },
+    { cond: '!job || done || sc.pending', words: "t('work.job_due'", where: 'the job line\'s Stop: off once the job is done, and the line says done (Collect lands it)' },
+  ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },
   ],

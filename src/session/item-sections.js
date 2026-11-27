@@ -26,7 +26,7 @@
 //   shop          { offers: [{ offer, item, kind, price }], bids: { item: gold each } }
 //                   (offers: tools, gear and seeds; the Shop sells no supplies, Tyler 2026-10-20)
 //   hunt.loot     [{ item, count }]  what this hunt has picked up (not premium-gated)
-//   hunt_presets  [{ preset, name, action_set, gear: { slot: item } }]
+//   hunt_presets  [{ preset, name, action_set, gear: { slot: item }, pieces?: { slot: piece id }, gone?: [slot] }]
 //   role          { id, weapon }      the hunt role the worn weapon gives
 // The Services window's (lane S2, 2026-10-25-blessings.sql; 1058-hunting-blocks.sql):
 //   time_blocks    { hunt: { available, why, block_ms, price, n, bought, per_day } }  the next bought hunting block, priced
@@ -41,6 +41,7 @@ import { IMBUE_RULES, IMBUE_SLOTS } from '../data/imbue-rules.js';
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^[a-z0-9_]{1,40}(?:\.[a-z0-9_]{1,40}){1,3}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const str = (v, max = 64) => (typeof v === 'string' && v.length && v.length <= max ? v : null);
 
@@ -189,7 +190,12 @@ export function presetsOf(cs) {
     if (!isObj(r) || !Number.isInteger(r.preset) || r.preset < 0 || r.preset > 7 || !str(r.name, 24)) continue;
     const gear = {};
     if (isObj(r.gear)) for (const [slot, id] of Object.entries(r.gear)) if (/^[a-z0-9_]{1,32}$/.test(slot) && typeof id === 'string' && ID.test(id)) gear[slot] = id;
-    out.push({ preset: r.preset, name: r.name, actionSet: Number.isInteger(r.action_set) ? r.action_set : null, gear,
+    /* The Trait pieces the setup wears ({ slot: piece id }) and its slots whose piece is no longer the account's (sold: Use refuses
+       piece_gone): 1074-setup-pieces.sql, sent only for a setup that holds one. */
+    const pieces = {};
+    if (isObj(r.pieces)) for (const [slot, id] of Object.entries(r.pieces)) if (/^[a-z0-9_]{1,32}$/.test(slot) && typeof id === 'string' && UUID.test(id)) pieces[slot] = id;
+    const gone = Array.isArray(r.gone) ? r.gone.filter((s) => typeof s === 'string' && s in pieces) : [];
+    out.push({ preset: r.preset, name: r.name, actionSet: Number.isInteger(r.action_set) ? r.action_set : null, gear, pieces, gone,
       /* What the setup fights as and that key's ability list (the server's hr_setup_fights_as), and whether its saved gear is the
          worn set (false on the setup in use after a mid-hunt swap moved only the bar). Null when the server sent none: no mid-hunt Use. */
       fightsAs: str(r.fights_as, 32) && ID.test(r.fights_as) ? r.fights_as : null,
@@ -220,15 +226,18 @@ export function roleOf(cs) {
    showed stacks the server no longer held and every press on them was refused). REPLACED whole, never merged. */
 const serverMs = (v) => (typeof v === 'string' ? Date.parse(v) : NaN);
 
-/** This envelope's OWN account storage, { at, bank, depot } (at: the server's ms), or null without a `bank` or a clock. */
+/** This envelope's OWN account storage, { at, bank, depot, pieces } (at: the server's ms), or null without a `bank` or a clock.
+    `pieces` (the account's Trait pieces, 1072-piece-verbs.sql) rides along: one hero's wear or sale moves the list every open hero shows
+    (lane/piece-gear-fixes: another hero's list stayed stale until its own next envelope). */
 export function storageOf(cs) {
   const at = serverMs(read(cs, 'now')), bank = read(cs, 'bank');
-  return Number.isFinite(at) && isObj(bank) ? { at, bank, depot: isObj(read(cs, 'depot')) ? read(cs, 'depot') : null } : null;
+  return Number.isFinite(at) && isObj(bank) ? { at, bank, depot: isObj(read(cs, 'depot')) ? read(cs, 'depot') : null,
+    pieces: isObj(read(cs, 'pieces')) ? read(cs, 'pieces') : null } : null;
 }
 
-/* The account's copy (AccountSession keeps the newest of every open hero's reads, this one's included), else this
-   envelope's own (a session read alone, or a section the newest read did not carry). */
-function accountSection(cs, key) {
+/** The account's copy of an account-wide section (AccountSession keeps the newest of every open hero's reads, this one's included), else
+    this envelope's own (a session read alone, or a section the newest read did not carry). */
+export function accountSection(cs, key) {
   const acct = cs && typeof cs.accountStorage === 'function' ? cs.accountStorage() : null;
   return acct && isObj(acct[key]) ? acct[key] : read(cs, key);
 }

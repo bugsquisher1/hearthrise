@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "873625f8845ff969",
+ "authored": "5c13e267a70536eb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 236,
+  "levers": 237,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -82,12 +82,12 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 47,
+   "economy": 48,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
-   "global": 130,
+   "global": 131,
    "archetype": 28,
    "content": 52,
    "exception-intentional": 17,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 76,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 38,
+   "not-playable:outside-hunt": 39,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 40,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 132,
+   "asserted": 133,
    "mentioned only": 85,
    "none": 19
   },
@@ -118,10 +118,10 @@
  },
  "census": {
   "bindings": 757,
-  "typed": 17477,
-  "files": 262,
-  "lever": 324,
-  "notLever": 433,
+  "typed": 17516,
+  "files": 263,
+  "lever": 325,
+  "notLever": 432,
   "unclaimed": 0
  },
  "problems": [],
@@ -983,7 +983,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -3192,7 +3192,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 110,
+     "line": 120,
      "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
@@ -3231,7 +3231,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 33,
+    "mentionCount": 34,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3259,13 +3259,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 104,
+     "line": 114,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 91,
+     "line": 101,
      "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
      "binding": "TIERS"
     }
@@ -3321,82 +3321,94 @@
   {
    "id": "spell.statuses-hidden",
    "category": "spells",
-   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled",
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 134,
+     "line": 144,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 137,
+     "line": 147,
      "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 139,
+     "line": 149,
      "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 141,
+     "line": 151,
      "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 144,
+     "line": 154,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 149,
+     "line": 159,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 150,
+     "line": 160,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 151,
+     "line": 161,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 157,
+     "line": 167,
      "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 160,
+     "line": 170,
      "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 163,
+     "line": 173,
      "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 166,
+     "line": 176,
      "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 181,
+     "text": "blunted: Object.freeze({ id: 'blunted', name: 'Blunted', key: 'blunted', hidden: true, durationMs: 10000, maxStacks: 1, dealtPm: -500, once: true }),",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 183,
+     "text": "kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
     }
    ],
-   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), each for durationMs",
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16), each for durationMs",
    "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
    "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
    "outcomes": [
@@ -3483,13 +3495,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 81,
+     "line": 91,
      "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 82,
+     "line": 92,
      "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     }
@@ -3559,13 +3571,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 119,
+     "line": 129,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 120,
+     "line": 130,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3625,7 +3637,7 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 115,
+     "line": 125,
      "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),",
      "binding": "STATUSES"
     },
@@ -3879,7 +3891,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -4509,7 +4521,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 127,
+     "line": 137,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -6966,7 +6978,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 48,
+    "mentionCount": 50,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7054,7 +7066,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 49,
+    "mentionCount": 51,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7349,7 +7361,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7428,7 +7440,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7504,7 +7516,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7573,7 +7585,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 25,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7717,9 +7729,10 @@
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/plan-share.mjs"
+     "tests/plan-share.mjs",
+     "tests/settle-properties.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7985,7 +7998,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8154,7 +8167,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8235,7 +8248,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11030,7 +11043,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11045,7 +11058,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11053,7 +11066,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11077,7 +11090,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 26,
+     "line": 28,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -11128,7 +11141,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11146,7 +11159,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 441,
       "distinct": 37,
       "low": 1,
@@ -11154,7 +11167,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 225,
       "distinct": 63,
       "low": 1,
@@ -11241,7 +11254,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11316,7 +11329,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11415,7 +11428,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11497,7 +11510,7 @@
    "category": "equipment",
    "name": "Signatures: each named piece's one rule, as reaction rows",
    "sites": [],
-   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, death, heal) doing a shield, a ready, a pass or a boon (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw), a status (its reach r, a fixed tick pm of the moment's damage), a free cast again, a burst (pm of the fallen's health within r) or a reflect (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
    "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
    "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
    "outcomes": [
@@ -11549,7 +11562,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the Signatures (a reaction row each: its line, size, clock and boon time; lane/signatures-sample)",
+    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut; lane/signatures-sample, lane/signatures-batch-2)",
     "homes": [
      "src/data/signatures.js#SIGNATURES"
     ]
@@ -11718,7 +11731,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11793,7 +11806,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11869,7 +11882,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12910,7 +12923,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/fixtures/h4.js"
     ],
-    "mentionCount": 20,
+    "mentionCount": 21,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13019,9 +13032,10 @@
     "mentions": [
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/damage.mjs",
+     "tests/hunt-live.mjs",
      "tests/supplies-catalogue.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13284,7 +13298,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13302,7 +13316,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13310,7 +13324,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -14256,7 +14270,7 @@
      "tests/live-settlement.mjs",
      "tests/recovery-relief-guard.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14311,7 +14325,7 @@
      "tests/live-settlement.mjs",
      "tests/recovery-relief-guard.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14613,6 +14627,52 @@
    "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four's kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before"
   },
   {
+   "id": "econ.piece-value",
+   "category": "economy",
+   "name": "What a Trait piece is worth, and what the store pays for one",
+   "sites": [
+    {
+     "file": "src/data/piece-price.js",
+     "line": 23,
+     "text": "export const PIECE_VALUE = Object.freeze({ sharePm: 100, rankValuePm: 250, floorSharePm: 250 });",
+     "binding": "PIECE_VALUE"
+    }
+   ],
+   "definition": "V = sharePm / 1000 x the rarity's hunted hours (drop-hours.js) x wage(item Level) x (1 + rankValuePm / 1000 x (top rank - 1)), a Very Rare read by its best Trait; the store pays the piece's own floorSharePm x V (src/core/piece-value.js pieceStoreBid): a Muster Rare at item Level 60 sells for 16,365 (1.0 hour of wage), a Very Rare at 80 with ranks I and II for 221,575",
+   "range": "13-market section 5: pieceShare 0.1, traitRankValue 0.25 (starting values). floorSharePm 250, search 200 to 400 (12-targets 8.7: the market's lowest piece price, 0.25 V). The sale is outside the store's stack budget (a piece's supply is the drop hours, proven on the server), with a 20 a UTC day security fuse. SQL twin hr_piece_store_bid (1072, generated by tools/gen-piece-value.mjs)",
+   "touches": "gold minted by selling Trait pieces to the store (dark until trait_pieces); the floor under the market's piece prices (13-market 3.2)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/piece-verbs-db.mjs",
+      "what": "PV-3: every piece's section price is the core twin; the sale pays exactly it",
+      "reads": [
+       "pieceStoreBid"
+      ]
+     }
+    ],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a sale in town, never read by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/designer-calls-1127, tools/balance-program/redesign/sinks/ledger.mjs, every Rare not carried sold at rank II): piece sales are 1.6% of what the reference mints and the ledger reads 86.3% by day 180 (87.8% with the hall); 4.4% and 83.8% with the Very Rare and the Signature (--all-rarities). At the stack floor 0.4: 2.6% and 85.4%, 6.9% and 81.6%"
+  },
+  {
    "id": "econ.ammo-floor",
    "category": "economy",
    "name": "A store charge's floor under its crafted partner",
@@ -14778,19 +14838,19 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 37,
+     "line": 38,
      "text": "lineShare: Object.freeze({ draught: 0.2, imbuement: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 40,
+     "line": 41,
      "text": "stageShare: Object.freeze({ gather: 0.5, refine: 0.2, make: 0.3 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 43,
+     "line": 44,
      "text": "rungs: Object.freeze({ count: 10, span: 10 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -14840,30 +14900,30 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 45,
+     "line": 46,
      "text": "yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 47,
-     "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),",
+     "line": 51,
+     "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5, live: false }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 49,
+     "line": 53,
      "text": "speedAt99: 1.25,",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 57,
+     "line": 61,
      "text": "masteryCap: 3,",
      "binding": "TRADE_LEVERS"
     }
    ],
-   "definition": "for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up",
+   "definition": "for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up; while quality.live is false (a switch, not a lever: 09 4.11 row 6) every job lands Plain and the cascade waits",
    "range": "09 4.4 and 4.7 (Masteries: three an account, CR-Q1 a). SQL twins hr_trade_yield_pm, hr_trade_fine_pm, hr_trade_master_pm, hr_trade_speed_pm (1063, generated, swept by TF-TWIN)",
    "touches": "material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.11 to 0.19 hours of wage at Level 1, 0.28 at 50 on the first rung, 0.46 at 99 with a Mastery and a bench: measured.txt)",
    "outcomes": [],
@@ -14910,13 +14970,13 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 52,
+     "line": 56,
      "text": "table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 55,
+     "line": 59,
      "text": "xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -14966,7 +15026,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 59,
+     "line": 63,
      "text": "jobFee: 0.25,",
      "binding": "TRADE_LEVERS"
     }
@@ -15014,7 +15074,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 62,
+     "line": 66,
      "text": "store: Object.freeze({ lagSteps: 20, floorShare: 0.4, budgetHours: 1 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15070,7 +15130,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 65,
+     "line": 69,
      "text": "tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15119,7 +15179,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 68,
+     "line": 72,
      "text": "cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15167,7 +15227,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 153,
+     "line": 158,
      "text": "export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });",
      "binding": "RUNE_KINDS"
     }
@@ -16975,12 +17035,8 @@
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
   },
   {
-   "at": "src/data/trades.js#KIT_SAMPLE_MAX",
-   "why": "a content process bound: at most 5 named band 0 kit recipes until the first day sample is read (CLAUDE.md section 10), no outcome reads it"
-  },
-  {
    "at": "src/data/trades.js#KIT_BATCH_MAX",
-   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10), no outcome reads it"
+   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10; band 0 whole is 14 of them, 09 4.11 row 1b), no outcome reads it"
   },
   {
    "at": "src/data/trades.js#KIT_RECIPES",
@@ -17803,10 +17859,12 @@
    "pin": "keys",
    "keys": [
     "belowPm",
+    "capMs",
     "clockMs",
     "ms",
     "n",
-    "pm"
+    "pm",
+    "pw"
    ],
    "bindings": 1
   },
@@ -18691,6 +18749,7 @@
    "keys": [
     "armorPm",
     "blowPm",
+    "castPm",
     "dealtPm",
     "durationMs",
     "everyMs",
@@ -18701,7 +18760,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 37,
+   "typed": 41,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {
@@ -20123,6 +20182,15 @@
     "townWageShare"
    ],
    "typed": 8,
+   "bindings": 1
+  },
+  "src/data/piece-price.js#PIECE_VALUE": {
+   "pin": "count",
+   "keys": [
+    "floorSharePm",
+    "rankValuePm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/work-day.js#WORK_DAY": {

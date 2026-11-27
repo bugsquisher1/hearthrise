@@ -35,7 +35,8 @@
 //
 // PURE ESM, dual-runtime. No clock, no Math.random: the dice are src/core/rng.js from the job's seed.
 // ════════════════════════════════════════════════════════════════════════
-import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate, KIT_RECIPES, faceOf, streamFaceOf } from '../data/trades.js';
+import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate, KIT_RECIPES, IMBUE_JOBS, faceOf, streamFaceOf } from '../data/trades.js';
+import { IMBUE } from '../data/imbue-rules.js';
 import { STORE_KIT } from '../data/store-kit.js';
 import { GEAR_STEPS, DANGER } from '../data/danger.js';
 import { wage, powSquare } from '../data/wage.js';
@@ -51,7 +52,7 @@ export const TRADE_PM = Object.freeze({
   atReq: pm(TRADE_LEVERS.yield.atReq), noFailSpan: TRADE_LEVERS.yield.noFailSpan, cap: pm(TRADE_LEVERS.yield.cap),
   masteryReturn: pm(TRADE_LEVERS.yield.masteryReturn), benchMax: pm(TRADE_LEVERS.yield.benchMax),
   fineBase: pm(TRADE_LEVERS.quality.fineBase), fineTop: pm(TRADE_LEVERS.quality.fineTop), masterTop: pm(TRADE_LEVERS.quality.masterTop),
-  qualitySteps: TRADE_LEVERS.quality.steps, speedAt99: pm(TRADE_LEVERS.speedAt99),
+  qualitySteps: TRADE_LEVERS.quality.steps, qualityLive: TRADE_LEVERS.quality.live ? 1 : 0, speedAt99: pm(TRADE_LEVERS.speedAt99),
   xpWindow: TRADE_LEVERS.xp.windowLevels, xpFloor: pm(TRADE_LEVERS.xp.floor), xpPerHour: TRADE_LEVERS.table.xpPerHour,
   jobFee: pm(TRADE_LEVERS.jobFee), townWageShare: pm(STORE_KIT.townWageShare), storeCeiling: pm(STORE_KIT.storeCeiling),
   storeLag: TRADE_LEVERS.store.lagSteps, floorShare: pm(TRADE_LEVERS.store.floorShare), storeBudget: pm(TRADE_LEVERS.store.budgetHours),
@@ -134,6 +135,60 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
   return Object.freeze({ rawUh, refineUh, kinds: Object.freeze(out), recipes: Object.freeze(recipes), named: Object.freeze(named) });
 }
 
+/* ── THE JOB RECIPES (lane/k1-job-slice, backend-architect, 2026-11-26; 09 sections 4.9 and 6) ─────────────────────────────────────
+   What hr_trade_job_start sells, one row a recipe, generated into hr_trade_recipes by tools/gen-trades.mjs: the named kit recipes
+   (KIT_RECIPES, resolved as `named`) and the imbuement jobs (src/data/trades.js IMBUE_JOBS), each with its inputs as WHOLE GOODS a set
+   (one attempt spends one set). A material or a part is the catalogue's count of its band's face. A HUNTED input is permille of an
+   hour-unit of its stream (09 4.8); an hour-unit of a stream is as many goods as 21's imbuement takes of it for the hour-units the
+   catalogue gives it (IMBUE.parts rare parts for its rare_part share, IMBUE.remains Remains for its remains share), so the imbuement's
+   own set is exactly imbueRecipe's (5 parts, 4 Remains) and a rune's 0.15 hour-units of Remains is one bone (rounded, never under one).
+   JUDGMENT (CONFLICTS 2026-11-26 k1-job-slice): a stream no imbuement names has no rule yet, and a recipe that needs one is not sold. */
+
+/** Whole goods of a hunted stream in one set, for `pm` permille of an hour-unit (null: no rule for the stream). */
+export function huntedUnits(stream, pm, cat = null) {
+  const c = cat || tradeCatalogue();
+  const ref = (c.kinds.imbuement && c.kinds.imbuement.hunted || []).find((h) => h.stream === stream);
+  const count = stream === 'rare_part' ? IMBUE.parts : stream === 'remains' ? IMBUE.remains : null;
+  if (!ref || !count || !(ref.pm > 0) || !(pm > 0)) return null;
+  return Math.max(1, Math.round((pm * count) / ref.pm));
+}
+
+/** Every recipe a job may run, frozen: { id, kind, trade, stage, band, name, rung, R, face, inputs: { item: n }, imbue }. A recipe whose
+    face or any input has no named good is left out (it ships with its face). */
+export function jobRecipes(cat = null) {
+  const c = cat || tradeCatalogue();
+  const out = [];
+  const row = (id, kind, band, name, rung, face, inputs, imbue) => {
+    const k = c.kinds[kind];
+    if (!face || Object.keys(inputs).some((i) => !i || i === 'null' || !(inputs[i] > 0))) return;
+    out.push(Object.freeze({ id, kind, trade: k.trade, stage: k.stage, band, name, rung, R: rungLevel(rung), face,
+      inputs: Object.freeze(inputs), imbue: imbue || null }));
+  };
+  for (const n of c.named) {
+    const inputs = {};
+    let ok = true;
+    for (const i of n.inputs) { if (!i.face) ok = false; else inputs[i.face] = (inputs[i.face] || 0) + i.n; }
+    for (const h of n.hunted) {
+      const u = huntedUnits(h.stream, h.pm, c);
+      if (!h.face || !u) ok = false; else inputs[h.face] = (inputs[h.face] || 0) + u;
+    }
+    if (ok) row(n.id, n.kind, n.band, n.name, n.rung, n.face, inputs, null);
+  }
+  const imb = c.kinds.imbuement;
+  for (const j of IMBUE_JOBS) {
+    if (!imb) break;
+    const inputs = {};
+    let ok = true;
+    for (const h of imb.hunted) {
+      const face = h.stream === 'rare_part' ? j.part : streamFaceOf(h.stream, j.band);
+      const u = huntedUnits(h.stream, h.pm, c);
+      if (!face || !u) ok = false; else inputs[face] = (inputs[face] || 0) + u;
+    }
+    if (ok) row(j.id, 'imbuement', j.band, j.name, imb.opens, j.face, inputs, j.imbue);
+  }
+  return Object.freeze(out);
+}
+
 /** THE TEMPER KIT a Temper rank on a piece of item Level `itemLevel` takes (21 section 2.2, lane/tp-im-steps): its band's face of the
     Smithing kind temper_kit (src/data/trades.js KIT_FACES), or null where no band's kit is named (Bronze, and the bands past Dawnsteel until
     their grounds open). A cheap band's kit never pays for a dear band's rank; the server refuses that rank `kits_owed`, never sells it for
@@ -190,6 +245,9 @@ export function tradeXpTable() {
   for (let n = 1; n < maxLevel; n++) { hours += h1 * c; c *= curve; out.push(Math.round(hours * xpPerHour)); }
   return (XP_TO = Object.freeze(out));
 }
+/** THE FARM'S XP A CROP (09 4.11 row 1, one town work): a harvest pays Farming one raw unit of work a crop in seconds (4.8's raw unit,
+    the gathering behind one meal: 252 at the starting values), so the farm and a gathering job count XP on the one table. */
+export const cropXp = (cat = null) => Math.round(((cat || tradeCatalogue()).rawUh * TRADE_PM.xpPerHour) / UH);
 /** The trade Level an XP total reads. */
 export function tradeLevel(xp) {
   const t = tradeXpTable();
@@ -285,16 +343,19 @@ export function jobBound(kind, rung, level, { mastery = false, benchPm = 0, tool
  *            speed x yield over the raw unit's work (09 4.5: "its yield is units an hour")
  *   refine / make   each attempt spends one set of inputs; under 1000 it makes the good with yield's chance (a miss loses the set);
  *            over 1000 it always makes it and hands the set back with chance 1 - 1000 / yield, so a set makes yield / 1000 goods
- *   quality  a good that rolls it: Master first (with the Mastery), then Fine, else Plain (09 4.4's cascade)
+ *   quality  a good that rolls it: Master first (with the Mastery), then Fine, else Plain (09 4.4's cascade). WHILE QUALITY IS DARK
+ *            (TRADE_LEVERS.quality.live false, 09 4.11 row 6) no good rolls it: every good is Plain and no quality draw is made, so the
+ *            twin reads the same lever (hr_trade_levers.quality_live). `quality` overrides the lever for a caller that prices the lit cascade.
  */
-export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, toolPm = 1000, count, elapsedMs, seed }) {
+export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, toolPm = 1000, count, elapsedMs, seed, quality = TRADE_PM.qualityLive === 1 }) {
   const b = jobBound(kind, rung, level, { mastery, benchPm, toolPm, count, elapsedMs });
   if (!b) return null;
   const R = rungLevel(rung);
   const rng = createRng(seed >>> 0);
   const y = b.yieldPm;
-  const pFine = kind.rolls ? finePm(level, R) / 1000 : 0;
-  const pMaster = kind.rolls ? masterPm(level, R, mastery) / 1000 : 0;
+  const rolls = !!kind.rolls && quality === true;
+  const pFine = rolls ? finePm(level, R) / 1000 : 0;
+  const pMaster = rolls ? masterPm(level, R, mastery) / 1000 : 0;
   const made = [0, 0, 0];
   let returned = 0;
   for (let i = 0; i < b.attempts; i++) {
@@ -305,7 +366,7 @@ export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, too
     }
     if (y > 1000 && rng.next() < 1 - 1000 / y) returned++;
     if (y < 1000 && !(rng.next() < y / 1000)) continue;
-    if (!kind.rolls) { made[0]++; continue; }
+    if (!rolls) { made[0]++; continue; }
     if (pMaster > 0 && rng.next() < pMaster) made[2]++;
     else if (rng.next() < pFine) made[1]++;
     else made[0]++;

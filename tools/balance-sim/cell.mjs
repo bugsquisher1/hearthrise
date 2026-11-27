@@ -33,7 +33,7 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini, underInto } from './stats.mjs';
-import { playedBar, runeTierAt, shoppingTier, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
+import { playedBar, playedSlot, runeTierAt, shoppingTier, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt, restateSkills } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 /* the sustain reads of a settled window, shared with the browser twin (tools/balance-lab/lab-core.mjs) */
@@ -221,6 +221,13 @@ export async function loadCellRunner(root) {
          lane/spell-audit, measures each move as the party without it) */
       const drop = Array.isArray(cell.dropSlotsBySeat) && cell.dropSlotsBySeat[i];
       if (Array.isArray(drop)) for (let k = bar.length - 1; k >= 0; k--) if (bar[k].action.type === 'ability' && drop.includes(bar[k].action.id)) bar.splice(k, 1);
+      /* cell.addMovesBySeat [[ability id] | null]: moves the recorded bars never cast, each a played slot (played.mjs playedSlot: its store rune
+         at the shopping tier, its row's own trigger), after the seat's first move (lane/signatures-batch-2: a Signature's move on the tank) */
+      const moves = Array.isArray(cell.addMovesBySeat) && cell.addMovesBySeat[i];
+      if (Array.isArray(moves) && moves.length) {
+        const first = bar.findIndex((s) => s.action.type === 'ability');
+        bar.splice(first < 0 ? 0 : first + 1, 0, ...moves.map((id) => playedSlot(id, { magic: runeMagic(role, i), tierOf: tierOfFor(role, i) })));
+      }
       const add = (Array.isArray(cell.addSlotsBySeat) && cell.addSlotsBySeat[i]) || (cell.addSlots && cell.addSlots[role]);
       if (!add) return bar;
       const at = bar.findIndex((s) => s.action.type === 'ability' && s.action.id === add.after);

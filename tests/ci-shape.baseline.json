@@ -644,6 +644,8 @@
     "node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest": "db-replay",
     "node tests/trade-formulas.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate": "db-replay",
+    "node tests/trade-jobs.mjs": "db-replay",
+    "node tools/mutant-gate.mjs node tests/trade-jobs.mjs --mutate": "db-replay",
     "node tools/gen-trait-pieces.mjs --check": "db-replay",
     "node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest": "db-replay",
     "node tests/trait-pieces-db.mjs": "db-replay",

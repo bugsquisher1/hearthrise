@@ -4,7 +4,7 @@
 
 **Tags.** MEASURED (real engine, with its run), COMPUTED (arithmetic on named inputs), CODE (read from `src/`), JUDGMENT (a design call, still to be tested).
 
-**Units.** One step is one Level of rating: 0.35% power (`DANGER.powerStep`), about 0.7% pace held (`PAY.payStepXp`). One gear tier is 20 steps (`GEAR_STEPS.tierSteps`). One depth on Muster Barrows is about 11.5 steps (band 480 to 710 over 20 depths, `DANGER_GROUNDS`). 14 steps is 10% pace, 7 steps 5%.
+**Units.** One step is one Level of rating: 0.35% power (`DANGER.powerStep`), about 0.7% pace held (`PAY.payStepXp`). One gear tier is 20 steps (`GEAR_STEPS.tierSteps`). One depth on Muster Barrows is about 11.5 steps (band 480 to 710 over 20 depths, `DANGER_GROUNDS`). 14 steps is 10% pace, 7 steps 5%. (MEASURED, lane/designer-sig-metric 2026-11-27: a HELD step buys about 0.43% Level XP an hour on the reference cells, not 0.7%, since the deeper monster is also 0.35% tougher and dies a little slower. The pace columns below are a kill's pay. Signatures are sized on the measured pace, `15` "Decision: the scale a Signature is sized on".)
 
 ---
 

@@ -31,6 +31,7 @@ import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
 import { TEMPER_STEPS, TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
+import { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId } from './job-faces.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -43,8 +44,11 @@ export const TRADE_LEVERS = Object.freeze({
   rungs: Object.freeze({ count: 10, span: 10 }),
   /* 09 4.4: yield 0.75 at the recipe's Level, 1.00 fifteen Levels on; Mastery +0.10, the hall's bench up to +0.10, never past 1.25 */
   yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),
-  /* 09 4.4: the quality cascade, Master first (only with the Mastery), then Fine, else Plain; a rung is qualitySteps item steps */
-  quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),
+  /* 09 4.4: the quality cascade, Master first (only with the Mastery), then Fine, else Plain; a rung is qualitySteps item steps.
+     `live` (09 4.11 row 6, the designer 2026-11-27): quality is dark until something spends it, so while it is false every job lands
+     Plain (src/core/trades.js settleJob and its generated twin hr_trade_roll roll no quality at all). It lights with its first consumer:
+     the hunt reading a meal's item step, or hr_imbue_apply reading an imbuement's life. The cascade's numbers stay for that day */
+  quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5, live: false }),
   /* 09 4.4: speed 1 at Level 0, 1.25 at 99, a straight line */
   speedAt99: 1.25,
   /* 09 4.5: the trade table. hoursTo99 hours of work to Level 99, each Level curve times dearer than the last. XP is counted in seconds of
@@ -80,7 +84,8 @@ export const BORROWED = Object.freeze({
 });
 
 /* THE TEN TRADES (09 section 1; 20 section 1.4 for what v0.3.0 opens). `tool` is the working name of its tool (09 3.7). `was` names the
-   live skill a renamed trade replaces (09 2.2, 2.9), for the job slice that moves company_trades onto these ids. */
+   live skill a renamed trade replaces (09 2.2, 2.9): the cut that lights the job slice deletes that skill, and nothing carries over (09 4.11:
+   one town work, its XP in company_trade_xp on 09 4.5's table, every company's trades at Level 1). */
 export const TRADES = Object.freeze({
   mining: Object.freeze({ name: 'Mining', stage: 'gather', tool: 'pick', ships: 'v030' }),
   woodcutting: Object.freeze({ name: 'Woodcutting', stage: 'gather', tool: 'axe', ships: 'v030' }),
@@ -178,6 +183,7 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
   const q = L.quality;
   if (!(between(q.fineBase, 0, 1) && between(q.fineTop, q.fineBase, 1) && between(q.masterTop, 0, 1))) out.push('the quality cascade is not inside 0 to 1 with Fine climbing');
   if (!Number.isInteger(q.steps) || q.steps < 1) out.push('a quality rung must be a whole number of steps');
+  if (typeof q.live !== 'boolean') out.push('quality.live is the quality switch, true or false');
   if (!(L.speedAt99 >= 1) || !permille(L.speedAt99)) out.push('speed at 99 must be at least 1');
   if (!(L.table.hoursTo99 > 0) || !(L.table.curve > 1) || !Number.isInteger(L.table.xpPerHour) || L.table.maxLevel !== 99) out.push('the trade table must climb to 99');
   if (!Number.isInteger(L.xp.windowLevels) || L.xp.windowLevels < L.rungs.span) out.push('the XP window is narrower than a rung: some Level would have no full-XP recipe');
@@ -253,7 +259,8 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
    then the faces are the live items the first hour already names (20 section 3.2: "Cook 10 Shrimp").
    THE SAMPLE (CLAUDE.md section 10: about five, played and read before the rest): one recipe for each kit trade and one gathering job,
    all at band 0, so the first day can make every one. tests/kit-recipes.mjs reads every input's door and every output's use from
-   catalogue-coherence. The rest of band 0, then bands 1 to 8, land in batches of 20 or fewer once the sample is read.
+   catalogue-coherence. BAND 0 WHOLE followed it (09 4.11 row 1b): every kind the first day needs, so band 0's chains close on jobs alone.
+   Bands 1 to 8 land in batches of 20 or fewer.
    NEW FACES are goods no live item is yet (the arrowhead). They are not ITEMS rows: an item with no working door is not authored (W0),
    so the job slice adds each one with the verb that makes it. */
 
@@ -264,11 +271,16 @@ export const KIT_FACES = Object.freeze({
   /* the bars Smithing smelts, a metal a band (gear-tiers.js MATERIAL_TIERS): the Temper kits' input to Dawnsteel */
   bar: Object.freeze(['bronze_bar', 'iron_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar']),
   arrowhead: Object.freeze(['bronze_arrowheads']),
+  /* the honing stone a melee hero spends (09 3.2's charge line): the Coarse Whetstone the store and the start kit already name */
+  honing_stone: Object.freeze(['coarse_whetstone']),
   log: Object.freeze(['normal_log']),
   shaft: Object.freeze(['normal_plank']),
   arrow: Object.freeze(['bronze_arrows']),
   fish: Object.freeze(['shrimp']),
   meal: Object.freeze(['cooked_shrimp']),
+  /* the crop a drink is pressed from at band 0 (drinks.js: the turnip's juice is the first mana drink), and the drink itself */
+  grain: Object.freeze(['turnip']),
+  drink: Object.freeze(['turnip_juice']),
   rune_stone: Object.freeze(['rune_essence']),
   cut_stone: Object.freeze(['rune_blank']),
   rune_fire: Object.freeze(['chalked_fire_rune']),
@@ -277,22 +289,39 @@ export const KIT_FACES = Object.freeze({
      and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
   temper_kit: TEMPER_KITS,
 });
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones']) });
+/* THE HUNTED STREAMS' FACES (STREAM_FACES: Remains a band, lane/k1-job-slice's call) and THE IMBUEMENT JOBS (IMBUE_JOBS, one Artificing
+   job an imbuement) live in ./job-faces.js, so the item table reads them without loading this catalogue; re-exported here. */
+export { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId };
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
 export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', ...TEMPER_KIT_NEW });
+
+/** THE JOB'S DOORS for catalogue-coherence (data only, no counts): one row a job recipe, { id, trade, output, inputs: [item ids] }, the
+    output its face and the inputs the faces of its parts, materials and hunted streams at its band (src/core/trades.js jobRecipes is the
+    same list with counts). A face that is not named (null) is left in as null, so the guard sees the hole. */
+export function jobFaces() {
+  const out = KIT_RECIPES.map((r) => {
+    const k = KINDS[r.kind];
+    const ins = [...(k.parts || []), ...(k.from || []).map((m) => m.kind)].map((kind) => faceOf(kind, r.band));
+    const hunt = (k.hunted || []).map((h) => streamFaceOf(h.stream, r.band));
+    return Object.freeze({ id: r.id, trade: k.trade, output: faceOf(r.kind, r.band), inputs: Object.freeze([...ins, ...hunt]) });
+  });
+  for (const j of IMBUE_JOBS) out.push(Object.freeze({ id: j.id, trade: KINDS.imbuement.trade, output: j.face, inputs: Object.freeze([j.part, streamFaceOf('remains', j.band)]) }));
+  return Object.freeze(out);
+}
 
 /** A recipe's id: its kind and its band ('arrow_b0'). Derived, never typed. */
 export const recipeId = (kind, band) => kind + '_b' + band;
 /** The item a kind is at `band` (null: no face named yet). */
 export const faceOf = (kind, band) => (KIT_FACES[kind] && KIT_FACES[kind][band]) || null;
-/** The item a hunted stream drops at `band` (null: none named). */
-export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;
-
 const kitRow = (kind, band, name) => Object.freeze({ id: recipeId(kind, band), kind, band, name });
 
 /* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1
    (two trades and one join), so the sample plays the one recipe that needs another trade's part. */
+/* BAND 0 WHOLE (batch 2 of the first band, lane/one-town-work, 2026-11-27; 09 section 4.11 row 1b): the gather rows (logs, shrimp, rune
+   essence, the crop), the refine rows (bars, planks, blank runes), the honing stone and the drink. With them every input of every band 0
+   row is made by a band 0 row (tests/kit-recipes.mjs KR-CLOSED), so the job list alone makes every good the first day needs and the live
+   bench can be cut (one town work). */
 /* THE TEMPER KITS (batch 2, lane/tp-im-steps, 2026-11-26; 21 section 2.2, 20 lane TP): one row a band a rank can sit on in v0.3.0, Iron to
    Dawnsteel. Each is the same derived kind at its band, so the batch is one rule six times, not six designs. */
 export const KIT_RECIPES = Object.freeze([
@@ -301,6 +330,15 @@ export const KIT_RECIPES = Object.freeze([
   kitRow('arrow', 0, 'Fletch Bronze Arrows'),
   kitRow('meal', 0, 'Cook Shrimp'),
   kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),
+  kitRow('log', 0, 'Chop Normal Logs'),
+  kitRow('fish', 0, 'Catch Shrimp'),
+  kitRow('rune_stone', 0, 'Mine Rune Essence'),
+  kitRow('grain', 0, 'Pull Turnips'),
+  kitRow('bar', 0, 'Smelt Bronze Bars'),
+  kitRow('shaft', 0, 'Saw Normal Planks'),
+  kitRow('cut_stone', 0, 'Cut Blank Runes'),
+  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),
+  kitRow('drink', 0, 'Press Turnip Juice'),
   kitRow('temper_kit', 1, 'Mix Tempering Salts'),
   kitRow('temper_kit', 2, 'Mix Fine Tempering Salts'),
   kitRow('temper_kit', 3, 'Mix Mithril Tempering Salts'),
@@ -309,19 +347,17 @@ export const KIT_RECIPES = Object.freeze([
   kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),
 ]);
 
-/* At most this many named band 0 rows until the first day's sample is read, one a trade (CLAUDE.md section 10), and at most KIT_BATCH_MAX
-   named rows in all (a batch of 20 or fewer). */
-const KIT_SAMPLE_MAX = 5;
+/* BAND 0 WHOLE (09 4.11 row 1b, the sample's cap after it was read): band 0 holds at most one row a kind, only for a kind that ships and
+   has a band 0 face, so the first band is the whole first day and nothing past it; at most KIT_BATCH_MAX named rows in all (a batch of
+   20 or fewer, CLAUDE.md section 10). A band past 0 lands as its own batch. */
 const KIT_BATCH_MAX = 20;
 const LABEL = /^[A-Z][A-Za-z' ]{2,40}$/;
 
 /** Every problem with the named recipes (the shipped ones by default), as sentences. Empty = valid. */
 export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = TRADES, faces = KIT_FACES, fresh = NEW_FACES) {
   const out = [];
-  const first = rows.filter((r) => r.band === 0);
-  if (first.length > KIT_SAMPLE_MAX) out.push(first.length + ' band 0 kit recipes before the sample of ' + KIT_SAMPLE_MAX + ' is read (CLAUDE.md section 10)');
   if (rows.length > KIT_BATCH_MAX) out.push(rows.length + ' kit recipes: past a batch of ' + KIT_BATCH_MAX + ' (CLAUDE.md section 10)');
-  const seenTrade = new Set(), seenId = new Set();
+  const seenId = new Set();
   for (const r of rows) {
     const k = kinds[r.kind];
     if (Object.keys(r).sort().join() !== 'band,id,kind,name') out.push(r.id + ': a kit recipe holds only its kind, band, id and name');
@@ -329,11 +365,9 @@ export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = T
     if (k.ships !== 'v030' || !trades[k.trade] || trades[k.trade].ships !== 'v030') out.push(r.id + ': ' + r.kind + ' does not ship in v0.3.0');
     if (!Number.isInteger(r.band) || r.band < 0) out.push(r.id + ': band ' + r.band + ' is not a whole band');
     if (r.id !== recipeId(r.kind, r.band)) out.push(r.id + ': the id is not recipeId(kind, band)');
+    /* one row a kind a band: the id is (kind, band), so a second row for a kind at a band is the same id twice */
     if (seenId.has(r.id)) out.push(r.id + ': twice');
     seenId.add(r.id);
-    if (r.band === 0 && seenTrade.has(k.trade)) out.push(r.id + ': a second ' + k.trade + ' recipe in the sample (one a trade)');
-    if (r.band === 0) seenTrade.add(k.trade);
-    if (k.stage === 'refine') out.push(r.id + ': a refine step is not a kit recipe the sample plays');
     if (!LABEL.test(r.name)) out.push(r.id + ': name ' + JSON.stringify(r.name) + ' is not a short label');
     if (!faceOf(r.kind, r.band)) out.push(r.id + ': no face for ' + r.kind + ' at band ' + r.band);
   }

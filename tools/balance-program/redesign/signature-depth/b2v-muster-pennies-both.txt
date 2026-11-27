@@ -1,0 +1,28 @@
+
+V1 on muster_barrows (12 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       681.8 +- 3.5      2.4  52.3  89.4    8.7    1.3       2     51.2      0     0  2 (0/0/2)                       4  {"hold":3087,"climb":1729,"fall":89}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.93x  sd 0.02  n 12  window 4 h  seeds 0.91 0.91 0.91 0.93 0.94 0.94 0.93 0.96 0.94 0.94 0.92 0.94
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 15489 +- 150  income 17856 +- 191  store 5218  kit share 0.29 (meal 371, drink 2006, charge 1269, shot 1572)  loot by band: common 295, uncommon 154, scarce 1918, other 0  n 12
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles tank, bow, mage, healer
+  base:steady       tank 0.93  bow 0.064  mage 0.001  healer 0.005
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       tank dps 11.72 land 57.43% hit 32.92 (6319.33/h) | bow dps 18.81 land 87.13% hit 28.2 (508.83/h) | mage dps 23.12 land 82.78% hit 23.2 (8/h) | healer dps 11.16 land 89.36% hit 53.76 (20.42/h)
+                    barrow_pikeman(swarm) 180.8/h 35.1 s 608 | cairn_wight(stalker) 84.4/h 36.3 s 278 | muster_knight(brute) 84.7/h 49.4 s 830 | captain_hask(brute) 7.1/h 151.2 s 2823
+                    broke off by: fall:barrow_pikeman@0 55, fall:muster_knight@0 29, fall:cairn_wight@0 3, fall:captain_hask@0 2
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 74.9 (depth 17)  free 85  spell 862  food 52  taken 19.62 pm/s
+
+wall 675 s

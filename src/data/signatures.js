@@ -49,7 +49,8 @@
 //   #16 Lamplighter's Robe      mage      shield_break (its own Arcane Barrier) -> Kindled (its next Fireball or Frost Lance +30%)
 //   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under half (RESHAPED from 30%: Steady falls back at 25%) -> Guarded at twice its row (-20% taken) 4 s
 //   #21 Drover's Hat            healer    absorb (a shell the wearer cast: a healer's is Protective Ward) -> reflect 50% on the attacker
-//   #23 Ferry Pennies           any       heal (of Mend) under 40% (RESHAPED from 20%, the same reason) -> Chill 3 s on every monster next to the wearer
+//   #23 Ferry Pennies           any       RESHAPED (Mend under 20% read +0.3: Steady falls back at 25%; a Chill under 40% +2.0): heal (of
+//                                         Mend) under 45% -> Blunted (the next blow at half) on every monster next to the wearer
 // NOT BUILT here: #19 Passing Bell and #20 Greened Bracers (mana: 15 "Batch 2 writes no mana Signature without a cell where mana binds",
 // none read so; 15 "Batch 2, measured"), #8 (Stagger's), #22 (an Alone Signature, batch 3).
 //
@@ -152,8 +153,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }] }),
   ferry_pennies: sig({ id: 'ferry_pennies', n: 23, name: 'Ferry Pennies', slot: 'earrings', move: 'mend',
     home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'Mend below 40% health: also Chills every monster next to you for 3 s',
-    reacts: [{ on: 'heal', of: 'mend', belowPm: 400, do: 'status', status: 'chill', r: 1, ms: 3000 }] }),
+    tip: 'Mend below 45% health: the next blow of every monster next to you lands at half',
+    reacts: [{ on: 'heal', of: 'mend', belowPm: 450, do: 'status', status: 'blunted', r: 1 }] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

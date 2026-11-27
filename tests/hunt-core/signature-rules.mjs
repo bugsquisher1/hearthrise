@@ -39,7 +39,8 @@
 //                     taken for 4 s; one on a hero over the line nothing
 //   absorb-reflect    #21 Drover's Hat: a monster's blow the wearer's shell takes lands half of what it took back on that monster, exact;
 //                     another hero's shell nothing
-//   low-mend-chill    #23 Ferry Pennies: a Mend begun under 40% Chills every monster next to the wearer 3 s, none further; over the line nothing
+//   low-mend-blunt    #23 Ferry Pennies (reshaped): a Mend begun under 45% (healed past it or not) Blunts every monster next to the wearer
+//                     (its next blow at half), none further; a Mend begun over the line, or another heal, nothing
 //   reset-from-move   The Wood Book: any Frost Lance hit makes Hoarfrost ready now, another move's nothing; the has filter (a planted
 //                     row): only on a chilled target, or another move's
 //                     hit on a chilled one, nothing; the chill is read as the hit lands
@@ -517,20 +518,22 @@ const cases = {
     if (m.hp !== 950) return 'the shell took its last 40 and sent back ' + (970 - m.hp) + ' (want 20: only what it took)';
     return null;
   },
-  'low-mend-chill': (M) => {
+  'low-mend-blunt': (M) => {
     const u = H(M, 1, 12, 3, 'tank', { hp: 150, maxHp: 1000 }), a = E(M, 10, 0, 13, 3, 1), b = E(M, 11, 0, 11, 4, 1), far = E(M, 12, 0, 15, 3, 1);
     const inst = fight(M, [u, a, b, far]);
     wear(M, u, 'ferry_pennies');
     const sc = sc2(M, 56);
     const mend = M.AD.ABILITIES.mend;
     M.HR.landHeal(u, u, 100, sc, false, M.AD.ABILITIES.greater_mend, false, { inst, fx: null }); u.hp = 150; M.RX.drainReactions(inst, sc);
-    if (stacksOf(a, 'chill').length) return 'another heal under the line Chilled';
+    if (stacksOf(a, 'blunted').length) return 'another heal under the line Blunted';
+    /* begun at 15%, healed to 45%: the line is read as the Mend begins */
     M.HR.landHeal(u, u, 300, sc, false, mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
-    const got = [a, b, far].map((m) => stacksOf(m, 'chill').map((s) => s.left).join());
-    if (got.join('|') !== '3000|3000|') return 'a Mend begun at 15%: Chill on the two beside and the far one ' + got.join('|') + ' (want 3000|3000|)';
+    const got = [a, b, far].map((m) => stacksOf(m, 'blunted').length);
+    if (got.join() !== '1,1,0') return 'a Mend begun at 15%: Blunted on the two beside and the far one ' + got + ' (want 1,1,0)';
+    if (M.SE.effectPm(a, 'dealtPm') !== -500) return 'Blunted cuts the next blow by ' + M.SE.effectPm(a, 'dealtPm') + ' permille, not 500';
     a.statuses = []; b.statuses = [];
     M.HR.landHeal(u, u, 100, sc, false, mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
-    if (stacksOf(a, 'chill').length) return 'a Mend begun at ' + (u.hp - 100) / 10 + '% Chilled';
+    if (stacksOf(a, 'blunted').length) return 'a Mend begun at ' + (u.hp - 100) / 10 + '% (over the 45% line) Blunted';
     return null;
   },
   'real-settle': async (M) => {
@@ -653,7 +656,8 @@ const mutants = [
   { name: 'a heal reads its line after the heal', case: 'heal-guard', edits: [[HRL, '{ t, ability: row.id, was }', '{ t, ability: row.id }']] },
   { name: 'a boon ignores its strength', case: 'heal-guard', edits: [[RX, '    if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;\n', '']] },
   { name: 'a shell\'s blow queues nothing', case: 'absorb-reflect', edits: [[DM, "  if (Number.isInteger(shellBy) && r.absorbed > 0 && isHero(target) && isMonster(source)) queueOn(inst, unitById(inst, shellBy), 'absorb', { t: target, src: source, dmg: r.absorbed });\n", '']] },
-  { name: 'a status ignores its reach', case: 'low-mend-chill', edits: [[RX, 'const list = Number.isInteger(row.r) ?', 'const list = false ?']] },
+  { name: 'a status ignores its reach', case: 'low-mend-blunt', edits: [[RX, 'const list = Number.isInteger(row.r) ?', 'const list = false ?']] },
+  { name: 'the Pennies\' line at half health', case: 'low-mend-blunt', edits: [[SG, "belowPm: 450, do: 'status', status: 'blunted', r: 1 }", "belowPm: 500, do: 'status', status: 'blunted', r: 1 }"]] },
   { name: 'the settle never syncs the Signature', case: 'real-settle', edits: [['src/core/combat-sim.js', '  syncSignature(u, m.hero);', '  void syncSignature;']] },
   { name: 'the member drops the Signature', case: 'real-settle', edits: [['src/core/member.js', "        ...(typeof h.wornSignature === 'string' && h.wornSignature ? { wornSignature: h.wornSignature } : {}),\n", '']] },
   { name: 'Signatures switched on', case: 'dark', edits: [['src/data/signatures.js', '  live: false,', '  live: true,']] },

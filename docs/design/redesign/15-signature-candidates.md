@@ -270,9 +270,9 @@ Note: Puts the ward on the tank and it hits back.
 ## Every weapon
 
 **23. Ferry Pennies** · Earrings · Drops from: Hask's Ford, Fordsunk
-Mend below 40% health: also Chills every monster next to you for 3s
+Mend below 45% health: the next blow of every monster next to you lands at half
 Best for: Any
-Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, batch 2: under 20% read +0.3 (0.7), its Mend under the line about once an hour, since Steady falls back at 25%.)
+Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, batch 2: Chill under 20% read +0.3 (0.7), its Mend under the line about once an hour since Steady falls back at 25%, and Chill under 40% +2.0.)
 
 ## Runes
 
@@ -457,12 +457,12 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Monster takes more damage | Sickness (Green Sickness, Single Dose) | One Sickness on a monster. The stronger one replaces the weaker |
 | Hunter's Mark | All Hunter's Mark branches | Its own key. Adds to Sickness, as today. One Mark per monster |
 | Fire damage taken | Burning Volley | Its own key. Fire damage only |
-| Chill | Frost Slam, Hoarfrost, Chilling Lance, the support's Cold Palm, #23, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
+| Chill | Frost Slam, Hoarfrost, Chilling Lance, the support's Cold Palm, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
 | Silenced (can't start a spell) | #15, the support's Cold Palm | One at a time. Restarts the time |
 | Ends a wind-up | Stagger (wave 3) | Its own key. A wind-up ends once |
 | Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
 | Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
-| Blunted (a monster's next blow) | #1 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| Blunted (a monster's next blow) | #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
 | Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |

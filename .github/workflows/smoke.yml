@@ -5680,6 +5680,12 @@ jobs:
         run: |
           node tests/flame-settle-db.mjs
           node tools/mutant-gate.mjs node tests/flame-settle-db.mjs --mutate
+      # tests/frame-delta.mjs
+      - name: Frame deltas - only what moved, the client's record whole, viewed, tick and closed (1076)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/frame-delta.mjs
+          node tools/mutant-gate.mjs node tests/frame-delta.mjs --mutate
       # tests/piece-verbs-db.mjs
       - name: Trait piece verbs - the wear, the equip doors that never copy a piece, the store sale, both paths (1072)
         if: ${{ !cancelled() }}

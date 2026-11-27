@@ -151,6 +151,9 @@ async function rowsOf(db, F) {
      where c.table_schema = 'public' and c.column_name = 'user_id' order by 1`)).map((r) => r.t);
   const out = {};
   for (const t of tables) {
+    /* hr_frame_memo (1076-frame-delta.sql) is the push's own bookkeeping: what each topic was last SENT. A held frame leaves A's off-screen
+       hero's memo where it was by design, so only the stranger's (framed every commit at any dial) is compared, as its frames are below. */
+    if (t === 'hr_frame_memo') { out[t] = (await q(db, `select (to_jsonb(x) - 'at')::text as r from public.hr_frame_memo x where x.user_id = $1::uuid order by 1`, [B])).map((r) => r.r); continue; }
     out[t] = (await q(db, `select to_jsonb(x)::text as r from public."${t}" x where x.user_id in ($1::uuid, $2::uuid) order by 1`, [A, B])).map((r) => r.r);
   }
   out.hunt_instances = (await q(db, 'select to_jsonb(x)::text as r from public.hunt_instances x where id = $1', [F.inst])).map((r) => r.r);
@@ -244,7 +247,9 @@ const ARMS = {
       const f = (await q(db, 'select payload from realtime.bench_frames where topic = $1 order by n desc limit 1', [F.topics.a1]))[0];
       const h = f && f.payload && f.payload.env && f.payload.env.hunt;
       if (r.sent[2].a1 === 1 && h && h.ended !== true && typeof h.session_id === 'string') p.push('the frame sent at the end still shows the hunt open: ' + JSON.stringify(h).slice(0, 160));
-      if (r.sent[2].a1 === 1 && !(f && f.payload && f.payload.t === 'state')) p.push('the one push at the end was not the state frame: ' + JSON.stringify(f && f.payload).slice(0, 120));
+      /* the state frame, whole or as the sections that moved (1076-frame-delta.sql): the hunt moved at its end, so it is carried either way */
+      if (r.sent[2].a1 === 1 && !(f && f.payload && (f.payload.t === 'state' || f.payload.t === 'delta'))) p.push('the one push at the end was not the state frame: ' + JSON.stringify(f && f.payload).slice(0, 120));
+      else if (r.sent[2].a1 === 1 && !h) p.push('the frame sent at the end does not carry the hunt: ' + JSON.stringify(f.payload).slice(0, 120));
       return p;
     });
   },
@@ -281,7 +286,7 @@ const ARMS = {
         const nudges = mine.filter((m) => m.payload && m.payload.t === 'nudge').length;
         const lastMsg = mine[mine.length - 1];
         if (end[k] !== 1) p.push(`${who}: the commit that ended ${k}'s hunt sent it ${end[k]} push(es), want exactly 1`);
-        else if (k === nudged ? nudges !== 1 || lastMsg.payload.t !== 'nudge' : nudges !== 0 || lastMsg.payload.t !== 'state') {
+        else if (k === nudged ? nudges !== 1 || lastMsg.payload.t !== 'nudge' : nudges !== 0 || !['state', 'delta'].includes(lastMsg.payload.t)) {
           p.push(`${who}: ${k}'s one push at its end was ${JSON.stringify(lastMsg.payload).slice(0, 60)} (${nudges} nudge(s) in all), want ${k === nudged ? 'a nudge (the self-echo rule spares its frame)' : 'the state frame and no nudge'}`);
         }
       }

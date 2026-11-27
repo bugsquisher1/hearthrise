@@ -70,6 +70,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_create_hero: 'make the hero in an owned slot with its name, four dye indices and the starter set picked, all or nothing (AccountSession.create)',
   hr_account_coach: 'the account\'s tutorial cards read and taught: card ids added as a bounded union, never a whole list to replace (src/session/account-coach.js)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
+  hr_frame_rebase: 'the next pushed frame to one of the caller\'s own heroes is whole: a join, or a delta with no copy to build on; one slot, deletes only its own push memo, no value (CharacterSession._rebase; 1076-frame-delta.sql)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_hunt_target_kind_set: 'the hero’s First target on one hunt ground, a ground id and a monster id or none; the server checks the kind against its catalogue of that ground, refused not clamped, no value (target-intents.js setTargetKind; 2027-04-22-target-kind.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',

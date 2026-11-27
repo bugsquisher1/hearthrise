@@ -116,11 +116,8 @@ export default definePack({
     tail_spur: { n: 'Tail Spur', icon: '🦴', v: 266, raw: true, part: true },
     fire_gland: { n: 'Fire Gland', icon: '🔥', v: 272, raw: true, part: true },
     stolen_fleece: { n: 'Stolen Fleece', icon: '🐑', v: 280, raw: true, part: true },
-    /* THE ROOST'S NAMED PIECE (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8, lane/retire-dawnsteel-lines): the staged unique past
-       Dawnsteel sorted onto the Roost's base tier, Cobalt (item Level 140). The Cobalt plate legs to the number (`statsAs`: stats, tier, item
-       Level, wear and book, src/data/items.js) and 10% less fire, the answer to the Crag Wyvern's Fire Breath. NO SOURCE YET: its Rare row on the
-       Crag Wyvern goes in with the Roost's art, its pixel icon the reveal shows (tests/catalogue-coherence.mjs PENDING_SOURCE). tests/gear-stats.mjs
-       GSF-10 holds the row to the rule. */
+    /* THE ROOST'S NAMED PIECE (28-named-pieces.md 2.7): Cobalt's plate legs (`statsAs`) and less fire, the Crag Wyvern's Fire Breath. Its Rare
+       row waits for the Roost's art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
     burnt_crag_leg_plates: { n: 'Burnt Crag Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',
       resistPm: { ember: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'cobalt_platelegs' },
   },

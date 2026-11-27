@@ -140,12 +140,8 @@ export default definePack({
     candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, part: true },
     /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
     live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
-    /* THE WINGS' FIVE NAMED PIECES (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8, lane/retire-dawnsteel-lines): the staged uniques
-       past Dawnsteel sorted onto the wings' base tier, Wolfram (item Level 160). Each is its tier's plain piece to the number (`statsAs`: its stats,
-       tier, item Level, wear and book, src/data/items.js) plus the one rule that answers the wings: less poison from the Night Carters' Lime Sack,
-       less ice from Keeper Dunn's Snuff the Candles, more to the Night Carters (Human) and the Bone Walls (Construct). NO SOURCE YET: each one's
-       Rare row on its monster goes in with the wings' art, its pixel icon the reveal shows (tests/catalogue-coherence.mjs PENDING_SOURCE names
-       the monster). tests/gear-stats.mjs GSF-10 holds the rows to the rule. */
+    /* THE WINGS' NAMED PIECES (28-named-pieces.md 2.7): Wolfram's plain piece (`statsAs`) plus one rule that answers the wings (Lime Sack,
+       Snuff the Candles, the Carters, the Bone Walls). Each Rare row waits for the wings' art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
     limewashed_plate: { n: 'Limewashed Plate', icon: '🛡️', type: 'armor', slot: 'body', armourClass: 'plate',
       resistPm: { poison: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platebody' },
     keepers_leg_plates: { n: 'Keeper\'s Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',

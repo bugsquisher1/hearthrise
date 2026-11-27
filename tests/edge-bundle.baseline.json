@@ -548,6 +548,11 @@
         "bytes": 3959122,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: 16 move Signature reaction rows and their engine pieces (signature-rules, reactions); lane/piece-gear-fixes: upgrade-pick weighs a piece's Traits"
+      },
+      {
+        "bytes": 3962613,
+        "on": "2026-11-27",
+        "why": "lane/retire-dawnsteel-lines: the six kept uniques past Dawnsteel as item rows in the Roost and Catacomb packs, their lore and generated stats (28-named-pieces 2.7)"
       }
     ]
   }

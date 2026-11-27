@@ -87,6 +87,13 @@ export const BORROW_BANDS = Object.freeze([
 /* A borrow opens at max(openFloor, openLevel x V / buildStepsMax), rounded up to openRound (17 section 3: "a borrow is never bigger than
    the build slice allows at that Level"; V after the penalty) */
 export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });
+/* THE RULES OF A BORROWED MOVE (17 section 3 "Rules for a borrowed move", 19 L6; src/core/hunt/talent-rows.js plays them on the move as
+   its borrower casts it, both paths alike):
+     clock   THE HEAL RULE: a borrowed heal shares this move's clock (Mend's: one 6 s cooldown for both, casting either starts it)
+     rate    TRAINING: a borrowed spell pays Magic at this move's rate (Mend's magicXpMult), never its native row's
+   The rest are rules, not numbers: its blow is the native weapon's (src/core/borrow-blow.js), an ally heal or ward reaches as far as its
+   native weapon's role does (the healer's 7 tiles), and its opening Level (borrowBand opensAt) is its gate, never its native skill's unlock. */
+export const BORROW_RULES = Object.freeze({ clock: 'mend', rate: 'mend' });
 
 /* THE MEASURED VALUES (17 section 3's table, 18-roads-review-measured.md, 23-spell-audit.md): V0 in held steps at full power (an offense
    move: its pace gain / PAY.payStepXp). EVERY ROW IS MEASURED: validate refuses a row that is not a number, so a town never lends a move

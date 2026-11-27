@@ -5452,6 +5452,12 @@ jobs:
         run: |
           node tests/whats-new.mjs
           node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
+      # tests/work-blocks.mjs
+      - name: Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/work-blocks.mjs
+          node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

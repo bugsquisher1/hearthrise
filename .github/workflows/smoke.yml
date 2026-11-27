@@ -5432,6 +5432,12 @@ jobs:
         run: |
           node tests/recruits.mjs
           node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
+      # tests/time-offer-card.mjs
+      - name: Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/time-offer-card.mjs
+          node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate
       # tests/tp-im-server.mjs
       - name: Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
         if: ${{ !cancelled() }}

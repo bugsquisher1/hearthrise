@@ -465,10 +465,10 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
 /* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
-const READ_LAST = '1053-lever-gates.sql';   // (restated whole there: the hold seat the window's own; patch-chain PATCH-1 after 1046's two fences)
-/* ...and its last author once a PATCH counts: 1056-danger-scale.sql splices the frozen stance into the overlay after it (A-PARTY plants live, so
-   the kick line it changes runs through the splice). */
-const READ_PATCH_LAST_INSTANCE = '1056-danger-scale.sql';
+const READ_LAST = '1071-trait-pieces.sql';   // (restated whole there, lane/t1-traits-drop: 1053-lever-gates.sql's read and 1056's splice, plus the worn Traits)
+/* ...and its last author once a PATCH counts: the same file (1056-danger-scale.sql's splice of the frozen stance was folded into 1071's whole
+   restatement, and nothing splices it since). When this names READ_LAST, a plant there is flagged by neither reading. */
+const READ_PATCH_LAST_INSTANCE = '1071-trait-pieces.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -523,7 +523,7 @@ const MUTANTS = [
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.
-     hr_hunt_instance_read is RESTATED last by READ_LAST (1053-lever-gates.sql, whole): planted there, in the live body. */
+     hr_hunt_instance_read is RESTATED last by READ_LAST (whole): planted there, in the live body. */
   { arm: 'A-PARTY', file: READ_LAST, why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",
@@ -654,7 +654,8 @@ async function main() {
     const want = patches ? READ_PATCH_LAST_INSTANCE : READ_LAST;
     const read = staleAnchors([{ arm: 'SELFTEST', file: READ_LAST, find: KICKED }], { patches });
     const old = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches });
-    const readOk = patches ? read.some((s) => s.endsWith(`restated last by ${want}; plant it there`)) : !read.length;
+    /* READ_LAST itself is flagged only when a later author exists in this reading (a patch on top, with `patches`) */
+    const readOk = want !== READ_LAST ? read.some((s) => s.endsWith(`restated last by ${want}; plant it there`)) : !read.length;
     if (!readOk || !old.some((s) => s.endsWith(`restated last by ${want}; plant it there`))) { console.error('✗ ANCHOR selftest: hr_hunt_instance_read\'s last author is not ' + want + ' (patches ' + patches + '): ' + JSON.stringify({ read, old })); process.exit(1); }
   }
   /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, without patches, and its last anchored patch,

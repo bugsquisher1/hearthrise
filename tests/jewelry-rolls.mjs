@@ -493,7 +493,8 @@ if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     let missed = 0;
     for (const mu of MUTANTS) {
-      const p = plant(mu.edits, ['src', 'supabase/functions/hr-accrue', 'tools/gen-bench-tax.mjs', 'tests/_is-main.mjs']);
+      /* gen-bench-tax renders in the whole view (tools/pack/whole.mjs, lane/gear-phase-b), which reads tools/lib's apply order: both ride the plant */
+      const p = plant(mu.edits, ['src', 'supabase/functions/hr-accrue', 'tools/gen-bench-tax.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs']);
       try {
         /* A planted tree that can't load is the harness's failure, never a catch. */
         let M;

@@ -84,8 +84,9 @@ const PREV = await (async () => { const o = (await manifest()).order; return o[o
    (staleAnchors refuses a plant in a body a later file restates). The purse arms (G2, G3, G8-G12) judge this
    file as of itself, where its re-apply (G9) is defined. */
 const TALLY = '2026-12-23-tally-tasks.sql';
-/* hr_hunt_apply_instance's LAST author (restated whole, tests/patch-chain-guard.mjs): the commit-body plants go there, the text that runs. */
-const SCALED = '2027-03-21-scaled-hunts.sql';
+/* hr_hunt_apply_instance's LAST author (restated whole, tests/patch-chain-guard.mjs): the commit-body plants go there, the text that runs.
+   (1071-trait-pieces.sql restated it whole over 2027-03-21-scaled-hunts.sql's chain, lane/t1-traits-drop: staleAnchors named it.) */
+const SCALED = '1071-trait-pieces.sql';
 const CHAIN_END = (await manifest()).order.at(-1);
 
 /* §0's pins (G9 re-applies the MUTATED file, whose own bodies are not its pinned post-images) and §7's
@@ -108,9 +109,10 @@ const LATER_BLIND = {
   [CUT]: [['  v_txt  text;\n  v_code text;\nbegin\n', '  v_txt  text;\n  v_code text;\nbegin\n  if true then return; end if;   -- selftest: §4 short-circuited\n']],
   [CUTS]: [['  v_txt   text;\n  v_code  text;\nbegin\n  -- (a) GONE, AND NOTHING KEPT NAMES THEM.\n',
     '  v_txt   text;\n  v_code  text;\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n  -- (a) GONE, AND NOTHING KEPT NAMES THEM.\n']],
-  /* 2027-03-21-scaled-hunts.sql's §8 (its commit probes would refuse a planted hr_hunt_apply_instance before an arm reads it) */
-  [SCALED]: [['  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n',
-    '  v jsonb; v_src text; v_iid uuid; v_sid uuid; v_g0 bigint; v_role text; v_sig text; v_to timestamptz;\nbegin\n  if true then return; end if;   -- selftest: §8 short-circuited\n']],
+  /* the last author's own self-check (1071-trait-pieces.sql §7: its commit probes would refuse a planted hr_hunt_apply_instance before an
+     arm reads it; its §0b pin takes its own image, marked TRAIT-PIECES, so a planted body passes the pin) */
+  [SCALED]: [["  v_ok jsonb; v_belt text; v_neck text;   -- v_ok: one probe proposal, varied below (a Rare weapon of Muster's cell at the step v_step)\nbegin\n",
+    "  v_ok jsonb; v_belt text; v_neck text;   -- v_ok: one probe proposal, varied below (a Rare weapon of Muster's cell at the step v_step)\nbegin\n  if true then return; end if;   -- selftest: §7 short-circuited\n"]],
 };
 const SQL_MUTANTS = {
   per_hero_read: {

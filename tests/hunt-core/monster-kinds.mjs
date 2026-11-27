@@ -42,7 +42,7 @@ async function load(root) {
   M.shooters = await imp('src/core/hunt/shooters.js');
   M.monData = await imp('src/data/monsters.js');
   M.roleData = await imp('src/data/hunt-roles.js');
-  M.tiers = await imp('src/data/hunt-tiers.js');
+  M.tiers = await imp('src/core/hunt/dial.js');
   M.bossPhases = await imp('src/core/hunt/boss-phases.js');
   return M;
 }

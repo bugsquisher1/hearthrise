@@ -34,7 +34,7 @@
 //                 the session's start from its own copy (tools/gen-session-modes.mjs); the engine never reads it from here.
 //     pull, pack  (optional, a `box` pocket) `pull` is the tank's tile (3x3 clear of walls and props), `pack` 8 rows in join
 //                 order on the ring round it, so every pull fits a full box: all 8 tiles round the tank (Tyler 10-18). `spawns` =
-//                 the head of `pack` is the pocket as built. A tier's pull (hunt-tiers.js) reads them through pullRows. Party size still scales pack HP.
+//                 the head of `pack` is the pocket as built. A bigger pull (the Danger scale's step) reads them through pullRows. Party size still scales pack HP.
 //     gather      (optional) THE GATHER SLIDER (Tyler 10-18): { refKillMs, shares, nodes }.
 //                 INERT DATA until the hunt-gathering engine lands (HUNT_GATHERING_SPEC).
 //                 shares: the slider's steps, permille of the hunt spent on a node between
@@ -196,7 +196,7 @@ const BASE_GROUNDS = Object.freeze({
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
     /* the Thicket's floor (the board's 2026-11-19 complete balance look, change 1: idle first heroes sat here for hours past it) */
     endsAtLevel: 5,
-    /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
+    /* the full box and no more */
     densityMax: Object.freeze([8, 8, 8, 8]),
   }),
   millrace_sewer: Object.freeze({
@@ -507,7 +507,7 @@ export function monstersOn(ground) {
 }
 
 /* MONSTER DENSITY: how many monsters a pull brings (0 = the room as built). THE DIAL IS GONE (lane/c-difficulty-tiers): the
-   tier a hero or its party's leader picks (hunt-tiers.js) sets it, and the server freezes that number at hunt start. The
+   pull the server freezes at hunt start (the old tiers' pulls, retired 2026-11-26: on the Danger scale the step sets the pull). The
    settle still CLAMPS it to the ground's `densityMax` for the party's size (a row's array, one entry per party size 1..4).
    A tool's pick (tools/balance-sim, the fixtures) comes in by the same road: the leader's alone counts (partyPick).
    A top tier's DENSITY_FULL_BOX fits every ground (Tyler: "a full box", all 8 tiles round the tank taken); a row may allow more. The values above 8 are ASSUMED.

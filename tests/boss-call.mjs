@@ -16,7 +16,7 @@
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no yield trick; a called boss drops only his ground boss's rows at their rates and his call-only piece (worn, no jewelry,
 //              dropped by nothing else, never another piece's stat mix, its attribute at its tier's size in the special catalogue), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
-//   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
+//   (BC-TIER, a difficulty tier never reaching the room, left with the tiers: lane/retire-tier-chain 2026-11-26)
 //   BC-PAY     a win pays only items from his own table, in the window he fell in, by any path: a lone seat, a pair, a four, Tempering, a bestiary boost; every
 //              other window is the settle's allowlist; no XP or coin ever; his table is rolled once a win (his call-only piece at certain odds lands once)
 //   BC-HP      the boss's one spawn is his row's HP for any party that walks in (no party scale since 2026-11-08)
@@ -212,10 +212,6 @@ async function guard(X) {
     if (!sql.includes(`('${id}', 0, 0, '${Object.keys(per).length ? JSON.stringify(per) : '{}'}'::jsonb)`)) bad.push('BC-ROW the catalogue\'s kill bound of ' + id + ' is not no coin, no XP and his table');
     if (new RegExp(`delete from public.hr_hunt_roster;[\\s\\S]*?\\('${id}'\\)[\\s\\S]*?delete from public.hr_hunt_weapons`).test(sql)) bad.push('BC-ROW ' + id + ' is in hr_hunt_roster');
   }
-
-  /* BC-TIER: the difficulty lane's data, once it lands here. */
-  const tiers = await import(pathToFileURL(join(X.root, 'src/data/hunt-tiers.js')).href).catch(() => null);
-  if (tiers) for (const c of calls) if (tiers.tiersOf(G.CALLED_GROUNDS[c.hunt].id).join() !== tiers.DEFAULT_TIER) bad.push('BC-TIER room ' + c.hunt + ' offers ' + tiers.tiersOf(c.hunt).join());
 
   const king = B.BOSS_CALLS.rat_king, chief = B.BOSS_CALLS.chief_coppercap;
   /* BC-PAY: every path, on rows that make the kill certain and quick: the boss is real, his blows aren't what's measured. Then BC-FELLED's three cuts. */

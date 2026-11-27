@@ -1,12 +1,11 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/text/hunts.js — THE HUNTS LIST'S WORDS: a ground's band, packs, tier,
+// src/data/text/hunts.js — THE HUNTS LIST'S WORDS: a ground's band, packs, Risk,
 // who may come, the advice and the warnings (src/shell/hunt-list.js).
 //
 // One row per label, read by t('hunts.<key>'). LABELS, NOT SENTENCES (Tyler 2026-11-14: "Recommended: 4+ players" is
 // "Perfect. Now do it like that for everything outside of actual lore"): a fact, warning or hint here is the short form
 // players know from MMOs, no period. A line built from several labels puts each on its own line (hunt-list.js joins
-// with a line break). A harder tier says its plain line (src/data/hunt-tiers.js TIER_LINES) and its death line;
-// tier_choice names it beside Enter ("Deadly: big groups that hit hard.").
+// with a line break).
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUNTS_TEXT = Object.freeze({
@@ -34,12 +33,6 @@ export const HUNTS_TEXT = Object.freeze({
   pack_range: '{min} to {max}',
   packs: { one: '{count} pack of {size}, respawn {secs}s', other: '{count} packs of {size}, respawn {secs}s' },
   packs_boss: { one: '{count} pack of {size} + boss, respawn {secs}s', other: '{count} packs of {size} + boss, respawn {secs}s' },
-
-  /* What a tier does. */
-  tier_choice: '{tier}: {head}',
-  /* A tier where a party with no Healer was measured to die on this ground, under a Level (a pack's healerTiers, hunt-tiers.js HEALER_TIERS):
-     one line of the tier note, said to a hero alone and to a party alike. A warning, never a gate. The wants_healer shape. */
-  tier_healer: 'Recommended: Healer (high death risk without)',
 
   /* The band, and a ground above the hero. */
   band: 'Levels {lo}–{hi}',
@@ -94,7 +87,6 @@ export const HUNTS_TEXT = Object.freeze({
   win_list: 'Hunts',
   win_page: 'Selected hunt',
   head_packs: 'Packs',
-  head_tiers: 'Tiers',
   head_lives: 'Enemies',
   head_drops: 'Drops',
   head_mats: 'Loot',
@@ -159,10 +151,6 @@ export const HUNTS_TEXT = Object.freeze({
   depth_new: 'New ground · Starts at Depth 1',
   /* the server's estimate at the plan's Risk (1060-gold-estimate-catalogue.generated.sql), shown under the depth line */
   gold_about: 'Est. {gold} gold/hr (before supplies)',
-  tier_set_by: 'Set by {leader}: {tier}',
-  tier_leader_picks: 'Tier: set by party leader',
-  tier_kept_party: 'Tier: whole party · Saved for this ground',
-  tier_kept: 'Saved for this ground',
   bringing: 'Bringing {name}…',
   joined: '{name} joined the party',
   telling: 'Notifying party…',
@@ -172,35 +160,4 @@ export const HUNTS_TEXT = Object.freeze({
   party_on_way: 'Party heading to {ground}',
   setting_off: 'Setting off for {ground}…',
   on_way: 'Heading to {ground}',
-
-  /* SCALED HUNT (audit F26; src/shell/windows/scale-pane.js): an outgrown early ground fought at the leader's Level, hours bought with gold.
-     Labels only (Tyler 2026-11-14). The dials are Tyler's ("+x% exp +x% more damage from monsters +x% more gold from monsters", and HP), as multiples: +4,627% read worse than x47. */
-  scale_head: 'Scaled hunt',
-  scale_tag: 'Scalable',
-  scale_tag_on: 'Scaled: Level {level}',
-  scale_locked: 'Unlocks at Level {level}',
-  scale_level: 'Scaled to Level {level}',
-  scale_price: 'Price: {price} / hour',
-  scale_banked: 'Banked: {time}',
-  scale_banked_none: 'Banked: none',
-  scale_xp: 'Level XP ×{times}',
-  scale_gold: 'Gold ×{times}',
-  scale_dmg: 'Monster damage ×{times}',
-  scale_hp: 'Monster HP ×{times}',
-  scale_drops: 'Drops ×{times}',
-  scale_active: 'Active: Level {level}',
-  scale_party: 'Party: leader\'s hours apply',
-  scale_bank_full: 'Bank full: {max} h',
-  scale_day_full: 'Daily limit: {max} h',
-  scale_short: 'Not enough gold',
-  scale_use: 'Use scaled hours',
-  scale_hours_label: 'Hours',
-  scale_hours: '{hours} h',
-  scale_buy: 'Buy {hours} h for {price}',
-  scale_confirm_q: 'Buy {hours} h for {price}?',
-  scale_confirm_after: 'Gold after: {gold}',
-  scale_confirm_yes: 'Buy',
-  scale_buying: 'Buying…',
-  scale_bought: '{hours} h added',
-  scale_saving: 'Saving…',
 });

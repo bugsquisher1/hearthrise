@@ -23,7 +23,6 @@ import { VITALS } from '../data/core-model.js';
 import { HUNT_TUNING } from '../data/hunt-tuning.js';
 import { HUNT_GROUNDS, groundOfHunt } from '../data/hunt-grounds.js';
 import { sessionModeOf } from '../data/session-modes.js';
-import { TIER_IDS } from '../data/hunt-tiers.js';
 import { RUNE_ON_EMPTY } from '../data/runes.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -95,8 +94,6 @@ export function huntOf(cs) {
     endBy: isObj(h.session) && str(h.session.end_by) ? h.session.end_by.trim().slice(0, 40) || null : null,
     /* What ended that member (hr_hunt_view `end_by_why`, an END_ORDER name: stamina, left ...), or null. */
     endWhy: isObj(h.session) ? str(h.session.end_by_why) : null,
-    /* The tier the session runs or ran at (hr_hunt_view `tier`: stamped as it opens, 2027-05-24-session-tier-open.sql, and again as it ends), or null (a hunt that ended before 2026-11-06). */
-    tier: isObj(h.session) && TIER_IDS.includes(h.session.tier) ? h.session.tier : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     /* A CALL OUT SERIES (hr_hunt_view `call`, 2027-04-24-boss-call-series.sql): the server's own count of fights and wins and what it charged; null on every other hunt. */
@@ -209,7 +206,7 @@ export function settingsView(s) {
     supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
-    /* The gathering share (INERT until gathering lands). How hard a hunt is, is no setting: huntTierOf, per ground. */
+    /* The gathering share (INERT until gathering lands). How hard a hunt is, is no setting: the Risk, per hero (danger-sections.js). */
     gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
@@ -390,29 +387,6 @@ export function groundsSeenOf(cs) {
   const h = huntOf(cs);
   if (h && h.huntId) seen.add(h.huntId);
   return seen;
-}
-
-/**
- * A TIER MAP as the server projects it ({ [hunt]: tier id }, no key = Normal), or null when it is not one.
- * This hero's `hunt_tier` picks and the party's `leader_tiers`.
- */
-export function tierMapOf(v) {
-  if (!isObj(v)) return null;
-  const out = {};
-  for (const [hunt, t] of Object.entries(v).slice(0, 256)) if (str(hunt) && TIER_IDS.includes(t)) out[hunt] = t;
-  return out;
-}
-
-/**
- * `hunt_tier` (hr_hunt_tier_view, hunt-tiers.js): THIS hero's tier picked on each ground (chosen with the hunt,
- * remembered per ground) and the tier its running hunt froze. { picks, playing }; null = the server sent no section,
- * and the picker shows no choice.
- */
-export function huntTierOf(cs) {
-  const s = section(cs, 'hunt_tier');
-  if (!isObj(s)) return null;
-  const picks = tierMapOf(s.picks);
-  return picks ? { picks, playing: TIER_IDS.includes(s.playing) ? s.playing : null } : null;
 }
 
 /**

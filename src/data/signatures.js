@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/signatures.js — THE SIGNATURES: THE SAMPLE OF 5 AND BATCH 2, THE MOVE SIGNATURES (systems, lane/signatures-sample and
 // lane/signatures-batch-2, 2026-11-26; the designer's ruling docs/design/redesign/15-signature-candidates.md "Decision: count and size", the
-// rows' words there, their size 19-power-ledger.md row 6, the size bar 15 "Decision: how a Signature stays inside the gear slice").
+// rows' words there, their size 19-power-ledger.md row 6, the size bar 15 "Decision: how a Signature stays inside the gear slice", read in
+// PACE STEPS since lane/designer-sig-metric, 2026-11-27: 15 "Decision: the scale a Signature is sized on", "Batch 2, re-read on pace steps").
 //
 // A Signature is a NAMED PIECE WITH ONE FIXED RULE nothing else gives: no roll, no ranks, one home. A hero plays ONE: the first it equipped
 // (the server's projection hands that one; a second worn Signature does nothing). Its size is 10 steps (half a gear tier) on the cell that
@@ -34,28 +35,34 @@
 //   #1  Bannerman's Pavise      tank      DROPPED (15 "Batch 2, measured"): its moment, a taunt, is about 9 Challenges and 13 monsters an
 //                                         hour for the reference tank, which holds its pulls without one (-0.2, se 2.9; +0.5 pinned on its home);
 //                                         its status, Blunted, is laid by #4 and #23
-//   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 2% x each monster it Chills, at most 10% (CUT from 3% and 15%: +15.8 read over the band)
+//   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 2% x each monster it Chills, at most 10% (CUT from 3% and 15%: +15.8 read over the band;
+//                                         sized on Muster Barrows, where it was read: the tank four never settles on Krell's Hold)
 //   #3  Grave Guard's Mail      tank      RESHAPED (a readied Challenge read -1.9: the reference tank casts it 9 times an hour): shield_break
-//                                         (a shell the wearer cast: the shield discipline casts only Shelter's) -> Guarded at three times
-//                                         its row (-30% taken, the key's cap) 8 s on that shell's hero
+//                                         (a shell the wearer cast, whichever move laid it: the designer accepted the wider reading and the
+//                                         words say "a shield you cast", 15 "Batch 2's design calls") -> Guarded at three times its row
+//                                         (-30% taken, the key's cap) 8 s on that shell's hero
 //   #4  Charred Sabre           sword     RESHAPED (a free Flame Strike on a kill +1.5, on every hit +2.6: a sword's damage buys no held
 //                                         depth): cast (of Flame Strike) -> Blunted on its target (its next blow at half)
 //   #5  Pikeman's Gauntlets     sword     hit (of Flame Strike) -> Power Strike ready
 //   #7  Floodwater Hatchets     axes      cast (of Rend) -> Poison, 20% of the cast's damage over 6 s
 //   #9  Lurcher's Collar        ranger    REWRITTEN for a long fight (15 "The sample, re-read": the moved Mark read 0): hit on a marked
-//                                         monster -> a Bleed stack, once every 4 s (the stacks build over a fight, so a boss or a brute)
+//                                         monster -> a Bleed stack, once every 2 s (the stacks build over a fight, so a boss or a brute; the
+//                                         clock from 4 s, lane/designer-sig-metric: 4.2 pace steps at 4 s, 9.3 at 2 s)
 //   #10 Coal Runner's Bow       ranger    RESHAPED (the Roads' Burning Volley lays burning ground): kill (of Flame Volley) -> Volley ready, 10 s
 //   #11 Provost's Longbow       ranger    hit (of Precision Shot) -> 1 s off Flame Volley and off Raking Shot
 //   #12 Wyvern Barb Crossbow    ranger    RESHAPED (the Roads' Bleeding Rake lays the Bleed): hit (of Raking Shot) -> Poison, 20% of the hit
+//                                         (under at 20% and 35%: dark, reshaped before it turns on; Poison stays #7's, 15 "Batch 2's design calls")
 //   #13 Hall Fire Wand          mage      kill (of Fireball) -> burst, 30% of the fallen's max health on every monster next to it
-//   #15 Catacomb Shroud         mage      hit (of Hoarfrost) -> Silenced 3 s
+//   #15 Catacomb Shroud         mage      hit (of Hoarfrost) -> Silenced 3 s (sized on Krell's Hold, where its Silence stops the Pyre Priests)
 //   #16 Lamplighter's Robe      mage      shield_break (its own Arcane Barrier) -> Kindled (its next Fireball or Frost Lance +30%)
 //   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under half (RESHAPED from 30%: Steady falls back at 25%; -20% under half read +14.6, cut) -> Guarded at 1.5 times its row (-15% taken) 4 s
-//   #21 Drover's Hat            healer    absorb (a shell the wearer cast: a healer's is Protective Ward) -> reflect 50% on the attacker
+//   #21 Drover's Hat            healer    absorb (a shell the wearer cast: a healer's is Protective Ward) -> reflect 25% on the attacker (CUT
+//                                         from 50%, lane/designer-sig-metric: 19.6 pace steps on Ox Road, over the band; 25% read 9.2)
 //   #23 Ferry Pennies           any       RESHAPED (Mend under 20% read +0.3: Steady falls back at 25%; a Chill under 40% +2.0): heal (of
 //                                         Mend) under 45% -> Blunted (the next blow at half) on every monster next to the wearer
-// NOT BUILT here: #19 Passing Bell and #20 Greened Bracers (mana: 15 "Batch 2 writes no mana Signature without a cell where mana binds",
-// none read so; 15 "Batch 2, measured"), #8 (Stagger's), #22 (an Alone Signature, batch 3).
+// NOT BUILT here: #19 Passing Bell and #20 Greened Bracers (their mana rules CUT, 15 "Batch 2's design calls": drinks are always sold, so
+// mana is a coin cost and never binds a hunt; Spring Tide and Green Sickness keep a Signature each, a new rule in batch 3), #8 (Stagger's),
+// #22 (an Alone Signature, batch 3).
 //
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
@@ -85,8 +92,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'hit', of: 'turning_cut', do: 'shield', pm: 60 }] }),
   lurchers_collar: sig({ id: 'lurchers_collar', n: 9, name: 'Lurcher\'s Collar', slot: 'necklace', move: 'hunters_mark',
     home: { kind: 'monster', id: 'lurcher' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    tip: 'Hunter\'s Mark: your hits on the marked target add a Bleed stack (once every 4 s)',
-    reacts: [{ on: 'hit', marked: true, do: 'status', status: 'bleed', clockMs: 4000 }] }),
+    tip: 'Hunter\'s Mark: your hits on the marked target add a Bleed stack (once every 2 s)',
+    reacts: [{ on: 'hit', marked: true, do: 'status', status: 'bleed', clockMs: 2000 }] }),
   the_wood_book: sig({ id: 'the_wood_book', n: 14, name: 'The Wood Book', slot: 'shield', move: 'frost_lance',
     home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
     tip: 'Frost Lance hits: Hoarfrost is ready again',
@@ -98,12 +105,12 @@ export const SIGNATURES = Object.freeze({
 
   /* ── BATCH 2 (lane/signatures-batch-2) ── */
   ossuary_helm: sig({ id: 'ossuary_helm', n: 2, name: 'Ossuary Helm', slot: 'helmet', move: 'frost_slam',
-    home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'krells_hold' },
+    home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'muster_barrows' },
     tip: 'Frost Slam: gain a shield of 2% of max health for each monster it Chills (up to 10%)',
     reacts: [{ on: 'cast', of: 'frost_slam', do: 'shield', pm: 20, capPm: 100 }] }),
   grave_guards_mail: sig({ id: 'grave_guards_mail', n: 3, name: 'Grave Guard\'s Mail', slot: 'body', move: 'shelter',
     home: { kind: 'monster', id: 'grave_guard' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'Shelter: when a hero\'s shield breaks, that hero takes 30% less damage for 8 s',
+    tip: 'When a shield you cast breaks, that hero takes 30% less damage for 8 s',
     reacts: [{ on: 'shield_break', do: 'boon', status: 'guarded', pw: 3000, ms: 8000 }] }),
   charred_sabre: sig({ id: 'charred_sabre', n: 4, name: 'Charred Sabre', slot: 'weapon', weapon: 'sword', move: 'flame_strike',
     home: { kind: 'monster', id: 'charred_pikeman' }, best: { seat: 'melee_dps', ground: 'pyre_field' },
@@ -135,7 +142,7 @@ export const SIGNATURES = Object.freeze({
     tip: 'Fireball on a kill: the monster explodes for 30% of its max health to every monster next to it',
     reacts: [{ on: 'kill', of: 'fireball', do: 'burst', pm: 300, r: 1 }] }),
   catacomb_shroud: sig({ id: 'catacomb_shroud', n: 15, name: 'Catacomb Shroud', slot: 'body', move: 'hoarfrost',
-    home: { kind: 'monster', id: 'shrouded_pauper' }, best: { seat: 'mage', ground: 'catacomb_bone_wing' },
+    home: { kind: 'monster', id: 'shrouded_pauper' }, best: { seat: 'mage', ground: 'krells_hold' },
     tip: 'Hoarfrost: monsters it Chills are Silenced for 3 s',
     reacts: [{ on: 'hit', of: 'hoarfrost', do: 'status', status: 'silenced', ms: 3000 }] }),
   lamplighters_robe: sig({ id: 'lamplighters_robe', n: 16, name: 'Lamplighter\'s Robe', slot: 'body', move: 'arcane_barrier',
@@ -148,8 +155,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'heal', of: 'greater_mend', belowPm: 500, do: 'boon', status: 'guarded', pw: 1500, ms: 4000 }] }),
   drovers_hat: sig({ id: 'drovers_hat', n: 21, name: 'Drover\'s Hat', slot: 'helmet', move: 'protective_ward',
     home: { kind: 'monster', id: 'drover' }, best: { seat: 'healer', ground: 'ox_road' },
-    tip: 'Protective Ward: returns 50% of the damage it absorbs to the attacker',
-    reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }] }),
+    tip: 'Shields you cast return 25% of the damage they absorb to the attacker',
+    reacts: [{ on: 'absorb', do: 'reflect', pm: 250 }] }),
   ferry_pennies: sig({ id: 'ferry_pennies', n: 23, name: 'Ferry Pennies', slot: 'earrings', move: 'mend',
     home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'muster_barrows' },
     tip: 'Mend below 45% health: the next blow of every monster next to you lands at half',

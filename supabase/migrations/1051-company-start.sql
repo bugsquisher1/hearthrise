@@ -515,6 +515,8 @@ grant  execute on function public.hr_party_lead_set(int, int, uuid) to authentic
 
 -- ── §4 THE ONE START ─────────────────────────────────────────────────────────
 -- THE PLAN (owner-only, read only): 1024's, plus the plan's ground, each ground's Setup and the pending seat.
+-- (lane/retire-tier-chain, 2026-11-26: the plan's hero `tier` is out of this body, folded in from 1072-retire-tier-chain.sql, which drops
+--  hunt_density.tier: a staged body is edited in place, never moved by a later file)
 create or replace function public.hr_carry_on_plan_of(p_uid uuid, p_slots int[])
 returns jsonb language plpgsql set search_path = public, pg_catalog as $fn$
 -- COMPANY-START (1051-company-start.sql): a hero with no last hunt goes to its plan's ground; a plan newer than the last hunt wins; the
@@ -666,9 +668,6 @@ begin
       'slot', v_st.slot, 'name', public.hr_character_name(p_uid, v_st.slot),
       'state', case when v_why is null then 'go' else 'no' end, 'why', v_why, 'detail', v_detail,
       'hunt', v_hunt, 'session', v_s.id, 'ended', v_s.end_reason, 'planned', case when v_planned then true end,
-      'tier', coalesce((select d.tier from public.hunt_density d
-                         where d.user_id = coalesce(v_p.leader_user, p_uid) and d.slot = coalesce(v_p.leader_slot, v_st.slot)
-                           and d.hunt_id = v_hunt), 'normal'),
       'party', v_party is not null, 'preset', v_preset, 'hours', v_hours,
       'joins', case when v_st.party_with is not null then public.hr_character_name(p_uid, v_st.party_with) end,
       'storage', case when v_why is null then v_storage end, 'short', case when v_why is null then v_short end,

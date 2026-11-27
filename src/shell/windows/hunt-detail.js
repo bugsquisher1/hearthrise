@@ -40,7 +40,6 @@ import { t } from '../../render/player-text.js';
 import { groundLines } from '../live-events-view.js';
 import { stripHtml, patchStrip } from '../presence-strip.js';
 import { afterHtml } from './hunt-after-pane.js';
-import { scaleHtml } from './scale-pane.js';
 import { SHELL_WINDOWS } from '../../data/shell-windows.js';
 
 const PREP_LABEL = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep').label;
@@ -66,8 +65,6 @@ export function detailHtml() {
     + '<h4 class="hw-hd-h">' + t('hunts.head_lives') + '</h4><ul class="hw-hd-lineup" aria-label="' + t('hunts.head_lives') + '"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
-    /* a ground the server scales for this hero: its Level, price, bank and the hours slider (scale-pane.js; audit F26) */
-    + scaleHtml()
     + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
     + '<button type="button" class="hh-tool is-link hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'

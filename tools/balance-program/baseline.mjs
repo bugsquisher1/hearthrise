@@ -405,24 +405,29 @@ async function selftest() {
        table (three Blessings leave a quarter), where the matrix's own job of the same cell halves it again. Both plays must see a death,
        or the check says so. Since every tier has its home and kit (gear 8.3, 2026-11-23), a beyond-block hammer on its own ground's kit no
        longer dies (145 on Wyvern Roost in Cobalt, 185 to 400 on the Unmarked Catacombs: none in 0.25 h, measured 2026-11-26). So the check
-       plays the beyond block's LOWEST Level lone hammer on Deadly, as kitted, on the ground its TOP Level plays: a hero a band under its
-       ground, read from the plan (145 on the Catacombs dies) */
+       plays a lone hammer as kitted on the ground the beyond block's TOP Level plays, a hero well under its ground, read from the plan.
+       Since the tier rows retired (lane/retire-tier-chain: the program's tier column is Normal alone, tools/balance-sim/tier-axis.mjs) the
+       beyond block's lowest (145) and the pace block's 100 and 110 no longer die there on Normal; its 50 and 60 do, in half an hour
+       (measured 2026-11-26). So the hero is the pace block's lowest lone hammer from Level 50 whose matrix job carries the S-5 ladder (a
+       blessed hero; under 50 a death costs too little Level XP to read a share), Normal, half an hour */
     {
       const ladder = plan.jobs.filter((j) => 'blessedShare' in j.cell).length;
-      const beyondKeys = new Set(plan.cells.filter((c) => c.block === 'beyond').map((c) => c.key));
-      const hammers = plan.jobs.filter((j) => beyondKeys.has(j.key) && /^\d+\|mid\|1:h\|deadly/.test(j.key) && j.cell.seedBase === 0)
+      const keysOf = (block) => new Set(plan.cells.filter((c) => c.block === block).map((c) => c.key));
+      const loneOf = (keys) => plan.jobs.filter((j) => keys.has(j.key) && /^\d+\|mid\|1:h\|normal/.test(j.key) && j.cell.seedBase === 0)
         .sort((a, b) => a.cell.level - b.cell.level);
-      const job = hammers.length > 1 ? hammers[0] : null;
-      const over = job && hammers[hammers.length - 1].cell.ground;
-      const matrixJob = job && planMatrix(D, K, baselineRun(spec), { blocks: ['beyond'] }).jobs.find((j) => j.key === job.key && j.cell.seedBase === 0);
+      const laddered = planMatrix(D, K, baselineRun(spec), { blocks: ['pace'] }).jobs.filter((j) => j.cell.seedBase === 0 && Number.isFinite(j.cell.blessedShare));
+      const top = loneOf(keysOf('beyond')), past = loneOf(keysOf('pace')).filter((j) => j.cell.level >= 50 && laddered.some((m) => m.key === j.key));
+      const job = top.length && past.length ? past[0] : null;
+      const over = job && top[top.length - 1].cell.ground;
+      const matrixJob = job && laddered.find((j) => j.key === job.key);
       const cut = (r) => (r && r.heroes[0].raw.xpLostLevel > 0 ? r.heroes[0].raw.xpLostLevelBlessed / r.heroes[0].raw.xpLostLevel : null);
       let game = null, matrix = null, why = '';
-      if (!job || !matrixJob) why = 'no two lone hammers on Deadly in the beyond block on this tree';
+      if (!job || !matrixJob) why = 'no blessed lone hammer from Level 50 in the pace block, or none in the beyond block, on this tree';
       else {
-        const at = { hours: 0.25, ground: over };
+        const at = { hours: 0.5, ground: over };
         const p = await playJobs([{ ...job, id: 'g', cell: { ...job.cell, ...at } }, { ...matrixJob, id: 'm', cell: { ...matrixJob.cell, ...at } }], ROOT, 2);
         game = cut(p.results.g); matrix = cut(p.results.m);
-        if (game === null || matrix === null) why = 'no death in 0.25 h: the check read nothing';
+        if (game === null || matrix === null) why = 'no death in 0.5 h: the check read nothing';
       }
       const share = 1 - D.BL.BLESSING.cutPm / 1000;
       check('the baseline plays the game\'s own Blessings: ' + ladder + ' jobs carry the S-5 ladder, a death at ' + (job && job.cell.level) + ' on ' + over + ' keeps ' + game + ' of its loss (the tree\'s table: ' + share + '), where the matrix\'s job keeps ' + matrix,

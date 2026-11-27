@@ -26,10 +26,9 @@ export const MONSTER_TEXT = Object.freeze({
   how_pull: 'only a harder hunt summons it',
 
   /* In a fight. Each stat is the game's own label and its value, nothing more (Tyler 2026-11-11: "it should just say Max Hit";
-     the labels are the approved wiki mock's). Tier names the tier the numbers are for. A line that explains how the game works
+     the labels are the approved wiki mock's). A line that explains how the game works
      instead of stating a fact about this monster is cut (Tyler 2026-11-11, on "shared by the heroes who were there"). */
   h_fight: 'In a fight',
-  tier: 'Tier',
   hp: 'Health',
   max_hit: 'Max Hit',
   swing: 'Attack Speed',
@@ -48,14 +47,7 @@ export const MONSTER_TEXT = Object.freeze({
   el_frost: 'Ice',
   el_poison: 'Poison',
   el_physical: 'Physical',
-  /* What each harder tier does to it, on the ground its page was opened from (Tyler 2026-11-11: "cant this just say 'difficulty
-     increases by x% on dangerous/deadly'"). The numbers are that ground's own dials (hunt-tiers.js GROUND_TIERS), the ones the
-     engine fights with: {hp} is the Health dial in percent more, {hits} is hits_pct or, from twice as hard up, hits_times. */
-  tier_both: '{tier}: +{hp}% Health, hits {hits}',
-  tier_hits: '{tier}: hits {hits}',
-  tier_hp: '{tier}: +{hp}% Health',
-  hits_pct: '{pct}% harder',
-  hits_times: '{times} times as hard',
+
 
   /* A kill. */
   h_kill: 'What a kill gives',

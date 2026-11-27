@@ -61,28 +61,16 @@ export function rollDropTable(drops, mods, rng) {
   const dropped = {};
   const events = [];
   if (!Array.isArray(drops)) return { dropped, events };
-  const k = rollsOf(mods && mods.lootPm);
+  /* ONE ROLL A ROW A KILL: how deep the hunt is moves the chance (depthPm), never the number of rolls */
   for (const d of drops) {
-    const chance = effectiveDropChance(d, mods);
-    /* A SCALED HOUR'S LOOT (src/data/scaled-hunts.js lootPm, Tyler 2026-11-07: "difficulty, XP and loot scale"): the row's own item at
-       `lootPm` / 1000 times its rate, as `k` rolls of chance x rate / k, so one roll never passes certainty. Unscaled: one roll, as ever. */
-    const each = k === 1 ? chance : (chance * mods.lootPm) / 1000 / k;
-    for (let i = 0; i < k; i++) {
-      if (!rng.chance(each)) continue;
-      dropped[d.id] = (dropped[d.id] || 0) + 1;
-      /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
-         a Scarce piece is a standard drop at any odds. */
-      const band = bandOf(d);
-      events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
-    }
+    if (!rng.chance(effectiveDropChance(d, mods))) continue;
+    dropped[d.id] = (dropped[d.id] || 0) + 1;
+    /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
+       a Scarce piece is a standard drop at any odds. */
+    const band = bandOf(d);
+    events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
   }
   return { dropped, events };
-}
-
-/** How many rolls a row takes at a loot rate of `lootPm` permille (a scaled hour's; 1000 or none: one, the table as written).
-    The settle's item bound reads the same number (hr_scaled_kill_bounds.loot_pm): at most this many of a row's item a kill. */
-export function rollsOf(lootPm) {
-  return Number.isInteger(lootPm) && lootPm > 1000 ? Math.ceil(lootPm / 1000) : 1;
 }
 
 /** A prize table's whole roll: the sum of its rows' slices (src/data/boss-halls.js: at most 1; the generator refuses more). */

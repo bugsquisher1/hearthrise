@@ -10,7 +10,7 @@
  ],
  "edits": [
   {
-   "file": "src/data/hunt-tiers.js",
+   "file": "src/core/hunt/dial.js",
    "from": "export const levelAtTier = (level, dial) => { const pm = splitPm(dial, 'lvPm'); return pm !== 1000 ? Math.round((level * pm) / 1000) : level; };",
    "to": "export const levelAtTier = (level, dial) => (void dial, level);"
   },

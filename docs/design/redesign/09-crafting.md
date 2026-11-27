@@ -768,6 +768,31 @@ The walk found the gap in row 1b: with the sample alone, steps 4, 6 and 8 have i
 
 **Built here:** `src/data/trades.js` `TRADES.was` now says what it is for (the live skill the trade replaces, which the cut deletes; nothing carries over). Everything else above is the backend's cut slice and the batch-2 data lane (HANDOFFS 2026-11-27, designer-calls-1127). No new migration from this lane.
 
+### 4.12 Built: band 0 whole and the slice's three calls; the cut's contract (lane/one-town-work, 2026-11-27, backend architect)
+
+**How it plays:** on the first day every good the band 0 jobs need is itself a band 0 job: chop logs, saw planks, mine ore, smelt bars, catch shrimp, mine rune essence and cut blank runes, pull turnips and press juice, grind whetstones. A job you stop gives back the fee of every set it never got to. A job the day would cut short is kept going by your work-block rule, if you set one. Everything a job makes is Plain until something in the game reads quality.
+
+**Built (STAGED, dark with `trade_jobs`):**
+- **Batch 2 of band 0 (row 1b).** Nine `KIT_RECIPES` rows: `log_b0`, `fish_b0`, `rune_stone_b0`, `grain_b0` (Turnip), `bar_b0`, `shaft_b0`, `cut_stone_b0`, `honing_stone_b0` (Coarse Whetstone, 2 bars), `drink_b0` (Turnip Juice). Twenty named rows in all, 25 job recipes with the imbuements. The validator's cap is "band 0 whole": one row a kind a band, a refine row allowed. `tests/kit-recipes.mjs` KR-CLOSED holds the cut's precondition: every town input of a band 0 job is made by another band 0 job, never only by the bench, the store or the kit (17 mutants).
+- **Quality dark (row 6).** `TRADE_LEVERS.quality.live` false; `settleJob` and its twin `hr_trade_roll` read it (`hr_trade_levers.quality_live`) and roll no quality at all. 1063's VERIFY(m) pins the lit cascade with the row lit for the probe and put back, so the day it lights the twin is already the JS.
+- **The fee back (row 5).** `hr_trade_job_close` credits `fee - ceil(fee x attempted / count)` through one `hr_apply`, journalled `trade_fee_refund`, keyed by the job. Security S-28.
+- **The rule buys for a job (row 7).** `hr_time_auto_buy` and `hr_time_auto_sweep` restated in 1073 (pinned to 1071): a hero whose open job would stop at the cap with sets left is working for the rule.
+- **The farm's unit.** `cropXp()` (252) and `hr_trade_levers.crop_xp`, for the cut's farm writer.
+
+**Calls made here (CONFLICTS 2026-11-27 one-town-work):** the fee comes back at the day's cap as well as at a stop (the same goods never made); `grain_b0` is a Farming job beside the plots (the farm grows with no work-day cost, the job spends the day); the hearth's fuel runs stay the one bench run (they train Inner Flame, a combat skill, lane/f1-inner-flame's).
+
+**Not built: the cut (row 1).** It cannot land alone. Counted on this set (the items by `catalogue-coherence`, the guards by search, the cut not run): 61 replay guards name a gathering or bench pointer in their fixtures, the cut retires the edge's gather and artisan channels, the Work window's gather and bench rows and the first hour's "Cook 10 Shrimp" through the bench, and 145 live items lose their every door (43 ammo, 37 foods and drinks, 27 jewelry, 18 materials, 12 gathering tools, 6 armor, 2 more; `dawn_bar`, the Dawnsteel Temper kit's input, among them). So the cut is one landing of four lanes, and its server half is this contract.
+
+| Layer | What the cut does | Owner |
+|---|---|---|
+| Data | `SKILLS_DEF` combat only; `hr_activities` keeps only the hearth's `fuel_*` rows (regenerated `1065` by `tools/gen-catalogues.mjs`); the 145 doorless items get a band's `KIT_RECIPES` batch (bands 1 to 8, 20 or fewer a batch: `KIT_BATCH_MAX` becomes a batch cap, not a total) or a cut | Designer |
+| Server | One file `NNNN-one-town-work-cut.sql` after `1073` and the regenerated `1065`: drop `hr_trade_row_sync` (trigger and function), `company_trades`, and `hr_trade_lock` / `hr_trade_is` once nothing calls them; delete every `player_skills` row whose skill left `hr_skills`, one `admin` ledger row an account (`one_town_work_cut`, the XP removed by skill; nothing converts); every pointer, errand and last activity naming a cut activity to idle; the farm's XP writers credit `company_trade_xp` farming `crop_xp` a crop and its gates read `hr_trade_level_of`; restate the readers that name trade skills (`hr_lb_skills`, `hr_market_eligible`'s artisan door, `hr_players_online*`, `hr_unlock_buy` / `hr_unlock_guard`, `hr_hunt_after_job`, `hr_resume_plan`, `hr_work_day_view` without `trades`); the `bench_run` and `bench_tax` sections and the bench's client verbs (`hr_recipe_learn`) leave the envelope and the baseline. ITS LAST STATEMENT LIGHTS `trade_jobs`, so no apply leaves the bench live beside the switch or the bench gone with it dark. §self-check: no trade row in `player_skills` or `hr_skills`, no cut pointer, a farm harvest credits 252 a crop, every bench verb gone, grant hygiene | Backend |
+| Edge | `set-activity.js` refuses `gather`; `artisan` only for the hearth; `accrue-gather.js`, `tick-gather.js` and the bench half of `accrue-artisan.js` / `tick-artisan.js` retire; `catalogue.js` loses the bench | Reliability (one deploy, the release's) |
+| Client | The Work window is the Jobs list, the work blocks and the hearth; the Skills window's trade lines read `trade_jobs.trades`; `town-work.js`, `bench-fee.js`, `bench-output.js`, `station-sort.js`, `town-ticker.js` retire; the bag's Cook all, the first hour's coach and the item tips' "Made by" lines point at jobs | Systems |
+| Guards | The 61 replay guards: a guard whose subject was the bench retires with that said (CLAUDE.md 3.6); a unique catch (the world tick's token and writer checks, conservation, the settle budget) is re-aimed at the hunt channel or a job | Each layer's lane |
+
+The four land as one merge on the set, after the designer's item batches, in the release that ships `trade_jobs`.
+
 ---
 
 ## 5. The supply and demand lifecycle

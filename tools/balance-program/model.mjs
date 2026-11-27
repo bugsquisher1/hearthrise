@@ -228,6 +228,12 @@ export const REAL_KRELL_FOUR_SHIFTS = Object.freeze([
   /* Krell's Hold on the Danger scale (lane/scale-grounds-sweep): MEASURED on the two recorded Deadly fours' replay (calibration-shift.mjs, 2 h x 2 seeds, origin/set/v0.2.144 at 5a62cd800 against the lane): Level XP x1.099, kills x1.099, income x1.104, store x0.584. Not re-measured on K1's own guard cell */
   Object.freeze({ why: 'Krells Hold on the Danger scale: formula monsters with roles, rune at item Level 80',
     mult: Object.freeze({ levelXp: 1.099, kills: 1.099, income: 1.104, store: 0.584 }) }),
+  /* the tier rows retired (lane/retire-tier-chain, 2026-11-26): the real four's Deadly pull is gone, so K1's cell plays Krell's Hold as built.
+     MEASURED on the two recorded Deadly fours' replay (tests/balance-calibration.mjs DECLARED_SHIFTS (6), 2 h x 2 seeds, origin/set/v0.2.144 at
+     5383c03b0 with its own harness against the lane): Level XP x0.313, kills x0.376, coin x0.389, store x0.072. Not re-measured on K1's own cell
+     (K1 there: Level XP 1,201.9k -> 378.9k, kills 1,503 -> 569) */
+  Object.freeze({ why: 'the tier rows retired: a recorded Deadly four plays the ground as built (lane/retire-tier-chain)',
+    mult: Object.freeze({ levelXp: 0.313, kills: 0.376, income: 0.389, store: 0.072 }) }),
 ]);
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */

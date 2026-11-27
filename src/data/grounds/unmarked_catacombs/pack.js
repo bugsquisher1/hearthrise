@@ -210,19 +210,6 @@ export default definePack({
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value
      pin is that pair's floor hour, 17,655 g a head (coin 15,642, commons 2,013, no gear), measured 2026-11-15. */
-  /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). Its own pair cell (1705) went with the one
-     table, and on the table's eight a Melee and bow pair earned 0.42 of the same heroes alone on Dangerous and 0.28 on Deadly, a tank and Healer 0.91
-     on Deadly. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.14-1.89; party-tier-xp, 2 seeds x 0.5 h), Andy's four 1.58x
-     the pace contract. Every pair still dies often on Deadly here: the price of the tier. */
-  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair kept dying' },
-  /* DEADLY IS A HEALER'S TIER HERE, AT EVERY LEVEL OF THE BAND (lane/d-late-nearmisses' call 2026-11-16, re-measured and bounded by Level on v0.2.139 by
-     lane/d-late-items-rescue, the rule lane/a-honesty-rescue set for the Barrows and the Hold: said under the first Level measured at less than one
-     death in 16 hero-hours without a Healer). MEASURED, Deadly's six, 6 seeds x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage /
-     a tank, Healer, bow and Mage, in the uniques kit the ground opens with (its own uniques: the plan, §6): 165 43.3 / 1.3, 168 34.1 / 1.0,
-     170 29.7 / 0.3, 175 22.0 / 0, 180 14.3 / 0.3, 182 10.3 / 0, 185 6.7 / 0. Never under one inside the band, so 186 (not measured past 185).
-     On the ladder kit (Dawnsteel, no uniques) even the four WITH a Healer dies over the sheet's 9 up to 177 (165 23.7, 175 10.3, 178 3.7): the
-     Vaults opens with its armor, as lane/d-late-nearmisses found. */
-  healerTiers: { deadly: 186 },
   checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655, deadlyFourNeeds: 'healer' },
   map,
 });

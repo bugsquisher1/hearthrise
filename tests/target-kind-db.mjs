@@ -136,7 +136,7 @@ async function afterwards(db, user) {
     await db.query('commit');
     return r;
   };
-  const row = async () => (await db.query('select target_kind, tier from public.hunt_density where user_id = $1 and slot = 0 and hunt_id = $2', [user, CELLAR])).rows[0] || null;
+  const row = async () => (await db.query('select target_kind, density from public.hunt_density where user_id = $1 and slot = 0 and hunt_id = $2', [user, CELLAR])).rows[0] || null;
 
   /* TK-3: a reload reads the pick, the engine plays it */
   const a = await picks();
@@ -170,11 +170,11 @@ async function afterwards(db, user) {
   const o2 = await opts();
   const p2 = await picks();
   if (!o2 || 'target_kind' in o2 || !p2 || Object.keys(p2.picks || {}).length) problems.push('TK-3 a kind off the ground is served: engine ' + JSON.stringify(o2) + ', section ' + JSON.stringify(p2));
-  /* None clears it and keeps the row (its tier) */
+  /* None clears it and keeps the row (its density; the row's tier left with the tier rows, lane/retire-tier-chain) */
   const r3 = await set(CELLAR, null);
   const o3 = await opts();
   const left = await row();
-  if (!r3 || r3.ok !== true || !o3 || 'target_kind' in o3 || !left || left.target_kind !== null || left.tier !== 'normal') {
+  if (!r3 || r3.ok !== true || !o3 || 'target_kind' in o3 || !left || left.target_kind !== null || !Number.isInteger(left.density)) {
     problems.push('TK-3 None answered ' + JSON.stringify(r3) + ', the engine reads ' + JSON.stringify(o3) + ', the row ' + JSON.stringify(left));
   }
   return problems;
@@ -252,7 +252,7 @@ const MUTANTS = [
   { name: 'a kind off the ground is still served', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
     find: "(select jsonb_build_object('target_kind', g.monster_id) from public.hr_hunt_ground_spawns g\n                     where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind')",
     repl: "(select jsonb_build_object('target_kind', m0.r0->>'target_kind') where m0.r0->>'target_kind' is not null)", want: /TK-3 a kind off the ground/, run: 'both' },
-  { name: 'None takes the row (and its tier) with it', fn: 'public.hr_hunt_target_kind_set(integer,text,text,uuid)',
+  { name: 'None takes the row (and its density) with it', fn: 'public.hr_hunt_target_kind_set(integer,text,text,uuid)',
     find: '    update public.hunt_density set target_kind = null, updated_at = now()\n     where user_id = v_uid and slot = p_slot and hunt_id = p_hunt and target_kind is not null;',
     repl: '    delete from public.hunt_density\n     where user_id = v_uid and slot = p_slot and hunt_id = p_hunt;', want: /TK-3 None/, run: 'both' },
 ];

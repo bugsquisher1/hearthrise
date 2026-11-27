@@ -102,7 +102,6 @@ export async function buildGrid(root, mode, opts = {}) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
-  const T = await import(u('src/data/hunt-tiers.js'));
   const BAG = (await import(u('src/data/supplies.js'))).BAG_GUIDE_BY_HUNT;
   const START_STORE_FOOD = (await import(u('src/data/start-kit.js'))).START_BAR.find((x) => x.id === 'd_food_store').action.id;
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
@@ -123,10 +122,10 @@ export async function buildGrid(root, mode, opts = {}) {
     const ch = uq && opts.chest === true;
     const og = (opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '') + (uq ? ',uniq' : '') + (ch ? ',chest' : '');
     const ogear = opens.length || uq ? { ...(opens.length ? { openAlso: opens } : {}), ...(uq ? { uniques: true } : {}), ...(ch ? { chest: true } : {}) } : null;
-    for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
-      const row = T.tierRowOf(g.id, tier);
+    /* ONE WAY TO HUNT A GROUND OFF THE SCALE: the tier rows retired (lane/retire-tier-chain, 2026-11-26), so every cell is the ground as built */
+    for (const tier of ['normal'].filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
-        const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
+        const n = Number(size), pull = 0, { seeds, hours } = dice(mode, n, tier, offset);
         /* the graded profile, and a lone hero on Normal's played twin (above) */
         const graded = gradedProfile({ size: n, tier, gear: 'ladder' });
         for (const profile of graded === 'plain' ? ['plain', 'played'] : ['played']) {
@@ -625,8 +624,8 @@ if (isMain(import.meta.url)) {
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
-  const { isHealerTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
-  for (const v of feelVerdicts(cells, await fitsOf(ROOT), isHealerTier)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
+  /* no tier is a Healer's: the tier rows retired with their healerTiers (lane/retire-tier-chain) */
+  for (const v of feelVerdicts(cells, await fitsOf(ROOT), () => false)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   const gold = goldRows(cells, await fitsOf(ROOT));
   /* WHAT THE UNIQUES CELLS WORE past the ladder (gear.mjs uniquesIn): each piece, its attribute and whether that reaches the engine */

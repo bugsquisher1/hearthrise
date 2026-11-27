@@ -34,8 +34,6 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/monster-spells.js#SPELL_BOUNDS', why: 'the valid range of the MONSTER_SPELLS rows (mon.spells field 3)' },
   { at: 'src/data/shape-kinds.js#SHAPE_BOUNDS', why: 'the valid range of an area shape\'s size' },
   { at: 'src/data/catalogue-coherence.js#UNREACHABLE_CEILING', why: 'a coherence guard\'s ceiling on unreachable items' },
-  { at: 'src/data/balance-sheet.js#TIER_SIZES', why: 'the party sizes a tier row answers for (1..4): a shape' },
-  { at: 'src/data/balance-sheet.js#tierRowFor', why: 'a solver\'s search bounds (lo 1, hi 10, 60 halvings) for a gentle ground\'s tier lift' },
   /* display, words, art, UI */
   /* the share code and the What's new card (lane/wn-sh): encoding and version arithmetic, no fight, purse or clock reads them */
   { at: 'src/core/plan-code.js#**', why: 'the share code\'s format: a paste bound (8192 characters), a clamp past any Level\'s points (2000), the FNV-1a hash constants, base36 and base64 padding; a code is a convenience string the server never trusts' },
@@ -94,8 +92,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hunt/talent-rows.js#scaled', why: 'a unit conversion (two permilles in millionths)' }, { at: 'src/core/hunt/talent-rows.js#moddedRow', why: 'a unit conversion (two permilles in millionths)' },
   { at: 'src/core/talents.js#borrowBand', why: 'rounding (an epsilon under a whole openRound)' }, { at: 'src/core/talents.js#grantsOf', why: 'a memo bound (2048 grants kept): a cache size, no outcome reads it' },
   { at: 'src/data/talents.js#road', why: 'a road\'s rank stones numbered 1 to 5 (17 section 2\'s shape): ids, no value' },
-  { at: 'src/data/trades.js#KIT_SAMPLE_MAX', why: 'a content process bound: at most 5 named band 0 kit recipes until the first day sample is read (CLAUDE.md section 10), no outcome reads it' },
-  { at: 'src/data/trades.js#KIT_BATCH_MAX', why: 'a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10), no outcome reads it' },
+  { at: 'src/data/trades.js#KIT_BATCH_MAX', why: 'a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10; band 0 whole is 14 of them, 09 4.11 row 1b), no outcome reads it' },
   { at: 'src/data/trades.js#KIT_RECIPES', why: 'content rows: each named recipe band is which metal it is, a row, never a size (the Temper kits a band, Iron to Dawnsteel; its work and price are derived, src/core/trades.js)' },
   { at: 'src/data/talents.js#reactProblems', why: 'a validation bound: a carry reaches at most 8 tiles (a row past it is refused, no outcome reads the bound); the reach itself is the row\'s `r`, a roads.nodes lever' },
   { at: 'src/core/gear-stats.js#gearStats', why: 'the units of the gear formula (permille x permille x permille: / 10^9); its levers are src/data/gear-profiles.js' },

@@ -29,8 +29,8 @@ export const projectedFloor = (L) => PROJECTED.from + PROJECTED.floorEvery * Mat
 export const projectedTier = (L, steps, back = 0) => steps.tierSteps * (Math.floor((Math.max(L, PROJECTED.from) + steps.wearAhead) / steps.tierSteps) - back);
 
 /**
- * The placeholder ground at floor F as a worker what-if: { monsters: { id: stat fields }, tiers: { template: { tier id: row } } }.
- * D: { MONSTERS, GROUND_ROSTER, formulaStats, tierRowFor, tiersOf, floorOf(ground), fitOf(ground) }.
+ * The placeholder ground at floor F as a worker what-if: { monsters: { id: stat fields } } (its tier rows retired with the tiers,
+ * lane/retire-tier-chain). D: { MONSTERS, GROUND_ROSTER, formulaStats, floorOf(ground), fitOf(ground) }.
  */
 export function placeholderWhatIf(D, F) {
   const g = PROJECTED.template, floor0 = D.floorOf(g), fit = D.fitOf(g);
@@ -42,12 +42,7 @@ export function placeholderWhatIf(D, F) {
     const s = D.formulaStats({ level, role, floor: F, tier: m.tier, fit, ground: g });
     monsters[id] = { level, hp: s.hp, atk: s.atk, aim: s.aim, evasion: s.evasion, def: s.def, xp: s.xp, gp: [...s.gp] };
   }
-  const tiers = {};
-  for (const t of D.tiersOf(g).filter((x) => x !== 'normal')) {
-    const r = D.tierRowFor(F, t, { ground: g, fit });
-    tiers[t] = { id: t, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };
-  }
-  return { monsters, tiers: { [g]: tiers } };
+  return { monsters };
 }
 
 /** The template's own rows against the formula at its own floor: [] when they agree (the projection starts where the staged ground ends). */

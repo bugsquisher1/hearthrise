@@ -35,6 +35,9 @@ import { isMain } from '../../../tests/_is-main.mjs';
 import { OUTCOMES } from '../baseline/outcomes.mjs';
 import { readDoc, writeDoc, EXPERIMENTS, PART_SCHEMA } from './sensitivity.mjs';
 import { leverList } from './levers.mjs';
+/* the program's tier column (Normal alone since the tier rows retired, lane/retire-tier-chain): a constant of the program, read from its
+   own home, never through a scratch tree's root */
+import * as TIER_AXIS from '../../balance-sim/tier-axis.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
@@ -321,7 +324,7 @@ export function interaction(P, joint, singles, groups, outIds) {
 export async function structure(P, root = ROOT) {
   const { pathToFileURL } = await import('node:url');
   const GM = await import(pathToFileURL(join(root, 'src/data/hunt-grounds.js')).href), G = GM.HUNT_GROUNDS;
-  const TI = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href);
+  const TI = TIER_AXIS;
   const col = (id) => P.ids.indexOf(id);
   const rows = [];
   for (const c of P.meta) {

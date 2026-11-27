@@ -1,16 +1,14 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/balance-sheet.js — ONE TARGET SHEET, ONE STAT FORMULA, ONE TIER TABLE (Tyler 2026-11-07,
+// src/data/balance-sheet.js — ONE TARGET SHEET, ONE STAT FORMULA (Tyler 2026-11-07,
 // "is there a formula you can start following?"; lane/b-ground-formula, game designer).
 //
-// Three things every hunting ground is built and graded by:
+// Two things every hunting ground is built and graded by:
 //   BALANCE_SHEET  what a ground must measure on the real engine (tools/balance-sim plays it).
 //                  The grader (lane/b-ground-grader) and the balance lab (lane/b-balance-lab) read it.
 //   STAT_FORMULA   a monster's hp, atk, aim, evasion, def, xp and gp from its Level and its role, as
 //                  per-Level curves and role multipliers (tools/gen-ground-stats.mjs writes the rows).
-//   TIER_DIALS     Normal, Dangerous and Deadly as dials on the same stats: a bigger pull, % harder
-//                  blows, % more HP, % more Level XP. Coin per kill never moves with a tier (Tyler
-//                  2026-11-07: "BUT NOT GOLD because it doesn't cost gold to enter them"; "Dangerous
-//                  and Deadly keep the bigger pulls").
+// How hard a ground plays is its Danger scale step (src/core/hunt/danger.js dangerDial): the old tier table (Normal, Dangerous and
+// Deadly as dials on these stats) retired for the scale (12-targets 8.4 item 4, lane/retire-tier-chain 2026-11-26).
 //
 // Every number says where it comes from: RULED (Tyler, dated: binding), or DESIGNER (the game
 // designer's, provisional until the sample's measurement on the board, "2026-11-07 One formula for
@@ -18,11 +16,11 @@
 // the formula runs when a ground is AUTHORED, and a monster's blow in a fight is its row against the
 // hero's stats, as ever.
 //
-// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
+// PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads none of it at fight time.
 // ════════════════════════════════════════════════════════════════════════
 
 import { LEVEL_PACE, VITALS } from './core-model.js';
-import { aimFor, evasionFor, raisedHit } from './to-hit.js';
+import { aimFor, evasionFor } from './to-hit.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
 import { bossRole } from './bosses.js';
@@ -178,8 +176,7 @@ export const STAT_FORMULA = Object.freeze({
      for four heroes' damage on one tank: its rows carry `hp` times the HP (today's Sewer and Warrens stand 2.2-3x the solo
      grounds' at their Levels), each blow `blow` of a solo ground's (the tank takes every monster of the pull at once: on
      the solo blow a four at the Warrens' floor sat at a 69% typical low, today 85%), `xp` of the XP a point (the four
-     earned 21-25% over today's pace at the Sewer and the Warrens), and its harder tiers lift nothing (`tierLift` false:
-     a gentle party ground's Deadly lifted to full killed its four at the floor 195 times in 16 hero-hours). Plan formula.
+     earned 21-25% over today's pace at the Sewer and the Warrens). Plan formula.
      Its boss's blow takes `blow` too (`bossBlow`). Two dials run on the danger ramp, gentle to full (lane/b-ground-formula-2):
        to-hit  `hit` points on a gentle party ground, `hitFull` on a full one. -0.3 there (re-reasoned 2026-11-13, NO PROFIT
                MOLDS): the Warrens' heavy crowd lands every blow on one hero, so at the formula's to-hit a lone hero at its
@@ -191,8 +188,8 @@ export const STAT_FORMULA = Object.freeze({
                32 netted 8,759 g an hour, the Glade's floor 1,977), more gold into the world than the loot model was built for; 0.53
                is the least that still pays a kill there more than the Glade's (harder pays more, Tyler 11-03, a per-kill rule). */
   fit: Object.freeze({
-    both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
-    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),
+    both: Object.freeze({ hp: 1, blow: 1, xp: 1 }),
+    party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),
   }),
 });
 
@@ -344,10 +341,10 @@ export const DAMAGE_SCALE_BY_TIER = Object.freeze({ 1: 5.4, 2: 5.4, 3: 4.0, 4: 4
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 /** A ground's danger at its floor: 0 (gentle) to 1 (full). */
 export const rampAt = (floor, F = STAT_FORMULA) => clamp01((floor - F.ramp.from) / (F.ramp.to - F.ramp.from));
-/** A regular's blow share and to-hit on a ground of this floor, with `lift` of its way to full taken back (a tier's). */
-export function dangerAt(floor, lift = 0, F = STAT_FORMULA) {
-  const r = rampAt(floor, F), d = r + (1 - r) * clamp01(lift);
-  return { ramp: r, hit: F.hit.lo + (F.hit.hi - F.hit.lo) * d, blow: F.blow.lo + (F.blow.hi - F.blow.lo) * d };
+/** A regular's blow share and to-hit on a ground of this floor. */
+export function dangerAt(floor, F = STAT_FORMULA) {
+  const r = rampAt(floor, F);
+  return { ramp: r, hit: F.hit.lo + (F.hit.hi - F.hit.lo) * r, blow: F.blow.lo + (F.blow.hi - F.blow.lo) * r };
 }
 
 /**
@@ -366,7 +363,7 @@ export function formulaStats(spec, opts = {}) {
   const L = Math.max(1, Math.floor(Number(spec.level) || 1));
   const scale = DAMAGE_SCALE_BY_TIER[spec.tier] || DAMAGE_SCALE_BY_TIER[1];
   const fit = (F.fit && F.fit[spec.fit || 'both']) || { hp: 1, blow: 1, xp: 1 };
-  const dz = dangerAt(Number(spec.floor), 0, F);
+  const dz = dangerAt(Number(spec.floor), F);
   const h0 = fit.hit || 0, fitHit = fit.hitFull === undefined ? h0 : h0 + (fit.hitFull - h0) * dz.ramp;
   const shape0 = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
   const hit = (dz.hit + R.hit + fitHit) / shape0;
@@ -397,135 +394,3 @@ export function formulaStats(spec, opts = {}) {
   const gp = F.gp.keepMean ? [lo, Math.max(lo, Math.round(2 * mean - lo))] : [lo, Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, aim, evasion, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };
 }
-
-/* ── THE TIER TABLE ───────────────────────────────────────────────────────
-   One rule for every ground (Tyler 2026-11-07: "a scaling % of exp and difficulty BUT NOT GOLD", "Dangerous and
-   Deadly keep the bigger pulls"): a bigger pull, a % harder monster, a % more HP, a % more Level XP a kill; coin
-   and drops never move (RULED). The pulls are RULED (11-05, 11-07); the permilles are DESIGNER, measured on the
-   sample (board, "2026-11-07 One formula for every hunt").
-   ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
-   unchanged"): a tier's pull is ONE number, the monsters a pull for one hero or four, and its damage and HP are the
-   same for every group. The engine's row still carries one entry per party size (the server's catalogue reads it by
-   size), every entry this number. 0 = no more monsters than Normal brings that group. Dangerous 5 (before 11-08 a lone
-   hero 3, a pair or three 5, a four 6): halfway from Normal's built packs (2-3) to Deadly's full box, never under a party's
-   Normal pull on a ground that takes it (the Glade's 4), and the Glade's Bear Claw stays a 10-20 h rare for a lone hero
-   (tests/hunt-core/drop-tables.mjs big-pull: the bear is 1 of the pull, so at 5 a lone tank at 16 met 32 an hour, a Claw
-   every 17.2 h, at 6 27 and 20.4 h). Deadly 8: the full box, as before.
-   THE BIGGER PULLS START AT THE GLADE (TIER_PULL_FROM_FLOOR): on a ground whose floor is under 16 (the Thicket, Wickstead,
-   the Sewer) the harder tiers bring no more monsters, for anyone; the monsters only hit harder and pay more. Those grounds
-   sit close under the next one, so with one pull for everyone a lone area hero out-earned the next ground's Normal at the
-   Level it opens (the ladder rule, tests/hunt-core/hunt-tiers.mjs; real settle, 2 seeds x 1 h, lane/b-one-difficulty):
-     the Thicket at 8 against Wickstead's Normal 34.9k (hammer) / 34.5k (wand): pull 6 44.9k / 45.5k, pull 8 52.0k / 52.0k
-     Wickstead at 16 against the Glade's Normal 78.6k / 85.3k: pull 6 79.8k / 79.2k, pull 8 98.1k / 93.9k
-     the Sewer at 16 against the Glade's Normal 78.6k (hammer): pull 8 112.9k
-   and the XP dial can't take it back: Wickstead's Deadly would need about x1.00 a kill (no more than Normal) to bring the
-   hammer under the Glade, and a harder tier pays more a kill (Tyler 11-05). The Glade's 8 holds against the Warrens' Normal
-   at 32 for every way (hammer 183.8k against 199.0k, wand 185.7k against 221.8k, a four 169.5k against 211.2k). */
-export const TIER_PULL_FROM_FLOOR = 16;
-/* A TIER'S DIALS:
-     dmgPm  how much harder a monster is, permille, against a FULL ground's Normal (the engine scales its atk and its
-            aim: its blow and its to-hit). A gentle ground's Normal is softer than full, and a tier means the same danger on
-            every ground, so on a gentle ground the tier first takes back `lift` of that kindness, measured in what a
-            swing is worth (to-hit x blow at the reference hero of its Level), then adds dmgPm: tierRowFor answers the
-            engine's permille per ground (the Glade the table's own).
-     hpPm   its HP, permille (Tyler: HP is part of a tier's difficulty): a pile that stays on you longer.
-     xpPm   Level XP a kill, permille: above hpPm, so a tier pays more an hour for the risk. AT MOST 1250 (Tyler 11-05:
-            tiers "pay slightly more Level XP"; tests/hunt-core/hunt-tiers.mjs rows): Deadly's 1400 came down to 1250 and
-            its HP to 1100 with it, so a Deadly HP point still pays more than a Dangerous one (1.14 against 1.09).
-   RE-ANCHORED on the formula's Normal: the Glade's 1400 and 1600 were measured (lane/b-tier-risk, Andy's live Deadly)
-   on monsters a fifth softer than Tyler's x1.2 Normal, so a tier keeps its measured total over the old Normal:
-   1400 / 1.2 = 1170, 1600 / 1.2 = 1330 (at 1600 on the formula's Normal a four at the Glade's floor died 31 times in
-   16 hero-hours, plan formula). The HP dial (then x1.1, x1.2, paid by x1.2 and x1.4 XP a kill) was played beside none
-   (plan formulaH): a little more food and about the same XP an hour, so a tier costs what Tyler asked. */
-export const TIER_DIALS = Object.freeze({
-  normal: Object.freeze({ pull: 0, lift: 0, dmgPm: 1000, hpPm: 1000, xpPm: 1000 }),
-  /* Dangerous brings Deadly's 8 (was 5; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground): on 5 a four read 0.91-0.95 of
-     its heroes alone on the Glade and Hask's Ford, on 7 0.93-0.94, on 8 1.04-1.06 (party-tier-xp), where Tyler 2026-11-16 asks every Dangerous party to
-     stand at or over them. A bigger pull is where a party's hands count; the two harder tiers now differ by their blows, their HP and their pay, as the
-     Muster's always did. */
-  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),
-  /* Deadly's HP 1300 (was 1100; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground, Tyler's "just balance the hunting grounds
-     xp vs having a unique formula everywhere"): on the full box a mixed four at a ground's floor kills far faster than its heroes alone, and on
-     1100 Andy's four (axe, bow, wand, a Healer 5 under) read 2.40-2.61x the pace contract on the Glade and Hask's Ford where a four on Dangerous
-     needs the same table to stand over its heroes alone. 1300 (a pile that stays on you longer: more food, more risk) took the Glade's floor
-     four to 2.20x and Hask's to 2.19x at the same table (party-tier-xp, 2 seeds x 0.5 h). A Deadly kill still pays the most XP; an HP point
-     of it pays a little less than Dangerous's (0.96 against 1.09): the tier's price is the longer fight. */
-  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),
-});
-/** The party sizes a tier row answers for (the server's catalogue reads its pull by size, 1..4). */
-export const TIER_SIZES = 4;
-/* A GROUND'S OWN TIER RULE, only where its place in the world demands one, each with a reason a player could read in the wiki:
-   normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP, HP and damage dials ({ dials: { tier: { hpPm, xpPm, dmgPm } } }).
-   No ground carries a pull of its own since 2026-11-08 (TIER_PULL_FROM_FLOOR says it for all); grounds not listed take TIER_DIALS whole. */
-const BASE_TIER_OVERRIDES = Object.freeze({
-  /* The Glade's Dangerous brings 6, two under the table's 8 (lane/d-flat-party-xp, 2026-11-16): on 8 a lone tank at the floor never met the Brook Bear in
-     a played hour and on 7 the Keep's five pelts took 2.7 h (tests/hunt-core/drop-tables.mjs big-pull, bar 2 h).
-     On 6 the pelts take 1.63 h and a four at the floor stands at 1.04 of its heroes alone (party-tier-xp; 1.01 at the middle). */
-  /* THE GLADE'S HARDER TIERS CARRY MORE HP: Dangerous 1400, Deadly 1450 (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17). Its Dangerous brings 6
-     and its Deadly the full box, so a four with Turning Cut on the box read 2.82x the pace contract at the floor (party-tier-xp, 2 seeds x 0.5 h), past
-     Tyler's ~2.5x, and on 1350 a lone hammer at the Warrens' floor (32) out-levelled the Warrens' Normal (209,368 against 202,863, hunt-tiers ladder). Both
-     tiers move together: a hero alone is slowed by HP about as much on each, so Deadly still pays it more an hour than Dangerous. */
-  mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1450 }) }),
-    why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom. Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' }),
-  /* The Warrens' harder tiers carry Dangerous 1150 and Deadly 1250 (lane/d-flat-party-xp, 2026-11-17): Andy's four read 2.52x the contract on Deadly at the floor. */
-  coppercap_warrens: Object.freeze({ dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1150 }), deadly: Object.freeze({ hpPm: 1250 }) }),
-    why: 'Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' }),
-  mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
-  /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
-     harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against
-     24.3k, a four 38.1k against 33.6k). Its tiers pay +5% and +8% a kill on no extra HP, as live. */
-  meadowbrook_thicket: Object.freeze({
-    dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),
-    why: 'the Thicket sits just under Wickstead. At the table\'s +20% and +25% a kill its harder tiers out-earned Wickstead, so they pay +5% and +8%' }),
-  /* The Sewer's Deadly pays x1.22 Level XP, not the table's x1.25: since the gentle party blow shape (STAT_FORMULA.fit.party.blowShape) a lone hammer on
-     it at the Glade's floor (16) read 78,980 XP an hour against the Glade's Normal 78,779 (tests/hunt-core/hunt-tiers.mjs ladder, v0.2.106 run
-     42394831391). Still above its Dangerous (now x1.1), so Deadly stays the better paid.
-     ITS HARDER TIERS CARRY 1150 AND 1250 HP (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17): on the table's 1150 the same lone hammer read
-     91,101 on Deadly against the Glade's Normal 87,181 (the ladder); moving both tiers keeps Deadly ahead of Dangerous for a hero alone. */
-  millrace_sewer: Object.freeze({ dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1150 }), deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),
-    why: 'at +25% a kill the Sewer\'s Deadly out-earned the Glade for a hammer at Level 16, so it pays +22%, and both harder tiers carry a little more health' }),
-});
-/* A ground pack's own tier row, when its shape demands one (src/data/grounds/<id>/pack.js `tierOverride`, with its why). */
-export const TIER_PULL_OVERRIDES = Object.freeze(foldRows('tier override', BASE_TIER_OVERRIDES, GROUND_PACKS, (p) => (p.tierOverride ? { [p.id]: p.tierOverride } : {})));
-
-/* What one swing is worth at the reference hero of its Level: its to-hit times its blow share, a tier's scaling `k` applied the engine's
-   way (hunt-tiers.js atTier: atk x k and aim x k, so the blow x k and the to-hit the ratio's for an aim k times bigger, to-hit.js
-   raisedHit). The reference monster is a regular at the floor. */
-function swingWorth(floor, lift, k, F) {
-  /* the gentle blow cap is a Normal kindness too: a tier takes it back with the rest (at full lift there is none) */
-  const d = dangerAt(floor, lift, F), dl = d.ramp + (1 - d.ramp) * clamp01(lift);
-  const cap = F.blow.gentleCap ? F.blow.gentleCap + (1 - F.blow.gentleCap) * dl : Infinity;
-  return raisedHit(d.hit, k) * Math.min(d.blow, cap) * k;
-}
-
-/**
- * The engine's tier row on a ground of this floor and id ({ pull, dmgPm, hpPm, xpPm }, hunt-tiers.js's shape after
- * lane/b-tier-dials): dmgPm is the atk scaling that makes a swing on this ground worth what the tier's is on a full
- * ground lifted as written; the pull is ONE number for every group (the ground's own, else the table's from TIER_PULL_FROM_FLOOR,
- * else 0), answered once per party size. opts { formula, tiers, overrides, ground, fit, pullFromFloor }.
- * @param {number} floor
- * @param {string} tierId
- * @param {{ formula?: any, tiers?: any, overrides?: any, ground?: string, fit?: string, pullFromFloor?: number }} [opts]
- */
-export function tierRowFor(floor, tierId, opts = {}) {
-  const T = (opts.tiers || TIER_DIALS)[tierId];
-  if (!T) throw new Error('balance-sheet: no tier ' + tierId);
-  const F = opts.formula || STAT_FORMULA;
-  /* a party ground's tiers lift nothing (STAT_FORMULA.fit): the table's own scaling on its own Normal */
-  const fit = F.fit && F.fit[opts.fit || 'both'];
-  const o0 = opts.ground ? (opts.overrides || TIER_PULL_OVERRIDES)[opts.ground] : null, d0 = (o0 && o0.dials && o0.dials[tierId]) || {};
-  const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, (d0.dmgPm || T.dmgPm) / 1000, F);
-  /* the scaling of this ground's Normal regular that reaches `want` (it only grows with k): bisection */
-  let lo = 1, hi = 10;
-  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (swingWorth(floor, 0, mid, F) < want) lo = mid; else hi = mid; }
-  const o = opts.ground ? (opts.overrides || TIER_PULL_OVERRIDES)[opts.ground] : null;
-  const own = o && Object.prototype.hasOwnProperty.call(o, tierId) ? o[tierId] : undefined;
-  if (own !== undefined && !Number.isInteger(own)) throw new Error('balance-sheet: ' + opts.ground + ' ' + tierId + ' pull is ONE number for every group, got ' + JSON.stringify(own));
-  /* the bigger pulls start at the Glade's floor (TIER_PULL_FROM_FLOOR): under it, no more monsters than Normal, for every group */
-  const from = opts.pullFromFloor === undefined ? TIER_PULL_FROM_FLOOR : opts.pullFromFloor;
-  const pull = own !== undefined ? own : floor >= from ? T.pull : 0, d = (o && o.dials && o.dials[tierId]) || {};
-  if (!Number.isInteger(pull) || pull < 0) throw new Error('balance-sheet: ' + tierId + ' pull is ONE number for every group, got ' + JSON.stringify(pull));
-  /* the engine's shape: one entry per party size (the server's catalogue reads it by size), every entry the one pull */
-  return { pull: Array(TIER_SIZES).fill(pull), dmgPm: Math.round(hi * 1000), hpPm: d.hpPm || T.hpPm, xpPm: d.xpPm || T.xpPm };
-}
-

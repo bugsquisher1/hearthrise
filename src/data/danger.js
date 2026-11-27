@@ -234,7 +234,7 @@ export const DANGER_GROUNDS = Object.freeze({
      tier back at 175 moves 16.2 and 9.3 steps, 2 depths each (C-2) */
   muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
   hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 640, refKillsHead: 135, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
-  catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 550, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 545, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
@@ -259,11 +259,11 @@ export const DANGER_GROUNDS = Object.freeze({
   /* THE MORROW HILLS ON THE SCALE (lane/scale-grounds-sweep step 3; 12-targets 8.3): Carter's Rest on Emberforged (100), the Ox Road on Dawnsteel
      (120, its reference its middle), Wyvern Roost on Cobalt (140, Levels 128-150), each the highest tier at or under its refLevel; the same anchor
      and the same measuring as the third batch (new-ground.mjs --hold-level); their own bodies carry roles (each pack's header words) */
-  carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 75, refKillsHead: 145, refHeld: 55, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
-  ox_road: ground({ refStep: 100, floorStep: 0, topStep: 170, refKillsHead: 125, refHeld: 95, coinPm: 2400, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
-  wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 195, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
+  carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 70, refKillsHead: 145, refHeld: 55, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
+  ox_road: ground({ refStep: 100, floorStep: 0, topStep: 165, refKillsHead: 125, refHeld: 95, coinPm: 2400, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
+  wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 190, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
   /* the Flooded Wing opens first (12-targets 8.4): Levels 150-170, reference 160, cut by new-ground.mjs on Cobalt / Wolfram kits (lane/scale-grounds-sweep) */
-  catacomb_flooded_wing: ground({ refStep: 470, floorStep: 440, topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 485, refKillsHead: 140, refHeld: 475, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */

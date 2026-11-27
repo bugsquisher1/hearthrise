@@ -3,26 +3,26 @@ V1 on carters_rest (4 seeds x 10 h, held step read from hour 4; step 0 = the gro
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady        76.5 +- 10.9     8.3  31.7  69.4   21.8      2     0.6     87.9      0     0  0 (0/0/0)                       6  {"hold":2477,"climb":960,"fall":74}
+base:steady        69.7 +- 1.4      0.9  83.9  99.4     12    0.9     0.3     86.1      0     0  0 (0/0/0)                       6  {"hold":2357,"climb":1052,"fall":33}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady         0.9x  sd 0.08  n 4  window 6 h  seeds 0.88 0.86 1.03 0.85
+  base:steady        1.09x  sd 0.01  n 4  window 6 h  seeds 1.1 1.1 1.1 1.08
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L125  coin 13910 +- 1349  income 18070 +- 1665  store 9273  kit share 0.51 (meal 279, drink 2665, charge 2735, shot 3594)  loot by band: common 609, uncommon 366, scarce 912, other 2272  n 4
+  base:steady       L125  coin 18439 +- 106  income 23074 +- 324  store 9198  kit share 0.4 (meal 240, drink 2672, charge 2741, shot 3545)  loot by band: common 632, uncommon 396, scarce 1045, other 2562  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.574  bow 0.137  mage 0.149  healer 0.141
+  base:steady       hammer 0.563  bow 0.115  mage 0.168  healer 0.154
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 33.01 land 61.75% hit 49.07 (3898.5/h) | bow dps 35.34 land 88.8% hit 55.95 (834.25/h) | mage dps 51.41 land 82.13% hit 37.81 (1315/h) | healer dps 24.06 land 88.7% hit 55.68 (843.75/h)
-                    troll_picker(swarm) 279.9/h 16.2 s 357 | slate_thrower(shooter) 128.7/h 20.5 s 331 | troll_brewer(caster) 85.9/h 23.7 s 1495 | stable_troll(brute) 118.9/h 20.7 s 499 | the_landlord(brute) 14.3/h 9.4 s 222
-                    broke off by: fall:troll_brewer@2 60, fall:slate_thrower@2 14
+  base:steady       hammer dps 32.92 land 62.05% hit 50.78 (3625.25/h) | bow dps 33.98 land 91.35% hit 74.46 (502.75/h) | mage dps 50.02 land 81.48% hit 34.67 (1582.5/h) | healer dps 23.93 land 88.18% hit 51.66 (977.5/h)
+                    troll_picker(swarm) 255.8/h 16 s 372 | troll_brewer(caster) 85.2/h 22.8 s 1492 | slate_thrower(shooter) 127.7/h 21.6 s 357 | stable_troll(brute) 113.6/h 19.7 s 491 | the_landlord(brute) 14.2/h 9.7 s 238
+                    broke off by: fall:troll_brewer@2 22, fall:slate_thrower@2 11
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 101.7 (depth 9)  free 163  spell 812  food 25  taken 15.57 pm/s
+  base:steady       abs 117 (depth 18)  free 164  spell 814  food 22  taken 15.26 pm/s
 
-wall 50 s
+wall 38 s

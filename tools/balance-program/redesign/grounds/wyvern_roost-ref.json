@@ -87,13 +87,13 @@
    "xpPerHeroH": 727445,
    "gold": {
     "coinPerHeroH": {
-     "mean": 16760,
-     "sd": 259,
+     "mean": 16750,
+     "sd": 267,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 22804,
-     "sd": 595,
+     "mean": 22649,
+     "sd": 680,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,12 +102,12 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 676,
-     "sd": 32,
+     "mean": 582,
+     "sd": 28,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 370,
+     "mean": 322,
      "sd": 23,
      "n": 4
     },
@@ -117,8 +117,8 @@
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 4998,
-     "sd": 325,
+     "mean": 4995,
+     "sd": 399,
      "n": 4
     }
    },
@@ -185,7 +185,7 @@
      "landedPct": 64.9,
      "dmgPerSwing": 75.43,
      "swingsPerH": 4909.25,
-     "takenPerH": 370337
+     "takenPerH": 370336
     },
     {
      "style": "bow",
@@ -256,7 +256,7 @@
    }
   }
  },
- "wallS": 49,
+ "wallS": 46,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

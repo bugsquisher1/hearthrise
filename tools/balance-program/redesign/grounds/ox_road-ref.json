@@ -88,12 +88,12 @@
    "gold": {
     "coinPerHeroH": {
      "mean": 15919,
-     "sd": 129,
+     "sd": 127,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 20530,
-     "sd": 267,
+     "mean": 20468,
+     "sd": 254,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,23 +102,23 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 699,
+     "mean": 673,
      "sd": 21,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 299,
-     "sd": 6,
+     "mean": 287,
+     "sd": 7,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 549,
-     "sd": 26,
+     "mean": 528,
+     "sd": 15,
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 3063,
-     "sd": 127,
+     "mean": 3061,
+     "sd": 124,
      "n": 4
     }
    },

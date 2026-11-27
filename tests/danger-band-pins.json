@@ -46,7 +46,7 @@
   "catacomb_bone_wing": {
    "refStep": 500,
    "floorStep": 405,
-   "topStep": 550,
+   "topStep": 545,
    "refKillsHead": 140,
    "coinPm": 4200,
    "print": "add23be43d8ea656",
@@ -64,9 +64,9 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 470,
+   "refStep": 480,
    "floorStep": 440,
-   "topStep": 500,
+   "topStep": 485,
    "refKillsHead": 140,
    "refHeld": 475,
    "coinPm": 3300,
@@ -247,7 +247,7 @@
   "carters_rest": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 75,
+   "topStep": 70,
    "refKillsHead": 145,
    "refHeld": 55,
    "coinPm": 2100,
@@ -268,7 +268,7 @@
   "ox_road": {
    "refStep": 100,
    "floorStep": 0,
-   "topStep": 170,
+   "topStep": 165,
    "refKillsHead": 125,
    "refHeld": 95,
    "coinPm": 2400,
@@ -309,7 +309,7 @@
   "wyvern_roost": {
    "refStep": 110,
    "floorStep": 0,
-   "topStep": 195,
+   "topStep": 190,
    "refKillsHead": 140,
    "refHeld": 105,
    "coinPm": 2100,

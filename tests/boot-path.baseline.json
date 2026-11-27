@@ -122,6 +122,12 @@
         "gzipBytes": 206860,
         "on": "2026-11-27",
         "why": "lane/realtime-budget: the client's frame-delta chain (envelope.js frameOfDelta, character-session.js), with lane/p1-personal-loot's reader"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206861,
+        "on": "2026-11-27",
+        "why": "lane/no-named-trait-bases: the plain-ladder tables (PLAIN_PIECES, SHIELD_LADDER) in the game half"
       }
     ],
     "town": [
@@ -562,6 +568,12 @@
         "gzipBytes": 983876,
         "on": "2026-11-27",
         "why": "lane/realtime-budget: the client's frame-delta chain (envelope.js frameOfDelta, character-session.js), with lane/p1-personal-loot's reader"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983999,
+        "on": "2026-11-27",
+        "why": "lane/no-named-trait-bases: the plain-ladder tables (PLAIN_PIECES, SHIELD_LADDER) in the game half"
       }
     ]
   }

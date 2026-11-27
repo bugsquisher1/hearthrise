@@ -613,6 +613,11 @@
         "bytes": 3908376,
         "on": "2026-11-27",
         "why": "lane/designer-recut-calls: the Warder's mend at 0.6 s and the re-derived drop chances on four re-cut grounds (monsters.js rows the engine carries)"
+      },
+      {
+        "bytes": 3910735,
+        "on": "2026-11-27",
+        "why": "lane/no-named-trait-bases: the plain ladder a Trait base must sit on (base-drops.js PLAIN_PIECES, shields.js SHIELD_LADDER) read by drop-rate.js isNamed"
       }
     ]
   }

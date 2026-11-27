@@ -45,7 +45,9 @@ export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
     s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, base: null, menu: null, menuOwner: null, confirm: null, planCopy: null, slot: null,
-      pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false, touch: false };
+      pending: false, wearing: null, msg: '', msgAt: null, shownNew: new Set(), press: null, pressed: false, touch: false,
+      /* the Trait piece whose Sell has said its price once (doll.js patchPieceFits): the next press sells it */
+      sellPiece: null };
     SCRATCH.set(cs, s);
   }
   return s;

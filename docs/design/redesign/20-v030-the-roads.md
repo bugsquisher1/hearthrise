@@ -57,7 +57,7 @@
 | Muster Barrows | 5 Pikeman's Gauntlets, 6 Barrow Knight's Blade, 36 Cairn Belt |
 | Hask's Ford, Captain Hask | 1 Bannerman's Pavise, 23 Ferry Pennies, 27 Riverstone Earrings, 32 Ledger Ring, 38 Drowned Signet |
 | The Slake | 17 Bargeman's Pole, 20 Greened Bracers, 22 Slake Waders, 34 Sergeant's Sash |
-| Pyre Field | 4 Charred Sabre, 9 Lurcher's Collar, 11 Provost's Longbow, 24 Stoker's Ring |
+| Pyre Field | 4 Charred Saber, 9 Lurcher's Collar, 11 Provost's Longbow, 24 Stoker's Ring |
 | Krell's Hold, Lord Krell | 3 Grave Guard's Mail, 13 Hall Fire Wand, 35 Gatekeeper's Plate, 44 Pyre Priest's Hood |
 | The Tower, Hearth Chest | 16 Lamplighter's Robe, 19 Passing Bell, 37 Lychgate Leggings |
 

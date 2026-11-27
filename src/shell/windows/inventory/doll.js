@@ -216,7 +216,7 @@ export function pieceSlotOf(p) {
 
 /** The strip of the account's free Trait pieces under the bag (hidden while the server sends none): a press opens the piece's slot line. */
 export function pieceStripHtml() {
-  return '<div class="hw-piece-strip" hidden><small>Rares</small><span class="hw-piece-icons"></span></div>';
+  return '<div class="hw-piece-strip" hidden><small>' + t('bag.piece_strip') + '</small><span class="hw-piece-icons"></span></div>';
 }
 
 /** Patch the strip from the server's `pieces` section. */
@@ -262,8 +262,8 @@ function patchPieceFits(line, st, ctx, o) {
       const sellB = li.querySelector('[data-hs-act="sell-piece"]');
       const asking = sc.sellPiece === p.id;
       /* off for a rule, the button says which (say-why SW-2): the store buys none, or the day's sales are spent */
-      const why = p.sell === null ? 'The store does not buy this' : sec.sellLeft <= 0 ? 'No more sales to the store today' : null;
-      text(sellB, why ? why : asking ? 'Sell for ' + gold(p.sell) + '?' : t('controls.sell') + ' · ' + gold(p.sell));
+      const why = p.sell === null ? t('bag.piece_store_none') : sec.sellLeft <= 0 ? t('bag.piece_sales_spent') : null;
+      text(sellB, why ? why : asking ? t('bag.piece_sell_ask', { gold: gold(p.sell) }) : t('controls.sell') + ' · ' + gold(p.sell));
       cls(sellB, 'is-primary', asking && !why);
       prop(sellB, 'disabled', sc.pending || !!why);
       attr(sellB, 'data-off-why', why);

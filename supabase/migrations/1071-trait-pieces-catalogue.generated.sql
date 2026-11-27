@@ -6,7 +6,7 @@
 --
 -- WHAT (lane/t1-traits-drop, backend-architect, 2026-11-26; 12-targets.md 3.3 / 8 / 8.1): the numbers 1071-trait-pieces.sql re-proves a
 -- found piece against, so none is typed twice: hr_piece_rules (one row), hr_piece_traits (40), hr_piece_fixed (1), hr_piece_grounds (11),
--- hr_piece_depths (100), hr_piece_bases (125), hr_piece_signatures (5), rewritten whole; hr_piece_depth_of(hunt, step) and
+-- hr_piece_depths (100), hr_piece_bases (125), hr_piece_signatures (19), rewritten whole; hr_piece_depth_of(hunt, step) and
 -- hr_piece_top_rank(hunt, depth), internal (no client grant), the twins of drop-rate.js depthOf and trait-roll.js rankRoll's ceiling, pinned
 -- at 119 points (§3). A staged ground (the Catacombs' wings) is judged by the generator and left out until it opens.
 -- ORDER: 1071 in its name, before 1071-trait-pieces.sql (its reader). Idempotent: the tables are made if missing and their rows
@@ -216,11 +216,25 @@ insert into public.hr_piece_bases (hunt_id, slot, item_id) values
   ('the_slake', 'weapon', 'willow_staff'), ('the_slake', 'weapon', 'willow_wand');
 delete from public.hr_piece_signatures;
 insert into public.hr_piece_signatures (signature_id, slot) values
+  ('bargemans_pole', 'weapon'),
   ('barrow_knights_blade', 'weapon'),
   ('brewers_apron', 'body'),
   ('cairn_belt', 'belt'),
+  ('catacomb_shroud', 'body'),
+  ('charred_sabre', 'weapon'),
+  ('coal_runners_bow', 'weapon'),
+  ('drovers_hat', 'helmet'),
+  ('ferry_pennies', 'earrings'),
+  ('floodwater_hatchets', 'weapon'),
+  ('grave_guards_mail', 'body'),
+  ('hall_fire_wand', 'weapon'),
+  ('lamplighters_robe', 'body'),
   ('lurchers_collar', 'necklace'),
-  ('the_wood_book', 'shield');
+  ('ossuary_helm', 'helmet'),
+  ('pikemans_gauntlets', 'gloves'),
+  ('provosts_longbow', 'weapon'),
+  ('the_wood_book', 'shield'),
+  ('wyvern_barb_crossbow', 'weapon');
 
 -- ── §2b THE TWINS (internal) ─────────────────────────────────────────────────
 -- (plpgsql, so a call is plan-cached: a LANGUAGE sql function with a SET clause is re-planned on every call, tests/settle-budget.mjs SB-3)
@@ -249,7 +263,7 @@ begin
   if (select count(*) from public.hr_piece_rules) <> 1 or (select count(*) from public.hr_piece_traits) <> 40
      or (select count(*) from public.hr_piece_grounds) <> 11 or (select count(*) from public.hr_piece_depths) <> 100
      or (select count(*) from public.hr_piece_bases) <> 125 or (select count(*) from public.hr_piece_fixed) <> 1
-     or (select count(*) from public.hr_piece_signatures) <> 5 then
+     or (select count(*) from public.hr_piece_signatures) <> 19 then
     raise exception 'VERIFY(a): the catalogue holds the wrong counts'; end if;
   if exists (select 1 from public.hr_piece_grounds t where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id)) then
     raise exception 'VERIFY(a): a Trait ground is no hunt ground'; end if;

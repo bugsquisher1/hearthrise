@@ -119,4 +119,14 @@ export const BAG_TEXT = Object.freeze({
   key_clear: 'Esc to deselect',
   key_sell: 'Delete to sell',
   key_lock: 'L to lock',
+  /* a press out to the server (inventory/actions.js) */
+  equipping: 'Equipping…',
+  taking_off: 'Taking it off…',
+  selling: 'Selling…',
+  /* a Trait piece (inventory/doll.js): the strip, its Sell, the rules that hold Sell off */
+  piece_strip: 'Rares',
+  piece_sell_ask: 'Sell for {gold}?',
+  piece_sold: 'Sold for {gold}',
+  piece_store_none: 'The store does not buy this',
+  piece_sales_spent: 'No more sales to the store today',
 });

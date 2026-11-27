@@ -19,15 +19,24 @@
 // Measured 2026-11-22 on muster_barrows, Level 60, 3 seeds x 2 h: mixed 0.88x the hours table; healer x4 0.58x, mage x4 0.43x,
 // hammer x4 0.19x, bow x4 0.19x.
 //
-//   node tests/lineup-v4.mjs           the guard (about 20 s on 8 workers)
-//   node tests/lineup-v4.mjs --mutate  planted readings, and one engine mutant: the one-style four 40 Levels over the mixed one must win
+//   node tests/lineup-v4.mjs                 the guard (12 grounds x 9 cells x 3 seeds: 25-39 min on a 4-core runner, one worker a core)
+//   node tests/lineup-v4.mjs --mutate        planted readings, and one engine mutant: the one-style fours 40 Levels over the mixed one must win
+//   node tests/lineup-v4.mjs --keep-world    the guard, and its measured world written for the --mutate after it (WORLD_FILE)
+//   node tests/lineup-v4.mjs --mutate --reuse-world   the planted readings on that world, not a second measure of the same cells
+// THE PROOF COSTS ONE MEASURE, NOT THREE (lane/ci-reds-1127): --mutate measured the shipped world again (the plain run's exact cells, 39 min)
+// and then the whole world again with the one-style fours 40 Levels up (39 min more, though only the mono cells move), 78 min past client-guards-6's
+// 79 once V4-1 is green. CI hands the plain run's world over in the one step (--keep-world, --reuse-world: the same checkout, seconds
+// apart), and the engine mutant plays only the one-style fours, 40 Levels up, on two grounds where none wins (two wins are red whatever
+// the shipped game's one answer is). Run alone, --mutate measures its own world as before.
 // ci-step: client-guards-6 | Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
-// ci-run: node tests/lineup-v4.mjs
-// ci-run: node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate
+// ci-run: node tests/lineup-v4.mjs --keep-world
+// ci-run: node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate --reuse-world
 // mutant-anchors: none — every mutant is a planted reading or an engine cell played in memory, never a file
 // ════════════════════════════════════════════════════════════════════════
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cpus, tmpdir } from 'node:os';
+import { readFileSync, writeFileSync, statSync } from 'node:fs';
 import { isMain } from './_is-main.mjs';
 import { DANGER_GROUNDS, GEAR_STEPS } from '../src/data/danger.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -45,6 +54,11 @@ export const LINEUPS = {
   two_mages: ['hammer', 'mage', 'mage', 'healer'],
 };
 const SEEDS = 3, HOURS = 2;
+/* one worker a core: the parent only waits on them (held-four.mjs's default leaves a core idle, a quarter of a 4-core runner) */
+const WORKERS = Math.max(1, Math.min(8, cpus().length));
+/* the plain run's measured world, handed to the --mutate after it in the same CI step; older than this is never read */
+export const WORLD_FILE = join(tmpdir(), 'hr-lineup-v4-world.json');
+const WORLD_MAX_AGE_MS = 6 * 3600 * 1000;
 /* V4-1's one ground (the designer, lane/designer-reads-1123 2026-11-23, 29-tuning-pass.md 7.3): a four of one style that wins ONE scale
    ground is that ground's answer, a theorycrafted build Tyler's rulings never squeeze (the healer four on the Bone Wing, 1.105: it holds
    the band's top with no death). It may win there by at most this much. Winning a second ground, or one by more, is a monoculture */
@@ -86,9 +100,11 @@ export function judge(w) {
   return out;
 }
 
-async function measure({ monoLevelUp = 0 } = {}) {
+/** The world on the engine. monoLevelUp: the one-style fours that many Levels up; monoOnly: those grounds' one-style cells alone (the
+    engine mutant reads them into a measured world), returned as { mono: { g: { style: xp } } }. */
+async function measure({ monoLevelUp = 0, monoOnly = null } = {}) {
   const base = Object.fromEntries(Object.entries(DANGER_GROUNDS).map(([g, row]) => [g, row.gearLevel]));
-  const grounds = judgedOf(base);
+  const grounds = monoOnly || judgedOf(base);
   const cells = [];
   for (const g of grounds) {
     const L = refLevelOf(g);
@@ -97,11 +113,12 @@ async function measure({ monoLevelUp = 0 } = {}) {
        holdLevel, as tests/level-curve.mjs C7 does): a Level 3 four is outgrown inside the window, so every four would read the same XP, the
        XP to the exit over two hours (4,574 a head an hour, mixed and mage alike), and V4 would judge the exit, not the lineup */
     const hold = Number.isInteger(HUNT_GROUNDS[g] && HUNT_GROUNDS[g].endsAtLevel) ? { holdLevel: true } : {};
-    cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    if (!monoOnly) cells.push({ id: `${g}:mixed`, ground: g, L, styles: MIXED, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
     for (const s of STYLES) cells.push({ id: `${g}:mono:${s}`, ground: g, L: L + monoLevelUp, styles: [s, s, s, s], risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
-    if (grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
+    if (!monoOnly && grounds.length >= 2) for (const [id, st] of Object.entries(LINEUPS)) cells.push({ id: `${g}:line:${id}`, ground: g, L, styles: st, risk: 'steady', hours: HOURS, seeds: SEEDS, ...hold });
   }
-  const r = await playCells(ROOT, cells);
+  const r = await playCells(ROOT, cells, { workers: WORKERS });
+  if (monoOnly) return { mono: Object.fromEntries(grounds.map((g) => [g, Object.fromEntries(STYLES.map((s) => [s, r[`${g}:mono:${s}`].xpHeadH]))])) };
   const w = { base, mixed: {}, mono: {}, lineups: grounds.length >= 2 ? {} : null };
   for (const g of grounds) {
     w.mixed[g] = r[`${g}:mixed`].xpHeadH;
@@ -111,8 +128,19 @@ async function measure({ monoLevelUp = 0 } = {}) {
   return w;
 }
 
-async function mutate() {
-  const w = await measure();
+/** The plain run's world (--reuse-world), or null: no file, a file this old, or one that is not a world. */
+function keptWorld() {
+  try {
+    if (Date.now() - statSync(WORLD_FILE).mtimeMs > WORLD_MAX_AGE_MS) return null;
+    const w = JSON.parse(readFileSync(WORLD_FILE, 'utf8'));
+    return w && w.base && w.mixed && w.mono ? w : null;
+  } catch { return null; }
+}
+
+async function mutate(argv) {
+  const kept = argv.includes('--reuse-world') ? keptWorld() : null;
+  console.log(kept ? `lineup-v4 --mutate: the plain run's measured world (${WORLD_FILE})` : 'lineup-v4 --mutate: measuring the world');
+  const w = kept || await measure();
   if (judge(w).length) { console.error('lineup-v4 --mutate: the shipped game already fails (run the guard)'); process.exit(1); }
   const G = judgedOf(w.base);
   const g = G[0];
@@ -153,9 +181,11 @@ async function mutate() {
   }
   /* THE ENGINE: every one-style four 40 Levels over the mixed four must out-earn it at least once (the measure can see a winner) */
   {
-    const up = await measure({ monoLevelUp: 40 });
+    const two = clean.length >= 2 ? [c1, c2] : G;
+    const played = await measure({ monoLevelUp: 40, monoOnly: two });
+    const up = { ...w, mono: { ...w.mono, ...played.mono } };
     const red = judge(up).filter((x) => x.startsWith('V4-1'));
-    console.log(`  ${red.length ? 'ok  ' : 'MISS'} V4-1 on the engine: one-style fours 40 Levels over the mixed four${red.length ? ` (${red.length} red)` : ''}`);
+    console.log(`  ${red.length ? 'ok  ' : 'MISS'} V4-1 on the engine: one-style fours 40 Levels over the mixed four on ${two.join(', ')}${red.length ? ` (${red.length} red)` : ''}`);
     if (!red.length) miss += 1;
   }
   if (miss) { console.error(`\nlineup-v4 --mutate: ${miss} case(s) wrong`); process.exit(1); }
@@ -163,8 +193,9 @@ async function mutate() {
 }
 
 async function main(argv) {
-  if (argv.includes('--mutate')) return mutate();
+  if (argv.includes('--mutate')) return mutate(argv);
   const w = await measure();
+  if (argv.includes('--keep-world')) writeFileSync(WORLD_FILE, JSON.stringify(w));
   const out = judge(w);
   for (const x of out) console.error('✗ ' + x);
   const G = judgedOf(w.base), skipped = Object.keys(w.base).filter((g) => !G.includes(g));

@@ -326,7 +326,7 @@ N is the rank's number: about 1.5, 2.5 or 3.5 for ranks I to III. "Party:" Trait
 | 1 | Bannerman's Pavise | Shield | Hask's Ford, Bannerman | Challenge: the first blow from each monster you taunt lands at half damage | Yes (sample) |
 | 2 | Ossuary Helm | Helmet | Catacombs, Bone Wall | Frost Slam: a shield of 3% max health for each monster it Chills (up to 15%) | Later |
 | 3 | Grave Guard's Mail | Body | Krell's Hold, Grave Guard | Shelter: when a hero's shield breaks, Challenge is ready again | Yes |
-| 4 | Charred Sabre | Sword | Pyre Field, Charred Pikeman | Flame Strike on a kill: casts again on the nearest monster at no cost | Yes |
+| 4 | Charred Saber | Sword | Pyre Field, Charred Pikeman | Flame Strike on a kill: casts again on the nearest monster at no cost | Yes |
 | 5 | Pikeman's Gauntlets | Gloves | Muster Barrows, Barrow Pikeman | Flame Strike: Power Strike is ready again | Yes (sample) |
 | 6 | Barrow Knight's Blade | Sword | Muster Barrows, Barrow Knight | Turning Cut: each kill takes 1 s off its cooldown (up to 4 s a cast) | Yes (sample) |
 | 7 | Floodwater Hatchets | Axes | Catacombs, Flooded Wing | Rend: also applies Poison (20% of Rend's damage over 6 s) | Later |

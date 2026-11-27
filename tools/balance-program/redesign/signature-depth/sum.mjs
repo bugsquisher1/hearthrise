@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BATCH = process.argv.includes('--batch') ? process.argv[process.argv.indexOf('--batch') + 1] : '1';
 /* THE PACE A HELD STEP BUYS (%), fit through the origin on the ten defensive readings of the sample and batch 2, where a rule moves depth
-   and nothing else (Cairn Belt, Ossuary Helm at 3% and 2%, Grave Guard's Mail, the Sabre's two Blunted shapes, Bargeman's Pole at -20% and
+   and nothing else (Cairn Belt, Ossuary Helm at 3% and 2%, Grave Guard's Mail, the Saber's two Blunted shapes, Bargeman's Pole at -20% and
    -15%, Ferry Pennies under half and under 45%): pace / held 0.39 to 0.48, fit 0.4335 (se 0.0087). A lever: re-fit it when the pay rule
    (danger.js PAY) or the scale's step (powerStep) moves. The ledger's 0.7% (19 "Units") is a kill's pay a step; a held step also meets a
    monster 0.35% tougher, so it buys less pace than that. */
@@ -48,7 +48,7 @@ const ROWS2 = [
   ['#1 Bannerman\'s Pavise (tank) DROPPED', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pavise'], ['Hask\'s Ford (pinned)', 'b2-ford-tank', 'b2-ford-pavise']],
   ['#2 Ossuary Helm (tank, + Frost Slam) CUT', ['Muster Barrows', 'b2-muster-tank-slam', 'b2v-muster-helm20'], ['(the tank\'s others pinned or unsettled)', 'b2-none', 'b2-none']],
   ['#3 Grave Guard\'s Mail (tank, + Shelter) RESHAPED', ['Muster Barrows', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard30x8'], ['(the tank\'s others pinned or unsettled)', 'b2-none', 'b2-none']],
-  ['#4 Charred Sabre (sword) RESHAPED', ['Pyre Field', 'b2-pyre-sword', 'b2v-pyre-sabre-target-blunt'], ['Muster Barrows', 'b2-muster-sword', 'b2v-muster-sabre-target-blunt']],
+  ['#4 Charred Saber (sword) RESHAPED', ['Pyre Field', 'b2-pyre-sword', 'b2v-pyre-sabre-target-blunt'], ['Muster Barrows', 'b2-muster-sword', 'b2v-muster-sabre-target-blunt']],
   ['#5 Pikeman\'s Gauntlets (sword)', ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-gauntlets'], ['Muster Barrows', 'b2-muster-sword', 'b2-muster-gauntlets']],
   ['#7 Floodwater Hatchets (axes)', ['Flooded Wing', 'b2-flood-axes', 'b2-flood-hatchets'], ['Muster Barrows', 'b2-muster-axes', 'b2-muster-hatchets']],
   ['#9 Lurcher\'s Collar (bow) CLOCK 2 s', ['Muster Barrows', 'b2-muster-mixed', 'b2m-muster-collar2s'], ['Pyre Field', 'b2-pyre-mixed', 'b2m-pyre-collar2s']],
@@ -84,11 +84,11 @@ const VARIANTS = [
   ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -30% 6 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard30'],
   ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -30% 8 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard30x8'],
   ['#3 Grave Guard\'s Mail, a shell it cast breaks: Shelter 10 s sooner (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-reset'],
-  ['#4 Charred Sabre as written, a Flame Strike kill: cast again at no cost (Pyre)', 'b2-pyre-sword', 'b2-pyre-sabre'],
-  ['#4 Charred Sabre, any Flame Strike hit: cast again on the nearest at no cost (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-hit'],
-  ['#4 Charred Sabre, a Flame Strike cast: Blunted on every monster next to you (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-blunt'],
-  ['#4 Charred Sabre, a Flame Strike kill: Blunted on every monster next to you (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-kill-blunt'],
-  ['#4 Charred Sabre, a Flame Strike cast: Blunted on its target (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-target-blunt'],
+  ['#4 Charred Saber as written, a Flame Strike kill: cast again at no cost (Pyre)', 'b2-pyre-sword', 'b2-pyre-sabre'],
+  ['#4 Charred Saber, any Flame Strike hit: cast again on the nearest at no cost (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-hit'],
+  ['#4 Charred Saber, a Flame Strike cast: Blunted on every monster next to you (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-blunt'],
+  ['#4 Charred Saber, a Flame Strike kill: Blunted on every monster next to you (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-kill-blunt'],
+  ['#4 Charred Saber, a Flame Strike cast: Blunted on its target (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-target-blunt'],
   ['#7 Floodwater Hatchets, Rend: Poison 60% of the cast over 6 s (Flooded Wing)', 'b2-flood-axes', 'b2v-flood-hatchets60'],
   ['#17 Bargeman\'s Pole, under half: Guarded -20% 4 s (Muster)', 'b2-muster-mixed', 'b2-muster-pole50'],
   ['#17 Bargeman\'s Pole, under half: Guarded -20% 4 s (the Slake)', 'b2-slake-mixed', 'b2-slake-pole50'],

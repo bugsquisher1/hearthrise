@@ -8,12 +8,12 @@
 --
 -- WHAT (lane/flame-temper-build, systems, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md): the rule the server reads, so no
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
---   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (8 Remains goods by band)
+--   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (6 Remains goods by band)
 --   hr_temper_rules (1 row), hr_temper_slots (13 slots)
 --   hr_temper_kits (6 rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
 --     yet, is refused kits_owed, never sold for gold alone). hr_temper_rules.kit_item, 1063's one kit column, is no longer written: it
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
---   hr_item_levels (401 gear rows: the iL a scale ground's drop carries, else its Level requirement)
+--   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp, hr_flame_walk (the settle's walk,
@@ -194,8 +194,6 @@ insert into public.hr_flame_fuel (item_id, band) values
   ('big_bones', 45),
   ('bone_chips', 45),
   ('bones', 45),
-  ('dragon_bones', 128),
-  ('dragon_scale', 128),
   ('grave_dust', 45),
   ('razor_claw', 70),
   ('wraith_veil', 70);
@@ -277,7 +275,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('bronze_platelegs', 0),
   ('bronze_rimmed_shield', 0),
   ('bronze_sword', 0),
-  ('burnt_crag_leg_plates', 140),
   ('cauldron_lid', 40),
   ('cerecloth_belt', 160),
   ('cerecloth_body', 160),
@@ -352,7 +349,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('drakehide_helmet', 140),
   ('drakehide_pants', 140),
   ('drovers_crossbow', 60),
-  ('dunns_mallet', 160),
   ('dunns_slippers', 120),
   ('duskweave_belt', 120),
   ('duskweave_body', 120),
@@ -422,7 +418,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('juniper_crossbow', 140),
   ('juniper_staff', 140),
   ('juniper_wand', 140),
-  ('keepers_leg_plates', 160),
   ('kindling_wand', 120),
   ('kingsgrate', 0),
   ('kingstooth', 20),
@@ -436,7 +431,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('leather_gloves', 0),
   ('leather_helmet', 0),
   ('leather_pants', 0),
-  ('limewashed_plate', 160),
   ('longbow', 20),
   ('lychgate_crossbow', 100),
   ('maple_bow', 60),
@@ -468,7 +462,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('packlord_band', 22),
   ('palisade_sword', 20),
   ('passing_bell_hammer', 100),
-  ('paupers_shroud', 160),
   ('porters_boots', 100),
   ('pothunters_hood', 120),
   ('practice_bow', 1),
@@ -592,7 +585,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('watchknight_gloves', 80),
   ('watchknight_helmet', 80),
   ('watchknight_pants', 80),
-  ('watchmans_sword', 160),
   ('westwood_hatchets', 20),
   ('willow_crossbow', 40),
   ('willow_longbow', 40),
@@ -907,8 +899,8 @@ end $mig$;
 do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
-  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 8
-     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 401
+  if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 6
+     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 395
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000
      or (select count(*) from public.hr_temper_kits) <> 6 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
@@ -1446,5 +1438,5 @@ begin
   if has_function_privilege('authenticated', 'public.hr_temper_kit_at(integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_imbue_wearable(integer,integer)', 'execute') then
     raise exception 'VERIFY(r): a client role runs the kit or band-lock twin'; end if;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 8 fuels, 13 Temper slots, 6 Temper kits, 401 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 6 Temper kits, 395 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

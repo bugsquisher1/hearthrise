@@ -7,16 +7,29 @@
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
-// best cell and its second ground, and the verdicts 15 "Decision: how a Signature stays inside the gear slice" rules: the size bar (held
-// delta 10 +- 3 on the best cell, se at most 3) and the spread bar (the second ground, standing for the scale grounds that do not suit it,
-// at most half the best). A report not yet played prints as owed. Prints markdown tables.
-// Exit 0 printed · 2 a sample report is missing.
+// best cell and its second ground, and the verdicts 15 "Decision: how a Signature stays inside the gear slice" rules.
+//
+// THE METRIC (game designer, lane/designer-sig-metric, 2026-11-27; 15 "Decision: the scale a Signature is sized on"): PACE STEPS. The paired
+// delta of the held pace (v1-climb's payX: Level XP a hunted hero-hour from the held start, hour 4 to the four's end, a seed's against the
+// plain four's on the same seed, in %) divided by PACE_STEP_PCT, the pace one held step buys on the reference cells. A held step pays more a
+// kill and a faster kill pays more kills, so a shield and a damage rule read on one scale; a defensive row reads the same number as its held
+// delta (the ten anchors below fit 0.43% a held step, se 0.01). The size bar: 10 +- 3 pace steps on the best cell (+3.0% to +5.6% pace), the
+// se at most 3 pace steps (1.3% pace), 12 seeds. The spread bar: the second ground at most half the best, in pace steps. The held delta is
+// still printed: it says HOW a row pays (depth or speed), never whether it is in band. A report not yet played prints as owed.
+// Prints markdown tables. Exit 0 printed · 2 a sample report is missing.
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BATCH = process.argv.includes('--batch') ? process.argv[process.argv.indexOf('--batch') + 1] : '1';
+/* THE PACE A HELD STEP BUYS (%), fit through the origin on the ten defensive readings of the sample and batch 2, where a rule moves depth
+   and nothing else (Cairn Belt, Ossuary Helm at 3% and 2%, Grave Guard's Mail, the Sabre's two Blunted shapes, Bargeman's Pole at -20% and
+   -15%, Ferry Pennies under half and under 45%): pace / held 0.39 to 0.48, fit 0.4335 (se 0.0087). A lever: re-fit it when the pay rule
+   (danger.js PAY) or the scale's step (powerStep) moves. The ledger's 0.7% (19 "Units") is a kill's pay a step; a held step also meets a
+   monster 0.35% tougher, so it buys less pace than that. */
+const PACE_STEP_PCT = 0.43;
+const LO = 7, HI = 13, SE_MAX = 3;
 const PAIRS = [
   ['Cairn Belt (tank)', 'Muster Barrows', 'muster-tank', 'muster-cairn-belt'],
   ['Barrow Knight\'s Blade (sword)', 'Muster Barrows', 'muster-sword', 'muster-blade'],
@@ -89,46 +102,56 @@ const cellOf = (name, need) => {
 };
 const pct = (a, b) => (b > 0 ? ((a / b - 1) * 100).toFixed(1) + '%' : 'n/a');
 const sgn = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
-/* the paired held delta of `s` over `p`: mean and standard error over the seeds both read (a seed whose four never held reads nothing) */
-function paired(p, s) {
-  const d = [];
-  p.held.perSeed.forEach((x, i) => { const y = s.held.perSeed[i]; if (Number.isFinite(x) && Number.isFinite(y)) d.push(y - x); });
+/* a paired reading of the worn four over the plain one on the seeds both read (a seed whose four never held reads nothing): its mean and standard error.
+   heldOf: the held step's delta. paceOf: the held pace's delta (payX, %) in PACE STEPS (PACE_STEP_PCT a step), the size bar's metric */
+const stats = (d) => {
   if (!d.length) return null;
   const m = d.reduce((x, y) => x + y, 0) / d.length;
   const sd = Math.sqrt(d.reduce((x, y) => x + (y - m) ** 2, 0) / Math.max(1, d.length - 1));
   return { m, se: sd / Math.sqrt(d.length), n: d.length };
-}
+};
+const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; if (Number.isFinite(x) && Number.isFinite(y) && f(x, y) !== null) d.push(f(x, y)); }); return d; };
+const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
+/* (payX.perSeed drops a seed with no pay window, so a list shorter than the seeds read cannot be paired by place: none is read; a seed
+   whose four earned nothing from the held start, the unsettled tank four on Krell's Hold, reads nothing) */
+const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
+  : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+const show = (d, n) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + (n ? ', ' + d.n : '') + ')' : 'no hold');
+/* the size bar on a reading in pace steps (15 "Decision: the scale a Signature is sized on") */
+const sizeOf = (d) => (!d ? 'owed' : d.m > HI ? (d.se > SE_MAX ? 'over, se ' + d.se.toFixed(1) + ': more seeds' : 'OVER (cut its number)')
+  : d.m < LO ? (d.m + d.se < LO ? 'UNDER (raise or reshape)' : d.se > SE_MAX ? 'under, se ' + d.se.toFixed(1) + ': more seeds' : 'UNDER (raise or reshape)')
+  : d.se > SE_MAX ? 'in band, se ' + d.se.toFixed(1) + ': more seeds' : 'in band');
 
 if (BATCH !== '2') {
-  console.log('| Signature | Ground | Plain held | With it | Held delta (se) | Level XP/h | Coin/h | Kills/h | Deaths |');
-  console.log('|---|---|---|---|---|---|---|---|---|');
+  console.log('| Signature | Ground | Plain held | Held delta (se) | Pace steps (se) | Size bar | Level XP/h | Coin/h | Kills/h | Deaths |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|');
   for (const [name, ground, a, b] of PAIRS) {
-    const p = cellOf(a, true), s = cellOf(b, true), d = paired(p, s);
-    console.log('| ' + [name, ground, p.held.mean.toFixed(1), s.held.mean.toFixed(1), sgn(d.m) + ' (' + d.se.toFixed(1) + ')',
+    const p = cellOf(a, true), s = cellOf(b, true), h = heldOf(p, s), q = paceOf(p, s);
+    console.log('| ' + [name, ground, p.held.mean.toFixed(1), show(h, true), show(q), sizeOf(q),
       pct(s.xpPerHeroH, p.xpPerHeroH), pct(s.gold.coinPerHeroH.mean, p.gold.coinPerHeroH.mean), pct(s.killsPerH, p.killsPerH), p.deaths + ' / ' + s.deaths].join(' | ') + ' |');
   }
   process.exit(0);
 }
 
-/* batch 2: one line a row, both cells, the two bars */
-console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Level XP/h | Second ground | Held delta (se) | Size bar (10 +- 3, se <= 3) | Spread bar (second <= half the best) |');
-console.log('|---|---|---|---|---|---|---|---|---|');
+/* batch 2: one line a row, both cells, the two bars, both on pace steps */
+console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');
+console.log('|---|---|---|---|---|---|---|---|---|---|');
 for (const [name, best, other] of ROWS2) {
-  const read = ([g, a, b]) => { const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, d: paired(p, s) } : { g, owed: true }; };
+  const read = ([g, a, b]) => { const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
   const B = read(best), O = read(other);
-  const show = (x) => (x.owed ? 'owed' : x.d ? sgn(x.d.m) + ' (' + x.d.se.toFixed(1) + (x === B ? ', ' + x.d.n : '') + ')' : 'no hold');
-  const size = B.owed || !B.d ? 'owed' : B.d.se > 3 ? 'se ' + B.d.se.toFixed(1) + ' over 3: more seeds' : B.d.m > 13 ? 'OVER (cut its number)' : B.d.m < 7 ? 'UNDER (raise or reshape)' : 'in band';
+  const size = B.owed ? 'owed' : sizeOf(B.q);
   /* (the spread is read only for a size that reaches the band: under it, the row is reshaped first) */
-  const spread = B.owed || !B.d ? 'owed' : B.d.m < 7 ? 'n/a (under its size)' : O.owed || !O.d ? 'not read' : O.d.m <= B.d.m / 2 ? 'holds'
-    : O.d.m - O.d.se <= B.d.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
-  console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), show(B), B.owed ? '' : pct(B.s.xpPerHeroH, B.p.xpPerHeroH), O.g, show(O), size, spread].join(' | ') + ' |');
+  const spread = B.owed || !B.q ? 'owed' : B.q.m < LO ? 'n/a (under its size)' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'
+    : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+  console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), B.owed ? 'owed' : show(B.h, true), B.owed ? 'owed' : show(B.q),
+    B.owed ? '' : pct(B.s.killsPerH, B.p.killsPerH), O.g, O.owed ? 'owed' : show(O.q), size, spread].join(' | ') + ' |');
 }
-console.log('\n| Shape tried | Held delta (se, seeds) | Level XP/h |\n|---|---|---|');
+console.log('\n| Shape tried | Held delta (se, seeds) | Pace steps (se) | Size bar | Kills/h |\n|---|---|---|---|---|');
 for (const [name, a, b] of VARIANTS) {
-  const p = cellOf(a), s = cellOf(b), d = p && s ? paired(p, s) : null;
-  console.log('| ' + [name, d ? sgn(d.m) + ' (' + d.se.toFixed(1) + ', ' + d.n + ')' : 'owed', d ? pct(s.xpPerHeroH, p.xpPerHeroH) : ''].join(' | ') + ' |');
+  const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+  console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
 }
 for (const [name, a, b, top] of PINNED) {
-  const p = cellOf(a), s = cellOf(b), d = p && s ? paired(p, s) : null;
-  if (d) console.log('\npinned: ' + name + ': the plain four holds ' + p.held.mean.toFixed(1) + ' of the ground\'s top ' + top + ', the Signature ' + sgn(d.m) + ' (' + d.se.toFixed(1) + ')');
+  const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null;
+  if (h) console.log('\npinned: ' + name + ': the plain four holds ' + p.held.mean.toFixed(1) + ' of the ground\'s top ' + top + ', the Signature ' + sgn(h.m) + ' (' + h.se.toFixed(1) + ') held');
 }

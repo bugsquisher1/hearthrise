@@ -94,7 +94,7 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 | Call | Ruling |
 |---|---|
 | The rule | **Measured size, one rule for every Signature.** No Signature is routed through the gear slice ledger, the offense boons (#16, #18, #38) included |
-| The size bar | Held delta on its best cell **10 +- 3**, read paired on 12 seeds x 8 h (`tools/balance-program/redesign/signature-depth/`), its se at most 3. Over 13 is cut in its number, under 7 is raised or reshaped |
+| The size bar | **10 +- 3 pace steps** on its best cell, read paired on 12 seeds x 8 h (`tools/balance-program/redesign/signature-depth/`), its se at most 3. Over 13 is cut in its number, under 7 is raised or reshaped. Pace steps, not held depth, since 2026-11-27 ("Decision: the scale a Signature is sized on", below) |
 | The spread bar | Its average over the scale grounds its seat hunts is at most half its best cell (`29` section 3.8 step 2). A Signature that is big everywhere is a stat, and is reshaped |
 | The ceiling | The kit sampler (`19` V10) reads Traits at the cap plus each Signature on its best cell. The lucky kit stays inside the luck ceiling (`19` line "Luck ceiling", gear slice 20). A Signature that breaks it is cut in its number |
 | When | Every batch (2, 3, 4) lands with its rows' readings in this doc. No row turns on (`SIGNATURE_RULES.live`) without them |
@@ -177,6 +177,27 @@ Every shape tried on a row that missed (`sum.mjs --batch 2`, the shapes table):
 - **Repetition, audited.** Blunted carries two rows (#4 on a Flame Strike's target, #23 round a Mend under 45%), Guarded two (#3 on a broken shell's hero, #17 on a Greater Mend's low target), Poison two (#7 on Rend, #12 on Raking Shot). Different seats, moves and moments, one status each. The designer judges whether the pool reads as variety.
 - **The luck ceiling (V10).** The kit sampler is still owed (04 section 10). COMPUTED bound only: Traits picked for the ground added 12 to 14 own steps (12-targets 8.2, the Muster reading pinned at its top), a Signature at most 13 here, together at most 27 own steps against the gear slice's 20 power steps at about 1.42 own steps a power step (about 28). Inside, but the Trait reading and the Signature readings are on different fours. No row turns on before the sampler reads them together.
 - **Rows that changed here** (the designer keeps, re-words or re-shapes each): #2 Ossuary Helm cut to 2% a monster up to 10%; #3 Grave Guard's Mail, #4 Charred Sabre, #17 Bargeman's Pole and #23 Ferry Pennies reshaped; #9 Lurcher's Collar re-written; #10 Coal Runner's Bow and #12 Wyvern Barb Crossbow reshaped off the Roads' options before any reading; #1 Bannerman's Pavise dropped.
+
+## Decision: the scale a Signature is sized on (game designer, 2026-11-27, lane/designer-sig-metric)
+
+**How it plays:** a Signature that keeps the front alive lets the party hunt deeper, where every kill pays more. One that adds damage lets it kill faster where it already hunts. Either way the hero levels faster, so that is the one thing measured: Level XP an hour from the held start, the same four on the same seeds with it and without it.
+
+| Call | Ruling |
+|---|---|
+| The metric | **Pace steps.** The paired change in held pace (Level XP a hunted hero-hour from hour 4 to the four's end, v1-climb's `payX`), divided by **0.43%**, the pace one held step buys on the reference cells. A shield, a Blunted and a Poison read on one scale |
+| The size bar | **10 +- 3 pace steps** on the best cell (+3.0% to +5.6% held pace), 12 seeds x 8 h, its se at most 3 pace steps (1.3% pace). Over 13 is cut in its number, under 7 is raised or reshaped. A reading inside one se of the band with its se over 3 gets more seeds before any number moves |
+| The spread bar | Unchanged in kind: the second ground at most half the best, both in pace steps |
+| The held delta | Still printed beside it. It says how a row pays (depth or speed), never whether it is in band |
+| The conversion | `PACE_STEP_PCT` 0.43 in `tools/balance-program/redesign/signature-depth/sum.mjs`, fit through the origin on the ten readings where a rule moved depth only (Cairn Belt, the Helm at 3% and 2%, the Mail, the Sabre's two Blunted shapes, the Pole at -20% and -15%, the Pennies under half and under 45%): pace over held 0.39 to 0.48, fit 0.4335, se 0.0087. A lever, re-fit when `PAY` or `powerStep` moves |
+| Coin | Not on the bar. Coin a hero-hour moved with Level XP on every row read (the Hat +8.9% coin, +8.4% pace). A row whose only effect is the supply bill is sized with the market, never on this bar |
+| Where batch 3 reads it | Here, and `sum.mjs` (every table prints pace steps and the bars on them). Batch 3's harness copies `batch2.sh` and adds its rows to `sum.mjs` |
+
+**Why pace, not held depth.**
+
+- Held depth is worth what it pays. The Danger scale pays a deeper step more a kill, so a player's reward for depth is pace, the same reward a faster kill gives. The bar now reads the reward, not one of its two roads.
+- One scale keeps the pool a choice. On held depth every damage rule read near zero, so the pool would have turned into shields and Blunted, and every build would wear the same few ("Why the whole pool").
+- Nothing that read in band moves. Every defensive row reads its held delta within its se on pace (the Helm 10.8 held and 11.7 pace, the Mail 9.3 and 9.4, the Pennies 12.3 and 12.7, the Pole 10.5 and 10.1, the Sabre 7.4 and 7.2), since a held step is what the conversion is fit on.
+- The luck ceiling is a pace ceiling. A lucky hero is ahead by how much faster it levels. The gear slice's 20 steps is about 8.6% held pace on this scale (`19` "Units" now says why a held step buys 0.43% and not the 0.7% a kill pays).
 
 ## How Signatures work
 

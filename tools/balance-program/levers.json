@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "b297eb7a7c970dbb",
+ "authored": "bf68cea0d39b77c6",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17543,
+  "typed": 17571,
   "files": 263,
   "lever": 324,
   "notLever": 432,
@@ -3309,9 +3309,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3413,9 +3413,15 @@
      "line": 183,
      "text": "kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 187,
+     "text": "steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
+     "binding": "STATUSES"
     }
    ],
-   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16), each for durationMs",
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16; Steeped +300 on the next Greater Mend, Kindled's key, 15 #20, lane/signatures-batch-3), each for durationMs",
    "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
    "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
    "outcomes": [
@@ -3481,9 +3487,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3615,9 +3621,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3692,9 +3698,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/silent-triggers.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -4557,9 +4563,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7611,7 +7617,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 314,
+     "line": 316,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7658,10 +7664,10 @@
      "tests/gear-stats.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/forest-cave.mjs",
-     "tests/shell-core.mjs",
-     "tests/tower-board.mjs"
+     "tests/new-ground.mjs",
+     "tests/shell-core.mjs"
     ],
-    "mentionCount": 13,
+    "mentionCount": 14,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7680,19 +7686,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 321,
+     "line": 323,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 322,
+     "line": 324,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 323,
+     "line": 325,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
@@ -7758,7 +7764,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 350,
+     "line": 352,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -7962,8 +7968,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 237,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 520, topStep: 710, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8036,92 +8042,92 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 237,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 520, topStep: 710, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 237,
+     "line": 239,
      "text": "catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 550, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 242,
-     "text": "meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
-     "binding": "DANGER_GROUNDS"
-    },
-    {
-     "file": "src/data/danger.js",
-     "line": 245,
-     "text": "wickstead: ground({ refStep: 80, floorStep: 0, topStep: 125, refKillsHead: 135, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),",
-     "binding": "DANGER_GROUNDS"
-    },
-    {
-     "file": "src/data/danger.js",
-     "line": 246,
-     "text": "millrace_sewer: ground({ refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),",
+     "line": 244,
+     "text": "meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 170, refKillsHead: 125, refHeld: 105, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 247,
-     "text": "mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),",
+     "text": "wickstead: ground({ refStep: 80, floorStep: 0, topStep: 145, refKillsHead: 140, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 252,
-     "text": "mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 115, refKillsHead: 140, refHeld: 55, coinPm: 7900, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
+     "line": 248,
+     "text": "millrace_sewer: ground({ refStep: 60, floorStep: 0, topStep: 135, refHeld: 65, coinPm: 7500, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 253,
-     "text": "coppercap_warrens: ground({ refStep: 80, floorStep: 30, topStep: 125, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),",
+     "line": 249,
+     "text": "mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 125, refKillsHead: 135, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 256,
-     "text": "the_slake: ground({ refStep: 100, floorStep: 45, topStep: 135, refKillsHead: 125, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),",
+     "line": 254,
+     "text": "mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 140, refHeld: 55, coinPm: 7900, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 257,
-     "text": "pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 105, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
+     "line": 255,
+     "text": "coppercap_warrens: ground({ refStep: 80, floorStep: 25, topStep: 150, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 258,
-     "text": "krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 115, coinPm: 3100, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
+     "text": "the_slake: ground({ refStep: 100, floorStep: 45, topStep: 145, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 262,
-     "text": "carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 75, refKillsHead: 145, refHeld: 55, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),",
+     "line": 259,
+     "text": "pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 110, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 263,
-     "text": "ox_road: ground({ refStep: 100, floorStep: 0, topStep: 170, refKillsHead: 125, refHeld: 95, coinPm: 2400, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
+     "line": 260,
+     "text": "krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 130, coinPm: 3100, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 264,
-     "text": "wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 195, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),",
+     "text": "carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 100, refKillsHead: 145, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 265,
+     "text": "ox_road: ground({ refStep: 100, floorStep: 0, topStep: 180, refKillsHead: 125, refHeld: 95, coinPm: 2400, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 266,
-     "text": "catacomb_flooded_wing: ground({ refStep: 470, floorStep: 440, topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
+     "text": "wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 195, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 268,
+     "text": "catacomb_flooded_wing: ground({ refStep: 480, floorStep: 440, topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3700, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8205,8 +8211,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 236,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 640, refKillsHead: 135, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "line": 238,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 650, refKillsHead: 135, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8286,7 +8292,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 284,
+     "line": 286,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8496,19 +8502,19 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 95,
+     "line": 93,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 97,
+     "line": 95,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 103,
+     "line": 101,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
@@ -8585,37 +8591,37 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 93,
+     "line": 91,
      "text": "armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 96,
+     "line": 94,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 99,
+     "line": 97,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 102,
+     "line": 100,
      "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 104,
+     "line": 102,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 112,
+     "line": 110,
      "text": "armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
@@ -8694,7 +8700,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 113,
+     "line": 111,
      "text": "mend: Object.freeze({ seconds: 0.6, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
@@ -8760,7 +8766,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 150,
+     "line": 148,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8825,13 +8831,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 152,
+     "line": 150,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 153,
+     "line": 151,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8891,7 +8897,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 155,
+     "line": 153,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8954,7 +8960,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 156,
+     "line": 154,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9017,13 +9023,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 158,
+     "line": 156,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 159,
+     "line": 157,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9847,7 +9853,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 77,
+     "distinct": 75,
      "low": 0.06,
      "high": 1
     }
@@ -11508,7 +11514,7 @@
    "category": "equipment",
    "name": "Signatures: each named piece's one rule, as reaction rows",
    "sites": [],
-   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw), a status (its reach r, a fixed tick pm of the moment's damage), a free cast again, a burst (pm of the fallen's health within r) or a reflect (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb, pull) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw, on the moment's hero, the wearer or the party), a status (its reach r, a fixed tick pm of the moment's damage, or the moment's monsters), a heal (pm of a hero's max health, or of the moment's amount), mana (pm), a free cast again, a burst (pm of the fallen's health within r), a carried overkill (pm, capped at capPm, within r) or a reflect, once every `every` moments (src/core/hunt/signature-rules.js, reactions.js); or no reaction: a rune saved every `saves.every` casts (abilities.js fire), a stack cap raised by `stackPlus.n` (status.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
    "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
    "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
    "outcomes": [
@@ -11560,7 +11566,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut; lane/signatures-sample, lane/signatures-batch-2)",
+    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut, its count of moments `every`; a rune it saves every `saves.every` casts; a stack cap raised by `stackPlus.n`; lane/signatures-sample, lane/signatures-batch-2, lane/signatures-batch-3)",
     "homes": [
      "src/data/signatures.js#SIGNATURES"
     ]
@@ -11749,8 +11755,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 237,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 520, topStep: 710, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -11824,8 +11830,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 237,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 520, topStep: 710, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -12062,13 +12068,13 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 71,
+     "line": 72,
      "text": "pointSharePm: 333,",
      "binding": "TALENT_RULES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 77,
+     "line": 78,
      "text": "healInCapPm: 300,",
      "binding": "TALENT_RULES"
     }
@@ -12138,19 +12144,19 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 85,
+     "line": 86,
      "text": "Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 89,
+     "line": 90,
      "text": "export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });",
      "binding": "BORROW_OPEN"
     },
     {
      "file": "src/data/talents.js",
-     "line": 106,
+     "line": 107,
      "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
@@ -12218,85 +12224,85 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 196,
+     "line": 197,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 258,
+     "line": 259,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 317,
+     "line": 318,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 600,
+     "line": 601,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 595,
+     "line": 596,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 331,
+     "line": 332,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 383,
+     "line": 384,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 424,
+     "line": 425,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 467,
+     "line": 468,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 532,
+     "line": 533,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 621,
+     "line": 622,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 358,
+     "line": 359,
      "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 397,
+     "line": 398,
      "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 441,
+     "line": 442,
      "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     }
@@ -17857,10 +17863,12 @@
     "belowPm",
     "capMs",
     "clockMs",
+    "every",
     "ms",
     "n",
     "pm",
-    "pw"
+    "pw",
+    "r"
    ],
    "bindings": 1
   },
@@ -18756,7 +18764,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 41,
+   "typed": 43,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {

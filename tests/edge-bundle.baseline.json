@@ -545,7 +545,12 @@
         "why": "lane/piece-gear-fixes +5,686 B: src/core/upgrade-pick.js weighs a worn Trait piece in steps (plainStepsPm, pieceStepsPm, wornPiecesIn; the company Start's pick reads the envelope's pieces section through company-wear.js), no new import"
       },
       {
-        "bytes": 3940029,
+        "bytes": 3959122,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: 16 move Signature reaction rows and their engine pieces (signature-rules, reactions); lane/piece-gear-fixes: upgrade-pick weighs a piece's Traits"
+      },
+      {
+        "bytes": 3961992,
         "on": "2026-11-27",
         "why": "lane/f1-inner-flame +2,870 B: the Inner Flame claim (hunt-settle.js flameDropsOf/flameFor, the giveDrop note in hunt-rewards.js, its plumbing through accrue-hunt.js and combat-sim.js, 1074-inner-flame-luck.sql); the fuel list comes from the server read, so no flame data module ships"
       }

@@ -726,9 +726,14 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
 /* (lane/signatures-sample, the Signatures' moments and doers, one vocabulary with the Roads: `death` any monster's fall, whoever's blow; `heal`
    the hero's cast heal landing on a hero; `hp_below` the hero's own health under `belowPm` after a blow; `ready` a move ready now; `pass` what
    the fallen carried moves on (`what`: 'mark' or a status id); `boon` a status on the moment's hero; `has` the moment's monster carries a status) */
-export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below']);
-export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon']);
-const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what']);
+/* (lane/signatures-batch-2: `cast` the hero's own cast landed, counting the HP its hits took and the monsters its status landed on; `absorb`
+   a monster's blow a shell the hero cast took, what it took and from whom; `burst` an explosion on a kill; `reflect` what a shell took,
+   back on its dealer; `pw` a boon's strength; `marked` the moment's monster carries a live Mark; a status's `r` (every monster that near
+   the hero) and `pm` (a fixed tick of the moment's damage); a shield's `capPm`) */
+export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb']);
+export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect']);
+const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
+  'pw', 'marked']);
 /* the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen): pm fields ramp, the rest whole */
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
@@ -741,7 +746,17 @@ export function reactProblems(e, moves = null) {
   if (!REACT_ON.includes(e.on)) out.push('react on ' + e.on + ' is not one of ' + REACT_ON.join(', '));
   if (!REACT_DO.includes(e.do)) out.push('react do ' + e.do + ' is not one of ' + REACT_DO.join(', '));
   if ((e.do === 'cast' || e.do === 'reset') && (typeof e.move !== 'string' || (e.move !== '*heal' && moves && !moves.includes(e.move)))) out.push('a ' + e.do + ' names a live move or *heal');
-  if (['mana', 'heal', 'shield', 'echo', 'carry'].includes(e.do) && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000)) out.push('a ' + e.do + ' reaction carries pm 1..1000');
+  if (['mana', 'heal', 'shield', 'echo', 'carry', 'burst', 'reflect'].includes(e.do) && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000)) out.push('a ' + e.do + ' reaction carries pm 1..1000');
+  if (e.do === 'burst' && !(Number.isInteger(e.r) && e.r >= 1 && e.r <= 8)) out.push('a burst names its reach r');
+  if (e.r !== undefined && !['carry', 'burst', 'status'].includes(e.do)) out.push('a reach r is a carry\'s, a burst\'s or a status\'s');
+  if (e.do === 'status' && e.r !== undefined && !(Number.isInteger(e.r) && e.r >= 1 && e.r <= 8)) out.push('a status\'s reach r is 1..8 tiles of the hero');
+  if (e.capPm !== undefined && !['carry', 'shield'].includes(e.do)) out.push('capPm caps a carry or a shield');
+  if (e.do === 'shield' && e.capPm !== undefined && !(Number.isInteger(e.capPm) && e.capPm >= e.pm && e.capPm <= 1000)) out.push('a shield\'s cap capPm is pm..1000');
+  if (e.do === 'status' && e.pm !== undefined && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000 && isStatus(e.status) && Array.isArray(STATUSES[e.status].tick) && !STATUSES[e.status].ground && !STATUSES[e.status].heals)) {
+    out.push('a status with pm lays a fixed tick (pm 1..1000 of the moment\'s damage) of a damage status that ticks');
+  }
+  if (e.pw !== undefined && !(e.do === 'boon' && Number.isInteger(e.pw) && e.pw > 0 && e.pw <= 5000)) out.push('pw is a boon\'s strength, permille 1..5000');
+  if (e.marked !== undefined && e.marked !== true) out.push('marked is true or absent');
   if (e.of !== undefined && (typeof e.of !== 'string' || (moves && !moves.includes(e.of)))) out.push('a reaction reads the moments of a live move (of)');
   if (e.to !== undefined && !['self', 'lowest'].includes(e.to)) out.push('a reaction lands to self or lowest');
   if (e.do === 'status' && !isStatus(e.status)) out.push('a status reaction names a status');

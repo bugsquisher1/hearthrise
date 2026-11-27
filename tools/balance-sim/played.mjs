@@ -14,8 +14,9 @@
 // Defense 32) and 15 levels HIGH for a hero levelled in a Deadly party (Level 72: main skill 56-59, a caster's Defense 14-24).
 //
 // A cell asks for it with `profile: 'played'` (cell.mjs). Nothing here is a combat number: slots name abilities and items by id.
-// PURE ESM. Data only. Imports only the rune gates (src/data/runes.js).
+// PURE ESM. Data only. Imports only the rune gates (src/data/runes.js) and the move rows (src/data/abilities.js: playedSlot's rune family).
 import { versionLevel } from '../../src/data/runes.js';
+import { ABILITIES } from '../../src/data/abilities.js';
 
 /* The store rune a slot names at a Magic level: a spell's version N casts at the tier's Magic gate (runes.js versionLevel over core-model.js
    SUPPLY_GATES.magic, 1 / 8 / 15 / 39 / 71: each tier at the Level the old careers reached it, the designer's ruling 29 section 7 item 10).
@@ -80,6 +81,23 @@ export function playedBar(role, o) {
       move('mend', [{ op: 'lt', value: 50, metric: 'self_hp_pct' }]), ...food];
   }
   return food;
+}
+
+/**
+ * ONE PLAYED SLOT FOR MOVE `id`, a move the recorded bars never cast (a Lab cell adds it: a Signature's own move, Frost Slam or Shelter on the
+ * tank, lane/signatures-batch-2; cell.mjs addMovesBySeat): a rune spell on its family's store rune at the shopping tier, as playedBar writes
+ * its own, else a plain move, with no conditions: a hero wearing a Signature for that move casts it whenever it is ready (Shelter's own
+ * trigger, two allies under 80%, left the reference four on Krell's Hold playing the identical hunt with Shelter and without it).
+ * o: { magic, tierOf } as playedBar's.
+ */
+export function playedSlot(id, o) {
+  const row = ABILITIES[id];
+  if (!row) throw new Error('played: no move ' + id);
+  const cond = [];
+  const fam = typeof row.rune === 'string' ? row.rune.replace(/^chalked_/, '').replace(/_rune$/, '') : null;
+  if (!fam) return move(id, cond);
+  const tierOf = o && typeof o.tierOf === 'function' ? o.tierOf : () => runeTierAt((o && o.magic) || 1);
+  return spellOn(id, fam, tierOf(fam), cond);
 }
 
 /* The hunt options recorded heroes run (the action set's own row): press the fight, follow the party's target, stand at the role's range. */

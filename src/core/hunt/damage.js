@@ -49,7 +49,7 @@ import { reaches } from './shooters.js';
 import { splashOn, roleMaxHit, rowOf as standsIn } from './monster-roles.js';
 import { monsterArmorPm } from './monster-formula.js';
 import { elementOnHeroOf } from '../../data/elements.js';
-import { applyStatus, statusRow, spendFlag } from './status.js';
+import { applyStatus, statusRow, spendFlag, spendOnce } from './status.js';
 import { effectPm } from './status-effects.js';
 import { noteHurt, breaksOff } from './danger.js';
 import { stepsOn, blowAmount, manaOn } from './amount.js';
@@ -280,14 +280,15 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   }
   /* THE GUARD'S SHARE (landOn `guard`, Bodyguard): what it took off this blow lands on the guard as it is, after it */
   if (r.guard) landHit(inst, sc, source, r.guard.u, r.guard.n, element, { id: 'bodyguard', dot: true, exact: true });
-  if (reactorsOf(inst).length) noteMoments(inst, source, target, before, r, ability, crit, shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0) ? shieldBy : null);
+  if (reactorsOf(inst).length) noteMoments(inst, source, target, before, r, ability, crit, shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0) ? shieldBy : null, shieldBy);
   return r;
 }
 
 /* THE MOMENTS A HERO'S REACTIONS READ (react-queue.js), from one landed blow: the dealer's hit, crit and kill (a tick or an exact piece
    is no hit; a kill says what the blow had past the HP it took), the target's hit taken (from beside it: melee), an ally hit by a
-   monster, a hero falling across its near-fall line (talent-rows.js nearFall), and a shell broken (its caster's). Queued only. */
-function noteMoments(inst, source, target, before, r, ability, crit, brokeBy) {
+   monster, a hero falling across its near-fall line (talent-rows.js nearFall), a shell broken (its caster's), and a monster's blow a
+   shell took (its caster's `absorb`: what the shell took and from whom, Drover's Hat). Queued only. */
+function noteMoments(inst, source, target, before, r, ability, crit, brokeBy, shellBy) {
   const id = (ability && ability.id) || 'basic';
   const blow = !(ability && ability.dot);
   if (isHero(source)) {
@@ -296,6 +297,7 @@ function noteMoments(inst, source, target, before, r, ability, crit, brokeBy) {
     if (r.killed && isMonster(target)) queueOn(inst, source, 'kill', { t: target, over: r.over || 0, ability: id });
   }
   if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });
+  if (Number.isInteger(shellBy) && r.absorbed > 0 && isHero(target) && isMonster(source)) queueOn(inst, unitById(inst, shellBy), 'absorb', { t: target, src: source, dmg: r.absorbed });
   const rs = reactorsOf(inst);
   /* A MONSTER'S DEATH, whoever's blow (a Signature's `pass`, Lurcher's Collar): its Mark as it fell rides the moment */
   if (r.killed && isMonster(target)) for (const h of rs) queueOn(inst, h, 'death', { t: target, markPm: Number.isInteger(target.markPm) ? target.markPm : 0, markUntil: Number.isInteger(target.markUntil) ? target.markUntil : 0 });
@@ -395,6 +397,8 @@ export function resolveAttacks(inst, sc) {
         if (breaksOff(inst)) break;
         if (h.alive) roll(inst, sc, u, h, monsterAccuracy(blowRow, h.def), Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000)), 0);
       }
+      /* A ONE-BLOW STATUS (statuses.js `once`, Blunted) held for this swing and its splash, spent now */
+      spendOnce(u, sc);
       continue;
     }
     const row = roleOf(u);

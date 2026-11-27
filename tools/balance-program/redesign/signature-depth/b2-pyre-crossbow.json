@@ -1,0 +1,304 @@
+{
+ "ground": "pyre_field",
+ "levels": [
+  80,
+  83,
+  70
+ ],
+ "seeds": 12,
+ "hours": 8,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 80,
+   "start": 0,
+   "seedsRead": 12,
+   "payX": {
+    "mean": 0.98,
+    "sd": 0.02,
+    "n": 12,
+    "perSeed": [
+     0.96,
+     1.01,
+     0.95,
+     1,
+     0.97,
+     0.97,
+     1,
+     0.96,
+     0.99,
+     0.99,
+     0.99,
+     0.99
+    ],
+    "fromH": 4,
+    "windowH": 4
+   },
+   "held": {
+    "mean": 79.1,
+    "sd": 5.3,
+    "se": 1.5,
+    "perSeed": [
+     74,
+     87,
+     69,
+     84,
+     74,
+     76,
+     85,
+     76,
+     80,
+     83,
+     82,
+     79
+    ]
+   },
+   "drift": 3,
+   "within10": 76.7,
+   "within20": 97.4,
+   "changesPerH": 11,
+   "fallsPerH": 0.7,
+   "reachH": 0.6,
+   "pullsPerH": 70.5,
+   "killsPerH": 556,
+   "xpPerHeroH": 423076,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 14830,
+     "sd": 235,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 17408,
+     "sd": 286,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 4728,
+     "sd": 87,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 1259,
+     "sd": 86,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 182,
+     "sd": 8,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 1137,
+     "sd": 71,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
+   "kit": {
+    "meal": 397,
+    "drink": 2701,
+    "charge": 1630,
+    "shot": 0
+   },
+   "kitIds": {
+    "salted_lobster": 16.6,
+    "plain_scored_fire_rune": 63.1,
+    "plain_carved_fire_rune": 75.1,
+    "plain_carved_ice_rune": 167.8,
+    "plain_earth_rune": 30,
+    "thin_carrot_juice": 168.8,
+    "plain_carved_poison_rune": 62.9,
+    "plain_water_rune": 342.6,
+    "plain_carved_earth_rune": 71.1
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 4,
+   "firstDeathH": [],
+   "nearWipes": 0,
+   "nearWithDeath": 0,
+   "nearWarned": 0,
+   "nearFellAfter": 0,
+   "whys": {
+    "hold": 5554,
+    "climb": 1144,
+    "fall": 61
+   },
+   "takenShare": [
+    {
+     "style": "hammer",
+     "mean": 0.526
+    },
+    {
+     "style": "crossbow",
+     "mean": 0.218
+    },
+    {
+     "style": "mage",
+     "mean": 0.119
+    },
+    {
+     "style": "healer",
+     "mean": 0.136
+    }
+   ],
+   "causes": {
+    "fall:pyre_wraith@1": 1,
+    "fall:charred_pikeman@0": 28,
+    "fall:pyre_wraith@2": 12,
+    "fall:stoker@2": 2,
+    "fall:stoker@0": 10,
+    "fall:provost@0": 4,
+    "fall:pyre_wraith@0": 3,
+    "fall:stoker@1": 1
+   },
+   "seats": [
+    {
+     "style": "hammer",
+     "dps": 24.28,
+     "landedPct": 58.6,
+     "dmgPerSwing": 40.59,
+     "swingsPerH": 5004.83,
+     "takenPerH": 203137.17
+    },
+    {
+     "style": "crossbow",
+     "dps": 25.46,
+     "landedPct": 85.85,
+     "dmgPerSwing": 41.27,
+     "swingsPerH": 2044.83,
+     "takenPerH": 84400.83
+    },
+    {
+     "style": "mage",
+     "dps": 33.75,
+     "landedPct": 91.36,
+     "dmgPerSwing": 49.72,
+     "swingsPerH": 926.42,
+     "takenPerH": 46063.5
+    },
+    {
+     "style": "healer",
+     "dps": 15.47,
+     "landedPct": 96.43,
+     "dmgPerSwing": 83.78,
+     "swingsPerH": 629.42,
+     "takenPerH": 52718.5
+    }
+   ],
+   "kinds": {
+    "charred_pikeman": {
+     "role": "swarm",
+     "killsPerH": 265.8,
+     "ttkS": 23.7,
+     "takenPerKill": 414
+    },
+    "pyre_wraith": {
+     "role": "caster",
+     "killsPerH": 69.8,
+     "ttkS": 36.8,
+     "takenPerKill": 1863
+    },
+    "stoker": {
+     "role": "brute",
+     "killsPerH": 93,
+     "ttkS": 25.7,
+     "takenPerKill": 1087
+    },
+    "lurcher": {
+     "role": "stalker",
+     "killsPerH": 92.1,
+     "ttkS": 38.1,
+     "takenPerKill": 327
+    },
+    "provost": {
+     "role": "brute",
+     "killsPerH": 34.8,
+     "ttkS": 21.5,
+     "takenPerKill": 428
+    }
+   },
+   "abs": {
+    "level": 81.8,
+    "depth": 11
+   },
+   "sustain": {
+    "freePm": 139,
+    "spellPm": 827,
+    "foodPm": 34,
+    "takenPmS": 26.67
+   }
+  }
+ },
+ "wallS": 925,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

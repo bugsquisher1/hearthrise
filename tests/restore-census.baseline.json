@@ -2423,7 +2423,7 @@
   },
   "hr_trade_recipes": {
    "class": "seeded",
-   "replay": 16,
+   "replay": 25,
    "note": "Generated catalogue (1063-trade-formulas-catalogue.generated.sql, tools/gen-trades.mjs from src/core/trades.js jobRecipes): one row a recipe a kit-trade job may run, its kind, band, rung, face and inputs a set. Empty, every hr_trade_job_start answers bad_recipe. Rebuilt from repo, never restored."
   },
   "hr_trade_xp": {

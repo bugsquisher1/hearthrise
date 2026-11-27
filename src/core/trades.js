@@ -52,7 +52,7 @@ export const TRADE_PM = Object.freeze({
   atReq: pm(TRADE_LEVERS.yield.atReq), noFailSpan: TRADE_LEVERS.yield.noFailSpan, cap: pm(TRADE_LEVERS.yield.cap),
   masteryReturn: pm(TRADE_LEVERS.yield.masteryReturn), benchMax: pm(TRADE_LEVERS.yield.benchMax),
   fineBase: pm(TRADE_LEVERS.quality.fineBase), fineTop: pm(TRADE_LEVERS.quality.fineTop), masterTop: pm(TRADE_LEVERS.quality.masterTop),
-  qualitySteps: TRADE_LEVERS.quality.steps, speedAt99: pm(TRADE_LEVERS.speedAt99),
+  qualitySteps: TRADE_LEVERS.quality.steps, qualityLive: TRADE_LEVERS.quality.live ? 1 : 0, speedAt99: pm(TRADE_LEVERS.speedAt99),
   xpWindow: TRADE_LEVERS.xp.windowLevels, xpFloor: pm(TRADE_LEVERS.xp.floor), xpPerHour: TRADE_LEVERS.table.xpPerHour,
   jobFee: pm(TRADE_LEVERS.jobFee), townWageShare: pm(STORE_KIT.townWageShare), storeCeiling: pm(STORE_KIT.storeCeiling),
   storeLag: TRADE_LEVERS.store.lagSteps, floorShare: pm(TRADE_LEVERS.store.floorShare), storeBudget: pm(TRADE_LEVERS.store.budgetHours),
@@ -245,6 +245,9 @@ export function tradeXpTable() {
   for (let n = 1; n < maxLevel; n++) { hours += h1 * c; c *= curve; out.push(Math.round(hours * xpPerHour)); }
   return (XP_TO = Object.freeze(out));
 }
+/** THE FARM'S XP A CROP (09 4.11 row 1, one town work): a harvest pays Farming one raw unit of work a crop in seconds (4.8's raw unit,
+    the gathering behind one meal: 252 at the starting values), so the farm and a gathering job count XP on the one table. */
+export const cropXp = (cat = null) => Math.round(((cat || tradeCatalogue()).rawUh * TRADE_PM.xpPerHour) / UH);
 /** The trade Level an XP total reads. */
 export function tradeLevel(xp) {
   const t = tradeXpTable();
@@ -340,16 +343,19 @@ export function jobBound(kind, rung, level, { mastery = false, benchPm = 0, tool
  *            speed x yield over the raw unit's work (09 4.5: "its yield is units an hour")
  *   refine / make   each attempt spends one set of inputs; under 1000 it makes the good with yield's chance (a miss loses the set);
  *            over 1000 it always makes it and hands the set back with chance 1 - 1000 / yield, so a set makes yield / 1000 goods
- *   quality  a good that rolls it: Master first (with the Mastery), then Fine, else Plain (09 4.4's cascade)
+ *   quality  a good that rolls it: Master first (with the Mastery), then Fine, else Plain (09 4.4's cascade). WHILE QUALITY IS DARK
+ *            (TRADE_LEVERS.quality.live false, 09 4.11 row 6) no good rolls it: every good is Plain and no quality draw is made, so the
+ *            twin reads the same lever (hr_trade_levers.quality_live). `quality` overrides the lever for a caller that prices the lit cascade.
  */
-export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, toolPm = 1000, count, elapsedMs, seed }) {
+export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, toolPm = 1000, count, elapsedMs, seed, quality = TRADE_PM.qualityLive === 1 }) {
   const b = jobBound(kind, rung, level, { mastery, benchPm, toolPm, count, elapsedMs });
   if (!b) return null;
   const R = rungLevel(rung);
   const rng = createRng(seed >>> 0);
   const y = b.yieldPm;
-  const pFine = kind.rolls ? finePm(level, R) / 1000 : 0;
-  const pMaster = kind.rolls ? masterPm(level, R, mastery) / 1000 : 0;
+  const rolls = !!kind.rolls && quality === true;
+  const pFine = rolls ? finePm(level, R) / 1000 : 0;
+  const pMaster = rolls ? masterPm(level, R, mastery) / 1000 : 0;
   const made = [0, 0, 0];
   let returned = 0;
   for (let i = 0; i < b.attempts; i++) {
@@ -360,7 +366,7 @@ export function settleJob(kind, rung, level, { mastery = false, benchPm = 0, too
     }
     if (y > 1000 && rng.next() < 1 - 1000 / y) returned++;
     if (y < 1000 && !(rng.next() < y / 1000)) continue;
-    if (!kind.rolls) { made[0]++; continue; }
+    if (!rolls) { made[0]++; continue; }
     if (pMaster > 0 && rng.next() < pMaster) made[2]++;
     else if (rng.next() < pFine) made[1]++;
     else made[0]++;

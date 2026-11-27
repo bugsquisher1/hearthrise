@@ -159,8 +159,10 @@ cases['risk-ladder'] = (R) => {
   const SHRIMP = { gear: AVERAGE.gear, startBar: true };
   const [pushed] = play('mosslight_glade', ['tank'], 6, SHRIMP), [floor] = play('mosslight_glade', ['tank'], 16, SHRIMP);
   /* ...and each swing that reaches the pushed hero is worth far more than at the floor (more of them land, and its armor reads the stronger attacker). Measured on the
-     formula's rows (lane/b-ground-formula, 2026-11-07): 18.6 against 13.2 a swing, 1.41x; on a curve keyed to the hero's own Level its armor would read 6, not the monster's. */
-  if (!(pushed.dmgPerMonsterSwing >= 1.25 * floor.dmgPerMonsterSwing)) return 'ten Levels under the Glade a swing reaches the hero for ' + pushed.dmgPerMonsterSwing + ' against ' + floor.dmgPerMonsterSwing + ' at the floor: under 1.25x, armor is not reading who struck';
+     formula's rows (lane/b-ground-formula, 2026-11-07): 18.6 against 13.2 a swing, 1.41x; on a curve keyed to the hero's own Level its armor would read 6, not the monster's.
+     RE-MEASURED on the clock's REF_HERO (lane/refhero-recut, 2026-11-27): 17.0 against 10.7, 1.58x; armor keyed to the hero's Level reads 1.29x and a Defense
+     that turns nothing aside 1.29x (the to-hit gap alone), so the bar is 1.4x, the old bar's share of the clean reading (1.25 of 1.41) */
+  if (!(pushed.dmgPerMonsterSwing >= 1.4 * floor.dmgPerMonsterSwing)) return 'ten Levels under the Glade a swing reaches the hero for ' + pushed.dmgPerMonsterSwing + ' against ' + floor.dmgPerMonsterSwing + ' at the floor: under 1.4x, armor is not reading who struck';
   const [armoredView] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 10000 }), [armoredClosed] = play('mosslight_glade', ['tank'], 10, SHRIMP, { windowMs: 600000 });
   for (const k of ['deaths', 'levelXpPerH', 'takenPerH', 'storePerH']) if (armoredView[k] !== armoredClosed[k]) return 'armored, ' + k + ': viewed ' + armoredView[k] + ', browser closed ' + armoredClosed[k];
   /* BOTH PATHS: the same hero dies on the same swings, watched or not. */
@@ -389,8 +391,10 @@ const mutants = [
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
-  /* outgrowing shows nothing: a hero's Defense turns no blow aside (src/data/to-hit.js: its rating is the base alone), so the top of the Glade reads like its floor */
-  { name: 'Defense turns no blow aside: the top of the band reads like its floor', case: 'glade-harder',
+  /* a hero's Defense turns no blow aside (src/data/to-hit.js: its rating is the base alone). On the clock's REF_HERO (lane/refhero-recut) a Level 31 hero's
+     Defense is 13, so the top of the Glade still reads Easy without it (83.3%, over the sheet's 80); the swing it lets through at the pushed hero
+     against the floor is what it moves (1.58x -> 1.29x), so the mutant is read by risk-ladder's swing bar */
+  { name: 'Defense turns no blow aside: a swing at the pushed hero is worth no more than at the floor', case: 'risk-ladder',
     edits: [['src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base));']] },
   /* (the aim doubles with the blow: on the to-hit ratio an attack alone no longer lands surer) */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 15 -> 30): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',

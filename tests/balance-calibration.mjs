@@ -150,10 +150,22 @@ export const DECLARED_SHIFTS = Object.freeze([
   Object.freeze({ after: '2026-11-26', grounds: Object.freeze(['krells_hold']), why: 'the tier rows retired: a recorded Deadly four plays the ground as built (lane/retire-tier-chain)',
     mult: Object.freeze({ killsPerH: 0.376, levelXpPerH: 0.313, coinPerH: 0.389, dealtPerH: 0.335, takenPerH: 0.061, healedPerH: 0, storePerH: 0.072 }),
     seatPts: Object.freeze([21.6, -0.9, -0.7, -20.0]) }),
+  /* (7) EVERY BAND RE-CUT ON THE CLOCK'S REF_HERO (lane/refhero-recut, 2026-11-27; 12-targets 8.5 item 2): the formula rows' aim and evasion re-derived
+     from the careers on the Level clock (the Warrens' recorded lone hero plays its hand rows) and Krell's band 60 -> 20. MEASURED by
+     calibration-shift.mjs (2 h x 2 seeds, origin/set/v0.2.144 at 414ccd436 against the lane, sim over sim, geometric mean within each ground) */
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['coppercap_warrens']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1.024, levelXpPerH: 1.018, coinPerH: 1.018, dealtPerH: 1.028, takenPerH: 0.79, healedPerH: 0.697, storePerH: 0.882 }) }),
+  /* Krell's two fours split on this change (taken x0.866 and x0.935, store x0.866 and x0.989): the ground's mean shift (x0.900) put the second
+     at x1.15 of its record, past 15%, on a hunt whose own shift is x0.935. So each is declared as its own hunt (`hunts`), as measured */
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['krells_hold']), hunts: Object.freeze(['krells_hold:deadly:4:1']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 1, coinPerH: 0.9963, dealtPerH: 1, takenPerH: 0.8663, healedPerH: 1, storePerH: 0.8655 }) }),
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['krells_hold']), hunts: Object.freeze(['krells_hold:deadly:4:2']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 1.0006, coinPerH: 1.0097, dealtPerH: 1.0006, takenPerH: 0.9353, healedPerH: 1, storePerH: 0.9894 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);
-const shiftsOn = (s) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)));
+/* a shift names its grounds, and may name its hunts (lane/refhero-recut: two fours of one ground that one change moved apart) */
+const shiftsOn = (s) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)) && (!d.hunts || d.hunts.includes(s.id)));
 const shiftOf = (s, key) => shiftsOn(s).reduce((m, d) => m * (d.mult && Number.isFinite(d.mult[key]) ? d.mult[key] : 1), 1);
 /* the points a seat's recorded share moves by, summed over the declared shifts (BC-5) */
 const seatPtsOf = (s, i) => (s ? shiftsOn(s).reduce((t, d) => t + ((d.seatPts && d.seatPts[i]) || 0), 0) : 0);

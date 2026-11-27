@@ -2,6 +2,16 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 · lane/refhero-recut (12-targets 8.5 item 2: REF_HERO from the clock's careers, 72 formula rows, 16 bands re-cut)
+1. *A formula ground plays REF_HERO live.* monster-formula.js reads aim and evasion from to-hit.js at the ground's refLevel, so the generated rows' aim/evasion are what off-scale fights and the print read, not what the scale plays. The cells do not wait on the rows: measure first, write rows before the write that pins the print.
+2. *The coin level needs two passes.* The first cut's coin is derived on the old refStep; the pay reads refStep, so a moved refStep moves the coin a kill. Write, replay the reference cell on the written row, read again (finish2: until "as played" and the band unchanged).
+3. *Two hour definitions disagree.* gen-drop-hours keeps hours at the reference step's kill shares; drop-tables measures paces on its own fixture. A refStep move re-derives chances that drop-tables then reads out of band: put those rows back on the set's chances (`--convert`), and only trophies that still sit out get new hours.
+4. *A frozen provenance beats a re-derived one.* SUPPLY_GATES and BC-6 were derived from careers on the old curve; the live snapshot moved to the clock. Freeze the old snapshot as evidence and point the derivation at it (skill-lines-geometric.json), with a check the two curves never meet.
+5. *Data moves fixtures out from under their mutants.* Six mutants went equivalent or escaped (DF-5, the falls depth, the ilevel stamp, the Glade's halving, DF-7's own first plant, glade-between): each plant was re-aimed to the state the rule is about, never dropped, one retired with its subject.
+6. *Never edit a file a background writer rewrites.* new-ground --write rewrites danger.js whole; my edit raced one settle and survived only by luck. Hold data edits until the queue's writes finish.
+7. *Classify against the set before owning.* git archive the set, lay one file at a time: REF_HERO alone moves muster-steps-4 and the Tower's cost, the rows alone the tier scenarios, the bands alone Muster's tally.
+8. *A retired field leaves a crash, not a red.* career.mjs traced `tier` after the tier rows left: every pace career threw in 2 s and sim.mjs printed "8 failed". A probe in the guard that owns the measurement (level-curve C9) keeps it from rotting again.
+
 ## 2026-11-26 · lane/r-ui-roads (the Roads screen, R-UI)
 1. *A window that is mostly one big view loads on need.* Eager, the map put +15.4 KB gzip on every player's town stage; behind a door (`new URL('./talents/index.js', import.meta.url)`, the game-master pattern, listed in `site-delivery.mjs RUNTIME_MODULES`) it costs +4 KB. Measure the base with `git archive` into the scratchpad and the same borrowed esbuild before blaming the lane.
 2. *Geometry derived from rows needs a look, not a proof.* Every numeric test passed on a map whose trunks were 240 px long and whose vows fanned back over their road; the screenshot found it. Shoot early, then pin the properties (no overlap, density band) in the test.

@@ -103,12 +103,12 @@ insert into public.hr_danger_stances (risk, rank, fall_pm, clean_pm, after_death
 delete from public.hr_danger_grounds;
 insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_max) values
   ('coppercap_warrens', 80, 1062, 4141),
-  ('hasks_ford', 590, 1426, 6861),
-  ('krells_hold', 20, 1062, 8457),
+  ('hasks_ford', 590, 1426, 6607),
+  ('krells_hold', 40, 1062, 5435),
   ('meadowbrook_thicket', 110, 1062, 36416),
   ('mill_cellar', 60, 1062, 138612),
   ('millrace_sewer', 70, 1062, 8758),
-  ('mosslight_glade', 50, 1062, 10658),
+  ('mosslight_glade', 60, 1062, 10016),
   ('muster_barrows', 610, 1426, 5256),
   ('pyre_field', 50, 1062, 4378),
   ('the_slake', 100, 1062, 5998),

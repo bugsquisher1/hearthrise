@@ -233,7 +233,7 @@ export const DANGER_GROUNDS = Object.freeze({
      coinPm 3300 (451.1, 481.5, 517.4). The reference hour pays 1.00 and 1.01 of wage(175) and 0.97x and 1.04x the hours. A whole kit one
      tier back at 175 moves 16.2 and 9.3 steps, 2 depths each (C-2) */
   muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 645, refKillsHead: 130, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 640, refKillsHead: 135, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
   catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 550, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
@@ -249,7 +249,7 @@ export const DANGER_GROUNDS = Object.freeze({
      tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS
      2026-11-23). formulaStep 70 as on the first grounds; the band, coin level and kill rate are measured (tools/new-ground.mjs --hold-level,
      the C-target cells in grounds/c-targets). The Glade's fresh four holds step 8, so its floor is the scale's first step */
-  mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
+  mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 115, refKillsHead: 140, refHeld: 55, coinPm: 7900, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
   coppercap_warrens: ground({ refStep: 80, floorStep: 30, topStep: 125, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
   /* THE THIRD BATCH (lane/scale-grounds-2): the Slake on mithril (40, beside the Ford), the Pyre Field on rune (60, beside Muster), Krell's
      Hold on ember (80). The same anchor and the same measuring as the second pair */

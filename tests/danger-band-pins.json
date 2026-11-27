@@ -25,8 +25,8 @@
   "hasks_ford": {
    "refStep": 590,
    "floorStep": 535,
-   "topStep": 645,
-   "refKillsHead": 130,
+   "topStep": 640,
+   "refKillsHead": 135,
    "refHeld": 595,
    "coinPm": 6600,
    "print": "385e265606cb6549",
@@ -38,9 +38,7 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
-    "tools/balance-program/redesign/grounds/hasks_ford-top.json",
-    "tools/balance-program/redesign/grounds/hasks_ford-floor.json"
+    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
    ]
   },
   "catacomb_bone_wing": {
@@ -125,12 +123,12 @@
    ]
   },
   "mosslight_glade": {
-   "refStep": 50,
+   "refStep": 60,
    "floorStep": 0,
-   "topStep": 120,
-   "refKillsHead": 135,
+   "topStep": 115,
+   "refKillsHead": 140,
    "refHeld": 55,
-   "coinPm": 7800,
+   "coinPm": 7900,
    "print": "65d34538fc59981b",
    "verdict": "OPEN",
    "levels": {
@@ -140,9 +138,7 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
-    "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
-    "tools/balance-program/redesign/grounds/mosslight_glade-floor.json"
+    "tools/balance-program/redesign/grounds/mosslight_glade-{floor,top,ref}.json"
    ]
   },
   "coppercap_warrens": {

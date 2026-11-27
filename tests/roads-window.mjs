@@ -689,7 +689,7 @@ const MUTANTS = [
   /* lane/talents-plan-server: Spend on plan is one press the server walks (the planned choice's pick is the server's now: its mutant is
      tests/recruit-company.mjs "the plan pays a choice with no pick", planted in hr_talent_plan_steps) */
   { name: 'the plan saved for the company section\'s older ground, not the server\'s', file: 'src/session/company-sections.js',
-    from: "if (isObj(tl) && tl.live === true && Object.prototype.hasOwnProperty.call(tl, 'plan_hunt')) {", to: 'if (false) {', want: /RW-13/ },
+    from: "if (isObj(tl) && tl.live === true && Object.prototype.hasOwnProperty.call(tl, 'plan_hunt')) {", to: 'if (false) {', want: /RW-1[36]/ },   // RW-16 reads the plan row first (no planned hunt, where the server names one)
   { name: 'Spend on plan stays on while its answer is out', file: 'src/shell/windows/talents/road-plan.js', from: "prop(pay, 'disabled', !!off || pending);", to: "prop(pay, 'disabled', !!off);", want: /RW-13/ },
   { name: 'the plan\'s next stone owned before the answer', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),',
     to: '{ const tl = tlOf(); if (tl && plan.step) { tl.nodes[plan.step.id] = plan.step.pick || true; sc.memo = null; } } runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),', want: /RW-13/ },

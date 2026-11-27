@@ -4,7 +4,10 @@
 //   game designer, 2026-11-26; docs/design/redesign/20-v030-the-roads.md lane SN and gate 7, 09-crafting.md sections 5.6 and 5.8 item 6,
 //   04-math-strategy.md section 11 `sinkOverFaucet`, 21-flame-temper-imbue-loot.md T4).
 //
-//   node tools/balance-program/redesign/sinks/ledger.mjs [--days 180] [--json <out.json>]
+//   node tools/balance-program/redesign/sinks/ledger.mjs [--days 180] [--json <out.json>] [--all-rarities]
+//
+// MINTED is coin, loot at the store's price, the store floor and Trait pieces sold to the store (12-targets 8.7: every Rare not carried,
+// at its floor bid, src/core/piece-value.js). --all-rarities adds the Very Rare and the Signature, which v0.3.0 does not roll (20 1.1).
 //
 // READ-ONLY. It writes nothing but --json. Exit 0 when it ran, 2 on a bad argument.
 //
@@ -55,6 +58,7 @@ const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
 const { rankQuote, seatPrice } = await imp('src/core/temper-steps.js');
 const { applyFee } = await imp('src/core/imbue.js');
 const { carryFee } = await imp('src/core/carry-over.js');
+const { pieceStoreBid } = await imp('src/core/piece-value.js');
 const { DROP_HOURS } = await imp('src/data/drop-hours.js');
 const { TRADE_LEVERS } = await imp('src/data/trades.js');
 const { STORE_KIT } = await imp('src/data/store-kit.js');
@@ -106,6 +110,8 @@ const SLOTS = Object.keys(GEAR_STEPS.slotPm);
 const temperRankGold = (rank, iL) => SLOTS.reduce((s, slot) => s + ((rankQuote(slot, rank, iL) || {}).fee || 0), 0);
 const temperSeatGold = (ranks, iL) => SLOTS.reduce((s, slot) => s + seatPrice(slot, ranks, iL), 0);
 const IMBUE_FROM = Math.min(...Object.keys(IMBUE_RULES).map((id) => imbueBandOf(id)));
+/* the piece rarities v0.3.0 rolls (20 section 1.1: the Very Rare is the next patch, no Signature rolls yet: drop-hours.js); --all-rarities reads them all */
+const PIECE_RARITIES = argv.includes('--all-rarities') ? ['rare', 'very_rare', 'signature'] : ['rare'];
 const TRAITS_FROM = Math.min(...OPEN.filter((g) => Array.isArray(g.traits) && g.traits.length).map((g) => g.entryLevel || 999));
 /* the hall: deeds in order, then each room's rungs once its deed is held (trophy and shrine are held off sale) */
 const HALL = (() => {
@@ -148,7 +154,7 @@ export function runAccount(p, days = DAYS, pricing = PRICING) {
   const { blockPrice, blessingPrice, resetPrice } = pricing;
   const heroes = Array.from({ length: HEROES }, () => ({ L: 1, into: 0, ranks: 0, tier: 0, held: 0 }));
   let purse = 0, hallAt = 0;
-  const lines = () => ({ coin: 0, loot: 0, floor: 0, storeKit: 0, jobFee: 0, imbue: 0, temper: 0, carry: 0, bless: 0, reset: 0, block: 0, hall: 0 });
+  const lines = () => ({ coin: 0, loot: 0, floor: 0, pieces: 0, storeKit: 0, jobFee: 0, imbue: 0, temper: 0, carry: 0, bless: 0, reset: 0, block: 0, hall: 0 });
   const total = lines();
   const snaps = {};
   const credit = (k, g) => { total[k] += g; purse += g; };
@@ -157,7 +163,7 @@ export function runAccount(p, days = DAYS, pricing = PRICING) {
     const top = Math.max(...heroes.map((h) => h.L));
     const reserve = p.reserveH * wage(top);
     let laborNeed = 0, hunted = 0;
-    const mintedBefore = total.coin + total.loot + total.floor;
+    const mintedBefore = total.coin + total.loot + total.floor + total.pieces;
     /* the plan's block rule, hero by hero, while the purse holds the reserve after the price */
     const blocksOf = heroes.map((h) => {
       let n = 0;
@@ -184,6 +190,12 @@ export function runAccount(p, days = DAYS, pricing = PRICING) {
       if (h.L >= IMBUE_FROM) burn('imbue', p.imbues * H * 3 / IMBUE.hours * (applyFee(iL, h.L) + TRADE_LEVERS.jobFee * (IMBUE.workPm / 1000) * STORE_KIT.townWageShare * wg));
       /* carry-over: a Rare every DROP_HOURS.rarity.rare.everyHours a hero, `carry` of them moved at rank 2 */
       if (h.L >= TRAITS_FROM) burn('carry', H / DROP_HOURS.rarity.rare.everyHours * p.carry * carryFee(GEAR_STEPS.traitSteps[1], iL));
+      /* piece sales (12-targets 9.5): every Rare not carried is sold to the store at its floor bid, at rank II like the carried ones (the
+         reference holds depth 10, where ranks I and II roll), so this is the line's upper bound: a hero also wears some for good */
+      if (h.L >= TRAITS_FROM) for (const rarity of PIECE_RARITIES) {
+        const every = DROP_HOURS.rarity[rarity].everyHours;
+        credit('pieces', H / every * (1 - p.carry) * (pieceStoreBid({ rarity, il: iL, traits: rarity === 'signature' ? [] : [{ id: 'r', rank: 2 }] }) || 0));
+      }
       /* resets */
       burn('reset', p.resets * resetPrice(h.L, 0));
       /* Levels on the hours table */
@@ -208,17 +220,17 @@ export function runAccount(p, days = DAYS, pricing = PRICING) {
     credit('floor', Math.min(idle * TRADE_LEVERS.store.floorShare * STORE_KIT.townWageShare, TRADE_LEVERS.store.budgetHours) * wage(top));
     /* the hall */
     while (p.hall && hallAt < HALL.length && purse - HALL[hallAt].gold >= reserve) { burn('hall', HALL[hallAt].gold); hallAt++; }
-    if (day === 30 || day === days) snaps[day] = { ...total, purse, dayMinted: total.coin + total.loot + total.floor - mintedBefore, levels: heroes.map((h) => h.L), rungs: hallAt, hunted };
+    if (day === 30 || day === days) snaps[day] = { ...total, purse, dayMinted: total.coin + total.loot + total.floor + total.pieces - mintedBefore, levels: heroes.map((h) => h.L), rungs: hallAt, hunted };
   }
   return snaps;
 }
 
-const MINTED = ['coin', 'loot', 'floor'];
+const MINTED = ['coin', 'loot', 'floor', 'pieces'];
 const SINKS = ['storeKit', 'jobFee', 'imbue', 'temper', 'carry', 'bless', 'reset', 'block', 'hall'];
 const sum = (s, ks) => ks.reduce((a, k) => a + s[k], 0);
 export function readOf(s) {
   const minted = sum(s, MINTED), sinks = sum(s, SINKS);
-  return { minted, sinks, ratio: sinks / minted, coinOnly: sinks / (s.coin + s.floor), share: Object.fromEntries(SINKS.map((k) => [k, s[k] / minted])) };
+  return { minted, sinks, ratio: sinks / minted, coinOnly: sinks / (s.coin + s.floor), mintedShare: Object.fromEntries(MINTED.map((k) => [k, s[k] / minted])), share: Object.fromEntries(SINKS.map((k) => [k, s[k] / minted])) };
 }
 
 /** Gate 7's reading: the reference company at day 180, without and with its hall, sinks over minted. `pricing` plants a defect (tests). */
@@ -240,6 +252,7 @@ if (isMain(import.meta.url)) {
       const daysHeld = s.purse / s.dayMinted;
       console.log(`  day ${String(d).padStart(3)}  sinks ${pct(r.ratio)} of minted (coin only ${pct(r.coinOnly)})  Levels ${s.levels.join('/')}  hall rungs ${s.rungs}/${HALL.length}  purse ${daysHeld.toFixed(1)} days of minting`);
       console.log('           ' + SINKS.map((k) => k + ' ' + pct(r.share[k])).join('  '));
+      console.log('           minted: ' + MINTED.map((k) => k + ' ' + pct(r.mintedShare[k])).join('  '));
     }
   }
   /* the server on 09 5.1's mix, weighted by what each profile mints */

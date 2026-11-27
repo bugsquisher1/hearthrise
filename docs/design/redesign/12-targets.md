@@ -534,7 +534,56 @@ The 8-cell dominance count can't tell a strong Trait from the only live Trait in
 - **Found, for the wings' re-cut** (lane/scale-grounds-sweep, staged): the Catacomb wings' helmet and boot bases are 15 pieces stamped item Level 160 whose stats run from a Midwife's Hat (defense 2) to a Wolfram Helm (80). The ruled draw keeps the kind, but inside one kind a wing Rare can still land on a bronze-tier body. One base a kind a slot at the wing's tier, as the open grounds have, settles it.
 - **Worn:** `hr_hunt_instance_read` hands each member `worn_traits` (every piece whose base its equip slot holds, plus a named piece's `fixedOn` Trait) and `worn_signature` (the first Signature put on); both doors and the viewer's live start point play the same list.
 - **Dark:** three switches (`trait_pieces`, `signatures`, `trait_drops`) off at apply; `GEAR_STEPS.traitsLive` and `SIGNATURE_RULES.live` stay false.
-- **Worn and sold (lane/t1b-piece-verbs, 2026-11-26; `1072-piece-verbs.sql`, STAGED behind `trait_pieces`):** a free piece goes on a hero in town with Equip on its slot's line (`hr_piece_wear`), and comes off with Unequip, back to the account's pieces. Its base never reaches the bag as a plain item, on every door that changes a slot (the equip verb, a setup switch, Wear upgrades). The store buys a free piece at its floor share of V (`src/core/piece-value.js`: a Muster Rare at item Level 60 sells for 26,184, a Very Rare at 80 for 354,520), at most 20 an account a day, after a second press says the price; the piece is gone and the ledger keeps it. Salvage ships after v0.3.0 (20 section 1.3: no scrap yet). The browser shows a piece through the standout frame on the doll, a Rares strip under the bag, the drop alert (`hunt_settle.found` and the section's fresh finds) and the return card's line. Open for the designer: CONFLICTS 2026-11-26 piece verbs.
+- **Worn and sold (lane/t1b-piece-verbs, 2026-11-26; `1072-piece-verbs.sql`, STAGED behind `trait_pieces`):** a free piece goes on a hero in town with Equip on its slot's line (`hr_piece_wear`), and comes off with Unequip, back to the account's pieces. Its base never reaches the bag as a plain item, on every door that changes a slot (the equip verb, a setup switch, Wear upgrades). The store buys a free piece at its floor share of V (`src/core/piece-value.js`: a Muster Rare at item Level 60 sells for 16,365, a Very Rare at 80 for 221,575, at the piece's own floor share, 8.7), at most 20 an account a day, after a second press says the price; the piece is gone and the ledger keeps it. Salvage ships after v0.3.0 (20 section 1.3: no scrap yet). The browser shows a piece through the standout frame on the doll, a Rares strip under the bag, the drop alert (`hunt_settle.found` and the section's fresh finds) and the return card's line. Open for the designer: CONFLICTS 2026-11-26 piece verbs.
+
+### 8.7 What the store pays for a piece, ruled (2026-11-27, designer, lane/designer-calls-1127)
+
+**How it plays:** a Rare you won't wear sells to the store for about an hour of pay at that piece's Level, any day you like. Once the market ships, selling it there always pays at least as much.
+
+| Call (CONFLICTS 2026-11-26, piece verbs) | Ruling | Why |
+|---|---|---|
+| The price against `storeBudget` | **Pieces sell outside the stack budget at their own floor share, `PIECE_VALUE.floorSharePm` 250** (search 200 to 400; `src/data/piece-price.js`). No hours budget for pieces. The 20 a day count stays a security fuse, not a balance number | `storeBudget` bounds idle labor, and an account can always add more of that. A piece's supply is the drop table's hours, proven kill by kill (8.6, 8.6.1), so the supply is the bound. 0.25 V is the lowest price the book takes for a piece (13-market 2.7), so the store pays exactly the floor the market would have, and a market sale always beats it. At the stack floor's 0.4 each rarity mints about 2.6% of the reference's coin, and the full ladder 6.9% |
+| A Very Rare's rank term | **Kept: the best Trait's rank** | A wanted order matches a piece on any one of its Traits at a lowest rank (13-market 2.3), so the market reads a Very Rare by its best Trait. Its second Trait is priced by the rarity's 400 hours against a Rare's 40. A mean or a sum would price a piece by something no buyer's order asks for |
+
+**MEASURED** on the gold ledger (`node tools/balance-program/redesign/sinks/ledger.mjs`, now with a `pieces` line in minted; `--all-rarities` adds the Very Rare and the Signature). The reference four at day 180. ASSUMED: every Rare not carried (four in five) is sold at rank II, the reference's depth 10. That's the line's upper bound, since a hero also keeps the pieces it wears.
+
+| Reading | Pieces, share of minted | Sinks over minted | With the hall |
+|---|---|---|---|
+| Pieces not counted (the ledger before this lane) | 0 | 87.7% | 89.2% |
+| v0.3.0, Rares, at 0.4 | 2.6% | 85.4% | 87.0% |
+| **v0.3.0, Rares, at 0.25 (ruled)** | **1.6%** | **86.3%** | **87.8%** |
+| Rare, Very Rare and Signature, at 0.4 | 6.9% | 81.6% | 83.3% |
+| Rare, Very Rare and Signature, at 0.25 | 4.4% | 83.8% | 85.5% |
+
+- **In band for v0.3.0** (gate 7: 85 to 90%), with room. A Muster Rare at item Level 60 sells for 16,365, one hour of wage(60). A Very Rare at item Level 80 with ranks I and II sells for 221,575.
+- **Named for the next patch.** When the Very Rare and the Signatures roll, gate 7 reads 83.8% at this floor. That patch re-reads the ledger with the market's cut and sets its own dial in the same pass (the Very Rare's floor share, or its carry share).
+- **Exploit review.** The bid only fell. The fuse, the quote check and the per-call clamp are unchanged. The twin (`hr_piece_store_bid`) now reads the piece's own `floor_share_pm`, pinned at every rarity, rank and 13 item Levels against the core.
+- **Tests:** `tools/gen-piece-value.mjs --selftest` (9 refusals: a floor share past 1000, and the twin or the core pricing with the stack floor), `--check`; `tests/econ-levers.mjs` EL-SINK reads the ledger with piece sales; `tests/piece-verbs-db.mjs` PV-3 (the section's price is the twin's) on the replay.
+- **First principle, flagged.** A company that comes back to 25 Rares sells 20 today and the rest tomorrow. The plan's loot rule ("sell pieces no hero would wear", 13-market 2.5) is the fix, and it ships with the market.
+
+### 8.8 What the Dawnsteel uniques are for on the ladder, ruled (2026-11-27, designer, lane/designer-calls-1127)
+
+**How it plays:** past Dawnsteel the ladder keeps going, Cobalt then Wolfram, and every ground drops its own tier. What makes a late drop special is its Traits, a Signature, or a named piece's rule (fire does less to you, a hammer hits Bone Walls harder). There is no second line of "better Dawnsteel".
+
+**The read (CONFLICTS 2026-11-27, ci-reds-1126c).** `grade.mjs --selftest` U1 and U2 dress a tank at the Catacombs' floor (165) and want the staged plate sample worn (the Watchman's Helm, the Limewashed Plate, the Keeper's Leg Plates). The kit wears Cobalt in all three slots instead. Same cause as `armor-line` AL3 and AL4 and `temper-uniques` TU2 and TU6: the staged lines (`tools/balance-sim/staged/armor-line.js`, `weapon-line.js`) are a ceiling of Dawnsteel x Level / 110, drawn when Dawnsteel was the last standard tier. On 8.3 it isn't. Cobalt (140) and Wolfram (160) are standard tiers past it, and a new metal comes with every 20 Levels after.
+
+**The ruling.**
+
+1. **The lines past Dawnsteel retire.** A ground's gear ceiling is its base tier's formula piece (8.3 b), the same rule on every ground. The staged line files leave with the guards that test them (U1, U2, AL1 to AL10, the weapon line's, TU2 and TU6). They retire with the system they test, not to get green. Systems, HANDOFFS 2026-11-27.
+2. **Each staged unique goes through 28's sort, onto its home's base tier.** A piece with a real rule (a resistance, a bane) becomes a named piece of its home ground's tier: the formula's numbers for its slot and weight, plus its rule (28 (c)). A piece whose only mark is a flat number or a stat trade (crit, heavy or light armor) is cut. Its ground's Rares are the unique drops there. A piece with no home in the plan is cut (28 (d)). The table is `28-named-pieces.md` section 2.7: 6 kept, 7 cut.
+3. **Tempering a unique is Temper on steps** (21 section 2), by item Level like every piece. The separate uniques ladder past tier 7 leaves with the line.
+
+**Why.** A unique sized against a tier that is no longer the top is outranked by the next plain tier, which is what U1 and U2 show. Re-sizing it against Cobalt would last until the next metal. On 8.3 the variety past Dawnsteel comes from systems that scale with the ladder by themselves: 40 Traits on every base, Very Rares, 46 Signatures, and named pieces whose rule answers their own ground. That's the mix-and-match, farm-your-own-set chase, and none of it is a stat offset that the next tier erases.
+
+**Walk-through (a Level 150 tank on the Catacomb wings, today's data only):**
+
+| Step | What the hero holds or can reach | Doable? |
+|---|---|---|
+| 1. Wears Cobalt plate from the Roost | `cobalt_helm`, `cobalt_platebody`, `cobalt_platelegs`, item Level 140, worn from 130 (`gear-stats.generated.js`); the Roost's base is Cobalt 140 (8.3) | Yes, staged ground |
+| 2. Enters the Flooded Wing at 150 | Its band is 150-170, base Wolfram 160, worn from 150 (8.4) | Yes, staged ground |
+| 3. A Wolfram plate piece drops and replaces the Cobalt one | `wolfram_platebody` defense 164 against Cobalt's 143 | Yes |
+| 4. Keeper Dunn drops the Keeper's Leg Plates | A Wolfram leg plate (defense 116) that takes 10% off ice, the answer to his Snuff the Candles | After the systems lane moves the row in with the wings' art |
+| 5. A Rare drops on a Wolfram base with one of the wings' Traits | `danger.js` the wings' `traits: traitPool(...)` | Dark until `trait_drops` lights |
 
 ## 9. Sinks priced in wage hours, and the gold ledger (2026-11-26, designer, lane/sn-sinks; 20 lane SN and gate 7)
 

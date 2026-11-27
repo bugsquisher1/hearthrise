@@ -151,6 +151,28 @@ Each of these was its tier's piece plus a bump, and the creature, dungeon or sys
 
 **Why no Signatures (a).** None of the 96 passes all three tests. The pieces with a living home drop under Level 40 (Kingstooth, the Cauldron Lid, Grayjaw's Ruff) or are ladder rungs (the shields from Hask's Ford, Muster Barrows and Krell's Hold, whose monsters already own their Signatures in `15`: the Bannerman's Pavise, the Pikeman's Gauntlets, the Grave Guard's Mail). The ones with a strong name and no home are the five dungeon weapons, and the Tower's weapons already carry the top chase with their own story. The Tower weapons and the 24 Catacomb pieces carry no offset, so this file doesn't touch them.
 
+### 2.7 The staged uniques past Dawnsteel (2026-11-27, designer, lane/designer-calls-1127; `12-targets.md` 8.8)
+
+The 13 hidden samples of `tools/balance-sim/staged/armor-line.js` and `weapon-line.js`, drawn as a ceiling of Dawnsteel x Level / 110 while Dawnsteel was the last standard tier. On the 8.3 ladder each one is sorted onto its home ground's base tier. One rule added to section 1: **a piece whose only mark is a flat number or a stat trade (crit, more armor for less aim) is cut when its ground rolls Rares.** The ground's Rares are its unique drops, and a named twin with nothing but a number is the "normal one, but bigger" this file removes. None is a Signature: their homes' Signatures are already in `15`.
+
+| Row | Name | Slot, home (base tier) | Its mark | Ruling | Becomes |
+|---|---|---|---|---|---|
+| `burnt_crag_leg_plates` | Burnt Crag Leg Plates | plate legs, Wyvern Roost, the Crag Wyvern (Cobalt 140) | 10% less fire | (c) | Cobalt plate legs' numbers and 10% less fire, the Crag Wyvern's Fire Breath |
+| `limewashed_plate` | Limewashed Plate | plate body, the Catacomb wings, the Bone Wall (Wolfram 160) | 10% less poison | (c) | Wolfram plate body's numbers and 10% less poison, the Night Carters' Lime Sack |
+| `keepers_leg_plates` | Keeper's Leg Plates | plate legs, the Flooded Wing, Keeper Dunn (Wolfram 160) | 10% less ice | (c) | Wolfram plate legs' numbers (defense 116) and 10% less ice, Dunn's Snuff the Candles |
+| `paupers_shroud` | Pauper's Shroud | cloth body, the Catacomb wings, the Shrouded Pauper (Wolfram 160) | 10% less ice | (c) | The Wolfram tier's cloth body (`cerecloth_body`'s numbers) and 10% less ice |
+| `watchmans_sword` | Watchman's Sword | sword, the Catacomb wings, the Shrouded Pauper (Wolfram 160) | human bane | (c) | The Wolfram tier's sword and 10% more to humans (the Night Carters) |
+| `dunns_mallet` | Dunn's Mallet | warhammer, the Flooded Wing, Keeper Dunn (Wolfram 160) | construct bane | (c) | The Wolfram tier's warhammer and 10% more to constructs (the Bone Walls) |
+| `wagon_guards_breastplate` | Wagon Guard's Breastplate | plate body, the Night Shift | heavy | (d) | Cut. The Night Shift is no ground in the plan (8.3 c) |
+| `outriders_visor` | Outrider's Visor | plate helm, the Old Guard | heavy | (d) | Cut. The Old Guard is no ground in the plan |
+| `watchmans_helm` | Watchman's Helm | plate helm, the Catacomb wings | heavy | cut | Cut. Its only mark is a stat trade, and the wings roll helmet Rares (Keeper's Carry, Full Wick, Pauper's Share) |
+| `haulers_jerkin` | Hauler's Jerkin | leather body, the Catacomb wings | crit, light | cut | Cut. A flat number and a stat trade |
+| `wagon_guards_sword` | Wagon Guard's Sword | sword, Carter's Rest, the Landlord | crit | cut | Cut. A flat number |
+| `limewashed_sword` | Limewashed Sword | sword, the Catacomb wings | crit | cut | Cut. A flat number |
+| `hoist_hooks` | Hoist Hooks | hatchets, the Catacomb wings | crit | cut | Cut. A flat number |
+
+Kept 6, cut 7. The kept rows go into their homes' drop rows when those grounds' art lands, sized by the formula at the base tier and carrying the rule (Systems, HANDOFFS 2026-11-27). Their Temper is Temper on steps like any piece (21 section 2).
+
 ## 3. The two straight curves and the grate
 
 Applied in `src/data/gear-profiles.js`:

@@ -4,6 +4,8 @@
 //
 //   piecesOf(cs)              { pieces, sellLeft } or null (no section: the trait_pieces switch is off, so nothing shows)
 //   wornPieceOf(cs, k)        the piece this hero wears in equip slot k (its base is the item the slot holds), or null
+//   wornPiecesOf(cs)          every piece this hero wears, { equip slot: piece } (Equip upgrades weighs them: src/core/upgrade-pick.js)
+// The list is the ACCOUNT's newest any open hero was told (item-sections.js accountSection), so one hero's wear or sale shows on the others.
 //   freePiecesOf(cs)          the account's pieces no hero wears and no market holds, newest first
 //   piecesFoundIn(cs, sid)    the pieces this hero found in hunt session `sid` (the return card's line)
 //   foundNowOf(cs)            the pieces the answer this record came from says just landed for this hero (hunt_settle.found), as the
@@ -13,7 +15,7 @@
 //   null where it buys none. The shape src/shell/item-standing.js standingOf reads (base, rarity, traits, signature).
 // A read of the envelope only, REPLACED by each envelope (CLAUDE.md §6). Nothing here computes a number.
 // ════════════════════════════════════════════════════════════════════════
-import { equipmentOf } from './item-sections.js';
+import { equipmentOf, accountSection } from './item-sections.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -38,7 +40,8 @@ function pieceOf(r) {
 
 /** The section, or null (no section yet, or the switch is off). */
 export function piecesOf(cs) {
-  const raw = cs && typeof cs.read === 'function' ? cs.read('pieces') : undefined;
+  /* the account's newest list any open hero was told (item-sections.js accountSection): a wear or a sale on another hero moves it here */
+  const raw = cs && typeof cs.read === 'function' ? accountSection(cs, 'pieces') : undefined;
   if (!isObj(raw) || !Array.isArray(raw.pieces)) return null;
   return { pieces: raw.pieces.map(pieceOf).filter(Boolean), sellLeft: whole(raw.sell_left) ? raw.sell_left : 0 };
 }
@@ -49,6 +52,16 @@ export function wornPieceOf(cs, k) {
   if (!sec || !cs) return null;
   const eq = equipmentOf(cs) || {};
   return sec.pieces.find((p) => p.worn && p.worn.slot === cs.slot && p.worn.equipSlot === k && eq[k] === p.base) || null;
+}
+
+/** Every piece this hero wears, { equip slot: piece }, each only while its slot holds its base (wornPieceOf's rule): what Equip upgrades
+    weighs in steps (src/core/upgrade-pick.js). {} with no section. */
+export function wornPiecesOf(cs) {
+  const sec = piecesOf(cs), out = {};
+  if (!sec || !cs) return out;
+  const eq = equipmentOf(cs) || {};
+  for (const p of sec.pieces) if (p.worn && p.worn.slot === cs.slot && eq[p.worn.equipSlot] === p.base) out[p.worn.equipSlot] = p;
+  return out;
 }
 
 /** The account's pieces no hero wears and no market holds, newest first (the server's order). */

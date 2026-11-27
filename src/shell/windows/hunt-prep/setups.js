@@ -95,6 +95,7 @@ export function patchSetups(root, ctx, sc, hunting) {
       attr(li, 'aria-current', picked ? 'true' : null);
       /* "In use (bar only)": a mid-hunt swap put this setup's bar on and left another setup's gear on (the server's `wearing`). */
       text(li.querySelector('small'), (current ? t(p.wearing === false ? 'prep.in_use_bar' : 'prep.in_use') + ', ' : '') + t('prep.gear_count', { count: gearN })
+        + (p.gone && p.gone.length ? ', ' + t('prep.piece_sold') : '')
         + (picked && dirty ? ', ' + t('prep.not_saved') : '') + (swap && swap.why ? ', ' + swap.why : ''));
       cls(li, 'is-naming', sc.naming === p.preset);
       /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */

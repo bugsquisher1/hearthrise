@@ -1,5 +1,5 @@
 {
- "count": 128,
+ "count": 104,
  "byBand": {
   "0": {
    "food": [
@@ -38,37 +38,23 @@
    "ammo": [
     "barbed_arrows"
    ],
-   "food": [
-    "cooked_pikeperch",
-    "wheat_bread"
-   ],
    "tool": [
     "iron_axe",
     "iron_pickaxe"
+   ],
+   "food": [
+    "wheat_bread"
    ]
   },
   "2": {
    "food": [
     "baked_potato",
-    "cooked_goldgill",
     "cooked_lobster",
     "cooked_panther_meat",
-    "cooked_silverfin",
-    "pikeperch"
-   ],
-   "ammo": [
-    "etched_earth_rune",
-    "etched_fire_rune",
-    "etched_ice_rune",
-    "etched_poison_rune",
-    "etched_rupture_rune",
-    "etched_water_rune",
-    "steel_arrows",
-    "steel_whetstone"
+    "cooked_silverfin"
    ],
    "material": [
-    "field_ration",
-    "willow_plank"
+    "field_ration"
    ],
    "jewelry": [
     "seam_jasper_band_follow",
@@ -85,27 +71,18 @@
    "armor": [
     "steelgrate",
     "warband_bulwark"
-   ],
-   "drink": [
-    "tomato_juice"
    ]
   },
   "3": {
    "food": [
     "cooked_bear_meat",
-    "goldgill",
     "roasted_pumpkin",
     "silverfin",
     "tomato_soup"
    ],
    "material": [
     "flux_salt",
-    "maple_plank",
     "verdite_ore"
-   ],
-   "ammo": [
-    "mithril_arrows",
-    "mithril_whetstone"
    ],
    "tool": [
     "mithril_axe",
@@ -119,17 +96,8 @@
     "vegetable_stew"
    ],
    "ammo": [
-    "carved_earth_rune",
-    "carved_fire_rune",
-    "carved_ice_rune",
-    "carved_poison_rune",
-    "carved_rupture_rune",
-    "carved_water_rune",
     "rune_arrows",
     "rune_whetstone"
-   ],
-   "drink": [
-    "pumpkin_cider"
    ],
    "tool": [
     "rune_axe",
@@ -362,66 +330,6 @@
    ]
   },
   {
-   "id": "carved_earth_rune",
-   "name": "Carved Earth Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "carved_fire_rune",
-   "name": "Carved Fire Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "carved_ice_rune",
-   "name": "Carved Ice Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "carved_poison_rune",
-   "name": "Carved Poison Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "carved_rupture_rune",
-   "name": "Carved Rupture Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "carved_water_rune",
-   "name": "Carved Water Rune",
-   "kind": "ammo",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
    "id": "cerecloth_cloak",
    "name": "Cerecloth Cloak",
    "kind": "armor",
@@ -492,16 +400,6 @@
    ]
   },
   {
-   "id": "cooked_goldgill",
-   "name": "Goldgill Steak",
-   "kind": "food",
-   "band": 2,
-   "by": "bench Level 27",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
    "id": "cooked_herring",
    "name": "Cooked Herring",
    "kind": "food",
@@ -537,16 +435,6 @@
    "kind": "food",
    "band": 2,
    "by": "bench Level 25",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "cooked_pikeperch",
-   "name": "Grilled Pikeperch",
-   "kind": "food",
-   "band": 1,
-   "by": "bench Level 18",
    "doors": [
     "made by cooking"
    ]
@@ -802,66 +690,6 @@
    ]
   },
   {
-   "id": "etched_earth_rune",
-   "name": "Etched Earth Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "etched_fire_rune",
-   "name": "Etched Fire Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "etched_ice_rune",
-   "name": "Etched Ice Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "etched_poison_rune",
-   "name": "Etched Poison Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "etched_rupture_rune",
-   "name": "Etched Rupture Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "etched_water_rune",
-   "name": "Etched Water Rune",
-   "kind": "ammo",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
    "id": "fang_studs_focus",
    "name": "Fang Studs (Focus)",
    "kind": "jewelry",
@@ -939,16 +767,6 @@
    "by": "bench Level 60",
    "doors": [
     "made by cooking"
-   ]
-  },
-  {
-   "id": "goldgill",
-   "name": "Raw Goldgill",
-   "kind": "food",
-   "band": 3,
-   "by": "bench Level 36",
-   "doors": [
-    "gathered"
    ]
   },
   {
@@ -1062,26 +880,6 @@
    ]
   },
   {
-   "id": "maple_plank",
-   "name": "Maple Plank",
-   "kind": "material",
-   "band": 3,
-   "by": "metal maple",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
-   "id": "mithril_arrows",
-   "name": "Mithril Arrows",
-   "kind": "ammo",
-   "band": 3,
-   "by": "metal mithril",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "mithril_axe",
    "name": "Mithril Axe",
    "kind": "tool",
@@ -1095,16 +893,6 @@
    "id": "mithril_pickaxe",
    "name": "Mithril Pickaxe",
    "kind": "tool",
-   "band": 3,
-   "by": "metal mithril",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
-   "id": "mithril_whetstone",
-   "name": "Mithril Whetstone",
-   "kind": "ammo",
    "band": 3,
    "by": "metal mithril",
    "doors": [
@@ -1129,26 +917,6 @@
    "by": "bench Level 90",
    "doors": [
     "gathered"
-   ]
-  },
-  {
-   "id": "pikeperch",
-   "name": "Raw Pikeperch",
-   "kind": "food",
-   "band": 2,
-   "by": "bench Level 24",
-   "doors": [
-    "gathered"
-   ]
-  },
-  {
-   "id": "pumpkin_cider",
-   "name": "Pumpkin Cider",
-   "kind": "drink",
-   "band": 4,
-   "by": "bench Level 45",
-   "doors": [
-    "made by cooking"
    ]
   },
   {
@@ -1332,16 +1100,6 @@
    ]
   },
   {
-   "id": "steel_arrows",
-   "name": "Steel Arrows",
-   "kind": "ammo",
-   "band": 2,
-   "by": "metal steel",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "steel_axe",
    "name": "Steel Axe",
    "kind": "tool",
@@ -1355,16 +1113,6 @@
    "id": "steel_pickaxe",
    "name": "Steel Pickaxe",
    "kind": "tool",
-   "band": 2,
-   "by": "metal steel",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
-   "id": "steel_whetstone",
-   "name": "Steel Whetstone",
-   "kind": "ammo",
    "band": 2,
    "by": "metal steel",
    "doors": [
@@ -1389,16 +1137,6 @@
    "by": "bench Level 55",
    "doors": [
     "gathered"
-   ]
-  },
-  {
-   "id": "tomato_juice",
-   "name": "Tomato Juice",
-   "kind": "drink",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by cooking"
    ]
   },
   {
@@ -1479,16 +1217,6 @@
    "by": "bench Level 20",
    "doors": [
     "made by cooking"
-   ]
-  },
-  {
-   "id": "willow_plank",
-   "name": "Willow Plank",
-   "kind": "material",
-   "band": 2,
-   "by": "metal willow",
-   "doors": [
-    "made by crafting"
    ]
   },
   {

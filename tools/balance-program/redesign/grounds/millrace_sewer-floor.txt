@@ -6,10 +6,10 @@ cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  p
 base:steady         0.1 +- 0        0.1   100   100    0.6      5       0       54      0     0  0 (0/0/0)                       6  {"hold":1944,"climb":11,"fall":202}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady         0.6x  sd 0  n 4  window 6 h  seeds 0.6 0.6 0.6 0.6
+  base:steady        0.44x  sd 0  n 4  window 6 h  seeds 0.44 0.44 0.44 0.43
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L5  coin 9362 +- 44  income 9872 +- 48  store 2839  kit share 0.29 (meal 161, drink 2075, charge 602, shot 0)  loot by band: common 134, uncommon 33, scarce 343, other 0  n 4
+  base:steady       L5  coin 8517 +- 40  income 8912 +- 42  store 2839  kit share 0.32 (meal 161, drink 2075, charge 602, shot 0)  loot by band: common 111, uncommon 26, scarce 258, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -25,4 +25,4 @@ held as absolute steps (src/core/bands.js: a Level of reference strength) and su
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
   base:steady       abs 1.3 (depth 1)  free 65  spell 833  food 103  taken 17.67 pm/s
 
-wall 74 s
+wall 37 s

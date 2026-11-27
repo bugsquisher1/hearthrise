@@ -87,13 +87,13 @@
    "xpPerHeroH": 7317,
    "gold": {
     "coinPerHeroH": {
-     "mean": 10307,
-     "sd": 79,
+     "mean": 10401,
+     "sd": 80,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 10507,
-     "sd": 72,
+     "mean": 10601,
+     "sd": 73,
      "n": 4
     },
     "storePerHeroH": {
@@ -254,7 +254,7 @@
    }
   }
  },
- "wallS": 54,
+ "wallS": 32,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

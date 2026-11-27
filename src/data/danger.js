@@ -239,11 +239,11 @@ export const DANGER_GROUNDS = Object.freeze({
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
      item Level 20 (lane/scale-grounds-2): its strong four in tier 0 holds 170, where it held the old top 190 in iron. */
-  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 145, refKillsHead: 125, refHeld: 105, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   /* THE LAST BRONZE GROUNDS (lane/scale-grounds-sweep step 2; 12-targets 8.3): Wickstead (8-18) and the Sewer (5-19) inside tier 0, so every
      cell wears bronze (29 7.5); formulaStep 70 as on the first grounds, the band, kill rate and coin level measured (new-ground.mjs --hold-level) */
-  wickstead: ground({ refStep: 80, floorStep: 0, topStep: 125, refKillsHead: 135, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
-  millrace_sewer: ground({ refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
+  wickstead: ground({ refStep: 80, floorStep: 0, topStep: 125, refKillsHead: 140, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
+  millrace_sewer: ground({ refStep: 60, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
   mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   /* THE SECOND PAIR (lane/scale-grounds-2; 27 stage 6): the Glade on iron (item Level 20, ladder tier 2), the Warrens on steel (40, ladder
      tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS

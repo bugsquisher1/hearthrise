@@ -275,8 +275,8 @@ const RUNE_LABEL = Object.freeze(Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f
 const RUNE_FACES = Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f) => ['rune_' + f, Object.freeze(RUNE_BAND_TIERS.map((t) => runeId(f, t)))]));
 /* BANDS 2 AND 3 ARE STEEL AND MITHRIL (lane/kit-bands-2-3, 09 4.14). STEEL'S ORE IS COAL: a kind takes one material at every band, and
    the rock that is new at steel is the coal it needs, so Mining opens a new rock each band (copper, iron, coal, mithril). THE FISH, THE
-   CROP AND THE WOOD climb in their node and press order (pikeperch then goldgill; tomato then pumpkin; willow then maple), so bands 4 to 8
-   still find one each (lobster, swordfish, frostfin, shark, moonfish). PAST IRON A CROSSBOW SHOOTS ITS BAND'S ARROWS (hunt-roles.js
+   CROP AND THE WOOD climb in their node and press order (pikeperch then goldgill; tomato then pumpkin; willow then maple), so the fish
+   leave one for each of bands 4 to 8 (lobster, swordfish, frostfin, shark, moonfish). PAST IRON A CROSSBOW SHOOTS ITS BAND'S ARROWS (hunt-roles.js
    shootsItem: any Ranged ammo): no steel or mithril bolt is an item, and two would be the same hour of arrows under a new name */
 export const KIT_FACES = Object.freeze({
   ore: Object.freeze(['copper_ore', 'iron_ore', 'coal', 'mithril_ore']),

@@ -63,6 +63,8 @@ import { DRAW as MARCH_SHIELD_ICONS } from '../tools/world-art/march-shield-icon
 import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/ability-tiles.mjs';
 import { DRAW as KRELL_ICONS, toImage as krellImage } from '../tools/world-art/krell-icons.mjs';
 import { DRAW as STEP_TIER_ICONS } from '../tools/world-art/step-tier-icons.mjs';
+/* the job slice's new goods (lane/k1-job-slice): re-dyed placeholders the Art Director may replace */
+import { DRAW as JOB_FACE_ICONS } from '../tools/world-art/job-face-icons.mjs';
 import { factionIcon } from '../tools/world-art/faction-icons.mjs';
 import { FACTION_ART } from '../src/data/item-art.js';
 import { STANDING_SIDES } from '../src/data/grounds/shape.js';
@@ -398,6 +400,7 @@ const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(
   ...(Object.keys(PICKAXE_ICONS).sort().join() === PICKAXE_REGENERATE.map((s) => s.replace('items/', '')).sort().join() ? [] : [{ rule: 'pickaxe', id: 'worklist', detail: 'PICKAXE_REGENERATE (src/data/item-art.js) must list exactly the pickaxes tools/world-art/pickaxe-icons.mjs re-dyes' }]),
   ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage), ...checkDrawn(join(ROOT, DIR), LADDER_ICONS, (img) => img),
   ...checkDrawn(join(ROOT, DIR), KRELL_ICONS, krellImage), ...checkDrawn(join(ROOT, DIR), STEP_TIER_ICONS, (img) => img),
+  ...checkDrawn(join(ROOT, DIR), JOB_FACE_ICONS, (img) => img),
   ...checkFactionList(FACTION_ART), ...checkIcons(join(ROOT, FACTION), FACTION_ART), ...checkDuplicates(join(ROOT, FACTION), FACTION_ART, []),
   ...checkDrawn(join(ROOT, FACTION), FACTION_DRAW, factionIcon)];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads + ${FACTION_ART.length} faction icons`, findings);

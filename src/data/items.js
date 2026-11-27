@@ -11,7 +11,7 @@ import { CHAMPION_ITEMS } from './champions.js';
 import { DRINK_ITEMS } from './drinks.js';
 import { IMBUE_ITEMS } from './imbuements.js';
 import { IMBUE, IMBUE_RULES } from './imbue-rules.js';
-import { IMBUE_JOBS, streamFaceOf } from './trades.js';
+import { IMBUE_JOBS, streamFaceOf } from './job-faces.js';
 import { SHIELD_ITEMS } from './shields.js';
 import { CALL_ITEMS } from './boss-calls.js';
 import { JEWELRY_ITEMS } from './jewelry.js';

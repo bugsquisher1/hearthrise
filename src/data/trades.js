@@ -29,9 +29,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
-import { IMBUE, IMBUE_SLOTS, IMBUE_RULES, imbueBandOf, imbueItemOf } from './imbue-rules.js';
+import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
 import { TEMPER_STEPS, TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
-import { GEAR_STEPS } from './gear-steps.js';
+import { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId } from './job-faces.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -278,23 +278,12 @@ export const KIT_FACES = Object.freeze({
      and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
   temper_kit: TEMPER_KITS,
 });
-/* THE REMAINS A BAND (lane/k1-job-slice, backend-architect, 2026-11-26; imbue-rules.js: "the Remains good is one a band, and the job
-   slice names its face"). JUDGMENT, the designer re-rules it (CONFLICTS 2026-11-26 k1-job-slice): band 2 is Bones (inner-flame.js
-   FLAME_FUEL stands it at entry Level 45, band 2, and it drops on every band-2 imbuement part's home ground) and band 3 is Razor Claw
-   (FLAME_FUEL Level 70, band 3, and it drops on the Pyre Field, home of both band-3 parts). Band 1 has no imbuement, so no face. */
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', null, 'bones', 'razor_claw']) });
+/* THE HUNTED STREAMS' FACES (STREAM_FACES: Remains a band, lane/k1-job-slice's call) and THE IMBUEMENT JOBS (IMBUE_JOBS, one Artificing
+   job an imbuement) live in ./job-faces.js, so the item table reads them without loading this catalogue; re-exported here. */
+export { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId };
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
 export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', ...TEMPER_KIT_NEW });
-
-/* ── THE IMBUEMENT JOBS (lane/k1-job-slice, backend-architect, 2026-11-26; 21 section 3.2, HANDOFFS 2026-11-26 tp-server-1) ──────────
-   Artificing makes `imbue_<id>` (imbueItemOf) from its row's part and the Remains of its band, one job row an imbuement, derived from
-   IMBUE_RULES and never typed. Its BAND is its part's (imbueBandOf, an entry Level) read as a gear band (tierSteps a band), so a Fire
-   Ward made from Ford weed is band 2 and a Brute Edge from a Pyre Field ferrule band 3. Its counts are imbueRecipe's (5 parts, 4 Remains),
-   which is also what src/core/trades.js jobRecipes reads off the catalogue's hunted inputs (the hour-unit rule there).
-   JUDGMENT (CONFLICTS 2026-11-26 k1-job-slice): an imbuement opens at the kind's own rung, not at its band's (bandRung), because no
-   imbuement sits under band 2 and a trade gated at Level 21 with nothing under it could never be trained. */
-export const imbueJobId = (imbue) => 'imbuement_' + imbue;
 
 /** THE JOB'S DOORS for catalogue-coherence (data only, no counts): one row a job recipe, { id, trade, output, inputs: [item ids] }, the
     output its face and the inputs the faces of its parts, materials and hunted streams at its band (src/core/trades.js jobRecipes is the
@@ -309,18 +298,11 @@ export function jobFaces() {
   for (const j of IMBUE_JOBS) out.push(Object.freeze({ id: j.id, trade: KINDS.imbuement.trade, output: j.face, inputs: Object.freeze([j.part, streamFaceOf('remains', j.band)]) }));
   return Object.freeze(out);
 }
-export const IMBUE_JOBS = Object.freeze(Object.keys(IMBUE_RULES).filter((id) => imbueBandOf(id) !== null).map((id) => Object.freeze({
-  id: imbueJobId(id), imbue: id, kind: 'imbuement', band: Math.floor(imbueBandOf(id) / GEAR_STEPS.tierSteps),
-  name: 'Make ' + IMBUE_RULES[id].name, face: imbueItemOf(id), part: IMBUE_RULES[id].part,
-})));
 
 /** A recipe's id: its kind and its band ('arrow_b0'). Derived, never typed. */
 export const recipeId = (kind, band) => kind + '_b' + band;
 /** The item a kind is at `band` (null: no face named yet). */
 export const faceOf = (kind, band) => (KIT_FACES[kind] && KIT_FACES[kind][band]) || null;
-/** The item a hunted stream drops at `band` (null: none named). */
-export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;
-
 const kitRow = (kind, band, name) => Object.freeze({ id: recipeId(kind, band), kind, band, name });
 
 /* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1

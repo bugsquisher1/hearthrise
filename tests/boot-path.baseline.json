@@ -406,6 +406,12 @@
         "gzipBytes": 980049,
         "on": "2026-11-27",
         "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 984370,
+        "on": "2026-11-27",
+        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js) and the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows)"
       }
     ]
   }

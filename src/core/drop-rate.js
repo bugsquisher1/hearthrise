@@ -116,23 +116,26 @@ function droppedRows(ground, monsters) {
   for (const p of ground.route) for (const s of (ground.pockets[p].pack || ground.pockets[p].spawns)) ids.add(s.monster);
   return [...ids].flatMap((m) => (monsters[m] && monsters[m].drops) || []).concat(ground.drops || []);
 }
+/* A NAMED TWIN (`statsAs`: a named piece that is another row's piece to the number, 28-named-pieces 2.7) is never a Trait base: its door is
+   its own Rare row, and a Trait piece lands on the ground's plain base (12-targets 8.6.1), which its plain piece is (lane/named-piece-drops) */
+const isTwin = (it) => !!it && typeof it.statsAs === 'string';
 
-/** The Trait slots `ground`'s drop rows carry a piece of: its monsters' rows and its own (a Catacomb wing's), sorted. */
+/** The Trait slots `ground`'s drop rows carry a plain piece of (never a named twin): its monsters' rows and its own (a Catacomb wing's), sorted. */
 export function traitSlotsDropped(ground, traitSlots, monsters = MONSTERS, items = ITEMS) {
   const out = new Set();
-  for (const r of droppedRows(ground, monsters)) { const it = items[r.id]; const s = it && it.slot ? traitSlotOf(it.slot, traitSlots) : null; if (s) out.add(s); }
+  for (const r of droppedRows(ground, monsters)) { const it = items[r.id]; const s = it && it.slot && !isTwin(it) ? traitSlotOf(it.slot, traitSlots) : null; if (s) out.add(s); }
   return [...out].sort();
 }
 
 /** THE BASES a Trait piece found on `ground` may be, { Trait slot: [item ids] } sorted (lane/t1-traits-drop, 2026-11-26): the pieces its drop
     rows carry in each Trait slot at the ground's base item Level `gearLevel` (12-targets 3.3: the ground fixes the base, one base a ground,
-    8.3), or, in a slot whose rows carry none at that Level, every piece they carry there. A Rare is the piece that dropped
-    (GEAR_STEPS.traitRoll.slotFirst), so its base is one of these; the server holds the same list (1071-trait-pieces-catalogue's hr_trait_bases). */
+    8.3), or, in a slot whose rows carry none at that Level, every piece they carry there; never a named twin (isTwin). A Rare is the piece
+    that dropped (GEAR_STEPS.traitRoll.slotFirst), so its base is one of these; the server holds the same list (1071-trait-pieces-catalogue's hr_trait_bases). */
 export function traitBasesOf(ground, traitSlots, gearLevel, monsters = MONSTERS, items = ITEMS) {
   const all = {}, at = {};
   for (const r of droppedRows(ground, monsters)) {
     const it = items[r.id];
-    const s = it && it.slot ? traitSlotOf(it.slot, traitSlots) : null;
+    const s = it && it.slot && !isTwin(it) ? traitSlotOf(it.slot, traitSlots) : null;
     if (!s) continue;
     (all[s] || (all[s] = new Set())).add(r.id);
     if (it.iL === gearLevel) (at[s] || (at[s] = new Set())).add(r.id);

@@ -9,9 +9,12 @@
 //
 // THE STATE (player_state.work_day, work_ms; the envelope's `work_day` section): the last UTC day the hero worked and the
 // ms of town work it did that day. A window [from, to] of work spends, day by day, its overlap with each UTC day; a day's
-// spend may not pass that day's cap. The cap is the hero's base day (free, or free + Premium's extra) plus, on the server's
-// today only, the work blocks bought today and those the hero's standing rule may still buy today (`extraMs`, the server's
-// hr_work_extra_ms, 1071-work-blocks.sql: a rule's block is charged at the settle whose work enters it, so the engine works on into it).
+// spend may not pass that day's cap. EACH UTC DAY'S CAP IS ITS OWN: the hero's base day (free, or free + Premium's extra) plus
+// the work blocks bought ON THAT DAY. The server's today's are `extraMs` (hr_work_extra_ms, 1071-work-blocks.sql: a rule's block
+// is charged at the settle whose work enters it, so the engine works on into it); an earlier day's are `boughtMs` (the section's
+// `bought`, hr_work_bought in 1075-work-blocks-midnight.sql: the days a window from the watermark can touch), so a hero working
+// inside a block at midnight is not stopped by a settle that reads the next day (lane/work-blocks-midnight). A day after the
+// server's today has bought none yet.
 //
 // THE STOP. From a window's start the hero works until the day's work is used up. If midnight comes first, the new UTC day
 // opens a fresh cap and the hero works on until that cap is used up (the day is under 24 h, src/data/work-day.js validate,
@@ -39,13 +42,20 @@ export function isWorkKind(kind) { return WORK_KINDS.includes(kind); }
 
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
 
-/* The cap of the UTC day `dayMs` for a hero whose state is `w` ({ baseMs, extraMs, todayMs }): the base day (the server's
-   hr_work_base_ms: the free day, or with Premium's extra), plus the work bought today on the server's today only. */
-function capOfDay(w, dayMs) {
-  return nat(w.baseMs) + (dayMs === w.todayMs ? nat(w.extraMs) : 0);
+/* The work bought on the UTC day `dayMs`: the server's today's is `extraMs`; another day's is `boughtMs[dayMs]` (absent: none). */
+function boughtOn(w, dayMs) {
+  if (dayMs === w.todayMs) return nat(w.extraMs);
+  const b = w.boughtMs;
+  return b && typeof b === 'object' && Object.prototype.hasOwnProperty.call(b, dayMs) ? nat(b[dayMs]) : 0;
 }
 
-/** The instant work that starts at `fromMs` must stop (>= fromMs). `w`: { dayMs, usedMs, baseMs, extraMs, todayMs }. */
+/* The cap of the UTC day `dayMs` for a hero whose state is `w` ({ baseMs, extraMs, todayMs, boughtMs }): the base day (the
+   server's hr_work_base_ms: the free day, or with Premium's extra), plus the work bought on that day. */
+function capOfDay(w, dayMs) {
+  return nat(w.baseMs) + boughtOn(w, dayMs);
+}
+
+/** The instant work that starts at `fromMs` must stop (>= fromMs). `w`: { dayMs, usedMs, baseMs, extraMs, todayMs, boughtMs? }. */
 export function workStopMs(w, fromMs) {
   const d0 = utcDayStart(fromMs);
   const used0 = d0 === w.dayMs ? nat(w.usedMs) : 0;
@@ -80,6 +90,18 @@ export function foldWork(w, fromMs, toMs) {
   return { ok: over <= 0, dayMs, usedMs, overMs: Math.max(0, over), leftMs: Math.max(0, capMs - usedMs) };
 }
 
+/* The section's `bought` ({ 'YYYY-MM-DD': ms }, the work bought on each day before today a window can touch) keyed by day ms.
+   A key that is no day, today or later, or a value that is no whole ms is dropped (today's is extra_ms). */
+function boughtOf(b, todayMs) {
+  const out = {};
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return out;
+  for (const k of Object.keys(b)) {
+    const d = dayMsOf(k);
+    if (d !== null && d < todayMs && Number.isSafeInteger(b[k]) && b[k] > 0) out[d] = b[k];
+  }
+  return out;
+}
+
 /** The work state the engine reads, from the envelope's `work_day` section, or null (a database without the work day). */
 export function workStateOf(section) {
   const s = section;
@@ -88,5 +110,5 @@ export function workStateOf(section) {
   if (todayMs === null || !Number.isSafeInteger(s.base_ms) || s.base_ms < 0) return null;
   const dayMs = dayMsOf(s.day);
   return { dayMs: dayMs === null ? todayMs : dayMs, usedMs: dayMs === null ? 0 : nat(s.used_ms), baseMs: s.base_ms,
-    extraMs: nat(s.extra_ms), todayMs };
+    extraMs: nat(s.extra_ms), todayMs, boughtMs: boughtOf(s.bought, todayMs) };
 }

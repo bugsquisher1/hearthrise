@@ -283,16 +283,8 @@ export const PENDING_SOURCE = Object.freeze({
   training_shield_24h_bound: 'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
   /* (Tier 7's caster pair, hatchets and crossbow left: Lord Krell's hall row names them since the keyed hall folded, lane/b-barrow-integrate
      2026-11-14; reachable since the March opened, lane/b-open-march.) */
-  /* THE STAGED UNIQUES PAST DAWNSTEEL, KEPT AS NAMED PIECES (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8, lane/retire-dawnsteel-lines):
-     each one's door is a Rare row on its home monster, and that row goes in with its home's art, since a revealed Rare shows its own pixel icon
-     (tests/hunt-core/drop-tables.mjs loot-structure). Each row leaves the day its drop row lands (art-director the icon, then systems-engineer the
-     row; tests/gear-stats.mjs GSF-11 LATE_HOMES names the monster). */
-  burnt_crag_leg_plates: '28-named-pieces 2.7: the Crag Wyvern\'s Rare on Wyvern Roost, with the Roost\'s art, art-director then systems-engineer',
-  limewashed_plate:      '28-named-pieces 2.7: the Bone Wall\'s Rare on the Catacomb wings, with the wings\' art, art-director then systems-engineer',
-  keepers_leg_plates:    '28-named-pieces 2.7: Keeper Dunn\'s Rare on the Flooded Wing, with the wings\' art, art-director then systems-engineer',
-  paupers_shroud:        '28-named-pieces 2.7: the Shrouded Pauper\'s Rare on the Catacomb wings, with the wings\' art, art-director then systems-engineer',
-  watchmans_sword:       '28-named-pieces 2.7: the Shrouded Pauper\'s Rare on the Catacomb wings, with the wings\' art, art-director then systems-engineer',
-  dunns_mallet:          '28-named-pieces 2.7: Keeper Dunn\'s Rare on the Flooded Wing, with the wings\' art, art-director then systems-engineer',
+  /* (The six staged uniques past Dawnsteel kept as named pieces, 28-named-pieces.md 2.7, left with lane/named-piece-drops: each one's door is a
+     Rare row on its home monster, staged with its ground, src/data/catalogue-coherence.js UNREACHABLE.staged.) */
 });
 export const PENDING_CONSUMER = Object.freeze({
   /* (prayer's row left with the skill, 2026-10-27: Inner Flame's regen rate is an ENGINE_SKILL_CONSUMERS row) */

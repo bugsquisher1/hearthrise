@@ -211,6 +211,10 @@ export const UNREACHABLE = Object.freeze({
     'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
     /* UNMARKED CATACOMBS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
     'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
+    /* THE NAMED PIECES PAST DAWNSTEEL (28-named-pieces.md 2.7, lane/named-piece-drops): each a Rare row on its home's body, staged with it.
+       Wyvern Roost: the Crag Wyvern's Burnt Crag Leg Plates. The Catacomb wings: the Bone Wall's Limewashed Plate, the Shrouded Pauper's
+       Shroud and Watchman's Sword, Keeper Dunn's Leg Plates and Mallet */
+    'burnt_crag_leg_plates', 'limewashed_plate', 'paupers_shroud', 'watchmans_sword', 'keepers_leg_plates', 'dunns_mallet',
     /* A TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): every piece of it no open ground's body drops (a
        home's base row or a made piece from a home's part) waits for a home to open. DERIVED, so a piece leaves the list the build its home
        opens or an open ground starts dropping it; a named piece of the tier (a chest's twin, a lucky find) has its own door */

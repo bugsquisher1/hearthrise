@@ -173,7 +173,9 @@ The 13 hidden samples of `tools/balance-sim/staged/armor-line.js` and `weapon-li
 
 Kept 6, cut 7. The kept rows go into their homes' drop rows when those grounds' art lands, sized by the formula at the base tier and carrying the rule (Systems, HANDOFFS 2026-11-27). Their Temper is Temper on steps like any piece (21 section 2).
 
-Built (lane/retire-dawnsteel-lines): the six are item rows in their homes' packs (`src/data/grounds/wyvern_roost/pack.js`, `unmarked_catacombs/pack.js`), each its plain piece to the number (`statsAs`) plus its rule, held by `tests/gear-stats.mjs` GSF-11. Each one's Rare row on its monster waits for the home's art (the reveal's pixel icon), so until then it is a `PENDING_SOURCE` row in `tests/catalogue-coherence.mjs`. The seven cut rows and the staged line files are gone.
+Built (lane/retire-dawnsteel-lines): the six are item rows in their homes' packs (`src/data/grounds/wyvern_roost/pack.js`, `unmarked_catacombs/pack.js`), each its plain piece to the number (`statsAs`) plus its rule, held by `tests/gear-stats.mjs` GSF-11. The seven cut rows and the staged line files are gone.
+
+Dropped (lane/named-piece-drops, 2026-11-27): each one is a Rare row on its home's body, about 15 hunted hours a hero where that body is farmed (the Crag Wyvern on the Roost, the Bone Wall and the Paupers on the Bone Wing, Keeper Dunn on the Flooded Wing), held by `tests/hunt-core/drop-tables.mjs` rare-pace and GSF-11. The icons are placeholders until the art pass. A named twin is never a Trait base (`src/core/drop-rate.js`): a Trait piece lands on the plain piece.
 
 ## 3. The two straight curves and the grate
 

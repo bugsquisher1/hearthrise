@@ -5554,3 +5554,8 @@ Merged in order: lane/c-tower-all b1e4ab021, lane/a-next-steps ded1b94a6, lane/b
 3. *A twin should inherit what it never types.* statsAs already carried step, iL and wear; tier and book were the next two numbers a named piece would have typed twice.
 4. *Name a base red before you touch its area.* balance-matrix's Talents arm read 0.987 on the base before this lane changed anything; measured first, it stays named, not owned by accident.
 5. *Handoffs:* HANDOFFS 2026-11-27 (retire-dawnsteel-lines): the drop rows wait on the art, the registers' closed findings, the stale matrix caches.
+## 2026-11-27 · lane/named-piece-drops (28 2.7, 12-targets 8.8: the six named pieces past Dawnsteel drop)
+1. *A guard that stops at its first red hides the second.* loot-structure returns on the first bad row, so the old file showed only the dropper's-tier red; the "not tier 8" red came out only with that line removed. Prove each retired rule on its own.
+2. *A body shared by grounds breaks a per-ground pace rule.* One chance a kill (Tyler 11-09) on the Catacombs' five bodies cannot sit in band on three grounds that kill them 22 to 97 times an hour. Judge it at one sample point (where it is farmed), the BAND_ALT precedent, never a looser band.
+3. *A new drop row is an input to every reader of drop rows.* The Trait roller's bases read every dropped piece at the ground's Level, so a named twin silently became a second door. Grep the readers (traitBasesOf, traitSlotsDropped) before calling a data row "data only".
+4. *Handoffs:* HANDOFFS 2026-11-27 (named-piece-drops), CONFLICTS 2026-11-27 (the reference-company reading, Dunn's 57 h; four named non-twins already Trait bases).

@@ -2013,7 +2013,7 @@
   },
   "hr_piece_signatures": {
    "class": "seeded",
-   "replay": 5,
+   "replay": 19,
    "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): every Signature's equip slot. Rebuilt from repo, never restored."
   },
   "hr_piece_traits": {

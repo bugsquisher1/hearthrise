@@ -7483,18 +7483,6 @@ jobs:
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
 
-      # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
-      # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
-      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden (the unique Tempering bands retired with the old
-      # rungs, lane/tp-im-steps). Seconds each; the proofs plant in memory.
-      - name: Past Dawnsteel - the armor and weapon lines
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/armor-line.mjs
-          node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
-          node tests/weapon-line.mjs
-          node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
-
       # SPECIAL-ATTRIBUTE GEAR (designer, lane/d-special-attributes; Tyler 2026-11-14 "sprinkle items like this throughout the game"): each of the
       # five sample rows in src/data/special-attributes.js is the standard piece plus one attribute at its tier's size, with a home a player can
       # reach; a row not shipped is on no item list or drop table, and the two that ship (Krell's Tollgate, the Banded Legguards) ship exactly as

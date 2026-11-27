@@ -46,7 +46,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 770 (in 264 files, 17547 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 770 (in 264 files, 17573 typed numbers) |
 | Claimed by a lever | 333 |
 | Claimed by a not-a-lever reason | 437 |
 | Unclaimed | 0 |
@@ -191,7 +191,6 @@ Each row below is a flag on a lever, with its evidence label. The sources are th
 | contradictory | `reward.xp-line` Level XP a kill | No term for how fast a ground's monsters die, so every ground got a hand correction. The Level curve, the pace target and kill XP were then fitted to each other in a circle | 44 summary item 2, CONFIRMED |
 | contradictory | `rare.bestiary-mults` Bestiary drop and damage multipliers | Luck v3.1 (Tyler 2026-11-20) cuts the charm ladder. The rows remain | rulings-of-record LUCK v3.1 |
 | contradictory | `gear.accessories` Jewelry and cloaks | The kit wears a tier 3 ring, tier 2 studs and necklace and a tier 3 cloak at every Level from 30, because nothing later has a source | 54-review-items call 1 and patches/items-2.json, CONFIRMED there. MEASURED value 12-balance-pass |
-| contradictory | `gear.uniques` Unique, chest and boss pieces | Each unique's armor was sized to "the most that keeps its measure under the line", four digits from 1.0000: any engine change moves the measure | 44 X-ARMOR-LINE-FIT, CONFIRMED |
 | contradictory | `cons.rune-price` Store rune price by tier | A default bar that spends gold (Rend on the two-axe default) | 44 X-REND-DEFAULT, CONFIRMED |
 | contradictory | `cons.food-buffs` Food and drink buffs | Luck v3.1 (Tyler 2026-11-20) cuts the four foods' drop buffs. The rows remain | rulings-of-record LUCK v3.1 |
 | contradictory | `party.class-xp` Party XP by size and classes | Tyler S-10 c (2026-11-21): party XP by SIZE ALONE for the first build. The class table is live (patches/party-xp-by-size.json plays the ruling) | rulings-of-record S-10 |

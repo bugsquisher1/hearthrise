@@ -13,15 +13,15 @@
 // src/data/abilities.js castAmount of it at the version's step (runes.js versionStep), and a hit loses the monster's defence once in
 // src/core/hunt/damage.js hurt, as a swing does. Damage as a share of that monster's HP and in the caster's own average LANDED swings
 // (its real to-hit on that monster, src/data/to-hit.js); a heal or a shell as a share of the caster's HP and in monster blows.
-// LEVEL 185: no weapon exists past tier 7, so the kit is the Level 110 kit ("tier 7") and, beside it, the same kit with its weapon on
-// the ruled line past Dawnsteel (Tyler 2026-11-16: about x Level / 110, staged/weapon-line.js LINE_FIELDS). Skills past Level 100 are
-// the projection spell-ratios.mjs uses (ASSUMED).
+// LEVEL 185: the kit is the Level 110 kit (the open grounds' "tier 7") and, beside it, the same kit with its weapon the formula piece of
+// the tier a Level 185 hero wears (12-targets 8.3 a and 8.8: every tier the one gear formula at its item Level, src/core/gear-stats.js
+// statsOfRow; the staged Dawnsteel line, x Level / 110, retired with 8.8). Skills past Level 100 are the projection spell-ratios.mjs uses
+// (ASSUMED).
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadGear } from '../gear.mjs';
 import { loadLines, skillsAt } from '../skill-lines.mjs';
 import { sourceQuery } from '../../lib/version-stamp.mjs';
-import { LINE_FIELDS, weaponLineScale } from './weapon-line.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const u = (root, p) => pathToFileURL(join(root, p)).href;
@@ -35,6 +35,10 @@ const { STATUSES } = await import(u(ROOT, 'src/data/statuses.js') + v);
 const { RUNE_FAMILIES, RUNE_TIERS } = await import(u(ROOT, 'src/data/runes.js') + v);
 const MC = await import(u(ROOT, 'src/data/monster-classes.js') + v);
 const { MONSTERS } = await import(u(ROOT, 'src/data/monsters.js') + v);
+const GSF = await import(u(ROOT, 'src/core/gear-stats.js') + v);
+const { GEAR_STEPS } = await import(u(ROOT, 'src/data/gear-steps.js') + v);
+/* the item Level of the tier a hero of Level L wears (one tier every tierSteps item Levels, worn from it less wearAhead) */
+const wornIL = (L) => GEAR_STEPS.tierSteps * Math.floor((L + GEAR_STEPS.wearAhead) / GEAR_STEPS.tierSteps);
 const { BAR_BUDGET } = await import(u(ROOT, 'tools/balance-program/guard-cells.mjs'));
 const { plant } = await import(u(ROOT, 'tests/hunt-core/fixtures/h1.js'));
 /* the dark rows: abilities.js of a planted copy with both switches on */
@@ -67,7 +71,7 @@ const pct = (x) => (x * 100).toFixed(0) + '%';
 const x2 = (x) => x.toFixed(2);
 const ROMAN = 'I II III IV V'.split(' ');
 
-/* THE MONSTER OF A LEVEL (its aim and evasion too: the to-hit ratio) and THE HERO'S OWN BLOW there; `line`: the weapon on the ruled line past 110 */
+/* THE MONSTER OF A LEVEL (its aim and evasion too: the to-hit ratio) and THE HERO'S OWN BLOW there; `line`: the weapon the formula piece of the tier the Level wears, past 110 */
 const monAt = (L) => {
   const tier = tierAt(L);
   const f = BS.formulaStats({ level: L, role: 'regular', tier, floor: Math.max(16, L - 8), fit: 'both' });
@@ -81,8 +85,8 @@ const blowAt = (way, L, line) => {
   const equipment = kit.equipment || kit;
   let items = gear.ITEMS;
   if (line && L > 110 && equipment.weapon && items[equipment.weapon]) {
-    const w = { ...items[equipment.weapon] };
-    for (const k of LINE_FIELDS) if (Number.isFinite(w[k])) w[k] = Math.round(w[k] * weaponLineScale(L));
+    /* the same weapon's family, its stats the gear formula's at the item Level of the tier Level L wears */
+    const w = { ...items[equipment.weapon], ...(GSF.statsOfRow(items[equipment.weapon], wornIL(L), items) || {}), iL: wornIL(L) };
     items = { ...items, [equipment.weapon]: w };
   }
   const sk = project(way, MAIN[way], L);
@@ -119,7 +123,7 @@ const cell = (row, way, L, r, line) => {
 console.log('SPELL AUDIT UNDER THE SPELL RULE (no play). A same-Level regular of a full ground; the caster on its career line (projected past ' + top + '). One cast on a rune of its own version (a store rune lands 75%). Version steps: ' + RUNE_TIERS.map((t) => t.stepPm).join(' / ') + '.');
 console.log('\n1. THE MONSTER AND THE HERO: Level | hunted hours | monster HP | monster blow (max) | hero HP | defence off a hit');
 for (const L of LEVELS) { const M = monAt(L); console.log([L, hoursAt(L).toFixed(0), M.hp, M.blow, M.heroHp, M.red].join(' | ')); }
-console.log('\n2. THE OWN BLOW: way | ' + LEVELS.map((L) => 'L' + L + ': skill, max hit (the unit\'s), to-hit, average landed swing as a share of the monster').join(' | ') + ' | L185 on the weapon line: max hit');
+console.log('\n2. THE OWN BLOW: way | ' + LEVELS.map((L) => 'L' + L + ': skill, max hit (the unit\'s), to-hit, average landed swing as a share of the monster').join(' | ') + ' | L185 on the formula: max hit');
 for (const way of WAYS) console.log([way, ...LEVELS.map((L) => { const b = B(way, L); return b.skill + ', ' + b.maxHit + ', ' + pct(b.acc) + ', ' + pct(b.swing / monAt(L).hp); }), B(way, 185, true).maxHit].join(' | '));
 
 console.log('\n3. EVERY ROW: id (ways, lane, cooldown s, target, rune family, unlock, live or dark) on its way, its share (permille of max hit, Mend of max HP) | then for each Level: version, mana: lands');
@@ -133,7 +137,7 @@ for (const row of Object.values(A.ABILITIES)) {
   if (kind === 'effect') { console.log(head + ' | no number: ' + (row.status ? 'status ' + row.status : row.target === 'mark' ? '+' + row.bonusPct + '% for ' + row.durMs / 1000 + ' s' : 'taunt') + ', mana ' + row.mana); continue; }
   for (const way of waysOf(row)) {
     const cells = LEVELS.map((L) => { const r = cast(row, way, L); return 'L' + L + ': ' + ROMAN[r.n - 1] + ', ' + r.mana + ' mana: ' + cell(row, way, L, r); });
-    console.log([head + ' on ' + way + ', share ' + share(row), ...cells, '185 on the weapon line: ' + cell(row, way, 185, cast(row, way, 185, true), true)].join(' | '));
+    console.log([head + ' on ' + way + ', share ' + share(row), ...cells, '185 on the formula: ' + cell(row, way, 185, cast(row, way, 185, true), true)].join(' | '));
   }
 }
 

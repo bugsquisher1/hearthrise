@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "6142687d14df448b",
+ "authored": "c2f7ec1ed5ef6bfb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -113,12 +113,12 @@
   "flags": {
    "redundant": 42,
    "ineffective": 32,
-   "contradictory": 36
+   "contradictory": 35
   }
  },
  "census": {
   "bindings": 770,
-  "typed": 17547,
+  "typed": 17573,
   "files": 264,
   "lever": 333,
   "notLever": 437,
@@ -190,7 +190,7 @@
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -257,7 +257,7 @@
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 16,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -317,7 +317,7 @@
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/spell-rule.mjs"
     ],
-    "mentionCount": 17,
+    "mentionCount": 16,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -984,7 +984,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
+      "rows": 784,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -2360,7 +2360,7 @@
      "binding": "GEAR_PROFILES"
     }
    ],
-   "definition": "every piece's stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family's profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece states its offset (statPlus). Past 88 the staged Dawnsteel line still lives in tools (X-LINE-IN-TOOLS)",
+   "definition": "every piece's stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family's profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece is its tier's piece plus its rule (28-named-pieces.md); past the last named tier the same formula (12-targets 8.8: the staged Dawnsteel lines retired)",
    "range": "permille of the slot's share, whole; rarity never sizes the base (RARITY_PM all 1000)",
    "touches": "kill speed by gear state; what an upgrade is worth",
    "outcomes": [
@@ -2385,9 +2385,10 @@
    "tests": {
     "asserts": [
      {
-      "file": "tests/weapon-line.mjs",
-      "what": "the weapon line's pace and safety read",
+      "file": "tests/style-gear.mjs",
+      "what": "SG-8: the Mage bar on every tier of the ladder",
       "reads": [
+       "GEAR_LADDERS",
        "gear-tiers"
       ]
      }
@@ -3235,7 +3236,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 33,
+    "mentionCount": 34,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3883,7 +3884,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6229,11 +6230,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6458,15 +6459,15 @@
     ],
     "mentions": [
      "tests/area-spells-server.mjs",
-     "tests/armor-line.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/monster-kinds.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/side-seam.mjs",
-     "tests/hunt-core/spell-rows.mjs"
+     "tests/hunt-core/spell-rows.mjs",
+     "tests/hunt-live.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 9,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6615,11 +6616,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7255,15 +7256,15 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-hunts.mjs",
-     "tests/armor-line.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-grade.mjs",
      "tests/balance-guard.mjs",
      "tests/balance-sheet.mjs",
      "tests/bands.mjs",
-     "tests/boss-call.mjs"
+     "tests/boss-call.mjs",
+     "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 51,
+    "mentionCount": 49,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7343,15 +7344,15 @@
     "asserts": [],
     "mentions": [
      "tests/alpha-windows-hunts.mjs",
-     "tests/armor-line.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-grade.mjs",
      "tests/balance-guard.mjs",
      "tests/balance-sheet.mjs",
      "tests/bands.mjs",
-     "tests/boss-call.mjs"
+     "tests/boss-call.mjs",
+     "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 52,
+    "mentionCount": 50,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10230,11 +10231,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10300,11 +10301,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10421,11 +10422,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10540,11 +10541,11 @@
      "tests/alpha-windows-hunts.mjs",
      "tests/alpha-windows-pure.mjs",
      "tests/alpha-windows-work.mjs",
-     "tests/armor-line.mjs",
      "tests/art-palette.mjs",
-     "tests/artisan-accrual.mjs"
+     "tests/artisan-accrual.mjs",
+     "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 114,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11007,10 +11008,9 @@
      "tests/catalogue-coherence.mjs",
      "tests/hunt-core/forest-cave.mjs",
      "tests/hunt-core/sewer.mjs",
-     "tests/sustain.mjs",
-     "tests/weapon-line.mjs"
+     "tests/sustain.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 6,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11330,7 +11330,7 @@
      "binding": "SAMPLE"
     }
    ],
-   "definition": "each unique sized by hand against a simulator at the fourth digit; Krell's pieces; chest armor's attributes by tier; shields' guard",
+   "definition": "a named piece is its tier's formula piece plus one rule, its size here (a resistance permille, a bane mult; 12-targets 8.8 retired the uniques sized against the Dawnsteel line); Krell's pieces; chest armor's attributes by tier; shields' guard",
    "range": "whole; Level requirement by tier",
    "touches": "the BiS kit and the gear chase",
    "outcomes": [
@@ -11367,16 +11367,16 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/armor-line.mjs",
      "tests/cron-health.mjs",
      "tests/hunt-core/fist-play.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/signature-rules.mjs",
      "tests/hunt-core/talents.mjs",
      "tests/kit-recipes.mjs",
-     "tests/special-attributes.mjs"
+     "tests/special-attributes.mjs",
+     "tests/world-tick-parity.mjs"
     ],
-    "mentionCount": 10,
+    "mentionCount": 8,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11390,8 +11390,9 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "uniques, champions, bane gear, Catacomb chest armor and shields",
+    "what": "uniques, champions, bane gear, the packs' named pieces (a resistance or a bane, 28-named-pieces.md 2.7), Catacomb chest armor and shields",
     "homes": [
+     "src/data/grounds/*/pack.js#default",
      "src/data/champions.js#CHAMPION_ITEMS",
      "src/data/champions.js#CHAMPION_BY_TIER",
      "src/data/library2-items.js#BANE_GEAR",
@@ -11407,13 +11408,7 @@
      "src/data/fists.js#FIST_ITEMS"
     ]
    },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Each unique's armor was sized to \"the most that keeps its measure under the line\", four digits from 1.0000: any engine change moves the measure",
-     "ev": "44 X-ARMOR-LINE-FIT, CONFIRMED"
-    }
-   ],
+   "flags": [],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -11478,12 +11473,10 @@
      }
     ],
     "mentions": [
-     "tests/armor-line.mjs",
      "tests/boss-call.mjs",
-     "tests/special-attributes.mjs",
-     "tests/weapon-line.mjs"
+     "tests/special-attributes.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11536,7 +11529,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11551,7 +11544,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
+      "rows": 784,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11559,7 +11552,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
+      "rows": 784,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11634,7 +11627,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11652,16 +11645,16 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
-      "carrying": 441,
+      "rows": 784,
+      "carrying": 447,
       "distinct": 37,
       "low": 1,
       "high": 168
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
-      "carrying": 225,
+      "rows": 784,
+      "carrying": 229,
       "distinct": 63,
       "low": 1,
       "high": 164
@@ -13791,7 +13784,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 125,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13809,7 +13802,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
+      "rows": 784,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13817,7 +13810,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 778,
+      "rows": 784,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -15725,7 +15718,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 154,
+     "line": 155,
      "text": "export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });",
      "binding": "RUNE_KINDS"
     }
@@ -18098,6 +18091,7 @@
     "k",
     "len",
     "level",
+    "mult",
     "pct",
     "pockets",
     "poison",

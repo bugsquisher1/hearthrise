@@ -1547,7 +1547,7 @@
   },
   "hr_flame_fuel": {
    "class": "seeded",
-   "replay": 8,
+   "replay": 6,
    "note": "Generated catalogue (1063-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs): the Remains goods that burn and the band each is worth at. Empty, hr_flame_burn refuses every item (bad_item); rebuilt from repo, never restored."
   },
   "hr_flame_levels": {
@@ -1849,7 +1849,7 @@
   },
   "hr_item_levels": {
    "class": "seeded",
-   "replay": 401,
+   "replay": 395,
    "note": "Generated catalogue (1063-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs from src/data/items.js): each gear row's item Level (a scale drop's iL, else its Level requirement), which prices Temper and imbuement fees and seats Temper. Empty, every piece reads as no piece (no_piece); rebuilt from repo, never restored."
   },
   "hr_item_slots": {

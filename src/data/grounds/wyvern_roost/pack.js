@@ -69,8 +69,8 @@ export default definePack({
       /* the swarm: half grown, loud and always hungry. They come off the scree in a crowd. Dragon: an arrow, not a sword. Wyverns breathe
          fire, so fire does 25% less and ice 15% more (the Dragon class sets its element per monster). */
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', everyHours: 0.032, ch: 0.5, band: 'common' }, { id: 'eggshell', everyHours: 0.2, ch: 0.08, band: 'uncommon' }],
-      hp: 181, atk: 120, aim: 137, evasion: 41, def: 5, xp: 1691, gp: [27, 79], formula: true },
+      drops: [{ id: 'dragon_bones', everyHours: 0.032, ch: 0.429, band: 'common' }, { id: 'eggshell', everyHours: 0.2, ch: 0.0686, band: 'uncommon' }],
+      hp: 181, atk: 120, aim: 120, evasion: 45, def: 5, xp: 1691, gp: [27, 79], formula: true },
     ledge_wyvern: {
       name: 'Ledge Wyvern', icon: '🐲', tier: 6, level: 130, cls: 'dragon', family: 'Dragon', speed: 3000,
       role: 'shooter',
@@ -78,8 +78,8 @@ export default definePack({
          from 5 tiles and doesn't come down. A bow reaches 7, so a Ranger can out-shoot him, and a Challenge turns him on the tank. */
       range: 5,
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'gizzard_stone', everyHours: 0.5556, ch: 0.08, band: 'uncommon' }],
-      hp: 175, atk: 160, aim: 189, evasion: 41, def: 5, xp: 1986, gp: [26, 77], formula: true },
+      drops: [{ id: 'dragon_bones', everyHours: 0.0889, ch: 0.429, band: 'common' }, { id: 'gizzard_stone', everyHours: 0.5556, ch: 0.0686, band: 'uncommon' }],
+      hp: 175, atk: 160, aim: 167, evasion: 46, def: 5, xp: 1986, gp: [26, 77], formula: true },
     bull_wyvern: {
       name: 'Bull Wyvern', icon: '🐲', tier: 6, level: 133, cls: 'dragon', family: 'Dragon', speed: 2400,
       role: 'brute',
@@ -87,8 +87,8 @@ export default definePack({
          heroes who crowd him pay for it. */
       spells: ['tail_sweep'],
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'dragon_scale', everyHours: 0.333, ch: 0.2, band: 'common' }, { id: 'tail_spur', everyHours: 0.833, ch: 0.08, band: 'uncommon' }],
-      hp: 287, atk: 118, aim: 120, evasion: 62, def: 32, xp: 3014, gp: [42, 127], formula: true },
+      drops: [{ id: 'dragon_bones', everyHours: 0.1333, ch: 0.429, band: 'common' }, { id: 'dragon_scale', everyHours: 0.333, ch: 0.172, band: 'common' }, { id: 'tail_spur', everyHours: 0.833, ch: 0.0686, band: 'uncommon' }],
+      hp: 287, atk: 118, aim: 107, evasion: 70, def: 32, xp: 3014, gp: [42, 127], formula: true },
     crag_wyvern: {
       name: 'Crag Wyvern', icon: '🐲', tier: 6, level: 136, cls: 'dragon', family: 'Dragon', speed: 3000,
       role: 'caster',
@@ -96,16 +96,16 @@ export default definePack({
          everyone else steps off. */
       spells: ['fire_breath'],
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', everyHours: 0.1143, ch: 0.5, band: 'common' }, { id: 'dragon_scale', everyHours: 0.286, ch: 0.2, band: 'common' }, { id: 'fire_gland', everyHours: 0.714, ch: 0.08, band: 'uncommon' }],
-      hp: 244, atk: 151, aim: 161, evasion: 46, def: 11, xp: 2350, gp: [36, 107], formula: true },
+      drops: [{ id: 'dragon_bones', everyHours: 0.1143, ch: 0.429, band: 'common' }, { id: 'dragon_scale', everyHours: 0.286, ch: 0.171, band: 'common' }, { id: 'fire_gland', everyHours: 0.714, ch: 0.0686, band: 'uncommon' }],
+      hp: 244, atk: 151, aim: 145, evasion: 53, def: 11, xp: 2350, gp: [36, 107], formula: true },
     brood_wyvern: {
       name: 'Brood Wyvern', icon: '🐲', tier: 6, level: 140, cls: 'dragon', family: 'Dragon', speed: 2800,
       role: 'brute',
       /* the elite: a big female sitting on her eggs. No trick, she's just the hardest thing in the pass. The Roost Mother (the boss, board
          section 9) is the oldest of these, and she waits for her own lane. */
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', everyHours: 0.8, ch: 0.5, band: 'common' }, { id: 'stolen_fleece', everyHours: 4, ch: 0.1, band: 'uncommon' }],
-      hp: 402, atk: 155, aim: 163, evasion: 70, def: 45, xp: 4505, gp: [59, 177], formula: true },
+      drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', everyHours: 0.8, ch: 0.429, band: 'common' }, { id: 'stolen_fleece', everyHours: 4, ch: 0.0857, band: 'uncommon' }],
+      hp: 402, atk: 155, aim: 148, evasion: 81, def: 45, xp: 4505, gp: [59, 177], formula: true },
   },
   roster: { wyvern_fledgling: 'swarm', ledge_wyvern: 'glass', bull_wyvern: 'heavy', crag_wyvern: 'regular', brood_wyvern: 'elite' },
   /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an

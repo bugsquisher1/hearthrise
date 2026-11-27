@@ -79,7 +79,7 @@ export default definePack({
         /* 0.02 to 0.0163 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the ground's reference group kills Teamsters faster, a Hatchets every 0.65 h a hero, under the Scarce band's 0.75;
            0.0163 to 0.0128 (lane/c-spell-rule, 2026-11-21): every cast a share of the blow, its lone tank kills faster again (0.67 h a hero) */
         { id: 'dawn_hatchets', everyHours: 1.36, ch: 0.0128, band: 'scarce' }, { id: 'duskwood_bow', everyHours: 17.75, ch: 0.00098, band: 'rare' }],
-      hp: 163, atk: 109, aim: 131, evasion: 40, def: 5, xp: 1411, gp: [24, 72], formula: true },
+      hp: 163, atk: 109, aim: 110, evasion: 42, def: 5, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       role: 'caster',
@@ -88,7 +88,7 @@ export default definePack({
       spells: ['hot_coal'],
       drops: [{ id: 'bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'coal', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'runners_tin', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', everyHours: 1.56, ch: 0.0285, band: 'scarce' }, { id: 'duskwood_codex', everyHours: 17.36, ch: 0.00256, band: 'rare' }], // the wand 0.026 -> 0.0285 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Runners met: 1.60 h)
-      hp: 157, atk: 144, aim: 180, evasion: 40, def: 5, xp: 1648, gp: [23, 69], formula: true },
+      hp: 157, atk: 144, aim: 152, evasion: 43, def: 5, xp: 1648, gp: [23, 69], formula: true },
     yoke_ox: {
       name: 'Yoke Ox', icon: '🐂', tier: 6, level: 119, cls: 'undead', family: 'Undead', speed: 2400,
       role: 'brute',
@@ -98,7 +98,7 @@ export default definePack({
       drops: [{ id: 'big_bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.08892, ch: 0.5, band: 'common' }, { id: 'ox_shoe', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
         /* 0.038 to 0.0326 (lane/c-spell-rule, 2026-11-21): the spell rule's faster lone tank read a Warhammer every 0.73 h a hero, under the band's 0.75 */
         { id: 'dawn_warhammer', everyHours: 1.363, ch: 0.0326, band: 'scarce' }, { id: 'duskwood_crossbow', everyHours: 17.36, ch: 0.00256, band: 'rare' }],
-      hp: 257, atk: 107, aim: 114, evasion: 61, def: 29, xp: 2499, gp: [38, 113], formula: true },
+      hp: 257, atk: 107, aim: 97, evasion: 66, def: 29, xp: 2499, gp: [38, 113], formula: true },
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       role: 'warder',
@@ -109,7 +109,7 @@ export default definePack({
         /* 0.045 to 0.0416 (lane/c-tohit-ratio, 2026-11-20): a Staff every 0.74 h a hero on the to-hit ratio, under the Scarce band's 0.75;
            0.0416 to 0.0328 (lane/c-spell-rule, 2026-11-21): 0.67 h a hero under the spell rule */
         { id: 'duskwood_staff', everyHours: 2.03, ch: 0.0328, band: 'scarce' }],
-      hp: 218, atk: 136, aim: 153, evasion: 45, def: 10, xp: 1940, gp: [32, 96], formula: true },
+      hp: 218, atk: 136, aim: 131, evasion: 49, def: 10, xp: 1940, gp: [32, 96], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
       role: 'brute',
@@ -118,7 +118,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', everyHours: 1.333, ch: 0.3, band: 'common' }, { id: 'waybill', everyHours: 4, ch: 0.1, band: 'uncommon' },
         /* 0.0056 to 0.0049 (lane/c-spell-rule, 2026-11-21): a Sword every 9.92 h a hero under the spell rule, under the Rare band's 10 */
         { id: 'dawn_sword', everyHours: 81.6, ch: 0.0049, band: 'rare' }],
-      hp: 360, atk: 140, aim: 155, evasion: 68, def: 40, xp: 3732, gp: [53, 159], formula: true },
+      hp: 360, atk: 140, aim: 135, evasion: 75, def: 40, xp: 3732, gp: [53, 159], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },
   /* THE PARTS (src/data/imbuements.js's rule: one a body, its book value from its dropper's Level, raw): what an Artificing hero makes an

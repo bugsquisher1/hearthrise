@@ -842,11 +842,10 @@ for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_
 
 /* THE ITEM LEVEL OF A SCALE GROUND'S DROP (src/data/danger.js scaleItemLevels; lane/r10-more-grounds, 12-targets.md 3.3 and 8): every piece a
    Danger-scale ground drops carries that ground's base item Level as `iL`, the one number the power step reads there. Off the scale nothing
-   reads it. The ladder's rows and the named Catacomb pieces only; a piece no scale ground drops keeps none (its reqLv stands in). */
+   reads it. The ladder's rows and a ground's own pieces only; a piece no scale ground drops keeps none (its reqLv stands in). */
 /* (exported: tools/gen-gear.mjs reads a piece's item Level from here or its reqLv, never from the iL the table wrote back) */
 export const SCALE_ITEM_LEVELS = Object.freeze(scaleItemLevels(
-  Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]])),
-  Object.fromEntries(Object.entries(ITEMS).filter(([, it]) => it && it.catacombTier)), ITEMS));
+  Object.fromEntries(Object.keys({ ...GEAR_ITEMS, ...SLOT_ITEMS, ...SHIELD_ITEMS }).map((id) => [id, ITEMS[id]])), ITEMS));
 for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };
 
 /* THE ITEM LEVEL OF A LADDER PIECE (src/data/gear-tiers.js MATERIAL_TIERS, one material a tier: the designer's 12-targets 8.3, lane/gear-phase-b):
@@ -854,15 +853,14 @@ for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS
    ground that drops one stamps its own base (above) and the two agree; two numbers for one piece throw (one base, one number), with one
    exception that keeps the stamp, worn from it less wearAhead: a ground whose rows still drop another tier's pieces until they are
    re-pointed (12-targets 8.3 c, the grounds' lane; tests/gear-stats.mjs GSF-9 names each one and reds it the day it agrees). A named
-   Catacomb piece carries its twin's step (the metal it is cut from: its Temper kit is that band's, src/core/temper-steps.js temperKitAt) and is
-   its wing's stamp, worn from it less wearAhead. ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece
+   Catacomb piece carries its twin's step (the metal it is cut from: its Temper kit is that band's, src/core/temper-steps.js temperKitAt) and
+   that step's item Level: no wing drops it (12-targets 8.6.1). ITEM_LEVELS is every item Level a row is given here: tools/gen-gear.mjs sizes each piece
    at it, never at the iL its own table wrote back. */
 const STAMPED_ELSEWHERE = new Set(Object.values(DANGER_GROUNDS).filter((g) => Number.isInteger(g.ladderTier) && MATERIAL_TIERS[g.ladderTier - 1]
   && MATERIAL_TIERS[g.ladderTier - 1].iL !== g.gearLevel).map((g) => g.ladderTier));
 export const ITEM_LEVELS = (() => {
   const out = { ...SCALE_ITEM_LEVELS };
   for (const [id, it] of Object.entries(ITEMS)) {
-    if (it && it.catacombTier && out[id] !== undefined) { ITEMS[id] = { ...it, reqLv: Math.max(1, out[id] - GEAR_STEPS.wearAhead) }; continue; }
     if (!it || !Number.isInteger(it.step)) continue;
     const iL = tierLevel(it.step), stamp = out[id];
     if (stamp !== undefined && stamp !== iL) {

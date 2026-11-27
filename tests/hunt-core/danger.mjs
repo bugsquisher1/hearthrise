@@ -896,10 +896,12 @@ const MUTANTS = [
   { name: 'pay grows past the top', case: 'top', edits: [['src/data/danger.js', "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690,", "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 640,"],
     ['src/core/hunt/danger.js', 'Math.min(PAY.gapMax, row ? row.topStep - row.refStep : PAY.gapMax, ', 'Math.min(PAY.gapMax, ']] },
   { name: 'every ground splits the table over the scale\'s kill rate', case: 'pay', edits: [['src/core/hunt/danger.js', 'return row && Number.isInteger(row.refKillsHead) ? row.refKillsHead : PAY.refKillsHead;', 'return row ? PAY.refKillsHead : PAY.refKillsHead;']] },
+  /* (lane/refhero-recut, 2026-11-27) a ladder piece's item Level rides its step since 8.3 (items.js ITEM_LEVELS), so the stamp is the one
+     door only for a ground's own one-off piece (`pieces`: the Thicket's Grayjaw's Ruff, no step). The plant voids the stamp there and in the
+     Ruff's generated row, which the generator wrote from it (the old plant, a mithril body's row, read its step and passed). "The wings
+     drop the ladder tier" retired with its subject: the wings drop their tier's base alone and stamp nothing (12-targets 8.6.1) */
   { name: 'a scale drop keeps its reqLv', case: 'ilevel', edits: [['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };', 'void SCALE_ITEM_LEVELS;'],
-    /* every piece's item Level also rides its generated stat row (lane/gear-catalogue-steps): a drop that kept its reqLv kept it there too */
-    ['src/data/gear-stats.generated.js', '"mithril_platebody": f({', '"mithril_platebody": f({ iL: 45 }), "mithril_platebody~shipped": f({']] },
-  { name: 'the wings drop the ladder tier', case: 'ilevel', edits: [['src/data/danger.js', "    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);", '']] },
+    ['src/data/gear-stats.generated.js', '"grayjaws_ruff": f({ iL: 0 }),', '"grayjaws_ruff": f({}),']] },
   { name: 'the power step reads reqLv over iL', case: 'ilevel', edits: [['src/core/hunt/danger.js', 'Number.isInteger(it.iL) ? it.iL : it.reqLv', 'it.reqLv']] },
   { name: 'a ground\'s rows never ride its kills', case: 'drops', edits: [['src/core/hunt/play-rows.js', "  if (!g || !Array.isArray(g.drops) || !g.drops.length) return null;", '  return null;']] },
   { name: 'a ground\'s rows go first', case: 'drops', edits: [['src/core/hunt/play-rows.js', "drops: (out[id].drops || []).concat(g.drops)", "drops: g.drops.concat(out[id].drops || [])"]] },

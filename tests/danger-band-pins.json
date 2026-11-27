@@ -44,20 +44,19 @@
    ]
   },
   "catacomb_bone_wing": {
-   "refStep": 590,
-   "floorStep": 510,
-   "topStep": 605,
-   "refKillsHead": 125,
-   "refHeld": 585,
-   "coinPm": 5500,
-   "print": "25574ef6dcbd84ef",
+   "refStep": 500,
+   "floorStep": 405,
+   "topStep": 550,
+   "refKillsHead": 140,
+   "coinPm": 4200,
+   "print": "add23be43d8ea656",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
     "top": 185,
     "mid": 175
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-top.json",
@@ -65,19 +64,20 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 510,
-   "floorStep": 460,
-   "topStep": 525,
-   "refKillsHead": 145,
-   "coinPm": 3500,
-   "print": "1cb50454048f9ba8",
+   "refStep": 470,
+   "floorStep": 440,
+   "topStep": 500,
+   "refKillsHead": 140,
+   "refHeld": 475,
+   "coinPm": 3300,
+   "print": "ceebfb7f4f490a5b",
    "verdict": "OPEN",
    "levels": {
     "entry": 150,
     "top": 170,
     "mid": 160
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",
@@ -186,20 +186,19 @@
    ]
   },
   "pyre_field": {
-   "refStep": 80,
-   "floorStep": 10,
-   "topStep": 120,
+   "refStep": 50,
+   "floorStep": 0,
+   "topStep": 105,
    "refKillsHead": 140,
-   "refHeld": 75,
-   "coinPm": 3000,
-   "print": "68c067fb73f1b94b",
+   "coinPm": 2900,
+   "print": "13fb7306dd123d43",
    "verdict": "OPEN",
    "levels": {
     "entry": 70,
     "top": 90,
     "mid": 80
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/pyre_field-ref.json",
     "tools/balance-program/redesign/grounds/pyre_field-top.json",
@@ -207,19 +206,18 @@
    ]
   },
   "krells_hold": {
-   "refStep": 60,
-   "floorStep": 15,
-   "topStep": 125,
-   "refHeld": 65,
-   "coinPm": 3600,
-   "print": "27c2e33c1d38652c",
+   "refStep": 20,
+   "floorStep": 0,
+   "topStep": 120,
+   "coinPm": 4000,
+   "print": "693ccf7e0438cc65",
    "verdict": "REVIEW",
    "levels": {
     "entry": 85,
     "top": 110,
     "mid": 97
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/krells_hold-ref.json",
     "tools/balance-program/redesign/grounds/krells_hold-top.json",
@@ -247,19 +245,20 @@
    ]
   },
   "carters_rest": {
-   "refStep": 90,
-   "floorStep": 5,
-   "topStep": 110,
-   "refKillsHead": 160,
-   "coinPm": 1800,
-   "print": "99947026dd123d0f",
+   "refStep": 60,
+   "floorStep": 0,
+   "topStep": 75,
+   "refKillsHead": 145,
+   "refHeld": 55,
+   "coinPm": 2100,
+   "print": "ddcaabb95b97356c",
    "verdict": "OPEN",
    "levels": {
     "entry": 110,
     "top": 125,
     "mid": 117
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/carters_rest-ref.json",
     "tools/balance-program/redesign/grounds/carters_rest-top.json",
@@ -267,18 +266,18 @@
    ]
   },
   "ox_road": {
-   "refStep": 160,
-   "floorStep": 70,
-   "topStep": 240,
-   "coinPm": 4800,
-   "print": "57e70ea7700daed6",
+   "refStep": 90,
+   "floorStep": 0,
+   "topStep": 175,
+   "coinPm": 2500,
+   "print": "53b7c6cceb02ceea",
    "verdict": "OPEN",
    "levels": {
     "entry": 112,
     "top": 130,
     "mid": 120
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/ox_road-ref.json",
     "tools/balance-program/redesign/grounds/ox_road-top.json",
@@ -306,19 +305,20 @@
    ]
   },
   "wyvern_roost": {
-   "refStep": 190,
-   "floorStep": 70,
-   "topStep": 235,
-   "refHeld": 185,
-   "coinPm": 3700,
-   "print": "fd373fa332c37429",
+   "refStep": 110,
+   "floorStep": 0,
+   "topStep": 195,
+   "refKillsHead": 140,
+   "refHeld": 105,
+   "coinPm": 2100,
+   "print": "b06db014dee685df",
    "verdict": "OPEN",
    "levels": {
     "entry": 128,
     "top": 150,
     "mid": 140
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/wyvern_roost-ref.json",
     "tools/balance-program/redesign/grounds/wyvern_roost-top.json",

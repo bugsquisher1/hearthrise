@@ -54,7 +54,7 @@
 //         server's walk: RW-13) and the key of the four states and Planned, drawn by the map's own classes; an open road's card says
 //         Open road once (its kind line) and names the stone by its move
 //   RW-17 ROAD VIEW'S COUNTRY NAMES (visual read: "CLUB" under "STAGGER", "AL AXE" cut at the edge): every one shown lies whole on the
-//         stage and under no other label, where the map opens and after drags across it, desktop and phone
+//         stage, under no other label and over no stone, where the map opens and after drags across it, desktop and phone
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -278,6 +278,13 @@ const marksNow = (page) => page.evaluate(({ W }) => {
       if (o === m) continue;
       const b = o.getBoundingClientRect();
       if (!(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)) out.push(m.textContent + ' under ' + o.textContent);
+    }
+    /* and over no stone (its drawn mark; 1 px of anti-aliasing allowed) */
+    for (const g of win.querySelectorAll('svg.rdm [data-rd-node]')) {
+      const f = g.querySelector('.rdm-f, .rdm-od, .rdm-wall');
+      if (!f || !f.getClientRects().length) continue;
+      const b = g.getBoundingClientRect();
+      if (!(a.right <= b.left + 1 || a.left >= b.right - 1 || a.bottom <= b.top + 1 || a.top >= b.bottom - 1)) out.push(m.textContent + ' over the stone ' + g.getAttribute('data-rd-node'));
     }
   }
   return { tier: true, out, marks: shown.filter((e) => e.classList.contains('rdl-country')).length };
@@ -708,8 +715,9 @@ const MUTANTS = [
   { name: 'the empty card has no key', file: 'src/shell/windows/talents/card.js', from: "text(li.querySelector('span'), t('talents.state_' + li.getAttribute('data-key')))", to: 'null', want: /RW-16/ },
   { name: 'the empty card hides the plan when none is saved', file: 'src/shell/windows/talents/road-plan.js', from: "attr(box, 'hidden', tl ? null : '');", to: "attr(box, 'hidden', plan.draft ? null : '');", want: /RW-16/ },
   { name: 'the plan\'s next step is not said', file: 'src/shell/windows/talents/road-plan.js', from: "attr(r[2], 'hidden', has && stepName ? null : '');", to: "attr(r[2], 'hidden', '');", want: /RW-13/ },
-  { name: 'a country\'s name lies under a stone\'s label again', file: 'src/shell/windows/talents/map.js', from: 'M.marksGot = placeLabels(want, plate, (M.boxes || []).slice());',
+  { name: 'a country\'s name lies under a stone\'s label again', file: 'src/shell/windows/talents/map.js', from: 'M.marksGot = placeLabels(want, plate.concat(M.stones.boxes), (M.boxes || []).slice());',
     to: 'M.marksGot = placeLabels(want.map((x) => ({ ...x, block: false, within: null, tries: x.tries.slice(0, 1) })), [], []);', want: /RW-17/ },
+  { name: 'a country\'s name over a rank stone or a waystone', file: 'src/shell/windows/talents/map.js', from: 'plate.concat(M.stones.boxes)', to: 'plate', want: /RW-17/ },
   { name: 'a country\'s name cut at the stage\'s edge', file: 'src/shell/windows/talents/map.js', from: 'tries: MARK_TRIES, pri: 0, within }));', to: 'tries: MARK_TRIES, pri: 0, within: null }));', want: /RW-17/ },
 ];
 

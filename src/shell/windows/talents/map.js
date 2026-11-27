@@ -226,7 +226,7 @@ function paintLabels(M, v, tier) {
   const key = tier + '|' + M.s + '|' + M.key + (tier === 'country' ? pan : '');
   if (key !== M.labelKey) { M.labelKey = key; M.marksKey = null; placeMain(M, v, tier); }
   /* ROAD VIEW'S WATERMARKS (visual read 2026-11-26: "CLUB" lay under "STAGGER", "AL AXE" was cut at the stage's edge): a country's name
-     takes a spot only where no stone's label or decision stone stands and only whole on the stage, after every other label; else it
+     takes a spot only where no label, stone, badge or the tools' plate stands and only whole on the stage, after every other label; else it
      is not drawn there. It covers nothing, so no label ever gives way to it */
   if (tier === 'road' && M.marksKey !== key + pan) { M.marksKey = key + pan; placeMarks(M, v); }
   else if (tier !== 'road') M.marksGot = {};
@@ -256,7 +256,11 @@ function placeMarks(M, v) {
   const plate = M.tools.box ? [[M.tools.box[0] - tx, M.tools.box[1] - ty, M.tools.box[2] - tx, M.tools.box[3] - ty]] : [];
   /* nor off the route's cost badge (its place moves with the route, which moves M.key and so this pass's key) */
   if (M.badgeBox) plate.push(M.badgeBox);
-  M.marksGot = placeLabels(want, plate, (M.boxes || []).slice());
+  /* nor over any stone Road view draws (a rank stone, a waystone, an open road: the main pass keeps off decision stones only), once a scale */
+  if (!M.stones || M.stones.s !== s) {
+    M.stones = { s, boxes: TALENT_NODES.filter((n) => !BLOCKS.has(n.kind)).map((n) => { const p = M.L.pos[n.id], r = (MARK_R[n.kind] || 5) + 2; return [p.x * s - r, p.y * s - r, p.x * s + r, p.y * s + r]; }) };
+  }
+  M.marksGot = placeLabels(want, plate.concat(M.stones.boxes), (M.boxes || []).slice());
 }
 
 /* every label but Road view's watermarks: the main pass, its spots in M.got and its boxes in M.boxes */

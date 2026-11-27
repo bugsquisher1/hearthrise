@@ -167,8 +167,8 @@ const MUTANTS = [
   ['each roller rolls the whole row', 'src/core/hunt-rewards.js', 'share: by.length }, ctx.lootRngOf(id));', 'share: 1 }, ctx.lootRngOf(id));'],
   ['a roller rolls on the killer\'s odds', 'src/core/hunt-rewards.js', '{ depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus(\'dropRate\'), share: by.length }', '{ depthPm, dropMult: present[0].weakness(row).dropMult, dropBuff: m.bonus(\'dropRate\'), share: by.length }'],
   ['a roller draws on the swing\'s r', 'src/core/hunt-rewards.js', 'share: by.length }, ctx.lootRngOf(id));', 'share: by.length }, ctx.rng);'],
-  ['the share ignores a guarantee', 'src/core/drops.js', 'if (row.ch >= 1) return share === 1 ? Math.min(1, row.ch) : Math.min(1, row.ch) / share;', 'if (row.ch >= 1) return Math.min(1, row.ch);'],
-  ['the share divides before the cap', 'src/core/drops.js', 'const whole = Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);', 'const whole = Math.min(0.95 * share, row.ch * dropMult * (1 + dropBuff) * featured * depth);'],
+  ['the share ignores a guarantee', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 || row.ch >= 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;'],
+  ['the share divides before the cap', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 ? wholeDropChance(row, m) : row.ch >= 1 ? wholeDropChance(row, m) / share : wholeDropChance({ ...row, ch: row.ch / share }, m);'],
   ['the mark is not persisted', 'src/core/hunt/world-state.js', 'danger.PERSISTED, bossPhases.PERSISTED, tookPart.PERSISTED];', 'danger.PERSISTED, bossPhases.PERSISTED];'],
   ['the sim never hands the rule to the rewards', 'src/core/combat-sim.js', "...(ctx.personalLoot === true ? { personal: true, lootRngOf: lootStreams(ctx, sw) } : {}),", ''],
 ];

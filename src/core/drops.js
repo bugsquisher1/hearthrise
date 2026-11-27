@@ -45,13 +45,17 @@ export function bandOf(row) {
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
   const share = Number.isInteger(m.share) && m.share > 1 ? m.share : 1;
-  if (row.ch >= 1) return share === 1 ? Math.min(1, row.ch) : Math.min(1, row.ch) / share;
+  return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;
+}
+
+/* The row's WHOLE chance on a kill, every multiplier and the cap applied (a guarantee untouched): effectiveDropChance before a share. */
+function wholeDropChance(row, m) {
+  if (row.ch >= 1) return Math.min(1, row.ch);
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
   const depth = Number.isFinite(m.depthPm) && m.depthPm > 0 ? m.depthPm / 1000 : 1;
-  const whole = Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);
-  return share === 1 ? whole : whole / share;
+  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);
 }
 
 /**

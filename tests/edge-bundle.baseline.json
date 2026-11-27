@@ -593,6 +593,11 @@
         "bytes": 3907329,
         "on": "2026-11-27",
         "why": "lane/p1-personal-loot: src/data/party.js PERSONAL_LOOT note now says what reads the switch (+244 B, a comment)"
+      },
+      {
+        "bytes": 3907490,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: drops.js wholeDropChance split out so the row's whole chance keeps its own lines (+161 B)"
       }
     ]
   }

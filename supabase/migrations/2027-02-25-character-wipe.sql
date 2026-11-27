@@ -130,6 +130,9 @@ declare
     'company_flame', 'hero_temper', 'hero_worn_imbue', 'hero_pity',
     /* the account's Trait and Signature pieces (1071-trait-pieces.sql): found by heroes the wipe clears; a wiped account starts with none */
     'trait_pieces',
+    /* each hunt's frozen flame luck and the Remains its settles burned (1074-inner-flame-luck.sql): a hunt of heroes the wipe clears;
+       hunt_flame keys on hunt_sessions, so it goes in the same TRUNCATE */
+    'hunt_flame',
     /* each hero's Roads build, its saved builds per hunt and their journal (1064-roads-sample.sql): earned by heroes the wipe clears */
     'hero_talents', 'hero_talent_builds', 'hero_talent_log',
     /* each hero's standing "buy up to N blocks a day" rule and the account's one answer to its offer (1071-work-blocks.sql): a wiped

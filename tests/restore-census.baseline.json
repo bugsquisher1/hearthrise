@@ -727,6 +727,7 @@
   "hunt_bag",
   "hunt_bests",
   "hunt_density",
+  "hunt_flame",
   "hunt_parties",
   "hunt_parties",
   "hunt_party_members",
@@ -1848,7 +1849,7 @@
   },
   "hr_item_levels": {
    "class": "seeded",
-   "replay": 395,
+   "replay": 401,
    "note": "Generated catalogue (1063-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs from src/data/items.js): each gear row's item Level (a scale drop's iL, else its Level requirement), which prices Temper and imbuement fees and seats Temper. Empty, every piece reads as no piece (no_piece); rebuilt from repo, never restored."
   },
   "hr_item_slots": {
@@ -2478,6 +2479,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER-SCOPED (2026-11-17-hunt-density-home.sql): each character's memory PER HUNT GROUND. Today: its tier (2027-02-27-hunt-tiers.sql, written only by hr_hunt_tier_set, frozen on an instance by hr_hunt_tier_pick; the party leader's in a party), the setup it last entered with (2026-12-05-hunt-setup-per-ground.sql, `preset`) and its First target (2027-04-22-target-kind.sql `target_kind`, written only by hr_hunt_target_kind_set, read each settle by hr_hunt_instance_read). The `density` column no longer means anything (the dial went with the tiers). Not gold, but a rebuild returning it EMPTY silently sends every hero's next hunt out on Normal with no First target and no remembered setup. RLS on, no policy, no client grant."
+  },
+  "hunt_flame": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE (1074-inner-flame-luck.sql, 21 section 1): one hunt session's Inner Flame: the luck its Rares roll at and the top Level its fuel reads, frozen when it began, and the Remains its settles burned onto the fire. Written only by hr_flame_session_freeze and the settle's walk (hr_flame_settle); own-read RLS, no client write. A rebuild returning it EMPTY makes every open hunt roll at no luck and the return card lose its line; restored with hunt_sessions (its key cascades). Dark until inner_flame flips."
   },
   "hunt_instances": {
    "class": "restore_only",

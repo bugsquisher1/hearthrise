@@ -25,6 +25,11 @@
 //   FR-4  THE BURN never passes the room, takes the most units that fit, and a far band is worth less than a near one
 //   FR-5  THE STOKE RULE: an unknown keep is refused, never guessed; the limits are held to the catalogue's
 //   FR-6  THE TOP RANK reads luck under its cap (D-4)
+//   FR-7  THE SETTLE'S WALK (lane/f1-inner-flame, 1074-inner-flame-luck.sql hr_flame_walk): BOTH PATHS, a company's fire walked over one
+//         span equals the same span cut into windows at any instants and resumed from each stored answer (the burns, the height, the
+//         Flame XP, the carry); no drop is pure decay; Keep full stops at the room, Keep 2/3 at its share, Off burns nothing and the rest
+//         stays in the bag; a drop goes on after the minutes that ended by then; a far company's bones are worth less (the engine's note of
+//         each drop is tests/flame-settle-db.mjs's, through the real settle)
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -75,6 +80,47 @@ async function pure(base) {
   if (C.clampStoke({ keep: 'hot' }) !== null || C.clampStoke(null) !== null) out.push('FR-5 an unknown keep was guessed');
   const s = C.clampStoke({ keep: 'two_thirds', buy_per_day: 1e9, cap_hours_pm: -4 });
   if (!s || s.buy_per_day !== D.FLAME.stokeBuyMax || s.cap_hours_pm !== 0 || s.own_first !== true) out.push('FR-5 the limits were not clamped: ' + JSON.stringify(s));
+  /* FR-7 THE WALK */
+  const bands = new Map(D.FLAME_FUEL.map((r) => [r.item, r.band]));
+  const band = (i) => (bands.has(i) ? bands.get(i) : null);
+  const span = (key, from, to) => ({ key, from, to });
+  const sp = [span('a', 0, 3600000), span('b', 0, 3600000), span('c', 600000, 2400000)];
+  const dr = [];
+  for (let i = 0; i < 300; i++) dr.push({ at: i * 12000 + (i % 7) * 13, key: 'abc'[i % 3], item: ['bones', 'big_bones', 'bone_chips', 'not_fuel'][i % 4], qty: 1 + (i % 4) });
+  const inSpan = dr.filter((d) => sp.find((x) => x.key === d.key && d.at >= x.from && d.at <= x.to));
+  const start = { height: 9000, points: 40000, carryMs: 12345 };
+  const whole = C.walk(start, sp, inSpan, 1000, band, () => 60);
+  for (const cuts of [[1800000], [59999, 60000, 60001, 1234567, 3000000], Array.from({ length: 39 }, (_, i) => (i + 1) * 90000)]) {
+    let st = start, burned = 0;
+    const edges = [0, ...cuts, 3600000];
+    for (let k = 1; k < edges.length; k++) {
+      const a = edges[k - 1], z = edges[k];
+      const part = sp.map((x) => span(x.key, Math.max(a, x.from), Math.min(z, x.to))).filter((x) => x.to > x.from);
+      const w = C.walk(st, part, inSpan.filter((d) => d.at >= a && (d.at < z || z === 3600000)), 1000, band, () => 60);
+      st = { height: w.height, points: w.points, carryMs: w.carryMs }; burned += w.units;
+    }
+    if (st.height !== whole.height || st.points !== whole.points || st.carryMs !== whole.carryMs || burned !== whole.units) {
+      out.push('FR-7 the walk cut at ' + cuts.length + ' instants stores ' + JSON.stringify([st, burned]) + ', in one span ' + JSON.stringify([whole.height, whole.points, whole.carryMs, whole.units]));
+    }
+  }
+  if (!(whole.units > 0 && whole.decayed > 0)) out.push('FR-7 CONTROL: the walk burned ' + whole.units + ' and decayed ' + whole.decayed);
+  const bare = C.walk(start, sp, [], 1000, band, () => 60);
+  const flat = C.decay(start, 2 * 3600000 + 1800000);
+  if (bare.height !== flat.height || bare.points !== flat.points || bare.carryMs !== flat.carryMs || bare.units !== 0) out.push('FR-7 a walk with no drop is not pure decay: ' + JSON.stringify([bare, flat]));
+  const flood = [{ at: 10, key: 'a', item: 'bones', qty: 100000 }];
+  const full = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], flood, 1000, band, () => 45);
+  const two = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], flood, 667, band, () => 45);
+  const off = C.walk({ height: 4000, points: 0, carryMs: 0 }, [span('a', 0, 20)], flood, 0, band, () => 45);
+  if (!(full.height <= C.roomMpts(1) && full.height > C.roomMpts(1) - 10 && full.units < 100000)) out.push('FR-7 Keep full did not stop at the room: ' + JSON.stringify(full));
+  if (!(two.height <= C.targetMpts(1, 667) && two.height > C.targetMpts(1, 667) - 10 && two.units < full.units)) out.push('FR-7 Keep 2/3 did not stop at its share: ' + JSON.stringify(two));
+  if (off.units !== 0 || off.height !== 4000 || Object.keys(off.burned).length) out.push('FR-7 Off burned ' + JSON.stringify(off));
+  /* a drop goes on after the minutes that ended by then: the hunted minute before it decays the old height, never the new fuel */
+  const after = C.walk({ height: 1000, points: 0, carryMs: 0 }, [span('a', 0, 60000)], [{ at: 60000, key: 'a', item: 'bones', qty: 1000 }], 1000, band, () => 45);
+  const before = C.walk({ height: 1000, points: 0, carryMs: 0 }, [span('a', 0, 60000)], [{ at: 0, key: 'a', item: 'bones', qty: 1000 }], 1000, band, () => 45);
+  if (!(after.height === 1000 - Math.ceil((1000 * C.decayPpm(1)) / 60000000) + 10000 && before.height < after.height)) out.push('FR-7 the minute and the drop are not ordered by the clock: ' + JSON.stringify([after.height, before.height]));
+  const far = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], [{ at: 10, key: 'a', item: 'bones', qty: 100 }], 1000, band, () => 200);
+  const near2 = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], [{ at: 10, key: 'a', item: 'bones', qty: 100 }], 1000, band, () => 45);
+  if (!(far.mpts < near2.mpts && near2.mpts === 1000)) out.push('FR-7 a far company is not worth less fuel: ' + JSON.stringify([far.mpts, near2.mpts]));
   /* FR-6 */
   if (C.topRankPmOf(0) !== D.FLAME.topRankPm || C.topRankPmOf(360) !== 680 || C.topRankPmOf(100000) !== D.FLAME.topRankMaxPm) out.push('FR-6 the top rank does not read luck under its cap');
   return out;
@@ -91,7 +137,11 @@ const MUTANTS = [
   ['an unknown keep is guessed full', 'src/core/inner-flame.js', "Object.prototype.hasOwnProperty.call(FLAME.stokeKeeps, r.keep) ? r.keep : null;", "Object.prototype.hasOwnProperty.call(FLAME.stokeKeeps, r.keep) ? r.keep : 'full';"],
   ['the top rank has no cap', 'src/core/inner-flame.js', 'return Math.min(FLAME.topRankMaxPm, Math.floor((FLAME.topRankPm * (1000 + l)) / 1000));', 'return Math.floor((FLAME.topRankPm * (1000 + l)) / 1000);'],
   ['the curve is flat', 'src/data/inner-flame.js', '  curvePm: 1045,', '  curvePm: 1001,'],
+  ['the walk burns every drop at the window end', 'src/core/inner-flame.js', '    advance(Math.min(end, toInt(d.at)));', '    advance(end);'],
+  ['the walk forgets a late joiner span', 'src/core/inner-flame.js', '    for (const s of sp) ms += Math.max(0, Math.min(t1, s.to) - Math.max(t, s.from));', '    for (const s of sp) ms += Math.max(0, t1 - t);'],
+  ['the stoke target is ignored', 'src/core/inner-flame.js', 'const h = Math.max(0, toInt(height)), lift = roomMpts(fl) - targetMpts(fl, keepPm);', 'const h = Math.max(0, toInt(height)), lift = 0;'],
+  ['the walk never burns down at its end', 'src/core/inner-flame.js', '  advance(end);\n  return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };', '  return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };'],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/flame-rules.mjs', pure, mutants: MUTANTS,
-  green: 'room, luck, hunted-time decay (both paths), the curve, the burn, the stoke rule and the top rank all hold' });
+  green: 'room, luck, hunted-time decay (both paths), the curve, the burn, the stoke rule, the top rank and the settle walk under any cut all hold' });

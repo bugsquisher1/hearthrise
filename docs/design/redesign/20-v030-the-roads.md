@@ -276,6 +276,20 @@ v0.3.0 ships when every line below is true.
 | 14 | Patch notes and What's new ready. The wipe runs before players sign in | PN, WN, WP |
 | 15 | The Coordinator plays the release on live before telling Tyler it's ready | Play gate |
 
+**Gate 10, the load test (LT, `lane/lt-load-test`, reliability, 2026-11-27): inside budget.** `node tools/beta-load.mjs --shape=lt` (smoke.yml `pg17-lt`, nightly and on dispatch) builds 1,000 synthetic accounts of four heroes in a scratch PostgreSQL 17 clone, lights personal loot, Trait pieces and drops, Signatures and the Inner Flame in that clone only, seats 200 fours in one party on each Trait ground (Muster Barrows, the Slake, Hask's Ford, Pyre Field, Krell's Hold) with each company's fire at its room (+25.7% Rare luck), and lets the shipped tick and edge settle them on the chain's own dials. `node tests/per-player-cost.mjs --lit` reads every fixture's exact per-settle cost with the same switches on.
+
+| Reading | Run 45996731388 | Run 45999848869 (the set at 4177fb7db) | Budget |
+|---|---|---|---|
+| Settle lag p50 / p95 / p99 / max | 50 / 96 / 99 / 104 s | 50 / 96 / 99 / 108 s | a 0 to 100 s sawtooth by design (the 90 s flush) |
+| Lag past the flush p50 / p95 / p99 / max | 0 / 6 / 9 / 14 s | 0 / 6 / 9 / 18 s | under 32 s, the look-ahead a watched browser holds |
+| A paid hero-hour: journal rows, statements, row writes | 79.2, 37.4, 1,169 | 78.9, 37.6, 1,173 | the fixtures' blend +25%: 98.5, 62.3, 1,296 |
+| A save | 4.1 statements, 130 row writes, 8.8 journal rows | 4.2, 130, 8.7 | |
+| per-player-cost --lit, every fixture | green | green | the shipped baseline (row writes a settle +0 to +11%) |
+
+- **Measured with:** 4,000 heroes, 20 tabs open (2%), 300 s after a 120 s warm-up, 30,000 lag readings a run, the conservation audit 0 red over 16,832 windows. The bench ran 2.5 to 2.9 of 4 cores busy, PostgreSQL 0.73 to 0.8 cores, and no backend waited on a lock (run 45999848869: CPU 91%, SLRU reads 6%).
+- **Not measured:** a watched share above 2%. A 4-core runner can't host the doors' own edge isolates beside the tick: at 10% open (run 45993601381) it saturated (worker loops 0.91) and read as the bench's lag, not the server's. The per-hero ordinary drop roll (P1) isn't built and nothing reads `personal_loot` yet, so P1's lane re-runs both halves.
+- **Headroom, with owners in HANDOFFS (2026-11-27, LT):** a body of four fours runs its engine at p50 665 to 798 ms against the 800 ms budget (7% of selectors deferred in run 45999848869). The tick's fan-out at the chain's dials holds about 1,200 fours hunting at once (26 bodies a fire against the 32 cap). Realtime frames run about 1.5 KB/s an online account against the configured 100 KB/s.
+
 **Known risks:**
 - R10 is the widest lane and blocks most of the others, so it gets started first.
 - T1 is the largest new server surface.

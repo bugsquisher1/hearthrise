@@ -213,8 +213,13 @@ const SEED = '-4611686018427387904';
    monsters.js moves sewer-2 (kills 105 -> 108: the Sewer's rows rewritten on that REF_HERO by gen-ground-stats, played off the scale as
    hand rows, and their drops re-derived from hours). Proof, one file at a time over a git archive of set/v0.2.144 43df64f73: to-hit.js alone
    moves muster-steps-4 (the four tier scenarios hold), monsters.js alone moves sewer-2, danger.js (the four bronze bands) alone holds all five
-   (exit 0). The engine
-   (src/core, supabase/functions) diff against the set is empty. */
+   (exit 0). The engine (src/core, supabase/functions) diff against the set is empty.
+   RE-PINNED 2026-11-27 (lane/refhero-recut step 2, merged with set/v0.2.144 414ccd436), DATA ONLY: warrens-4 (kills 234 -> 245), glade-4
+   (512 -> 520) and glade-1-kite (147 -> 148) move whole, muster-steps-4's TALLY only (world, timeline, kills 171 held), sewer-2 holds. Proof,
+   one file of this tree at a time over a git archive of step 1 (067cc8a4e): src/data/monsters.js alone moves the three tier scenarios (the
+   Glade's and the Warrens' rows on the clock's REF_HERO, played off the scale as hand rows, their drops from hours) and nothing else;
+   src/data/danger.js alone moves muster-steps-4's tally only (Muster's refStep 630 -> 610: the pay and the loot read refStep); the Muster
+   pack alone holds all five. The engine diff against the set is empty. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

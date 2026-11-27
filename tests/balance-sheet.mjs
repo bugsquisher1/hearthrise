@@ -73,9 +73,14 @@ const CASES = {
     for (const role of B.ROLE_IDS) for (let L = 1; L <= 200; L++) for (const tier of [1, 3, 5]) for (const floor of [1, 16]) {
       const f = B.formulaStats({ level: L, role, tier, floor }, { formula: B.STAT_FORMULA, roles: B.MONSTER_ROLES });
       const row = { ...ratioRow(f), tier };
-      const { heroHit, monHit } = refRolls(X_REAL, L, row);
+      const { heroHit, monHit, r } = refRolls(X_REAL, L, row);
       const want = TH.heldToHit(f.hitVsSameLevel);
-      if (Math.abs(monHit - want) > 0.0151) { bad.push(role + ' L' + L + ' T' + tier + ' floor ' + floor + ': to-hit ' + monHit.toFixed(3) + ' on the reference hero, the formula ' + want); break; }
+      /* WITHIN A ROUNDING POINT (lane/refhero-recut, 2026-11-27): the aim is a whole number and the hero's Defense a whole level, so the grain is
+         what half a point of each moves the roll. It passes 1.5 points where the ratings are small: on the clock's reference hero a Level 11
+         hero rates 24 (Defense 4.4 rounds to 4), where the old one rated 31 */
+      const d = TH.TO_HIT.base + r.defense;
+      const grain = want < 0.5 ? 0.5 / (2 * d) + (0.5 * want) / d : (0.5 * d) / (2 * row.aim * row.aim) + 0.5 / (2 * row.aim);
+      if (Math.abs(monHit - want) > Math.max(0.0151, grain)) { bad.push(role + ' L' + L + ' T' + tier + ' floor ' + floor + ': to-hit ' + monHit.toFixed(3) + ' on the reference hero, the formula ' + want); break; }
       const ev = B.MONSTER_ROLES[role].evasion, wantHero = TH.heldToHit(1 - (1 - B.STAT_FORMULA.heroHit) * ev);
       if (Math.abs(heroHit - wantHero) > 0.0151) { bad.push(role + ' L' + L + ': the reference hero lands ' + heroHit.toFixed(3) + ', the formula ' + wantHero.toFixed(3)); break; }
       const share = C.monsterMaxHit(row) / B.STAT_FORMULA.refHp(L), step = B.DAMAGE_SCALE_BY_TIER[tier] / B.STAT_FORMULA.refHp(L);

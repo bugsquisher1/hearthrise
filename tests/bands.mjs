@@ -83,7 +83,7 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
   /* the re-cut Muster (floor 565, its arriving four held 587.4 at depth 4): a floor 115 steps back reads that four 7 deep, past ARRIVE_MAX */
-  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600,', 'refStep: 630, floorStep: 450, topStep: 700, coinPm: 7600,']]],
+  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700,', 'refStep: 610, floorStep: 450, topStep: 690, refHeld: 605, coinPm: 7700,']]],
   /* the Sewer's reference four holds 65 on its 70 (lane/refhero-recut: the Mill Cellar's four now holds its own refStep, so it carries none) */
   ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200,', 'refStep: 70, floorStep: 0, topStep: 110, coinPm: 8200,']]],
   /* (lane/scale-grounds-2) 27 K-6: the strong company leaves in its own base, so the Glade's top (Level 31 in iron) falls under the Warrens' floor */

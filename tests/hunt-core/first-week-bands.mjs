@@ -314,9 +314,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 33, atk: 13, aim: 61, evasion: 17, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 77, evasion: 16, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
-  ['hp: 52, atk: 12, aim: 51, evasion: 25, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 73, evasion: 30, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
-  ['hp: 90, atk: 24, aim: 76, evasion: 32, def: 9, xp: 401', 'hp: 90, atk: 2, def: 9, xp: 456'], ['hp: 57, atk: 17, aim: 53, evasion: 26, def: 6, xp: 225', 'hp: 57, atk: 2, def: 6, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 33, atk: 13, aim: 44, evasion: 12, def: 1, xp: 101', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, aim: 57, evasion: 12, def: 1, xp: 114', 'hp: 29, atk: 2, def: 1, xp: 129'],
+  ['hp: 52, atk: 12, aim: 37, evasion: 19, def: 5, xp: 199', 'hp: 52, atk: 2, def: 5, xp: 226'], ['hp: 81, atk: 23, aim: 52, evasion: 23, def: 8, xp: 346', 'hp: 81, atk: 2, def: 8, xp: 393'],
+  ['hp: 90, atk: 24, aim: 54, evasion: 25, def: 9, xp: 401', 'hp: 90, atk: 2, def: 9, xp: 456'], ['hp: 57, atk: 17, aim: 38, evasion: 19, def: 6, xp: 225', 'hp: 57, atk: 2, def: 6, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',

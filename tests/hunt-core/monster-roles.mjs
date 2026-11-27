@@ -66,6 +66,8 @@ const CASES = {
       if (!(Number.isInteger(r.range) && (r.range === 0 || (r.range >= B.min && r.range <= B.max)))) bad.push('role ' + id + ' range ' + r.range + ' is not 0 or ' + B.min + '..' + B.max);
       if (r.splash !== undefined && !(Number.isInteger(r.splash.r) && r.splash.r >= 1 && Number.isInteger(r.splash.pm) && r.splash.pm > 0 && r.splash.pm <= 1000)) bad.push('role ' + id + ' splash is not { r >= 1, pm 1..1000 }');
       if (!/^Targets: \S/.test(r.targets || '') || !/^Countered by: \S/.test(r.answer || '')) bad.push('role ' + id + ' labels are not "Targets: ..." and "Countered by: ..."');
+      /* the close (12-targets 8.9.1): `pins` is true or absent, and only on a role that fights beside its target (a shooter cannot hold) */
+      if (r.pins !== undefined && !(r.pins === true && r.range === 0)) bad.push('role ' + id + ' pins is not true on a role with range 0');
     }
     for (const [id, m] of Object.entries(M.MONSTERS)) if (m && m.role !== undefined && !Object.prototype.hasOwnProperty.call(ROLES, m.role)) bad.push('monster ' + id + ' names no role row: ' + m.role);
     if (bad.length) return bad.join('; ');
@@ -325,6 +327,7 @@ const MUTANTS = [
   { name: 'the blow share plays off the scale', case: 'blow', edits: [['src/core/hunt/monster-roles.js', '  const role = roleOf(inst, m);\n  return role && Number.isInteger(role.maxHitPm) ?', '  const role = MONSTER_ROLES[(MONSTERS[m.kind] || {}).role];\n  return role && Number.isInteger(role.maxHitPm) ?']] },
   { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
   { name: 'a sample row loses its role', case: 'data', edits: [['src/data/grounds/muster_barrows/pack.js', "      role: 'stalker',\n", '']] },
+  { name: 'a shooter pins', case: 'data', edits: [['src/data/monster-roles.js', "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5,", "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, pins: true,"]] },
   { name: 'a role row names no reach', case: 'data', edits: [['src/data/monster-roles.js', "reach: 'weakest', range: 0,", "reach: 'random', range: 0,"]] },
 ];
 

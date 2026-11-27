@@ -615,9 +615,14 @@
         "why": "lane/designer-recut-calls: the Warder's mend at 0.6 s and the re-derived drop chances on four re-cut grounds (monsters.js rows the engine carries)"
       },
       {
-        "bytes": 3910438,
+        "bytes": 3910735,
         "on": "2026-11-27",
-        "why": "lane/front-seat +2.1 KB: the close (12-targets 8.9.1), a combat rule the engine plays on both paths: monster-roles.js reachPick's any-row fallback, reaimOf's contact rule and pinsOf, roles.js rangedPos's pin, the three pins rows in src/data/monster-roles.js, with their comments"
+        "why": "lane/no-named-trait-bases: the plain ladder a Trait base must sit on (base-drops.js PLAIN_PIECES, shields.js SHIELD_LADDER) read by drop-rate.js isNamed"
+      },
+      {
+        "bytes": 3912797,
+        "on": "2026-11-27",
+        "why": "lane/front-seat +2.1 KB (re-raised on the merge with set c6d53610d): the close (12-targets 8.9.1), a combat rule the engine plays on both paths: monster-roles.js reachPick's any-row fallback, reaimOf's contact rule and pinsOf, roles.js rangedPos's pin, the three pins rows in src/data/monster-roles.js, with their comments"
       }
     ]
   }

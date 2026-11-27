@@ -116,6 +116,12 @@
         "gzipBytes": 206847,
         "on": "2026-11-27",
         "why": "lane/f1-inner-flame: the flame section reader and the return card's flame line (flame-sections.js, away.js)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206860,
+        "on": "2026-11-27",
+        "why": "lane/realtime-budget: delta frames made whole on the push's own copy (envelope.js frameOfDelta, character-session.js chain and hr_frame_rebase, config frameRebaseMs); ~63% fewer Realtime bytes an online account"
       }
     ],
     "town": [
@@ -544,6 +550,12 @@
         "gzipBytes": 983183,
         "on": "2026-11-27",
         "why": "lane/named-piece-drops: the 6 named pieces' Rare drop rows in the Roost and Catacomb packs, and drop-rate.js isTwin"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983393,
+        "on": "2026-11-27",
+        "why": "lane/realtime-budget: delta frames made whole on the push's own copy (envelope.js frameOfDelta, character-session.js chain and hr_frame_rebase, config frameRebaseMs); ~63% fewer Realtime bytes an online account"
       }
     ]
   }

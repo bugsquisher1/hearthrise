@@ -51,8 +51,9 @@
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- A town settle whose watermark is today (all but a hero's first settles after a midnight) reads nothing new: hr_work_bought returns
 --   before the ledger. After a midnight, one range read of the partial index for the hero (at most two days of its bought-time rows:
---   six a day at the extreme). hr_work_state adds the same read only for a town-work pointer whose watermark is before today. No new
---   row, no new statement the engine sends (the read is inside the bodies it already calls).
+--   six a day at the extreme). hr_work_state adds the same read only for a town-work pointer whose watermark is before today, and
+--   one primary-key read of hr_work_day (hr_work_kinds) on every call. No new row, no new statement the engine sends (the reads are
+--   inside the bodies it already calls; tests/per-player-cost.mjs town_hour_bench measured every count unchanged).
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Restate hr_apply from 1072's image (md5 4f08e462afab250381d5d0b3ea8e3634), hr_work_fold (7 args) and hr_work_state from 1059's; drop

@@ -1180,13 +1180,15 @@ const SQL_MUTANTS = [
     from: "perform public.hr_reject('requirement_not_met', jsonb_build_object('item_id', v_item));",
     to: "perform public.hr_reject('requirement_met', jsonb_build_object('item_id', v_item));",
     expect: '2026-10-27-core-bodies.sql: its hr_apply DROPS 1 line(s)' },
+  /* The PART 1g lint reads HR_APPLY_CHAIN's LAST link, so these two plant into it (1075-work-blocks-midnight.sql since 2026-11-27;
+     planted into 1040, an earlier link, they would grade a body production no longer runs). */
   { name: 'hr_apply accepts a delta key nobody classified',
-    file: 'supabase/migrations/1040-rested-bank-cut.sql',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
     from: "\n    'level_xp',\n",
     to: "\n    'level_xp', 'free_gold',\n",
     expect: 'hr_apply accepts the delta key "free_gold"' },
   { name: 'a classified delta key leaves hr_apply',
-    file: 'supabase/migrations/1040-rested-bank-cut.sql',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
     from: "\n    'level_xp',\n",
     to: '\n',
     expect: 'DELTA_KEY_CLASS classifies "level_xp" but hr_apply no longer accepts it' },

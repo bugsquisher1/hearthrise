@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "717c8ef623d0cb8f",
+ "authored": "39fa26a14550544b",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -17644,10 +17644,10 @@
   },
   {
    "at": "src/data/trades.js#KIT_BATCH_MAX",
-   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10; band 0 whole is 14 of them, 09 4.11 row 1b), no outcome reads it"
+   "why": "a content process bound: at most 20 named kit recipes a batch, each batch on its own (CLAUDE.md section 10; 09 4.13), no outcome reads it"
   },
   {
-   "at": "src/data/trades.js#KIT_RECIPES",
+   "at": "src/data/trades.js#KIT_BATCHES",
    "why": "content rows: each named recipe band is which metal it is, a row, never a size (the Temper kits a band, Iron to Dawnsteel; its work and price are derived, src/core/trades.js)"
   },
   {

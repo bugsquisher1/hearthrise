@@ -243,7 +243,7 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
     if (line !== 'charge' && line !== 'draught' && Math.abs(sp - 1) > 1e-9) out.push('the ' + line + ' line\'s kinds split ' + sp + ' of it, not all');
   }
   /* the named kit recipes read these kinds (09 4.9) */
-  out.push(...validateKitRecipes(KIT_RECIPES, kinds, trades));
+  out.push(...validateKitRecipes(KIT_BATCHES, kinds, trades));
   return out;
 }
 
@@ -316,47 +316,64 @@ export const recipeId = (kind, band) => kind + '_b' + band;
 export const faceOf = (kind, band) => (KIT_FACES[kind] && KIT_FACES[kind][band]) || null;
 const kitRow = (kind, band, name) => Object.freeze({ id: recipeId(kind, band), kind, band, name });
 
-/* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1
-   (two trades and one join), so the sample plays the one recipe that needs another trade's part. */
-/* BAND 0 WHOLE (batch 2 of the first band, lane/one-town-work, 2026-11-27; 09 section 4.11 row 1b): the gather rows (logs, shrimp, rune
-   essence, the crop), the refine rows (bars, planks, blank runes), the honing stone and the drink. With them every input of every band 0
-   row is made by a band 0 row (tests/kit-recipes.mjs KR-CLOSED), so the job list alone makes every good the first day needs and the live
-   bench can be cut (one town work). */
-/* THE TEMPER KITS (batch 2, lane/tp-im-steps, 2026-11-26; 21 section 2.2, 20 lane TP): one row a band a rank can sit on in v0.3.0, Iron to
-   Dawnsteel. Each is the same derived kind at its band, so the batch is one rule six times, not six designs. */
-export const KIT_RECIPES = Object.freeze([
-  kitRow('ore', 0, 'Mine Copper Ore'),
-  kitRow('arrowhead', 0, 'Forge Bronze Arrowheads'),
-  kitRow('arrow', 0, 'Fletch Bronze Arrows'),
-  kitRow('meal', 0, 'Cook Shrimp'),
-  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),
-  kitRow('log', 0, 'Chop Normal Logs'),
-  kitRow('fish', 0, 'Catch Shrimp'),
-  kitRow('rune_stone', 0, 'Mine Rune Essence'),
-  kitRow('grain', 0, 'Pull Turnips'),
-  kitRow('bar', 0, 'Smelt Bronze Bars'),
-  kitRow('shaft', 0, 'Saw Normal Planks'),
-  kitRow('cut_stone', 0, 'Cut Blank Runes'),
-  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),
-  kitRow('drink', 0, 'Press Turnip Juice'),
-  kitRow('temper_kit', 1, 'Mix Tempering Salts'),
-  kitRow('temper_kit', 2, 'Mix Fine Tempering Salts'),
-  kitRow('temper_kit', 3, 'Mix Mithril Tempering Salts'),
-  kitRow('temper_kit', 4, 'Mix Rune Tempering Salts'),
-  kitRow('temper_kit', 5, 'Mix Ember Tempering Salts'),
-  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),
+/* THE BATCHES (CLAUDE.md section 10: content lands in batches of 20 or fewer, each read for repetition before the next). A batch is the
+   authoring unit, never a game rule: its id names it in the log, and the game reads only the flat KIT_RECIPES. KIT_BATCH_MAX caps each
+   batch, not the list (09 4.13, the designer 2026-11-27), so band 1 and every band after it can land. */
+const batch = (id, rows) => Object.freeze({ id, rows: Object.freeze(rows) });
+export const KIT_BATCHES = Object.freeze([
+  /* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1
+     (two trades and one join), so the sample plays the one recipe that needs another trade's part. */
+  batch('band0-sample', [
+    kitRow('ore', 0, 'Mine Copper Ore'),
+    kitRow('arrowhead', 0, 'Forge Bronze Arrowheads'),
+    kitRow('arrow', 0, 'Fletch Bronze Arrows'),
+    kitRow('meal', 0, 'Cook Shrimp'),
+    kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),
+  ]),
+  /* BAND 0 WHOLE (batch 2 of the first band, lane/one-town-work, 2026-11-27; 09 section 4.11 row 1b): the gather rows (logs, shrimp, rune
+     essence, the crop), the refine rows (bars, planks, blank runes), the honing stone and the drink. With them every input of every band 0
+     row is made by a band 0 row (tests/kit-recipes.mjs KR-CLOSED), so the job list alone makes every good the first day needs and the live
+     bench can be cut (one town work). */
+  batch('band0-whole', [
+    kitRow('log', 0, 'Chop Normal Logs'),
+    kitRow('fish', 0, 'Catch Shrimp'),
+    kitRow('rune_stone', 0, 'Mine Rune Essence'),
+    kitRow('grain', 0, 'Pull Turnips'),
+    kitRow('bar', 0, 'Smelt Bronze Bars'),
+    kitRow('shaft', 0, 'Saw Normal Planks'),
+    kitRow('cut_stone', 0, 'Cut Blank Runes'),
+    kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),
+    kitRow('drink', 0, 'Press Turnip Juice'),
+  ]),
+  /* THE TEMPER KITS (lane/tp-im-steps, 2026-11-26; 21 section 2.2, 20 lane TP): one row a band a rank can sit on in v0.3.0, Iron to
+     Dawnsteel. Each is the same derived kind at its band, so the batch is one rule six times, not six designs. */
+  batch('temper-kits', [
+    kitRow('temper_kit', 1, 'Mix Tempering Salts'),
+    kitRow('temper_kit', 2, 'Mix Fine Tempering Salts'),
+    kitRow('temper_kit', 3, 'Mix Mithril Tempering Salts'),
+    kitRow('temper_kit', 4, 'Mix Rune Tempering Salts'),
+    kitRow('temper_kit', 5, 'Mix Ember Tempering Salts'),
+    kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),
+  ]),
 ]);
+export const KIT_RECIPES = Object.freeze(KIT_BATCHES.flatMap((b) => b.rows));
 
-/* BAND 0 WHOLE (09 4.11 row 1b, the sample's cap after it was read): band 0 holds at most one row a kind, only for a kind that ships and
-   has a band 0 face, so the first band is the whole first day and nothing past it; at most KIT_BATCH_MAX named rows in all (a batch of
-   20 or fewer, CLAUDE.md section 10). A band past 0 lands as its own batch. */
+/* A BATCH OF 20 OR FEWER (CLAUDE.md section 10), each batch on its own. Band 0 holds at most one row a kind, only for a kind that ships
+   and has a band 0 face, so the first band is the whole first day; every band past it lands as batches of its own. */
 const KIT_BATCH_MAX = 20;
 const LABEL = /^[A-Z][A-Za-z' ]{2,40}$/;
 
-/** Every problem with the named recipes (the shipped ones by default), as sentences. Empty = valid. */
-export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = TRADES, faces = KIT_FACES, fresh = NEW_FACES) {
+/** Every problem with the named recipes, read batch by batch (the shipped ones by default), as sentences. Empty = valid. */
+export function validateKitRecipes(batches = KIT_BATCHES, kinds = KINDS, trades = TRADES, faces = KIT_FACES, fresh = NEW_FACES) {
   const out = [];
-  if (rows.length > KIT_BATCH_MAX) out.push(rows.length + ' kit recipes: past a batch of ' + KIT_BATCH_MAX + ' (CLAUDE.md section 10)');
+  const seenBatch = new Set();
+  for (const b of batches) {
+    if (!b || !/^[a-z0-9-]{3,32}$/.test(b.id || '') || !Array.isArray(b.rows) || !b.rows.length) { out.push('a batch with no id or no rows'); continue; }
+    if (seenBatch.has(b.id)) out.push('batch ' + b.id + ' twice');
+    seenBatch.add(b.id);
+    if (b.rows.length > KIT_BATCH_MAX) out.push('batch ' + b.id + ' has ' + b.rows.length + ' kit recipes: past a batch of ' + KIT_BATCH_MAX + ' (CLAUDE.md section 10)');
+  }
+  const rows = batches.flatMap((b) => (b && Array.isArray(b.rows) ? b.rows : []));
   const seenId = new Set();
   for (const r of rows) {
     const k = kinds[r.kind];
@@ -369,7 +386,7 @@ export function validateKitRecipes(rows = KIT_RECIPES, kinds = KINDS, trades = T
     if (seenId.has(r.id)) out.push(r.id + ': twice');
     seenId.add(r.id);
     if (!LABEL.test(r.name)) out.push(r.id + ': name ' + JSON.stringify(r.name) + ' is not a short label');
-    if (!faceOf(r.kind, r.band)) out.push(r.id + ': no face for ' + r.kind + ' at band ' + r.band);
+    if (!(faces[r.kind] && faces[r.kind][r.band])) out.push(r.id + ': no face for ' + r.kind + ' at band ' + r.band);
   }
   for (const [kind, list] of Object.entries(faces)) {
     if (!kinds[kind]) out.push('a face for no kind ' + kind);

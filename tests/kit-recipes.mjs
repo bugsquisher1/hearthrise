@@ -17,6 +17,8 @@
 //              stone and the drink), one row a kind, every v0.3.0 gathering and making trade with a first job; the Temper kit a band,
 //              Iron to Dawnsteel (lane/tp-im-steps, 21 section 2.2), and nothing else past band 0; a row holds only its kind, band, derived
 //              id and a short label (no time, count, XP or price); validate() is clean
+//   KR-BATCH   a batch of 20 or fewer, each batch on its own (09 4.13): two batches of 15 pass, one of 21 is refused, and KIT_RECIPES is
+//              the batches end to end, so a band past 0 lands as its own batch
 //   KR-CLOSED  ONE TOWN WORK (09 4.11): every town input of every band 0 job is made by another band 0 job (never only by the live bench,
 //              the store or the start kit), and every hunted input is its stream's face a monster drops, so the cut leaves no gap
 //   KR-RUNG    a band's recipe opens at the band's rung (band b at rung b + 1, the last rung for every band past it, never before the
@@ -84,6 +86,23 @@ const ARMS = {
       if (extra.length) out.push('KR-ROWS ' + r.id + ' types ' + extra.join(', '));
       if (r.id !== KR.recipeId(r.kind, r.band)) out.push('KR-ROWS ' + r.id + ' is not its derived id');
     }
+    return out;
+  },
+  /* A BATCH OF 20 OR FEWER, EACH ON ITS OWN (CLAUDE.md section 10; 09 4.13): the cap reads a batch, never the whole list, so a band
+     past 0 can land as its own batch; KIT_RECIPES is the batches end to end. Read on synthetic faces (one kind, thirty bands), so the
+     proof does not wait for the shipped list to pass twenty */
+  'KR-BATCH'({ KR }) {
+    const out = [];
+    const flat = KR.KIT_BATCHES.flatMap((b) => b.rows.map((r) => r.id)).join();
+    if (flat !== KR.KIT_RECIPES.map((r) => r.id).join()) out.push('KR-BATCH KIT_RECIPES is not the batches end to end');
+    const faces = { ore: Array.from({ length: 30 }, (_, b) => 'test_ore_' + b) };
+    const rows = (from, n) => Array.from({ length: n }, (_, i) => Object.freeze({ id: KR.recipeId('ore', from + i), kind: 'ore', band: from + i, name: 'Mine Test Ore' }));
+    const two = [{ id: 'test-a', rows: rows(0, 15) }, { id: 'test-b', rows: rows(15, 15) }];
+    const twoP = KR.validateKitRecipes(two, KR.KINDS, KR.TRADES, faces, {});
+    if (twoP.length) out.push('KR-BATCH two batches of 15 (30 rows) are refused: ' + twoP.join('; '));
+    const big = KR.validateKitRecipes([{ id: 'test-big', rows: rows(0, 21) }], KR.KINDS, KR.TRADES, faces, {});
+    if (!big.some((p) => /past a batch of 20/.test(p))) out.push('KR-BATCH a batch of 21 is not refused');
+    for (const b of KR.KIT_BATCHES) if (b.rows.length > 20) out.push('KR-BATCH batch ' + b.id + ' has ' + b.rows.length + ' rows');
     return out;
   },
   'KR-RUNG'({ T, KR, cat }) {
@@ -237,6 +256,9 @@ const MUTANTS = [
     'BigInt(TRADE_PM.storeCeiling) * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n',
     '1000n * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n'],
   ['a meal is two hunted hours', 'KR-HOURS', 'src/data/trades.js', "line: 'meal', split: 0.5, effect: 1, opens: 1, from: [share('fish', 1)]", "line: 'meal', split: 0.5, effect: 2, opens: 1, from: [share('fish', 1)]"],
+  ['the cap counts the whole list, not a batch (band 1 could never land)', 'KR-BATCH', 'src/data/trades.js',
+    'if (b.rows.length > KIT_BATCH_MAX)', 'if (batches.flatMap((x) => x.rows || []).length > KIT_BATCH_MAX)'],
+  ['a batch has no cap', 'KR-BATCH', 'src/data/trades.js', "if (b.rows.length > KIT_BATCH_MAX) out.push('batch '", "if (b.rows.length > 999) out.push('batch '"],
   ['the job ignores the trade Level', 'KR-HOURS', 'src/core/trades.js', 'if (rung < kind.opens || rung > TRADE_PM.rungCount || lv(level) < R) return null;', 'if (rung < kind.opens || rung > TRADE_PM.rungCount) return null;'],
 ];
 

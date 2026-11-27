@@ -11,6 +11,8 @@
 //   routeTo(nodes, level, id, left) the cheapest set of unowned nodes that makes `id` buyable and buys it, in buying order, with its cost,
 //                                   the Level it is reached at, what lies on the way and what it still needs
 //   nextSuggested(nodes, disc, plan) the first node of the suggested road the build does not own (where the map opens)
+//   planRoute / planLeft / plannedOf / nextPlanStep   THE PLAN: a saved build (hr_talent_build_save, the server's) over the
+//                                   hero's build; a Plan route adds the path to a far node; its next step is one ordinary spend
 //
 // THE GRAPH IS A TREE GROWN OUT OF THE START (src/data/talents.js validate: every `after` names an earlier row), so one forward pass over
 // TALENT_NODES finds every node's cheapest way in. A border town touches two roads (ANY owned one opens it), and a hybrid needs a
@@ -20,7 +22,7 @@
 // ============================================================
 
 import { TALENT_NODES, NODE_INDEX, PICK_KINDS, TALENT_RULES } from '../data/talents.js';
-import { spendProblem, optionsOf, suggestedOrder, normalize, vowSlotsAt } from './talents.js';
+import { spendProblem, optionsOf, suggestedOrder, suggestedPick, normalize, vowSlotsAt, buildProblems, pointsSpent } from './talents.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const owns = (nodes, id) => id === 'hearth' || own(nodes, id);
@@ -136,6 +138,78 @@ export function nextSuggested(nodesIn, discipline, plan) {
   if (typeof discipline !== 'string') return null;
   const nodes = normalize(nodesIn);
   for (const [id] of suggestedOrder(discipline, plan)) if (!own(nodes, id)) return id;
+  return null;
+}
+
+/* ── THE PLAN (18 section 5 "Plan route", 17 section 11 "Build planner"): a saved build the server holds for the hero's ground ── */
+
+/**
+ * THE DRAFT: saved build `draft` (the server's, for the hero's ground) laid over the build `nodes` the hero holds (the server's): every
+ * owned node as owned (an open road the larger count), then every planned node the hero does not hold. What a Plan route extends.
+ */
+function draftOf(nodesIn, draftIn) {
+  const nodes = normalize(nodesIn), out = normalize(draftIn);
+  for (const [k, v] of Object.entries(nodes)) out[k] = NODE_INDEX[k].kind === 'open' && Number.isInteger(out[k]) ? Math.max(v, out[k]) : v;
+  return out;
+}
+
+/* a choice on the way: the plan's suggested option, else the first the catalogue offers there (a town whose move has no band lends
+   nothing and is refused whole: buildProblems not_offered) */
+function wayPick(b, n, plan) {
+  const list = [suggestedPick(n, plan), ...optionsOf(n).map((o) => o.id)];
+  return list.find((p) => p && !buildProblems({ ...b, [n.id]: p }).some((x) => x.node === n.id && x.why === 'not_offered')) || list[0];
+}
+
+/**
+ * PLAN THE ROUTE to `id`: the draft with the cheapest path to `id` from the DRAFT (so a second Plan route goes on from the first) added,
+ * each choice on the way at the draft's pick, else the suggested one for `plan`; `id` itself at `pick` when it is a choice (else the
+ * suggested). A choice the draft already plans moves to `pick`. Null when there is nothing to add. The SERVER checks the whole build
+ * (hr_talent_build_save); buildProblems is its twin, so the press is off when it would refuse.
+ */
+export function planRoute(nodesIn, draftIn, id, pick, plan) {
+  const n = own(NODE_INDEX, id) ? NODE_INDEX[id] : null;
+  if (!n || n.kind === 'start') return null;
+  const base = draftOf(nodesIn, draftIn);
+  const isPick = PICK_KINDS.includes(n.kind);
+  const at = (b) => (isPick && pick && optionsOf(n).some((o) => o.id === pick) ? pick : wayPick(b, n, plan));
+  if (own(base, id) && n.kind !== 'open') {
+    if (!isPick || own(normalize(nodesIn), id) || base[id] === at(base)) return null;
+    return { ...base, [id]: at(base) };
+  }
+  const r = routeTo(base, 1, id, 0);
+  if (!r || !r.path.length) return null;
+  const b = { ...base };
+  for (const k of r.path) {
+    const m = NODE_INDEX[k];
+    if (m.kind === 'open') b[k] = (Number.isInteger(b[k]) ? b[k] : 0) + 1;
+    else if (PICK_KINDS.includes(m.kind)) b[k] = k === id ? at(b) : wayPick(b, m, plan);
+    else b[k] = true;
+  }
+  return b;
+}
+
+/** The points the draft still needs past the build the hero holds. */
+export const planLeft = (nodesIn, draftIn) => Math.max(0, pointsSpent(draftOf(nodesIn, draftIn)) - pointsSpent(normalize(nodesIn)));
+
+/** The draft's nodes the hero does not hold yet (an open road still short of its planned count), for the map's planned marks. */
+export function plannedOf(nodesIn, draftIn) {
+  const nodes = normalize(nodesIn), out = new Set();
+  for (const [k, v] of Object.entries(draftOf(nodes, draftIn))) if (!own(nodes, k) || (NODE_INDEX[k].kind === 'open' && v > nodes[k])) out.add(k);
+  return out;
+}
+
+/**
+ * THE PLAN'S NEXT STEP on the hero's build (the server's) at Level `level`: the first planned node, in the map's own order (a node only
+ * after the one it leaves), whose one point the server's spend would take but for the points: { id, pick } (pick null for a plain
+ * node), or null when the plan holds nothing buyable now (paid, or waiting on a Level: a vow slot).
+ */
+export function nextPlanStep(nodesIn, draftIn, level) {
+  const nodes = normalize(nodesIn), want = plannedOf(nodes, draftIn), draft = draftOf(nodes, draftIn);
+  for (const n of TALENT_NODES) {
+    if (!want.has(n.id)) continue;
+    const pick = PICK_KINDS.includes(n.kind) ? draft[n.id] : null;
+    if (FRONTIER_OK.has(spendProblem(nodes, n.id, pick, level))) return { id: n.id, pick };
+  }
   return null;
 }
 

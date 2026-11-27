@@ -21,7 +21,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/inner-flame.js#roomMpts', why: 'units: milli-points over parts per million (coverPm is the lever, ledger flame.levers)' },
   { at: 'src/core/inner-flame.js#decay', why: 'units: 60 minutes x a million parts (decayPpm is the lever)' },
   { at: 'src/core/imbue.js#HOUR_MS', why: 'a unit: the milliseconds in an hour (IMBUE.hours is the lever)' },
-  { at: 'src/core/personal-loot.js#UNIT', why: 'a unit: hero_pity holds millionths of x' },
+  { at: 'src/data/party.js#PITY_UNIT', why: 'a unit: hero_pity holds billionths of a find owed (the one pity, 12-targets 8.6.1)' },
   { at: 'src/core/temper-steps.js#rankQuote', why: 'units: milli-hours x permille (TEMPER_STEPS is the lever)' },
   { at: 'src/core/temper-steps.js#seatPrice', why: 'units: milli-hours x permille (TEMPER_STEPS.carryPm is the lever)' },
   /* validators and audit bands: quoted as ranges */

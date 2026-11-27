@@ -36,6 +36,9 @@ renderTalents.patch = function patchTalents(el, ctx) {
   body.patchBody(host, ctx);
 };
 
+/* the map's keys and Find talent's typing (talents/find.js) */
+renderTalents.events = Object.freeze(['keydown', 'input']);
+
 renderTalents.act = function actTalents(ctx, el, action, ev, t) {
   const host = hostOf(el);
   return body && host && host.hasAttribute('data-rd-built') ? body.actBody(ctx, host, action, ev, t) : false;

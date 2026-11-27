@@ -34,7 +34,8 @@
 --   hunt-settle.js memberInput hands both to heroSetup; the frozen peer row (src/core/member.js) and the viewer's live start point carry
 --   the hero, so the browser plays the same list the settle does.
 -- THE ROLL'S INPUTS (the same read): instance `trait_drops` (hr_flag_on) and each member's `drops` = hr_trait_drops_of: { pity: { rare,
---   very_rare } (hero_pity, the roller's missed rolls since its last find), luck_pm (the company flame's luck, 0 while inner_flame is
+--   very_rare } (hero_pity, the finds the hero was owed since its last, in PITY_UNIT parts, src/data/party.js: the one pity, src/core/
+--   personal-loot.js, 12-targets 8.6), luck_pm (the company flame's luck, 0 while inner_flame is
 --   off) }, null while dark. Read at the window's start, never after it.
 -- THE LAND (hr_trait_pieces_land, owner-only; hr_hunt_apply_instance RESTATED WHOLE, its chain 4 deep since 2027-03-21-scaled-hunts.sql):
 --   a member's `traits` { found: [piece], pity: { rare, very_rare } } is proved under every lock the settle holds, after every member's
@@ -49,7 +50,8 @@
 --                          of this ground's pool, two of one key, a banned pair), piece_rank (outside [max(1, top - 1), top] at the
 --                          depth the SERVER derives from the step, top held to the ground's max_rank), piece_depth (the edge's depth is
 --                          not the server's), piece_twice (the same kill twice)
---     pity                 pity_over (a count that grew past the window's kills, or a negative one)
+--     pity                 pity_over (a pity that grew past the window's kills times the ground's pity step, hr_piece_grounds
+--                          pity_step_rare / pity_step_very_rare: the most one honest miss adds there; or a negative one)
 --   then inserts each piece, upserts the hero's pity, and journals ONE player_ledger row a piece (kind 'trait', intent 'trait_piece',
 --   no gold, no item quantity: a piece is no stack). The member's answer (hunt_settle.found) names what landed, the drop moment.
 -- THE SECTION `pieces` (hr_trait_pieces_view): the account's pieces, newest first, each with its session (the return card's line reads
@@ -161,7 +163,7 @@ revoke all on public.trait_pieces from public, anon, authenticated, service_role
 grant select on public.trait_pieces to authenticated;
 drop policy if exists trait_pieces_own on public.trait_pieces;
 create policy trait_pieces_own on public.trait_pieces for select to authenticated using (user_id = auth.uid());
-comment on column public.hero_pity.misses is '1071-trait-pieces.sql: the Trait roller''s missed rolls of this rarity since the hero''s last find (src/core/trait-roll.js rollKillFor: whole rolls, its pityChance reads them), written by hr_trait_pieces_land only.';
+comment on column public.hero_pity.misses is '1071-trait-pieces.sql: the finds of this rarity the hero was owed since its last (the sum of each missed roll''s p0, in PITY_UNIT parts: src/core/personal-loot.js pityAfter, read by src/core/trait-roll.js rollKillFor; 12-targets 8.6), written by hr_trait_pieces_land only.';
 
 -- ── §3 THE READERS: what a hero wears, what it rolls with, the account's pieces ──
 create or replace function public.hr_worn_traits_of(p_user uuid, p_slot int)
@@ -362,7 +364,7 @@ declare
   v_id    uuid;
   v_out   jsonb := '[]'::jsonb;
   v_found text[] := '{}';
-  v_rar   text; v_before bigint; v_after bigint;
+  v_rar   text; v_before bigint; v_after bigint; v_pstep bigint;
   c_piece_keys constant text[] := array['rarity', 'slot', 'base', 'traits', 'ground', 'step', 'depth', 'il', 'at_ms', 'kill'];
   c_num constant text := '^[0-9]{1,15}$';
 begin
@@ -462,15 +464,17 @@ begin
     v_out := v_out || jsonb_build_array(jsonb_build_object('id', v_id, 'rarity', v_pc->>'rarity', 'slot', v_pc->>'slot', 'base', v_pc->>'base',
                'traits', v_pc->'traits', 'depth', v_depth, 'at_ms', v_at));
   end loop;
-  -- THE PITY the roller carries: a count of missed rolls, so it grows by at most one a kill and a find this window resets it under the kills
+  -- THE PITY the roller carries: the finds owed (the one pity, 12-targets 8.6), so it grows by at most the ground's pity step a kill (the
+  -- most one honest miss adds there, hr_piece_grounds; 0 where nothing rolls), and a find this window resets it under the kills' worth
   foreach v_rar in array array['rare', 'very_rare'] loop
     continue when not (p_traits->'pity' ? v_rar);
     if jsonb_typeof(p_traits->'pity'->v_rar) <> 'number' or (p_traits->'pity'->>v_rar) !~ '^[0-9]{1,12}$' then
       perform public.hr_reject('bad_traits', jsonb_build_object('why', 'pity', 'pity', p_traits->'pity')); end if;
     v_after := (p_traits->'pity'->>v_rar)::bigint;
     v_before := coalesce((select hp.misses from public.hero_pity hp where hp.user_id = p_user and hp.slot = p_slot and hp.rarity = v_rar), 0);
-    if v_after > v_before + v_kills or (v_rar = any (v_found) and v_after > v_kills) then
-      perform public.hr_reject('pity_over', jsonb_build_object('rarity', v_rar, 'before', v_before, 'after', v_after, 'kills', v_kills)); end if;
+    v_pstep := coalesce(case v_rar when 'rare' then g.pity_step_rare else g.pity_step_very_rare end, 0);
+    if v_after > v_before + v_kills * v_pstep or (v_rar = any (v_found) and v_after > v_kills * v_pstep) then
+      perform public.hr_reject('pity_over', jsonb_build_object('rarity', v_rar, 'before', v_before, 'after', v_after, 'kills', v_kills, 'step', v_pstep)); end if;
     insert into public.hero_pity as hp (user_id, slot, rarity, misses) values (p_user, p_slot, v_rar, v_after)
       on conflict (user_id, slot, rarity) do update set misses = excluded.misses, updated_at = now() where hp.misses is distinct from excluded.misses;
   end loop;
@@ -881,7 +885,7 @@ begin
         ('piece_who', v_ok || '{"kill": 87, "ground": "pyre_field"}', '{"kills": 5}', '{}'),
         ('piece_rarity', v_ok || '{"kill": 88, "rarity": "signature"}', '{"kills": 5}', '{}'),
         ('bad_traits', v_ok || '{"kill": 89, "extra": 1}', '{"kills": 5}', '{}'),
-        ('pity_over', null, '{"kills": 5}', '{"rare": 99}')) t(want, piece, meta, pity) loop
+        ('pity_over', null, '{"kills": 5}', '{"rare": 999999999999}')) t(want, piece, meta, pity) loop
         v_code := null;
         begin
           perform public.hr_trait_pieces_land(v_hunt, v_u, 0, null, v_ins,

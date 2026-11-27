@@ -17,7 +17,7 @@
     "the change was intended. Never edit a hash by hand to make a build green —",
     "a red hash is the check working."
   ],
-  "generated": "2026-11-26",
+  "generated": "2026-11-27",
   "project": "nezapsylztqbbwuwembx",
   "postgres": {
     "production": "17.x",
@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3478,
+  "replay_ms": 3394,
   "counts": {
     "tracked_names": 1149,
     "entries": 973
@@ -15014,12 +15014,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "131fcb43a21d49ebb301d19101fff4f9",
-        "norm_len": 459,
+        "md5": "42b56d87d59e23c7d67814f036f42779",
+        "norm_len": 462,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql, 1069-gear-phase-b-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-gear-phase-b-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_pity_chance(p_p double precision, p_missed bigint)",
@@ -15033,12 +15033,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "c633efc20e467cf9969b62e609b6fb25",
-        "norm_len": 493,
+        "md5": "b18e1f954d8cc0deeb5c477bd0f961af",
+        "norm_len": 496,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql, 1069-gear-phase-b-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-gear-phase-b-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_play_cap_guard()",
@@ -21532,8 +21532,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "baa3b8707c4fa9a779c491f57b2246f1",
-        "norm_len": 10482,
+        "md5": "5a5d312405396d1b7adad39851d6ad41",
+        "norm_len": 10767,
         "source": "computed-from-replay"
       },
       "agree": false,

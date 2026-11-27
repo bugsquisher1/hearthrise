@@ -353,6 +353,8 @@ export function memberSide(mi, ctx) {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
       key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx,
+      /* WHAT IT WEARS (the server's equipment): the Trait roller draws a found piece's base of the kind worn in its slot (trait-roll.js) */
+      worn: mi.equipment || null,
       /* Wears the whetstone at this member's boundary (combat-sim, before the unit re-reads its snapshot). */
       wear,
       /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour

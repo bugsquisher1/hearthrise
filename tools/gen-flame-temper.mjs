@@ -40,7 +40,7 @@ const KIT_IL_PINS = [0, 1, 19, 20, 39, 40, 59, 60, 79, 80, 99, 100, 119, 120, 13
 /* the imbuement band lock (lane/tp-server-1): bands either side of each hero Level's wear-ahead edge, and the empty ends */
 const WEAR_PINS = [[0, 40], [45, 0], [45, 34], [45, 35], [45, 36], [50, 39], [50, 40], [55, 44], [55, 45], [70, 59], [70, 60], [70, 200], [210, 199], [210, 200]];
 const CH_PINS = [[0.5, 1, 0], [0.5, 4, 0], [1, 4, 0], [0.002, 3, 200], [0.0001, 2, 360], [0.9, 1, 600], [0, 2, 100]];
-const PITY_PINS = [[0.0002, 0], [0.0002, 438000], [0.01, 5000000], [0.5, 9000000], [0.00001, 1]];
+const PITY_PINS = [[0.0002, 0], [0.0002, 438000000], [0.01, 5000000000], [0.5, 9000000000], [0.00001, 1]];
 
 async function load(root) {
   const q = sourceQuery(root);
@@ -86,6 +86,7 @@ export function rowsOf(d) {
   if (slotSum !== 1000) problems.push('GEAR_STEPS.slotPm sums to ' + slotSum + ', not 1000');
   for (const k of ['hours', 'steps', 'lifeRungPm', 'feeHoursPm']) if (!(whole(I[k]) && I[k] > 0)) problems.push('IMBUE.' + k + ' is not a whole number above 0');
   if (!(whole(P.pityGrowPm) && whole(P.pityBasePm) && P.pityBasePm > 0 && P.pityBasePm <= 1000)) problems.push('PERSONAL_LOOT: pityGrowPm whole, pityBasePm in 1..1000');
+  if (!(whole(d.party.PITY_UNIT) && d.party.PITY_UNIT >= 1000000000)) problems.push('PITY_UNIT is not a whole number of at least 1e9 (a Very Rare miss in a party of four at depth 1 must not round away)');
   if (!(whole(C.hoursPerStepPm) && C.hoursPerStepPm > 0 && whole(C.partsBase) && whole(C.workPm) && C.workPm > 0)) problems.push('CARRY levers are not whole numbers above 0');
   if (problems.length) throw new Error('gen-flame-temper: ' + problems.join('; '));
 
@@ -126,7 +127,7 @@ export function rowsOf(d) {
   }
   return {
     F, T, I, P, C, G, slots, itemLevels, imbues, kits: kitRows, levels: d.flameD.FLAME_LEVELS, fuel: d.flameD.FLAME_FUEL, powerStep: d.danger.DANGER.powerStep,
-    rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins,
+    rampLevel: d.ledger.POWER_LEDGER.rampLevel, pins, unit: d.party.PITY_UNIT,
   };
 }
 
@@ -423,13 +424,13 @@ create or replace function public.hr_pity_chance(p_p float8, p_missed bigint)
 returns float8 language sql stable set search_path = public, pg_catalog as $fn$
   select case when coalesce(p_p, 0) <= 0 then 0::float8
               else least(1::float8, ((p_p * l.pity_base_pm::float8) / 1000::float8)
-                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / 1000000::float8))) end
+                     * (1::float8 + (l.pity_grow_pm::float8 / 1000::float8) * (greatest(0, coalesce(p_missed, 0))::float8 / ${r.unit}::float8))) end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_pity_after(p_missed bigint, p_p float8, p_hit boolean)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
   select case when p_hit then 0::bigint
-              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * 1000000::float8)::bigint else 0 end end
+              else greatest(0, coalesce(p_missed, 0)) + case when coalesce(p_p, 0) > 0 then round(((p_p * l.pity_base_pm::float8) / 1000::float8) * ${r.unit}::float8)::bigint else 0 end end
     from public.hr_loot_rules l where l.id = 1
 $fn$;
 create or replace function public.hr_carry_fee(p_steps int, p_item_level int)
@@ -585,12 +586,13 @@ async function selftest() {
   plant('no Temper kit named', (d) => { d.temperD.TEMPER_KITS = base.temperD.TEMPER_KITS.map(() => null); });
   plant('no wear-ahead to lock a band by', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, wearAhead: -1 } }; });
   plant('a pity that never keeps the stated rate', (d) => { d.party.PERSONAL_LOOT = { ...base.party.PERSONAL_LOOT, pityBasePm: 0 }; });
+  plant('a pity unit a Very Rare miss rounds away in', (d) => { d.party.PITY_UNIT = 1000000; });
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));
   for (const v of 'abcdefghijklmnopqrs') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
   if (bites.length) { console.error('gen-flame-temper --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-flame-temper --selftest: 13 refusals bite, 19 verifications pinned');
+  console.log('gen-flame-temper --selftest: 14 refusals bite, 19 verifications pinned');
 }
 
 if (isMain(import.meta.url)) {

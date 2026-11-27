@@ -13,10 +13,11 @@
 --   hr_temper_kits (6 rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
 --     yet, is refused kits_owed, never sold for gold alone). hr_temper_rules.kit_item, 1063's one kit column, is no longer written: it
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
---   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
+--   hr_item_levels (401 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
---   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp; hr_temper_rank_mh, hr_temper_rank_cap,
+--   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp, hr_flame_walk (the settle's walk,
+--   lane/f1-inner-flame: 1074-inner-flame-luck.sql reads it); hr_temper_rank_mh, hr_temper_rank_cap,
 --   hr_temper_rank_quote, hr_temper_seat_price, hr_temper_kit_at; hr_imbue_life_ms, hr_imbue_fee, hr_imbue_wearable (wearAhead 10);
 --   hr_hero_chance, hr_pity_chance, hr_pity_after; hr_carry_fee.
 -- READERS: 1063-flame-temper.sql (the verbs, the settle's decay and timers, the sections), restated for the kit a band and the band lock by
@@ -276,6 +277,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('bronze_platelegs', 0),
   ('bronze_rimmed_shield', 0),
   ('bronze_sword', 0),
+  ('burnt_crag_leg_plates', 140),
   ('cauldron_lid', 40),
   ('cerecloth_belt', 160),
   ('cerecloth_body', 160),
@@ -350,6 +352,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('drakehide_helmet', 140),
   ('drakehide_pants', 140),
   ('drovers_crossbow', 60),
+  ('dunns_mallet', 160),
   ('dunns_slippers', 160),
   ('duskweave_belt', 120),
   ('duskweave_body', 120),
@@ -419,6 +422,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('juniper_crossbow', 140),
   ('juniper_staff', 140),
   ('juniper_wand', 140),
+  ('keepers_leg_plates', 160),
   ('kindling_wand', 120),
   ('kingsgrate', 0),
   ('kingstooth', 20),
@@ -432,6 +436,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('leather_gloves', 0),
   ('leather_helmet', 0),
   ('leather_pants', 0),
+  ('limewashed_plate', 160),
   ('longbow', 20),
   ('lychgate_crossbow', 100),
   ('maple_bow', 60),
@@ -463,6 +468,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('packlord_band', 22),
   ('palisade_sword', 20),
   ('passing_bell_hammer', 100),
+  ('paupers_shroud', 160),
   ('porters_boots', 160),
   ('pothunters_hood', 160),
   ('practice_bow', 1),
@@ -586,6 +592,7 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('watchknight_gloves', 80),
   ('watchknight_helmet', 80),
   ('watchknight_pants', 80),
+  ('watchmans_sword', 160),
   ('westwood_hatchets', 20),
   ('willow_crossbow', 40),
   ('willow_longbow', 40),
@@ -738,6 +745,61 @@ begin
                             'sell_rest', coalesce(p_rule->'sell_rest', 'false'::jsonb) = 'true'::jsonb);
 end $fn$;
 
+create or replace function public.hr_flame_walk(p_height bigint, p_points bigint, p_carry bigint, p_spans jsonb, p_drops jsonb,
+                                                p_keep_pm int, p_tops jsonb)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare
+  v_h bigint := greatest(0, coalesce(p_height, 0)); v_p bigint := greatest(0, coalesce(p_points, 0)); v_c bigint := greatest(0, coalesce(p_carry, 0));
+  v_keep int := greatest(0, least(1000, coalesce(p_keep_pm, 0)));
+  v_spans jsonb; v_t bigint; v_end bigint; v_at bigint; v_ms bigint; v_d jsonb; v_x jsonb; v_fuel jsonb;
+  v_item text; v_key text; v_qty bigint; v_l int; v_room bigint; v_b jsonb; v_u bigint; v_m bigint;
+  v_burned jsonb := '{}'::jsonb; v_units bigint := 0; v_mpts bigint := 0; v_decayed bigint := 0;
+begin
+  -- THE SETTLE'S WALK (src/core/inner-flame.js walk; lane/f1-inner-flame, read by 1074-inner-flame-luck.sql hr_flame_settle): ONE COMPANY'S
+  -- FIRE OVER ONE WINDOW, ON THE WINDOW'S CLOCK. p_spans [[key, from_ms, to_ms]]
+  -- the hunted milliseconds of each hero; p_drops [[at_ms, key, item, qty]] the Remains each picked up, in the engine's order; p_tops
+  -- { key: top }. Every hunted hero-minute that ended by a drop's instant burns the height down first (hr_flame_decay), then the drop
+  -- burns up to the stoke rule's target (the fire lifted by room - target, so hr_flame_burn_units' room is the target), the rest stays.
+  select coalesce(jsonb_agg(s.value), '[]'::jsonb), min((s.value->>1)::bigint), max((s.value->>2)::bigint) into v_spans, v_t, v_end
+    from jsonb_array_elements(coalesce(p_spans, '[]'::jsonb)) s where (s.value->>2)::bigint > (s.value->>1)::bigint;
+  if v_t is null then
+    return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', '{}'::jsonb,
+                              'units', 0, 'mpts', 0, 'decayed', 0);
+  end if;
+  select coalesce(jsonb_object_agg(f.item_id, f.band), '{}'::jsonb) into v_fuel from public.hr_flame_fuel f;
+  for v_x in select e.value from jsonb_array_elements(coalesce(p_drops, '[]'::jsonb)) with ordinality e(value, n) order by e.n loop
+    v_item := v_x->>2; v_key := v_x->>1; v_qty := greatest(0, (v_x->>3)::bigint);
+    continue when not (v_fuel ? v_item) or v_qty = 0;
+    v_at := least(v_end, (v_x->>0)::bigint);
+    if v_at > v_t then
+      select coalesce(sum(greatest(0, least(v_at, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
+        from jsonb_array_elements(v_spans) s;
+      v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
+      v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
+      v_decayed := v_decayed + (v_d->>'burned')::bigint; v_t := v_at;
+    end if;
+    v_l := public.hr_flame_level_of(v_p);
+    v_room := public.hr_flame_room_mpts(v_l);
+    v_b := public.hr_flame_burn_units(v_h + (v_room - (v_room * v_keep) / 1000), v_l, v_qty, (v_fuel->>v_item)::int,
+                                      coalesce((p_tops->>v_key)::int, 0));
+    v_u := (v_b->>'units')::bigint; v_m := (v_b->>'mpts')::bigint;
+    continue when v_u < 1;
+    v_h := v_h + v_m;
+    v_burned := v_burned || jsonb_build_object(v_key, coalesce(v_burned->v_key, '{}'::jsonb)
+                  || jsonb_build_object(v_item, coalesce((v_burned->v_key->>v_item)::bigint, 0) + v_u));
+    v_units := v_units + v_u; v_mpts := v_mpts + v_m;
+  end loop;
+  if v_end > v_t then
+    select coalesce(sum(greatest(0, least(v_end, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
+      from jsonb_array_elements(v_spans) s;
+    v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
+    v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
+    v_decayed := v_decayed + (v_d->>'burned')::bigint;
+  end if;
+  return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', v_burned,
+                            'units', v_units, 'mpts', v_mpts, 'decayed', v_decayed);
+end $fn$;
+
 -- ── §4 TEMPER'S TWINS (src/core/temper-steps.js) ─────────────────────────────
 create or replace function public.hr_temper_rank_mh(p_slot text, p_rank int)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
@@ -829,6 +891,7 @@ begin
       'public.hr_flame_luck_pm(bigint)', 'public.hr_flame_top_rank_pm(integer)', 'public.hr_flame_level_of(bigint)',
       'public.hr_flame_decay(bigint,bigint,bigint,bigint)', 'public.hr_flame_worth_mpts(bigint,integer,integer)',
       'public.hr_flame_burn_units(bigint,integer,bigint,integer,integer)', 'public.hr_flame_stoke_clamp(jsonb)',
+      'public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)',
       'public.hr_temper_rank_mh(text,integer)', 'public.hr_temper_rank_cap(integer)', 'public.hr_temper_rank_quote(text,integer,integer)',
       'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_temper_kit_at(integer)', 'public.hr_imbue_life_ms(text)',
       'public.hr_imbue_fee(integer,integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
@@ -845,7 +908,7 @@ do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
   if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 8
-     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 395
+     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 401
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000
      or (select count(*) from public.hr_temper_kits) <> 6 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
@@ -921,6 +984,14 @@ begin
     (0::bigint, 50, 7::bigint, 1, 400, '{"units":7,"mpts":17,"height":17}'::jsonb)) p(h, fl, n, b, t, o) loop
     v_j := public.hr_flame_burn_units(v_r.h, v_r.fl, v_r.n, v_r.b, v_r.t);
     if v_j is distinct from v_r.o then raise exception 'VERIFY(h): the burn % is % in SQL, % in JS', row(v_r.h, v_r.fl, v_r.n, v_r.b, v_r.t), v_j, v_r.o; end if;
+  end loop;
+  for v_r in select * from (values
+    ('{"height":12000,"points":50000,"carryMs":30000}'::jsonb, '[["a",0,90000],["b",0,90000]]'::jsonb, '[[10000,"a","bones",1],[10000,"b","bones",1],[45000,"a","big_bones",2],[80000,"b","bones",3],[85000,"a","not_fuel",9]]'::jsonb, 1000, '{"a":60,"b":60}'::jsonb, '{"height":12016,"points":50048,"carry_ms":30000,"level":11,"burned":{"a":{"bones":1,"big_bones":2},"b":{"bones":4}},"units":7,"mpts":64,"decayed":48}'::jsonb),
+    ('{"height":12400,"points":3000,"carryMs":0}'::jsonb, '[["a",0,600000],["b",120000,600000],["c",0,300000]]'::jsonb, '[[1000,"a","bones",40],[130000,"b","bone_chips",25],[299000,"c","grave_dust",60],[500000,"a","bones",80]]'::jsonb, 667, '{"a":50,"b":50,"c":120}'::jsonb, '{"height":12430,"points":3391,"carry_ms":0,"level":1,"burned":{"a":{"bones":22},"b":{"bone_chips":7},"c":{"grave_dust":18}},"units":47,"mpts":421,"decayed":391}'::jsonb),
+    ('{"height":18000,"points":5999000,"carryMs":59000}'::jsonb, '[["a",0,3600000]]'::jsonb, '[[600000,"a","bones",500],[1800000,"a","dragon_bones",3]]'::jsonb, 0, '{"a":200}'::jsonb, '{"height":17265,"points":5999735,"carry_ms":59000,"level":98,"burned":{},"units":0,"mpts":0,"decayed":735}'::jsonb),
+    ('{"height":0,"points":0,"carryMs":0}'::jsonb, '[["a",0,1200000],["b",0,1200000],["c",0,1200000],["d",0,1200000]]'::jsonb, '[[0,"a","bones",1],[20000,"b","big_bones",2],[40000,"c","bone_chips",3],[60000,"d","bones",4],[80000,"a","big_bones",5],[100000,"b","bone_chips",1],[120000,"c","bones",2],[140000,"d","big_bones",3],[160000,"a","bone_chips",4],[180000,"b","bones",5],[200000,"c","big_bones",1],[220000,"d","bone_chips",2],[240000,"a","bones",3],[260000,"b","big_bones",4],[280000,"c","bone_chips",5],[300000,"d","bones",1],[320000,"a","big_bones",2],[340000,"b","bone_chips",3],[360000,"c","bones",4],[380000,"d","big_bones",5],[400000,"a","bone_chips",1],[420000,"b","bones",2],[440000,"c","big_bones",3],[460000,"d","bone_chips",4],[480000,"a","bones",5],[500000,"b","big_bones",1],[520000,"c","bone_chips",2],[540000,"d","bones",3],[560000,"a","big_bones",4],[580000,"b","bone_chips",5],[600000,"c","bones",1],[620000,"d","big_bones",2],[640000,"a","bone_chips",3],[660000,"b","bones",4],[680000,"c","big_bones",5],[700000,"d","bone_chips",1],[720000,"a","bones",2],[740000,"b","big_bones",3],[760000,"c","bone_chips",4],[780000,"d","bones",5],[800000,"a","big_bones",1],[820000,"b","bone_chips",2],[840000,"c","bones",3],[860000,"d","big_bones",4],[880000,"a","bone_chips",5],[900000,"b","bones",1],[920000,"c","big_bones",2],[940000,"d","bone_chips",3],[960000,"a","bones",4],[980000,"b","big_bones",5],[1000000,"c","bone_chips",1],[1020000,"d","bones",2],[1040000,"a","big_bones",3],[1060000,"b","bone_chips",4],[1080000,"c","bones",5],[1100000,"d","big_bones",1],[1120000,"a","bone_chips",2],[1140000,"b","bones",3],[1160000,"c","big_bones",4],[1180000,"d","bone_chips",5]]'::jsonb, 1000, '{"a":45,"b":45,"c":45,"d":45}'::jsonb, '{"height":1668,"points":132,"carry_ms":0,"level":1,"burned":{"a":{"bones":15,"big_bones":15,"bone_chips":15},"b":{"big_bones":15,"bone_chips":15,"bones":15},"c":{"bone_chips":15,"bones":15,"big_bones":15},"d":{"bones":15,"big_bones":15,"bone_chips":15}},"units":180,"mpts":1800,"decayed":132}'::jsonb)) p(f, spans, drops, keep, tops, o) loop
+    v_j := public.hr_flame_walk((v_r.f->>'height')::bigint, (v_r.f->>'points')::bigint, (v_r.f->>'carryMs')::bigint, v_r.spans, v_r.drops, v_r.keep, v_r.tops);
+    if v_j is distinct from v_r.o then raise exception 'VERIFY(t): the walk over % is % in SQL, % in src/core/inner-flame.js walk', v_r.spans, v_j, v_r.o; end if;
   end loop;
   for v_r in select * from (values
     ('{"keep":"full"}'::jsonb, '{"keep":"full","own_first":true,"buy_per_day":0,"cap_hours_pm":0,"sell_rest":false}'::jsonb),
@@ -1375,5 +1446,5 @@ begin
   if has_function_privilege('authenticated', 'public.hr_temper_kit_at(integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_imbue_wearable(integer,integer)', 'execute') then
     raise exception 'VERIFY(r): a client role runs the kit or band-lock twin'; end if;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 8 fuels, 13 Temper slots, 6 Temper kits, 395 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 8 fuels, 13 Temper slots, 6 Temper kits, 401 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

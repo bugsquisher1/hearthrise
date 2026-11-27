@@ -110,6 +110,12 @@
         "gzipBytes": 206836,
         "on": "2026-11-27",
         "why": "a cut locked in"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206847,
+        "on": "2026-11-27",
+        "why": "lane/f1-inner-flame: the flame section reader and the return card's flame line (flame-sections.js, away.js)"
       }
     ],
     "town": [
@@ -526,6 +532,12 @@
         "gzipBytes": 982604,
         "on": "2026-11-27",
         "why": "lane/ci-reds-1127 (re-raised on the merged base a3731a069): the Trait piece words moved into the text table (bag.js, item.js rows read by piece-words, inventory actions and doll: text-home TH-1), +0.1 KB"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983052,
+        "on": "2026-11-27",
+        "why": "lane/f1-inner-flame: the flame section reader and the return card's flame line (flame-sections.js, away.js)"
       }
     ]
   }

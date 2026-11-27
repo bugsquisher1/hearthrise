@@ -40,6 +40,17 @@ import { renderNeeds, patchNeeds } from '../needs-you.js';
 import { regear } from '../../session/carry-on-intents.js';
 import { piecesFoundIn } from '../../session/piece-sections.js';
 import { pieceName, traitWords, standingWord } from '../piece-words.js';
+import { flameHuntOf } from '../../session/flame-sections.js';
+
+/* THE INNER FLAME'S LINE (21 section 1.5): what the hunt burned on the company's fire and the Rare chance it rolled at, both the server's
+   (the `flame` section's hunt, flame-sections.js); '' when the switch is off, the section does not list the hunt, or neither moved. */
+function flameLine(h) {
+  if (!h) return '';
+  const pct = Math.round(h.luckPm / 10);
+  if (h.units > 0 && pct > 0) return t('away.card_flame', { n: whole(h.units), pct });
+  if (h.units > 0) return t('away.card_flame_burned', { n: whole(h.units) });
+  return pct > 0 ? t('away.card_flame_luck', { pct }) : '';
+}
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -113,6 +124,8 @@ export function awayBlockOf(cs, a) {
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, ledger, when, stamina, go, label,
     /* the Trait pieces this hunt found (the server's `pieces` section: the rows whose session is the line's hunt, found by this hero) */
     pieces: hunt && cs && a.session ? piecesFoundIn(cs, a.session) : [],
+    /* the Inner Flame: what this hunt burned and the Rare chance it rolled at (flameLine) */
+    flame: hunt && cs && a.session ? flameLine(flameHuntOf(cs, a.session)) : '',
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
     summary: go === 'again' || go === 'ground', bless: blessOf(cs, f) };
@@ -142,7 +155,7 @@ function heroRow(ctx) {
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
     + '<ul class="haway-pieces"></ul>'
-    + '<p class="haway-why"></p><p class="haway-cause"></p><div class="haway-ledger"></div><p class="haway-when"></p>'
+    + '<p class="haway-why"></p><p class="haway-flame"></p><p class="haway-cause"></p><div class="haway-ledger"></div><p class="haway-when"></p>'
     + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-bless" hidden></button><span class="haway-stamina"></span></div>'
     /* stamina short: the loops that use none, each a press (awayBlockOf `rest`) */
@@ -187,6 +200,7 @@ renderAway.patch = function patchAway(body, ctx) {
         patch: (el, p) => { text(el.querySelector('small'), standingWord(p)); text(el.querySelector('b'), pieceName(p) + (traitWords(p) ? ' · ' + traitWords(p) : '')); },
       });
       text(li.querySelector('.haway-why'), b.why);
+      text(li.querySelector('.haway-flame'), b.flame);
       text(li.querySelector('.haway-cause'), b.cause);
       rows(li.querySelector('.haway-ledger'), b.ledger.map((l, i) => ({ i, l })), { key: (x) => String(x.i), build: () => element(ctx.doc, '<p class="haway-cause"></p>'), patch: (el, x) => text(el, x.l) });
       text(li.querySelector('.haway-when'), b.when);

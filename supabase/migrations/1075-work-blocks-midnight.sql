@@ -46,7 +46,7 @@
 --   bought ON THAT DAY, and nothing else: the count is the server's own shop rows (`time_buy:work:%`, written only by hr_time_buy and
 --   the standing rule, S-23), the block the server's catalogue row, the day the row's server timestamp. A block counts on exactly one day,
 --   so no block is spent twice; a block never raises another day's cap. The engine's `work_to` is trusted exactly as before (1059).
---   ON THE PRE-EA SECURITY LIST (13-security-list.md S-29, beside S-16 and S-23).
+--   ON THE PRE-EA SECURITY LIST (13-security-list.md S-30, beside S-16 and S-23).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- A town settle whose watermark is today (all but a hero's first settles after a midnight) reads nothing new: hr_work_bought returns

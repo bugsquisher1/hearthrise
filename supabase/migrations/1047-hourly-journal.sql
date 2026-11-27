@@ -138,7 +138,8 @@ create or replace function public.hr_ledger_fold_model(p_kind text, p_intent tex
 returns jsonb language plpgsql immutable set search_path = public, pg_catalog as $$
 begin
   if p_intent = 'accrue' and p_kind in ('gather', 'craft', 'combat') then
-    -- supabase/functions/hr-accrue/accrue-hunt.js, accrue-gather.js, accrue-artisan.js, tick-gather.js, index.ts (crew); hr_apply (delta).
+    -- supabase/functions/hr-accrue/accrue-hunt.js, accrue-gather.js, accrue-artisan.js, tick-gather.js, index.ts (crew); hr_apply (delta);
+    -- `flame` the Remains a hunt row's window burned on the company fire (1074-inner-flame-luck.sql hr_flame_net), summed by item.
     return '{
       "ms": "sum", "ticks": "sum", "kills": "sum", "qty": "sum", "made": "sum", "burnt": "sum", "boost_ms": "sum",
       "km": {"*": "sum"},
@@ -146,6 +147,7 @@ begin
       "mon": "label", "node": "label", "recipe": "label", "skill": "label", "src": "label", "capped": "label", "prize": "label",
       "stopped": "label", "out_of": "label", "room_for": "label", "skipped_items": "label",
       "crew": {"ms": "sum", "qty": "sum", "workers": "label", "items": {"*": "sum"}},
+      "flame": {"burned": {"*": "sum"}},
       "delta": {"g": "sum", "m": "sum", "lx": "sum", "i_n": "sum", "i_sum": "sum",
                 "i": {"*": "sum"}, "x": {"*": "sum"}, "st": {"*": "sum"}, "k": "names",
                 "bt": {"c": "sum", "g": "sum", "mg": "label", "cr": "last"}}

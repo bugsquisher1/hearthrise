@@ -50,7 +50,7 @@
 //   #13 Hall Fire Wand          mage      kill (of Fireball) -> burst, 30% of the fallen's max health on every monster next to it
 //   #15 Catacomb Shroud         mage      hit (of Hoarfrost) -> Silenced 3 s
 //   #16 Lamplighter's Robe      mage      shield_break (its own Arcane Barrier) -> Kindled (its next Fireball or Frost Lance +30%)
-//   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under half (RESHAPED from 30%: Steady falls back at 25%) -> Guarded at twice its row (-20% taken) 4 s
+//   #17 Bargeman's Pole         healer    heal (of Greater Mend) on a target under half (RESHAPED from 30%: Steady falls back at 25%; -20% under half read +14.6, cut) -> Guarded at 1.5 times its row (-15% taken) 4 s
 //   #21 Drover's Hat            healer    absorb (a shell the wearer cast: a healer's is Protective Ward) -> reflect 50% on the attacker
 //   #23 Ferry Pennies           any       RESHAPED (Mend under 20% read +0.3: Steady falls back at 25%; a Chill under 40% +2.0): heal (of
 //                                         Mend) under 45% -> Blunted (the next blow at half) on every monster next to the wearer
@@ -143,9 +143,9 @@ export const SIGNATURES = Object.freeze({
     tip: 'When your Arcane Barrier breaks: your next Fireball or Frost Lance deals 30% more damage',
     reacts: [{ on: 'shield_break', do: 'boon', status: 'kindled' }] }),
   bargemans_pole: sig({ id: 'bargemans_pole', n: 17, name: 'Bargeman\'s Pole', slot: 'weapon', weapon: 'magic', move: 'greater_mend',
-    home: { kind: 'monster', id: 'bargeman' }, best: { seat: 'healer', ground: 'the_slake' },
-    tip: 'Greater Mend on a target below half health: also gives 20% damage reduction for 4 s',
-    reacts: [{ on: 'heal', of: 'greater_mend', belowPm: 500, do: 'boon', status: 'guarded', pw: 2000, ms: 4000 }] }),
+    home: { kind: 'monster', id: 'bargeman' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Greater Mend on a target below half health: also gives 15% damage reduction for 4 s',
+    reacts: [{ on: 'heal', of: 'greater_mend', belowPm: 500, do: 'boon', status: 'guarded', pw: 1500, ms: 4000 }] }),
   drovers_hat: sig({ id: 'drovers_hat', n: 21, name: 'Drover\'s Hat', slot: 'helmet', move: 'protective_ward',
     home: { kind: 'monster', id: 'drover' }, best: { seat: 'healer', ground: 'ox_road' },
     tip: 'Protective Ward: returns 50% of the damage it absorbs to the attacker',

@@ -258,9 +258,9 @@ Note: The opposite of Charged Barrier, which wants the shield to hold.
 ## Restoration
 
 **17. Bargeman's Pole** · Weapon (staff) · Drops from: The Slake, Bargeman
-Greater Mend on a target below half health: also gives 20% damage reduction for 4s
+Greater Mend on a target below half health: also gives 15% damage reduction for 4s
 Best for: Healer
-Note: For saves, not top-ups. Best with Deep Mending, still useful with the others. (Reshaped 2026-11-26, batch 2: Steady falls back at 25%, so a target under 30% seldom met the heal, and on Bold the Slake's four sits at its top.)
+Note: For saves, not top-ups. Best with Deep Mending, still useful with the others. (Reshaped 2026-11-26, batch 2: Steady falls back at 25%, so a target under 30% seldom met the heal, and on Bold the Slake's four sits at its top. Under half at -20% read +14.6 on Muster, cut to -15%.)
 
 **18. Brewer's Apron** · Body · Drops from: Carter's Rest, Troll Brewer
 Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cast)

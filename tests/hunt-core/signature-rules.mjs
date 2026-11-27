@@ -37,7 +37,7 @@
 //   hit-silence       #15 Catacomb Shroud: a Hoarfrost hit Silences its monster 3 s; another move's hit nothing
 //   break-kindle      #16 Lamplighter's Robe: the wearer's own shell breaking Kindles it; its next Fireball casts 30% stronger and spends it,
 //                     the one after casts plain
-//   heal-guard        #17 Bargeman's Pole: a Greater Mend on a hero under half its health as it begins (healed past the line or not) Guards it -20%
+//   heal-guard        #17 Bargeman's Pole: a Greater Mend on a hero under half its health as it begins (healed past the line or not) Guards it -15%
 //                     taken for 4 s; one on a hero over the line nothing
 //   absorb-reflect    #21 Drover's Hat: a monster's blow the wearer's shell takes lands half of what it took back on that monster, exact;
 //                     another hero's shell nothing
@@ -522,7 +522,7 @@ const cases = {
     /* healed from 25 to 60: the line is read as the heal begins */
     M.HR.landHeal(g, a, 35, sc, false, mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
     const s = stacksOf(a, 'guarded');
-    if (s.length !== 1 || s[0].left !== 4000 || M.SE.effectPm(a, 'takenPm') !== -200) return 'a Greater Mend begun at 25%: ' + JSON.stringify(a.statuses) + ' takenPm ' + M.SE.effectPm(a, 'takenPm') + ' (want Guarded -20% for 4 s)';
+    if (s.length !== 1 || s[0].left !== 4000 || M.SE.effectPm(a, 'takenPm') !== -150) return 'a Greater Mend begun at 25%: ' + JSON.stringify(a.statuses) + ' takenPm ' + M.SE.effectPm(a, 'takenPm') + ' (want Guarded -15% for 4 s)';
     return null;
   },
   'absorb-reflect': (M) => {

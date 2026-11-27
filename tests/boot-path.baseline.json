@@ -574,6 +574,12 @@
         "gzipBytes": 983999,
         "on": "2026-11-27",
         "why": "lane/no-named-trait-bases: the plain-ladder tables (PLAIN_PIECES, SHIELD_LADDER) in the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 984084,
+        "on": "2026-11-27",
+        "why": "lane/front-seat: monster-roles pins (brute, swarm, warder) and the close rule in the game half"
       }
     ]
   }

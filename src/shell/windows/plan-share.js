@@ -46,11 +46,11 @@ function rowNote(row) {
 function planShareHtml() {
   return '<div class="hps">'
     + '<h3 class="hs-sub">' + t('share.head_yours') + '</h3>'
-    + '<textarea class="hps-code" rows="3" readonly spellcheck="false" aria-label="' + t('share.head_yours') + '"></textarea>'
+    + '<textarea class="hps-code" rows="2" readonly spellcheck="false" aria-label="' + t('share.head_yours') + '"></textarea>'
     + '<p class="hs-note hps-none"></p>'
     + '<div class="hps-do"><button type="button" class="hh-tool" data-hs-act="ps-copy">' + t('share.copy') + '</button><p class="hs-note hps-copied" role="status"></p></div>'
     + '<h3 class="hs-sub">' + t('share.head_paste') + '</h3>'
-    + '<textarea class="hps-paste" data-hs-act="ps-type" rows="3" spellcheck="false" maxlength="' + CODE.maxChars + '" aria-label="' + t('share.head_paste') + '"></textarea>'
+    + '<textarea class="hps-paste" data-hs-act="ps-type" rows="2" spellcheck="false" maxlength="' + CODE.maxChars + '" aria-label="' + t('share.head_paste') + '"></textarea>'
     + '<div class="hps-do"><button type="button" class="hh-tool" data-hs-act="ps-read">' + t('share.read') + '</button><p class="hs-note hps-error" role="status"></p></div>'
     + '<ul class="hw-ledger hps-rows"></ul>'
     + '<div class="hps-foot"><button type="button" class="hw-primary" data-hs-act="ps-use">' + t('share.use') + '</button>'

@@ -6,8 +6,9 @@
 //   talentsSectionOf(sec)          the section normalized (the one reader of its shape), or null
 //   talentsOf(cs, roleKey, plan)   the section through talentsSectionOf, plus the next fork on the suggested road (display only), or null
 //                                  while the switch is off (the server projects null) or for no hero
-// The section's shape (hr_talents_view): { live, level, points, spent, nodes, auto, borrowed: [{ move, opens_at, open }], vow_slots,
-// builds: { hunt_id: nodes }, reset }. A client-only reader: the engine reads only `nodes` (hunt-settle.js memberInput), so this lives
+// The section's shape (hr_talents_view): { live, level, points, spent, nodes, auto, plan_hunt, borrowed: [{ move, opens_at, open }],
+// vow_slots, builds: { hunt_id: nodes }, reset }. `plan_hunt` (1073-talents-plan-server.sql) is read by company-sections.js planGroundOf,
+// the one reading of the plan's ground. A client-only reader: the engine reads only `nodes` (hunt-settle.js memberInput), so this lives
 // here and not in src/core (lane/r-ui-roads-2: it left the edge payload).
 // ════════════════════════════════════════════════════════════════════════
 import { nextFork, normalize, pointsAt, pointsSpent, vowSlotsAt } from '../core/talents.js';

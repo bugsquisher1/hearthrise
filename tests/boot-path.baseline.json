@@ -56,6 +56,18 @@
         "gzipBytes": 205959,
         "on": "2026-11-27",
         "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206436,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206438,
+        "on": "2026-11-27",
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
       }
     ],
     "town": [
@@ -394,6 +406,18 @@
         "gzipBytes": 979471,
         "on": "2026-11-27",
         "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 980049,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 980148,
+        "on": "2026-11-27",
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
       }
     ]
   }

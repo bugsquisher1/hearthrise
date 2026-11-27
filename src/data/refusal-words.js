@@ -209,6 +209,10 @@ export const REFUSAL_WORDS = Object.freeze({
   vow_slots: 'No free vow slot',
   needs_crossroads: 'Requires a crossroads in both countries',
   borrow_max: 'Borrowed moves full',
+  /* Spend on plan (1073-talents-plan-server.sql hr_talent_spend_plan) */
+  no_plan: 'No plan for this hunt',
+  plan_changed: 'Plan changed',
+  plan_done: 'Plan done',
   join_locked: 'Requires a Lord Krell kill',
   already_joined: 'Already on a side',
   same_faction: 'Already on that side',

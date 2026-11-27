@@ -12,6 +12,7 @@ import { MONSTERS } from '../../data/monsters.js';
 import { SKILLS_DEF } from '../../data/skills.js';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js';
 import { BASIC_INDEX } from '../../data/supply-basics.js';
+import { SIGNATURES } from '../../data/signatures.js';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { text, style, attr } from '../../render/paint.js';
@@ -45,10 +46,12 @@ export function patchGauge(el, cur, max, readout) {
 
 const spelled = (id) => { const s = String(id).replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };
 
-/** An item's player-facing name (the catalogue's), or the id spelled out. */
+/** An item's player-facing name (the catalogue's, a Signature's own: "Barrow Knight's Blade", never "Barrow knights blade"), or the id
+    spelled out. */
 export function itemName(id) {
   const it = ITEMS[id] || DRINK_ITEMS[id] || BASIC_INDEX[id];
-  return it && it.n ? it.n : spelled(id);
+  if (it && it.n) return it.n;
+  return Object.hasOwn(SIGNATURES, id) ? SIGNATURES[id].name : spelled(id);
 }
 
 /** Item `id`'s name beside a count of `n`: "1 Bone", "2,530 Bones" (live v0.2.135 read "with 1 Bones").

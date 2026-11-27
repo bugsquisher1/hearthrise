@@ -102,6 +102,12 @@ async function pure(base) {
     out.push('IS-2 a plain piece\'s kind line names a rung: ' + L.kindWords('steel_sword') + ' / ' + L.kindWords('krells_tollgate'));
   }
   if (!/, Rare$/.test(L.kindWords('iron_sword', RARE))) out.push('IS-2 a Rare piece\'s kind line is ' + L.kindWords('iron_sword', RARE));
+  /* a Signature has no catalogue row: its name is its own and its kind line names it (visual read 2026-11-26: the bag read
+     "Barrow knights blade" with no kind line) */
+  for (const id of sigIds) {
+    if (B.itemName(id) !== SG.SIGNATURES[id].name) out.push('IS-2 the Signature ' + id + ' is named ' + JSON.stringify(B.itemName(id)) + ', not its own name');
+    if (!/^(Weapon|Armor|Jewelry), Signature$/.test(L.kindWords(id))) out.push('IS-2 the Signature ' + id + '\'s kind line is ' + JSON.stringify(L.kindWords(id)));
+  }
   const sigCard = C.cardLayout(Object.assign(C.cardFacts({ kind: 'rare', item: sig }), { icon: 'assets/icons-bundle/pixel/items/' + sig + '.png' }));
   const plainCard = C.cardLayout(C.cardFacts({ kind: 'rare', item: 'steel_sword' }));
   const nine = sigCard.steps.find((s) => s.op === 'nine'), icon = sigCard.steps.find((s) => s.op === 'icon');
@@ -146,6 +152,8 @@ const MUTANTS = [
   ['the icon drops its frame', 'src/shell/widgets/bits.js', '  if (std) return ', '  if (false) return '],
   ['the pocket paints the old rung', 'src/shell/windows/inventory/pockets.js', "'<li class=\"hw-pocket is-' + kindOf(id) + '\"", "'<li class=\"hw-pocket is-' + kindOf(id) + ' rar-rare\""],
   ['a plain piece is called Rare', 'src/shell/item-lore.js', "if (std) parts.push(t('item.rarity_' + std));", "parts.push(t('item.rarity_' + (std || 'rare')));"],
+  ['a Signature reads its id spelled out', 'src/shell/widgets/bits.js', 'return Object.hasOwn(SIGNATURES, id) ? SIGNATURES[id].name : spelled(id);', 'return spelled(id);'],
+  ['a Signature has no kind line', 'src/shell/item-lore.js', "  if (!it && Object.hasOwn(SIGNATURES, id)) return ", "  if (false) return "],
   ['the share card inks every find gold', 'src/shell/share-card.js', "fill: std ? std.ink : '--gold-2' }", "fill: '--gold-2' }"],
   ['the summary draws its own icon', 'src/shell/windows/hunt-summary.js', "'<li class=\"hsum-item\"><span class=\"hsum-ico\">' + itemIconHtml(ctx.glyphs, x.it) + '</span>'", "'<li class=\"hsum-item\"><span class=\"hsum-ico\"><img src=\"' + PIXEL_DIR + x.it + '.png\"></span>'"],
   ['the frame sits inside the icon', 'src/styles/hunt.css', 'inset: calc(-1 * var(--art-px));', 'inset: 0;'],

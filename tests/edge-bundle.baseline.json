@@ -565,9 +565,14 @@
         "why": "lane/retire-dawnsteel-lines on the merged set: the six kept uniques past Dawnsteel as item rows in the Roost and Catacomb packs, their lore and generated stats (28-named-pieces 2.7), less the dead monsterCombatRolls"
       },
       {
-        "bytes": 3893846,
+        "bytes": 3894332,
         "on": "2026-11-27",
-        "why": "lane/ci-reds-1127 (re-raised on the merged base): the cast's JSDoc type names its tally field (abilities.js, typecheck-ratchet TS2339 from signatures-batch-2), +13 B"
+        "why": "lane/designer-kit-band1: band 1's 18 kit rows and band 0's five runes in src/data/trades.js (KIT_BATCHES, the rune faces), the Iron Arrowheads item row, and the band-1 Remains face, all read by the trade catalogue the edge bundles"
+      },
+      {
+        "bytes": 3894345,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1127 (re-raised on the merged base a3731a069): the cast's JSDoc type names its tally field (abilities.js, typecheck-ratchet TS2339 from signatures-batch-2), +13 B"
       }
     ]
   }

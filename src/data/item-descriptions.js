@@ -345,6 +345,7 @@ export const ITEM_DESC = {
   /* the job slice's new goods (lane/k1-job-slice, 2026-11-26): Dawnsteel's Temper kit, the arrow's head, and the five made imbuements */
   'dawn_temper_salts': 'Three Dawnsteel Bars ground down to a pale grit. The smith tempers Dawnsteel gear with them',
   'bronze_arrowheads': 'Rough bronze points from the forge. A fletcher fits each one to a plank to make Bronze Arrows',
+  'iron_arrowheads': 'Iron points from the forge. A fletcher fits each one to an oak plank to make Iron Arrows or Iron Bolts',
   'imbue_fire_ward': 'Ford weed bound with bones. Worked into body armor, it turns some of the fire aside for twenty hours of hunting',
   'imbue_fire_edge': 'A rake tine from the Pyre Field, bound with razor claws. Worked into a weapon, it burns as it cuts for twenty hours of hunting',
   'imbue_brute_edge': 'A pike ferrule bound with razor claws. Worked into a weapon, it bites deeper into Brutes for twenty hours of hunting',

@@ -104,7 +104,8 @@ begin
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   -- THE PIN: hr_apply is 1040-rested-bank-cut.sql's image (re-derived in this lane) or this file's own (a second apply).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
-  if v_md5 not in ('dd5c083803e9a54ebe8b7765ab5c2983', '4c9289bb76e2f7eec7d862bb8a7ac9e1') then
+  -- ...or 1072-piece-verbs.sql's (this file's plus its PIECE-VERBS equip edit: a retry after it, which 1040's retry restates first)
+  if v_md5 not in ('dd5c083803e9a54ebe8b7765ab5c2983', '4c9289bb76e2f7eec7d862bb8a7ac9e1', '4f08e462afab250381d5d0b3ea8e3634') then
     raise exception 'PIN: hr_apply is neither 1040''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
 end $mig$;
 

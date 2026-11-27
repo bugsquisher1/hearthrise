@@ -47,7 +47,8 @@ export const LEVERS = Object.freeze([
   { id: 'armor-tier', cls: 'replace', on: 'power', size: '12 to 47% more damage taken a tier behind', label: 'MEASURED', system: 'gear-tiers' },
   { id: 'tower-weapon', cls: 'replace', on: 'power', size: '+0.0 to +0.9% XP today; ruled "pretty major"', label: 'MEASURED', system: 'hearth-chest' },
   { id: 'accessories', cls: 'add', on: 'power', size: '+4 to +8% XP hammer, +0.4 to +3% mage; -4 to -12% taken', label: 'MEASURED', system: 'jewelry' },
-  { id: 'tempering', cls: 'add', on: 'power', size: '+2.3 to +3.5% XP; -0.3 to -8% taken (both tracks 5 of 5)', label: 'MEASURED', system: 'tempering' },
+  /* (lane/tp-im-steps retired the two measured ladders; Temper on steps carries the row now, booked by lane/ci-reds-1126c for G14) */
+  { id: 'tempering', cls: 'add', on: 'power', size: 'Temper on steps: a seated rank is item Levels on its piece, a whole kit at rank 5 is 5 steps (temper.js TEMPER_STEPS; the old ladders read +2.3 to +3.5% XP, -0.3 to -8% taken)', label: 'READ FROM DATA (the old ladders MEASURED)', system: 'tempering' },
   { id: 'skill-bump', cls: 'add', on: 'power', size: '+10 skills: +1 to +7% XP; -64% taken at Level 10 falling to 0 at 105', label: 'MEASURED', system: 'training' },
   { id: 'linings', cls: 'add', on: 'power', size: '20 / 25 / 30% of one element, 40% cap with gear', label: 'CITED', system: 'linings' },
   { id: 'perks-worn-in', cls: 'add', on: 'power', size: 'about +1% a perk; worn in under half a weapon step', label: 'PROPOSED', system: 'worn-in' },
@@ -110,7 +111,7 @@ export const LEVER_KEYS = Object.freeze({
   'scaled-hunt': 'scaled-hunts',
   'event:xp_bonus': 'bonus-weekend', 'event:open_halls': 'event-fee',
   'skill-xp:ability': 'way', 'skill-xp:basic': 'way',
-  'temper:blows': 'tempering', 'temper:armor': 'tempering',
+  'temper:blows': 'tempering', 'temper:armor': 'tempering', 'temper-steps': 'tempering',
   'training-item': 'skill-bump',
   'blessing': 'blessings',
   'stamina:free': 'stamina-cap', 'stamina:premium': 'stamina-cap', 'premium:stamina': 'stamina-cap', 'premium:login': 'premium-gift',

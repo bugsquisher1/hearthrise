@@ -293,6 +293,8 @@ export const REASONS = Object.freeze({
   'src/shell/windows/inventory/doll.js': [
     { cond: '!worn || locked', words: 'GEAR_HUNT_WORDS.one', where: 'the slot line says a hunt is running' },
     { cond: 'locked || short', words: "text(li.querySelector('.hw-fit-need'), short ? need.text : '')", where: 'the fit row\'s need line ("Needs Level 30 — you\'re 28")' },
+    /* a Trait piece's Sell (1072-piece-verbs.sql): off when the store prices none or the account's sales today are spent */
+    { cond: 'sc.pending || !!why', words: 'text(sellB, why ? why', where: 'a Trait piece\'s Sell: the button reads why it is off (the store does not buy it, no more sales today)' },
   ],
   'src/shell/windows/shop.js': [
     { cond: 'short > 0', words: "', need ' + gold(short) + ' more'", where: 'the offer row: "You need 40 gp more."' },

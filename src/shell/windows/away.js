@@ -38,6 +38,8 @@ import { runRulesOf } from '../../data/tower.js';
 import { renderCarry, patchCarry, followCarry, pressCarry, pressLine, carryPlanFor } from '../carry-on.js';
 import { renderNeeds, patchNeeds } from '../needs-you.js';
 import { regear } from '../../session/carry-on-intents.js';
+import { piecesFoundIn } from '../../session/piece-sections.js';
+import { pieceName, traitWords, standingWord } from '../piece-words.js';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -109,6 +111,8 @@ export function awayBlockOf(cs, a) {
   /* THE LEDGER LINES (19-power-ledger L7, ../hunt-report.js ledgerLines) under it: healing by source, damage taken by seat, supplies by depth */
   const ledger = depthWords ? ledgerLines(depth) : [];
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, cause, ledger, when, stamina, go, label,
+    /* the Trait pieces this hunt found (the server's `pieces` section: the rows whose session is the line's hunt, found by this hero) */
+    pieces: hunt && cs && a.session ? piecesFoundIn(cs, a.session) : [],
     ground: ground ? ground.hunt : null, rest,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
     summary: go === 'again' || go === 'ground', bless: blessOf(cs, f) };
@@ -137,6 +141,7 @@ function heroRow(ctx) {
   return element(ctx.doc, '<li class="haway-hero"><header class="haway-head"><h3 class="haway-name"></h3><span class="haway-place"></span></header>'
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
+    + '<ul class="haway-pieces"></ul>'
     + '<p class="haway-why"></p><p class="haway-cause"></p><div class="haway-ledger"></div><p class="haway-when"></p>'
     + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-bless" hidden></button><span class="haway-stamina"></span></div>'
@@ -176,6 +181,11 @@ renderAway.patch = function patchAway(body, ctx) {
       const ico = best.querySelector('.hsum-ico');
       if (ico.getAttribute('data-ico') !== (b.best || '')) { ico.setAttribute('data-ico', b.best || ''); ico.innerHTML = b.best ? itemIconHtml(ctx.glyphs, b.best) : ''; }
       text(best.querySelector('b'), b.best ? itemName(b.best) : '');
+      rows(li.querySelector('.haway-pieces'), b.pieces, {
+        key: (p) => p.id,
+        build: (p) => element(ctx.doc, '<li class="haway-best"><span class="hsum-ico">' + itemIconHtml(ctx.glyphs, p) + '</span><span class="haway-best-name"><small></small><b></b></span></li>'),
+        patch: (el, p) => { text(el.querySelector('small'), standingWord(p)); text(el.querySelector('b'), pieceName(p) + (traitWords(p) ? ' · ' + traitWords(p) : '')); },
+      });
       text(li.querySelector('.haway-why'), b.why);
       text(li.querySelector('.haway-cause'), b.cause);
       rows(li.querySelector('.haway-ledger'), b.ledger.map((l, i) => ({ i, l })), { key: (x) => String(x.i), build: () => element(ctx.doc, '<p class="haway-cause"></p>'), patch: (el, x) => text(el, x.l) });

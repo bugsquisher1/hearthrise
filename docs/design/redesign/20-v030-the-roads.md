@@ -169,7 +169,7 @@ For each step: what the player holds and can reach from earlier steps only, plus
 | Risk | The Hunts card for the first party ground | The plan, for every ground |
 | Burn or keep remains | The default stoke rule | The plan |
 | What the company works | The rest plan | The plan |
-| Buying a Hunting block | Offered once by the coach card when the purse holds 3 days of pay (12-targets 9.3; H1 paints it) | The standing rule, off by default: `hero_time_rules`, set by the card's answer or `hr_time_auto_set`, bought by the server's sweep (B1, 1071 STAGED). Town work has the same rule |
+| Buying a Hunting block | Offered once by the coach card when the purse holds 3 days of pay (12-targets 9.3; `src/shell/time-offer-card.js`, BUILT) | The standing rule, off by default: `hero_time_rules`, set by the card's answer or `hr_time_auto_set`, bought by the server's sweep (B1, 1071 STAGED). Town work has the same rule |
 
 ---
 

@@ -134,4 +134,14 @@ export const COACH_TEXT = Object.freeze({
   goal_ground_party: 'Next ground: {ground}, Level {level}+ with a party',
   goal_plant: 'Plant a seed on the Farm (J)',
   goal_skill: 'Next at {skill} {level}: {unlock}',
+  /* THE BLOCK RULE'S ONE OFFER (src/shell/time-offer-card.js, 12-targets 9.3): the purse first holds 3 days of pay. {n} a choice the
+     server offers, {hours} a hunting block, {price} the next one's price (the server's) */
+  offer_title: 'Extra hunting time',
+  offer: 'Your purse is filling up. Gold can buy extra hunting time every day.',
+  offer_block: 'Hunting block · +{hours} each · Bought only while hunting',
+  offer_block_price: 'Hunting block · +{hours} for {price} · Bought only while hunting',
+  offer_later: 'Change it later in Shop → Services',
+  offer_up_to: 'Up to {n} a day',
+  offer_not_now: 'Not now',
+  offer_saving: 'Saving…',
 });

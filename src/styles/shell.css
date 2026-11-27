@@ -196,6 +196,14 @@
 .hs-coach-off { min-height: 28px; padding: 0; border: 0; background: none; color: var(--ink-3); font-family: var(--f-label); font-size: var(--t-micro); text-decoration: underline; cursor: pointer; pointer-events: auto; }
 .hs-coach-off:hover { color: var(--ink); }
 .hs-coach-off:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* The block rule's one offer (time-offer-card.js): no fold, its facts one to a line under the words, its answers left, Not now quiet at the right. */
+.hs-pointer.is-offer:not(.is-min) { padding-right: 12px; }
+.hs-coach-sub { display: block; margin-top: 2px; font-size: var(--t-micro); color: var(--ink-3); }
+.hs-coach-say { color: var(--ink); }
+.hs-coach-answers { justify-content: flex-start; flex-wrap: wrap; }
+.hs-coach-answers > .hs-coach-got { margin: 0; }
+.hs-coach-answers > .hs-coach-off { margin-left: auto; }
+.hs-coach-answers > button:disabled { border-color: var(--steel-sep); color: var(--ink-3); cursor: default; }
 /* The card inside the window it points into (shell.js .hs-win-coach, hunt-tutorial.js coachWindow): between the title band
    and the body, so it covers no control; the ring shows the control, so it needs no tip. */
 .hs-win-coach { flex: none; }

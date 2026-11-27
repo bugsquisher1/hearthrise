@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2941,
+  "replay_ms": 11537,
   "counts": {
-    "tracked_names": 1157,
-    "entries": 981
+    "tracked_names": 1163,
+    "entries": 987
   },
   "functions": [
     {
@@ -1391,6 +1391,7 @@
         "1026-job-counts.sql",
         "1040-rested-bank-cut.sql",
         "1059-company-trades.sql",
+        "1072-piece-verbs.sql",
         "2026-08-11-apply-engine.sql",
         "2026-08-15-gem-daily-budget.sql",
         "2026-08-15-intent-key-hygiene.sql",
@@ -1449,12 +1450,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "de96612bd85bba9ce8f39992110a30bf",
-        "norm_len": 142965,
+        "md5": "a08c39cd568ee9639e6dcb65b81519ac",
+        "norm_len": 146037,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql, 1040-rested-bank-cut.sql, 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1059-company-trades.sql."
+      "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql, 1040-rested-bank-cut.sql, 1059-company-trades.sql, 1072-piece-verbs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1072-piece-verbs.sql."
     },
     {
       "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -14985,6 +14986,42 @@
       "why": "STAGED for the v0.2.144 release by 1071-trait-pieces-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-trait-pieces-catalogue.generated.sql."
     },
     {
+      "sig": "hr_piece_sell(p_slot integer, p_piece uuid, p_gold bigint, p_idem uuid)",
+      "name": "hr_piece_sell",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1072-piece-verbs.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "737fd6bc3f0a21656fae4d7ef5552ebb",
+        "norm_len": 5459,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1072-piece-verbs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-piece-verbs.sql."
+    },
+    {
+      "sig": "hr_piece_store_bid(p_rarity text, p_item_level integer, p_top_rank integer)",
+      "name": "hr_piece_store_bid",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1072-piece-verbs-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "2e70b70e8cade0caf76405a14d1eb0b0",
+        "norm_len": 1141,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1072-piece-verbs-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-piece-verbs-catalogue.generated.sql."
+    },
+    {
       "sig": "hr_piece_top_rank(p_hunt text, p_depth integer)",
       "name": "hr_piece_top_rank",
       "tracked_by": [
@@ -15001,6 +15038,24 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1071-trait-pieces-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-trait-pieces-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_piece_wear(p_slot integer, p_piece uuid, p_equip_slot text, p_idem uuid)",
+      "name": "hr_piece_wear",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1072-piece-verbs.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "07b623e60aea4ec4d29571bde1b2f501",
+        "norm_len": 4478,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1072-piece-verbs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-piece-verbs.sql."
     },
     {
       "sig": "hr_pity_after(p_missed bigint, p_p double precision, p_hit boolean)",
@@ -17919,19 +17974,21 @@
       "sig": "hr_talent_auto_set(p_slot integer, p_plan text, p_idem uuid)",
       "name": "hr_talent_auto_set",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1069-talent-standing-rule.sql"
+        "1069-talent-standing-rule.sql",
+        "1073-talents-plan-server.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "4b386471db7f4dcab5acb97df534634c",
-        "norm_len": 3049,
+        "md5": "a8239a779c28d09ef0299a299f7a0ee4",
+        "norm_len": 3480,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1069-talent-standing-rule.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-talent-standing-rule.sql."
+      "why": "STAGED for the v0.2.144 release by 1069-talent-standing-rule.sql, 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
     },
     {
       "sig": "hr_talent_build_problem(p_nodes jsonb)",
@@ -17968,6 +18025,42 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
+    },
+    {
+      "sig": "hr_talent_plan_steps(p_nodes jsonb, p_draft jsonb, p_level integer, p_vows boolean, OUT built jsonb, OUT n_spent integer, OUT steps jsonb, OUT why text)",
+      "name": "hr_talent_plan_steps",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-talents-plan-server.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "393f60c0d3fe6c2142972a184ed01810",
+        "norm_len": 3018,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
+    },
+    {
+      "sig": "hr_talent_plan_walk(p_user uuid, p_slot integer, p_vows boolean, OUT n_spent integer, OUT hunt text, OUT lv integer, OUT why text, OUT steps jsonb)",
+      "name": "hr_talent_plan_walk",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-talents-plan-server.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "8ba023a5665b43845142bdf03b8fa8e6",
+        "norm_len": 1573,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
     },
     {
       "sig": "hr_talent_points(p_level integer)",
@@ -18064,6 +18157,24 @@
       "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1064-roads-sample.sql."
     },
     {
+      "sig": "hr_talent_spend_plan(p_slot integer, p_hunt text, p_idem uuid)",
+      "name": "hr_talent_spend_plan",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-talents-plan-server.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "9768072b4b7e0263b11c674c51b96869",
+        "norm_len": 3708,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
+    },
+    {
       "sig": "hr_talent_spend_problem(p_nodes jsonb, p_node text, p_pick text, p_level integer)",
       "name": "hr_talent_spend_problem",
       "tracked_by": [
@@ -18123,19 +18234,21 @@
       "sig": "hr_talent_standing()",
       "name": "hr_talent_standing",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1069-talent-standing-rule.sql"
+        "1069-talent-standing-rule.sql",
+        "1073-talents-plan-server.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "fccec9d62f0aa4d9c4210c219f7194b1",
-        "norm_len": 1556,
+        "md5": "98dedabf553e3653f9330af390c9fe3f",
+        "norm_len": 1947,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1069-talent-standing-rule.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-talent-standing-rule.sql."
+      "why": "STAGED for the v0.2.144 release by 1069-talent-standing-rule.sql, 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
     },
     {
       "sig": "hr_talent_walk(p_user uuid, p_slot integer, p_plan text, OUT n_spent integer, OUT disc text, OUT lv integer)",
@@ -18160,21 +18273,23 @@
       "sig": "hr_talents_view(p_user uuid, p_slot integer)",
       "name": "hr_talents_view",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
         "1064-roads-sample.sql",
-        "1069-talent-standing-rule.sql"
+        "1069-talent-standing-rule.sql",
+        "1073-talents-plan-server.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "106119be4ff0e023ddf1dcac3604930a",
-        "norm_len": 1912,
+        "md5": "585927fc549ed04f60a793250a166e87",
+        "norm_len": 2110,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql, 1069-talent-standing-rule.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-talent-standing-rule.sql."
+      "why": "STAGED for the v0.2.144 release by 1064-roads-sample.sql, 1069-talent-standing-rule.sql, 1073-talents-plan-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-talents-plan-server.sql."
     },
     {
       "sig": "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)",
@@ -19334,8 +19449,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "7cc658f7dbbc26430971a9f52e45a1c1",
-        "norm_len": 1409,
+        "md5": "0f3cd6bd5186d65ce087feaa76d70d0c",
+        "norm_len": 1743,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -21679,16 +21794,17 @@
         "restate"
       ],
       "touched_by": [
-        "1071-trait-pieces.sql"
+        "1071-trait-pieces.sql",
+        "1072-piece-verbs.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "78cc7103301c9e49ecaa974b22308ef4",
-        "norm_len": 1126,
+        "md5": "11256f0204598089ede493cc3e14f655",
+        "norm_len": 1983,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-trait-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-trait-pieces.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-trait-pieces.sql, 1072-piece-verbs.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-piece-verbs.sql."
     },
     {
       "sig": "hr_trim_game_events(p_days integer, p_batch integer)",

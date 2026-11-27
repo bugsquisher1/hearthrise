@@ -40,7 +40,8 @@ export function cardDate(ms) {
 /** The card's facts from a rare-drop alert, or null. */
 export function cardFacts(a) {
   if (!a || a.kind !== 'rare' || typeof a.item !== 'string' || !a.item) return null;
-  return { item: a.item, name: itemName(a.item), standing: standingOf(a.item), hero: typeof a.hero === 'string' ? a.hero : null,
+  /* a Trait piece's alert carries its row (piece-words.js pieceNewsOf): the card draws its Rare or Signature step, not its base's */
+  return { item: a.item, name: itemName(a.item), standing: standingOf(a.piece && typeof a.piece === 'object' ? a.piece : a.item), hero: typeof a.hero === 'string' ? a.hero : null,
     place: typeof a.place === 'string' ? a.place : null, date: cardDate(a.at),
     icon: ITEMS[a.item] ? PIXEL_DIR + fileFor(a.item) : null };
 }

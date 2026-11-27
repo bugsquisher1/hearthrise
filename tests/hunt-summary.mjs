@@ -957,6 +957,9 @@ async function runTests(M) {
     eq(shelf(all).kind, 'deed', 'the cheapest of all, the deed at 400');
     eq(shelf({ ...all, home: deedHome(true) }).kind, 'bag', 'the deed owned: the bag at 1,000');
     eq(shelf({ ...all, home: deedHome(true), bagGrow: null }).kind, 'dummy', 'then the dummy, the nearest past the purse');
+    /* never the shelf order: an earlier shelf's dearer rung loses to a later shelf's cheaper one (the Tempering shelf, the old earlier-and-dearer
+       row here, left with lane/tp-im-steps; the chest's shelf stands before the bag's) */
+    eq(shelf({ chests, bag: [{ id: 'normal_log', qty: 40 }], bagGrow: grow }).kind, 'bag', 'the bag at 1,000 over the chest at 1,500, a shelf before it');
     /* NONE COVERED: the nearest, and what it still needs (the purse's shortfall at the server's price) */
     eq(shelf({ slot: { slotId: 1, cost: 400000 } }), null, 'no hero slot is ever a next buy: all four are the account\'s from the start');
     eq(shelf({ ...all, purse: 300 }).words, 'Opens Kitchen and Garden · Need 100 gp more', 'short of all of them: the nearest');
@@ -1100,8 +1103,10 @@ const MUTANTS = [
   { test: 'T5', file: NEXT, from: "&& roomDoes(r.room) && holds(r.next.items, o.bag, o.bank))", to: '&& roomDoes(r.room))' },
   /* power first: the whole shelf went ahead of the Shop's gear */
   { test: 'T5', file: NEXT, from: "  const power = gearBuy(o) || findPiece(o);\n  if (power) return power;\n", to: '' },
-  /* each shelf's first rung the purse covers: its first at all instead (the weapon's rung over the armor's the purse covers) */
-  { test: 'T5', file: NEXT, from: "const front = c.find((x) => x.gold <= o.purse) || c[0];", to: 'const front = c[0];' },
+  /* a shelf none of whose rungs the purse covers still offers its first (the nearest, with what it needs). (Its other half, "the first the purse
+     covers, not the first at all", is an equivalent mutant since lane/tp-im-steps retired the Tempering shelf, the one that answered weapon
+     then armor: every shelf now answers one row or cheapest first, so both picks are the same row. A shelf in its own order brings it back.) */
+  { test: 'T9', file: NEXT, from: "const front = c.find((x) => x.gold <= o.purse) || c[0];", to: 'const front = c.find((x) => x.gold <= o.purse);' },
   /* none covered: nothing named (the nearest and its shortfall gone) */
   { test: 'T5', file: NEXT, from: "  if (!fronts.length) return null;\n  const near = fronts[0].row", to: "  if (fronts.length) return null;\n  const near = fronts[0].row" },
   /* T9 the whole shelf: across shelves the cheapest the purse covers, never the shelf order; the deed's gates; a tool only for a trained skill and

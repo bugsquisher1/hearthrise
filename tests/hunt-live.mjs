@@ -1632,6 +1632,33 @@ function rules(M) {
       ok('LV-4P', n.match > 0 && n.match === r.verdicts.length, `viewing hero ${v}: ${n.match} of ${r.verdicts.length} commits matched the prediction (diverged ${n.diverged}, unknown ${n.unknown})`);
       ok('LV-4P', hashes.length === closedHashes.length && hashes.every((h, k) => h === closedHashes[k]), `viewing hero ${v} changed the server's commits`);
     }
+    /* THE PEER'S FROZEN SHOTS, read straight (the Warrens joined the Danger scale, lane/scale-grounds-2: there a shot's power is the rating,
+       damage.js blow, so a carried Iron or a store Barbed shot differs from the worn rolls only in its to-hit, a tenth of a percent, and the
+       viewed runs above see a peer's shot table by luck): the ranger's frozen row prices every shot its lane spends as the server's own member
+       does, against every kind the Warrens field, and at least one of them is not the worn rolls (else the table carries nothing to prove) */
+    {
+      const mi = party()[1], side = M.MB.memberSide(mi, { items: M.ITEMS });
+      const kinds = [...M.HGR.monstersOn(M.HGR.HUNT_GROUNDS.coppercap_warrens)].sort();
+      const peer = M.MB.frozenSide({ key: mi.key, seat: mi.seat, frozen: M.MB.frozenOf(side, kinds, T0) }).member;
+      /* what a blow reads off each (damage.js blow): the max hit off the neutral foe, the to-hit, crit and answer off a monster */
+      const n = (r, foe) => (!r ? null : foe ? [Number(r.accuracy) || 0, Number(r.critChance) || 0, Number(r.weak && r.weak.damageMult) || 1] : [Number(r.maxHit) || 0]);
+      const worn = Object.fromEntries(kinds.map((k) => [k, JSON.stringify(n(side.member.rollsVs(M.MONSTERS[k]), true))]));
+      const off = [];
+      let differs = 0;
+      for (const [ammo, share] of [['iron_arrows', undefined], ['barbed_arrows', Math.round(M.SB.BASIC_EFFECT_SHARE * 1000)]]) {
+        const at = ammo + '|' + (share || 1000), live = (r, k) => n(side.member.shotRolls(r, ammo, share), !!r);
+        const froze = (r, k) => (typeof peer.shotRolls === 'function' ? n(peer.shotRolls(r, ammo, share, k), !!r) : null);
+        if (JSON.stringify(live(null)) !== JSON.stringify(froze(null))) off.push(at + ' max hit ' + JSON.stringify(live(null)) + ' / ' + JSON.stringify(froze(null)));
+        if (JSON.stringify(live(null)) !== JSON.stringify(n(side.member.shotRolls(null, side.member.hero.ammo), false))) differs++;
+        for (const k of kinds) {
+          const a = JSON.stringify(live(M.MONSTERS[k], k)), b = JSON.stringify(froze(M.MONSTERS[k], k));
+          if (a !== b) off.push(at + ' vs ' + k + ' ' + a + ' / ' + b);
+          if (a !== worn[k]) differs++;
+        }
+      }
+      ok('LV-4P', differs > 0, 'CONTROL: the ranger\'s carried Iron and store Barbed shots price as its worn rolls against every Warrens kind (re-aim the fixture)');
+      ok('LV-4P', off.length === 0, 'viewing a peer: its frozen shots price as the server\'s member (' + off.slice(0, 3).join('; ') + ')');
+    }
   }
   { /* LV-$ the slot ORDER is the fallback, viewed and with the browser closed */
     const mi = memberOf(M, 'a', 0, 'tank', 6);

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/talent-intents.js — THE ROADS: ITS PRESSES (lane/roads-sample, 2026-11-23).
 //
-// supabase/migrations/1064-roads-sample.sql. A hero's Talent build lives on the server (hero_talents); the client reads the `talents`
+// supabase/migrations/1064-roads-sample.sql (1069, 1073). A hero's Talent build lives on the server (hero_talents); the client reads the `talents`
 // section (src/session/talent-sections.js talentsOf) and sends intents naming a node and a pick, never a point count or a Level:
 //   spendSuggested(account, cs, plan)  ONE hr_talent_spend_suggested(p_slot, p_plan, p_idem): every point left along the server's
 //                                   suggested order for the worn weapon, never a vow
@@ -12,6 +12,9 @@
 //   saveBuild(account, cs, hunt, nodes)   ONE hr_talent_build_save(p_slot, p_hunt, p_nodes, p_idem): a saved build (a plan, past the
 //                                   hero's Level allowed) for one ground, checked whole by the server; nodes null deletes it. A pasted
 //                                   share code lands here (src/session/plan-share.js): it spends nothing
+//   spendPlan(account, cs, hunt)    ONE hr_talent_spend_plan(p_slot, p_hunt, p_idem) (1073-talents-plan-server.sql): "Spend on plan", every
+//                                   point the saved build for the hero's planned hunt can take now, in map order, walked by the server.
+//                                   `hunt` is the ground the screen shows the plan for, only compared (plan_changed when it moved)
 // Refused settle_first (a hunt still being caught up): the hunter's own settle ONCE, then ONE ask under a NEW key (the first wrote
 // nothing; src/session/catch-up.js's rule). On ok the hero is taken from the answer's envelope (rule 11), so points and nodes change only
 // from the server.
@@ -68,4 +71,10 @@ export function saveBuild(account, cs, hunt, nodes) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !HUNT.test(String(hunt))
     || !(nodes === null || (isObj(nodes) && Object.keys(nodes).every((id) => NODE.test(id))))) return Promise.resolve({ ok: false, error: 'bad_intent' });
   return askVia(cs, 'talent_build', () => press(cs, () => account.server.rpc('hr_talent_build_save', { p_slot: cs.slot, p_hunt: hunt, p_nodes: nodes, p_idem: newIdem() })));
+}
+
+/** "Spend on plan": the server pays the saved build for ground `hunt` (the hero's planned hunt) as far as the points go, in one press. */
+export function spendPlan(account, cs, hunt) {
+  if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !HUNT.test(String(hunt))) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'talent_plan', () => press(cs, () => account.server.rpc('hr_talent_spend_plan', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() })));
 }

@@ -28,6 +28,7 @@ import { draftOf, serverBar } from './bar-draft.js';
 import { trackOnce } from '../net/observability.js';
 import { SHELL_WINDOWS } from '../data/shell-windows.js';
 import { partyGroundFor } from './hunt-list.js';
+import { offerCardHtml, actTimeOffer } from './time-offer-card.js';
 
 /**
  * THE TUTORIAL POINTER (Tyler 10-18: "I'm confused right away"). One line under the icon row: the
@@ -44,6 +45,9 @@ import { partyGroundFor } from './hunt-list.js';
 export function pointerFor(ctx, hunting) {
   const cs = ctx.character;
   if (!cs || coachCovered(ctx.wm)) return '';
+  /* a decision the server is waiting on comes before any tip (time-offer-card.js: the block rule's one offer) */
+  const offer = offerCardHtml(cs);
+  if (offer) return offer;
   const card = heldCard(ctx);
   return card ? coachHtml(cs, card, false, !!hunting && restsNow(ctx, card)) : '';
 }
@@ -364,6 +368,7 @@ function sameCardWords(have, html) {
 /** The coach's fold, open, Got it and close presses, from wherever it is drawn (this row, the hunt top bar, a window).
  *  Close records the read of a card a read finishes; any other card it only folds. True when handled. */
 export function actCoach(ctx, el, action, ev) {
+  if (actTimeOffer(ctx, el, action, ev)) return true;
   if (action !== 'coach-min' && action !== 'coach-open' && action !== 'coach-got' && action !== 'coach-close' && action !== 'coach-more' && action !== 'coach-off') return false;
   if (ev.type !== 'click') return true;
   /* the whole card, or its one line again: this box only (a new card or a new opening starts as one line) */

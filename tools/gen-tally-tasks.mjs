@@ -347,7 +347,12 @@ async function selftest() {
   const book = sql.split('insert into public.hr_tally_tiers')[1].split(';')[0];
   if (!/\('bronze_helm', 'helmet', 1\)/.test(book) || !/\('steel_platebody', 'body', 3\)/.test(book)) { console.error('  MISSED  a worn piece is not in her tier book at its tier'); bad++; }
   if (/'iron_sword'|'practice_shield'|'ring1'|'cape'/.test(book)) { console.error('  MISSED  an item worn outside her slots is in her tier book'); bad++; }
-  if (gearTier({ reqLv: 95 }, D.ladder) !== 7 || gearTier({ tier: 8, reqLv: 88 }, D.ladder) !== 8 || gearTier({}, D.ladder) !== 1) {
+  /* read off the ladder, never typed: a re-stamp moves every rung's Level (gear-phase-b's 12-targets 8.3 moved Level 95 from tier 7 to 6) */
+  const rungs = [...D.ladder].sort((a, b) => a.level - b.level), mid = rungs[rungs.length - 2], top = rungs[rungs.length - 1];
+  const between = Math.floor((mid.level + top.level) / 2);
+  if (!(mid.tier > 1 && between > mid.level && between < top.level)
+    || gearTier({ reqLv: between }, D.ladder) !== mid.tier || gearTier({ reqLv: top.level }, D.ladder) !== top.tier
+    || gearTier({ tier: top.tier, reqLv: rungs[1].level }, D.ladder) !== top.tier || gearTier({}, D.ladder) !== 1) {
     console.error('  MISSED  an untiered piece does not take its Level\'s rung'); bad++;
   }
   /* a cut count brings the held copies down with it, and only those above it (a raised count leaves them) */

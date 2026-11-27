@@ -6,7 +6,10 @@
 //                       whether its party's leader is pinned (leadPinned), and how many heroes the company holds; null when the server sent none
 //
 //   planGroundOf(cs)    the ground this hero's plan is for: the plan's ground, else the one its next Start repeats (the hunt it hunted
-//                       last); null for none. The ground a saved Roads build is kept for (share codes, the Roads map's Plan route)
+//                       last); null for none. The ground a saved Roads build is kept for (share codes, the Roads map's Plan route). While
+//                       the Talents switch is on the SERVER says it (the `talents` section's plan_hunt, 1073-talents-plan-server.sql
+//                       hr_hero_ground_of), so the build the screen draws and saves is the one the server's standing rule and Spend on
+//                       plan walk (a training yard hunted last never moves it)
 //
 // A read of the envelope only: nothing here is a gate the server trusts, and a missing section reads as unknown (null), never a default.
 // ════════════════════════════════════════════════════════════════════════
@@ -38,9 +41,13 @@ export function companyPlanOf(cs) {
   };
 }
 
-/** The ground this hero's plan is for (`co`: the companyPlanOf reading, read here when not given): the plan's ground, else the one its
-    next Start repeats (the hunt it hunted last); null for none. */
+/** The ground this hero's plan is for (`co`: the companyPlanOf reading, read here when not given): the server's own word while the Talents
+    section carries one, else the plan's ground, else the one its next Start repeats (the hunt it hunted last); null for none. */
 export function planGroundOf(cs, co = companyPlanOf(cs)) {
+  const tl = cs && typeof cs.read === 'function' ? cs.read('talents') : null;
+  if (isObj(tl) && tl.live === true && Object.prototype.hasOwnProperty.call(tl, 'plan_hunt')) {
+    return typeof tl.plan_hunt === 'string' && ITEM.test(tl.plan_hunt) ? tl.plan_hunt : null;
+  }
   if (co && co.planHunt) return co.planHunt;
   const h = huntOf(cs);
   return h && h.huntId && ITEM.test(h.huntId) ? h.huntId : null;

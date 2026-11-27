@@ -244,8 +244,10 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/party-intents.js': { rule: 8 },
   'src/session/preset-intents.js': { rule: 1 },
   'src/session/title-intents.js': { rule: 1 },
-  /* lane/roads-sample (1064): the Talents presses, one askVia each, sharing talent-intents.js press for the rule (lane/wn-sh: saveBuild; lane/r-ui-roads-2: setTalentAuto) */
-  'src/session/talent-intents.js': { rule: 4 },
+  /* the Trait piece's wear and sale (1072-piece-verbs.sql): one ask, both verbs */
+  'src/session/piece-intents.js': { rule: 1 },
+  /* lane/roads-sample (1064): the Talents presses, one askVia each, sharing talent-intents.js press for the rule (lane/wn-sh: saveBuild; lane/r-ui-roads-2: setTalentAuto; lane/talents-plan-server: spendPlan) */
+  'src/session/talent-intents.js': { rule: 5 },
   /* lane B1 (1071-work-blocks.sql): the standing block rule and its offer, one askVia each on the one rule */
   'src/session/time-intents.js': { rule: 2 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
@@ -306,10 +308,12 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/recipe-intents.js', 'learnRecipe', 'hr_recipe_learn', ['kingsgrate_rivets']],
   ['src/session/preset-intents.js', 'renameSetup', 'hr_hunt_preset_rename', [0, 'Mill run']],
   ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
+  ['src/session/piece-intents.js', 'sellPiece', 'hr_piece_sell', [{ id: '11111111-1111-4111-8111-111111111111', sell: 26184 }]],
   ['src/session/talent-intents.js', 'spendSuggested', 'hr_talent_spend_suggested', ['party']],
   ['src/session/talent-intents.js', 'spendTalent', 'hr_talent_spend', ['mend.r1', null]],
   ['src/session/talent-intents.js', 'saveBuild', 'hr_talent_build_save', ['muster_barrows', { 'mend.r1': true }]],
   ['src/session/talent-intents.js', 'setTalentAuto', 'hr_talent_auto_set', ['party']],
+  ['src/session/talent-intents.js', 'spendPlan', 'hr_talent_spend_plan', ['muster_barrows']],
   /* lane B1 (1071-work-blocks.sql): the standing block rule's two settings */
   ['src/session/time-intents.js', 'setTimeRule', 'hr_time_auto_set', ['work', 2]],
   ['src/session/time-intents.js', 'answerTimeOffer', 'hr_time_offer_answer', [1]],

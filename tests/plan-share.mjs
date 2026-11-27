@@ -8,7 +8,7 @@
 //   node tests/plan-share.mjs            the guard (the replayed chain for SH-PASTE, the real client modules)
 //   node tests/plan-share.mjs --mutate   every planted defect (in a temp copy of src) must turn its arm red
 //
-// mutant-anchors: src/core/plan-code.js src/session/plan-share.js src/session/talent-intents.js
+// mutant-anchors: src/core/plan-code.js src/session/plan-share.js src/session/talent-intents.js src/shell/windows/plan-share.js src/styles/windows.css
 // ci-step: db-replay | Share plan - a code made on one account rebuilt on a second, a tampered code refused
 // ci-run: node tests/plan-share.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/plan-share.mjs --mutate
@@ -26,6 +26,8 @@
 //              B's slot under B's token), and a reload of B reads A's plan back from the server. A's rows are untouched, B spent no point
 //              (a plan is saved, never spent), and a second press sends nothing ("Already your plan")
 //   SH-REFUSED a tampered paste sends nothing: no draft, no RPC
+//   SH-LOOK    the code boxes are as tall as the code (field-sizing: content, rows 2 as the fallback), never resizable wells (visual read
+//              2026-11-26: a one-line code sat in a 72 px box with a resize grip)
 // Exit: 0 green · 1 a red arm or an escaped mutant · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -220,6 +222,16 @@ const ARMS = {
     return p;
   },
 
+  'SH-LOOK': async (base) => {
+    const p = [];
+    const css = readFileSync(join(base, 'src/styles/windows.css'), 'utf8'), js = readFileSync(join(base, 'src/shell/windows/plan-share.js'), 'utf8');
+    const i = css.indexOf('.hps-code, .hps-paste {'), rule = i < 0 ? '' : css.slice(i, css.indexOf('}', i));
+    if (!/field-sizing:\s*content/.test(rule)) p.push('the code boxes do not size to the code: ' + rule.replace(/\s+/g, ' '));
+    if (!/resize:\s*none/.test(rule)) p.push('the code boxes can be dragged taller');
+    const rowsOf = (cls) => (js.match(new RegExp('<textarea class="' + cls + '"[^>]*?rows="(\\d+)"')) || [])[1];
+    for (const cls of ['hps-code', 'hps-paste']) if (rowsOf(cls) !== '2') p.push(cls + ' falls back to ' + rowsOf(cls) + ' rows, not 2');
+    return p;
+  },
   'SH-REFUSED': async (base) => {
     const p = [];
     const S = await imp(base, 'src/session/plan-share.js'), C = await imp(base, 'src/core/plan-code.js');
@@ -262,6 +274,8 @@ const MUTANTS = [
   { arm: 'SH-PASTE', why: 'the code shares the spent nodes, not the ground\'s saved build', over: () => swap('src/session/plan-share.js', '(ground && roads.builds[ground]) || roads.nodes', 'roads.nodes') },
   { arm: 'SH-PASTE', why: 'saveBuild spends instead of saving', over: () => swap('src/session/talent-intents.js', "account.server.rpc('hr_talent_build_save', { p_slot: cs.slot, p_hunt: hunt, p_nodes: nodes, p_idem: newIdem() })",
     "account.server.rpc('hr_talent_spend_suggested', { p_slot: cs.slot, p_plan: 'party', p_idem: newIdem() })") },
+  { arm: 'SH-LOOK', why: 'the code box is a resizable well again', over: () => swap('src/styles/windows.css', 'field-sizing: content; resize: none;', 'resize: vertical;') },
+  { arm: 'SH-LOOK', why: 'the code box falls back to three rows', over: () => swap('src/shell/windows/plan-share.js', '<textarea class="hps-code" rows="2"', '<textarea class="hps-code" rows="3"') },
   { arm: 'SH-REFUSED', why: 'a refused paste still sends the last plan', over: () => swap('src/session/plan-share.js', '  if (!plan) return [];\n', "  if (!plan) plan = { ground: 'mill_cellar', lines: {} };\n") },
 ];
 

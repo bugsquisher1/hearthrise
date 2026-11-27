@@ -2204,11 +2204,10 @@
         "text": "Perks, Tempering and the rest, at Levels 30, 60 and 105, lone and four"
       },
       "readers": [
-        "E7",
-        "guard:G10"
+        "E7"
       ],
       "readerState": "other-tool",
-      "gap": "E7 is in NOT_GRID: balance guard line G10 plays it",
+      "gap": "E7 is in NOT_GRID. Balance guard line G10, which played it, retired with the old Tempering ladders (lane/tp-im-steps, 2026-11-26). Temper on steps is item Levels in the gear part, bounded by construction (tests/temper-steps.mjs TS-4)",
       "source": "Call 23-5",
       "date": "2026-11-20",
       "basis": "ruled-call",

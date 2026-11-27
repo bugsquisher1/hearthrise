@@ -129,8 +129,11 @@ const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; i
 const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
 /* (payX.perSeed drops a seed with no pay window, so a list shorter than the seeds read cannot be paired by place: none is read; a seed
    whose four earned nothing from the held start, the unsettled tank four on Krell's Hold, reads nothing) */
+/* (lane/signatures-batch-3) a report that carries each seed's pace to 5 places (v1-climb payX.exact) is read on it, both arms or neither:
+   perSeed's hundredths move a paired delta in quanta of about 2.6 pace steps */
+const paysOf = (p, s) => (p.payX.exact && s.payX.exact ? [p.payX.exact, s.payX.exact] : [p.payX.perSeed, s.payX.perSeed]);
 const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
-  : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+  : stats(zip(...paysOf(p, s), (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
 const show = (d, n) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + (n ? ', ' + d.n : '') + ')' : 'no hold');
 /* the size bar on a reading in pace steps (15 "Decision: the scale a Signature is sized on") */
 const sizeOf = (d) => (!d ? 'owed' : d.m > HI ? (d.se > SE_MAX ? 'over, se ' + d.se.toFixed(1) + ': more seeds' : 'OVER (cut its number)')

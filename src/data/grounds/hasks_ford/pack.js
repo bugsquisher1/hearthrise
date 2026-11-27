@@ -127,7 +127,7 @@ export default definePack({
         { id: 'steel_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
         { id: 'steel_helm', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
         { id: 'willow_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }],
-      hp: 67, atk: 28, aim: 79, evasion: 23, def: 2, xp: 450, gp: [10, 29], formula: true },
+      hp: 67, atk: 28, aim: 57, evasion: 19, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -138,7 +138,7 @@ export default definePack({
       drops: [{ id: 'bones', everyHours: 0.0364, ch: 0.51, band: 'common' }, { id: 'grave_dust', everyHours: 0.113, ch: 0.164, band: 'common' }, { id: 'ford_weed', everyHours: 0.2273, ch: 0.0817, band: 'uncommon' },
         { id: 'steel_platelegs', everyHours: 0.58, ch: 0.032, band: 'scarce' }, { id: 'boarhide_pants', everyHours: 0.58, ch: 0.032, band: 'scarce' }, { id: 'scholar_pants', everyHours: 0.58, ch: 0.032, band: 'scarce' },
         { id: 'steel_hatchets', everyHours: 0.7, ch: 0.0265, band: 'scarce' }],
-      hp: 112, atk: 29, aim: 73, evasion: 38, def: 12, xp: 863, gp: [16, 50], formula: true },
+      hp: 112, atk: 29, aim: 51, evasion: 33, def: 12, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -150,7 +150,7 @@ export default definePack({
       role: 'caster',
       drops: [{ id: 'bones', everyHours: 0.0545, ch: 0.468, band: 'common' }, { id: 'grave_dust', everyHours: 0.091, ch: 0.281, band: 'common' }, { id: 'ledger_leaf', everyHours: 0.341, ch: 0.0749, band: 'uncommon' },
         { id: 'steel_platebody', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'boarhide_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }, { id: 'scholar_body', everyHours: 0.545, ch: 0.0468, band: 'scarce' }],
-      hp: 71, atk: 40, aim: 117, evasion: 26, def: 2, xp: 601, gp: [10, 32], formula: true },
+      hp: 71, atk: 40, aim: 83, evasion: 22, def: 2, xp: 601, gp: [10, 32], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
@@ -163,7 +163,7 @@ export default definePack({
         { id: 'coppercap_shield', everyHours: 1.636, ch: 0.0416, band: 'scarce' },
         { id: 'steel_gauntlets', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'boarhide_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'scholar_gloves', everyHours: 19.5, ch: 0.00349, band: 'rare' },
         { id: 'steel_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'boarhide_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }, { id: 'scholar_belt', everyHours: 19.5, ch: 0.00349, band: 'rare' }],
-      hp: 166, atk: 39, aim: 103, evasion: 44, def: 18, xp: 1399, gp: [24, 74], formula: true },
+      hp: 166, atk: 39, aim: 74, evasion: 38, def: 18, xp: 1399, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle

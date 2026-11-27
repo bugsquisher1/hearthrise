@@ -140,7 +140,7 @@ export default definePack({
         { id: 'mithril_sword', everyHours: 1.08, ch: 0.016, band: 'scarce' },
         /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
         { id: 'mithril_faced_shield', everyHours: 15.7, ch: 0.0011, band: 'rare' }],
-      hp: 211, atk: 25, aim: 45, evasion: 27, def: 2, xp: 989, gp: [16, 50], formula: true },
+      hp: 211, atk: 25, aim: 32, evasion: 23, def: 2, xp: 989, gp: [16, 50], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -153,7 +153,7 @@ export default definePack({
         { id: 'mithril_platelegs', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'snakeskin_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' }, { id: 'warlock_pants', everyHours: 0.694, ch: 0.048, band: 'scarce' },
         { id: 'maple_staff', everyHours: 0.694, ch: 0.048, band: 'scarce' },
         { id: 'maple_wand', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
-      hp: 207, atk: 34, aim: 59, evasion: 27, def: 2, xp: 1189, gp: [16, 49], formula: true },
+      hp: 207, atk: 34, aim: 41, evasion: 24, def: 2, xp: 1189, gp: [16, 49], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -167,7 +167,7 @@ export default definePack({
         { id: 'mithril_warhammer', everyHours: 0.694, ch: 0.048, band: 'scarce' },
         { id: 'mithril_gauntlets', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', everyHours: 10.1, ch: 0.0033, band: 'rare' },
         { id: 'mithril_hatchets', everyHours: 10.1, ch: 0.0033, band: 'rare' }],
-      hp: 484, atk: 45, aim: 55, evasion: 47, def: 21, xp: 2768, gp: [38, 113], formula: true },
+      hp: 484, atk: 45, aim: 40, evasion: 43, def: 21, xp: 2768, gp: [38, 113], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -182,7 +182,7 @@ export default definePack({
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
       /* A BRUTE (monster-roles.js; the scale only): his file, his adds, are the swarm that reaches the back */
       role: 'brute',
-      hp: 1712, atk: 54, aim: 58, evasion: 53, def: 24, xp: 10751, gp: [133, 401], formula: true,
+      hp: 1712, atk: 54, aim: 43, evasion: 50, def: 24, xp: 10751, gp: [133, 401], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {

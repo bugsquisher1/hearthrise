@@ -3,18 +3,19 @@
  "_generated_by": "node tools/new-ground.mjs <ground> --write",
  "grounds": {
   "muster_barrows": {
-   "refStep": 630,
-   "floorStep": 565,
-   "topStep": 700,
-   "coinPm": 7600,
-   "print": "f8355e114ecabfd7",
+   "refStep": 610,
+   "floorStep": 525,
+   "topStep": 690,
+   "refHeld": 605,
+   "coinPm": 7700,
+   "print": "06453719f7056c77",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
     "top": 75,
     "mid": 60
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
     "tools/balance-program/redesign/grounds/muster_barrows-top.json",
@@ -23,19 +24,19 @@
   },
   "hasks_ford": {
    "refStep": 590,
-   "floorStep": 545,
-   "topStep": 655,
-   "refKillsHead": 135,
-   "refHeld": 605,
+   "floorStep": 535,
+   "topStep": 645,
+   "refKillsHead": 130,
+   "refHeld": 595,
    "coinPm": 6600,
-   "print": "975134b951eccea8",
+   "print": "385e265606cb6549",
    "verdict": "OPEN",
    "levels": {
     "entry": 45,
     "top": 60,
     "mid": 52
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
     "tools/balance-program/redesign/grounds/hasks_ford-top.json",
@@ -126,18 +127,18 @@
   "mosslight_glade": {
    "refStep": 50,
    "floorStep": 0,
-   "topStep": 125,
-   "refKillsHead": 140,
+   "topStep": 120,
+   "refKillsHead": 135,
    "refHeld": 55,
    "coinPm": 7800,
-   "print": "3fa511657a51b655",
+   "print": "65d34538fc59981b",
    "verdict": "OPEN",
    "levels": {
     "entry": 16,
     "top": 31,
     "mid": 23
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
     "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
@@ -146,18 +147,18 @@
   },
   "coppercap_warrens": {
    "refStep": 80,
-   "floorStep": 25,
-   "topStep": 135,
-   "refKillsHead": 125,
+   "floorStep": 30,
+   "topStep": 125,
+   "refHeld": 75,
    "coinPm": 3900,
-   "print": "b54333e1d6fb3ff1",
+   "print": "f1f434304c6ceaf6",
    "verdict": "OPEN",
    "levels": {
     "entry": 32,
     "top": 50,
     "mid": 41
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/coppercap_warrens-ref.json",
     "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
@@ -165,19 +166,19 @@
    ]
   },
   "the_slake": {
-   "refStep": 120,
-   "floorStep": 65,
-   "topStep": 140,
-   "refHeld": 115,
-   "coinPm": 5300,
-   "print": "500ea8d1c38b2c11",
+   "refStep": 100,
+   "floorStep": 45,
+   "topStep": 135,
+   "refKillsHead": 125,
+   "coinPm": 4900,
+   "print": "fd5f34ef46e65df6",
    "verdict": "OPEN",
    "levels": {
     "entry": 50,
     "top": 65,
     "mid": 57
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/the_slake-ref.json",
     "tools/balance-program/redesign/grounds/the_slake-top.json",

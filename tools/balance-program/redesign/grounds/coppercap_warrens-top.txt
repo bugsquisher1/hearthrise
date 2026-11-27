@@ -3,26 +3,26 @@ V1 on coppercap_warrens (4 seeds x 10 h, held step read from hour 4; step 0 = th
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       137.4 +- 3.2       -1  92.4   100      3    0.2     1.8     61.2      0     0  0 (0/0/0)                       6  {"hold":1927,"climb":510,"fall":6}
+base:steady       126.4 +- 3.9      2.7  74.9  94.4    7.7    0.5     1.2     61.4      0     0  0 (0/0/0)                       6  {"hold":1876,"climb":557,"fall":18}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady         1.4x  sd 0.02  n 4  window 6 h  seeds 1.4 1.42 1.38 1.42
+  base:steady        1.31x  sd 0.02  n 4  window 6 h  seeds 1.32 1.33 1.31 1.29
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L50  coin 15919 +- 190  income 18220 +- 254  store 8312  kit share 0.46 (meal 272, drink 4403, charge 2095, shot 1542)  loot by band: common 400, uncommon 139, scarce 1761, other 0  n 4
+  base:steady       L50  coin 15113 +- 128  income 17273 +- 75  store 8174  kit share 0.47 (meal 230, drink 4329, charge 2074, shot 1541)  loot by band: common 375, uncommon 130, scarce 1654, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.527  bow 0.108  mage 0.142  healer 0.223
+  base:steady       hammer 0.534  bow 0.111  mage 0.138  healer 0.217
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 17.81 land 56.6% hit 28.89 (4632.5/h) | bow dps 16.78 land 89% hit 47.98 (571.5/h) | mage dps 24.75 land 79.72% hit 27.15 (1324.5/h) | healer dps 12.54 land 80.93% hit 26.68 (2120.5/h)
-                    goblin_scavenger(swarm) 202.8/h 21 s 268 | goblin_skulker(shooter) 131.6/h 37.7 s 340 | goblin_digger(brute) 121.4/h 36.8 s 1112 | hobgoblin_foreman(brute) 20.3/h 45.9 s 686 | chief_coppercap(caster) 10.1/h 62.6 s 574
-                    broke off by: fall:goblin_skulker@2 3, fall:goblin_digger@2 2, fall:goblin_scavenger@0 1
+  base:steady       hammer dps 17.24 land 55.78% hit 28.07 (4630.5/h) | bow dps 16.41 land 84.45% hit 46.96 (573.25/h) | mage dps 24.22 land 73.2% hit 25.28 (1326.75/h) | healer dps 12.23 land 74.58% hit 24.91 (2119.75/h)
+                    goblin_scavenger(swarm) 202.4/h 21.1 s 259 | goblin_skulker(shooter) 131.5/h 37.8 s 301 | goblin_digger(brute) 121.4/h 36.8 s 1093 | hobgoblin_foreman(brute) 20.2/h 46 s 669 | chief_coppercap(caster) 10.1/h 62.6 s 513
+                    broke off by: fall:goblin_skulker@2 5, fall:goblin_digger@2 5, fall:goblin_digger@0 4, fall:goblin_digger@3 2, fall:goblin_skulker@3 1, fall:goblin_scavenger@0 1
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 58.9 (depth 19)  free 98  spell 860  food 42  taken 25.74 pm/s
+  base:steady       abs 56.8 (depth 18)  free 102  spell 860  food 37  taken 24.67 pm/s
 
-wall 33 s
+wall 82 s

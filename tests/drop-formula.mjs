@@ -25,13 +25,15 @@
 //   DF-6  DARK: GEAR_STEPS.traitsLive is false and no src or server file but the roller and its two engine readers names `traitDrops`
 //         (nothing hands the settle a roll); a made piece (drop-hours.js made, data until the bench verb) is a cape or a jewel, a slot no
 //         scale ground drops, named by a part a scale ground does drop
+//   DF-7  NO RARE ON A BODY UNDER ITS GROUND'S TIER (12-targets 8.6.1): every Trait base a scale ground offers is its tier's piece or a later
+//         tier's (the wings' Hearth Chest hats and boots were key-tier bodies stamped 160)
 //
-//   node tests/drop-formula.mjs            the guard and every planted mutant (each caught by its case)
+//   node tests/drop-formula.mjs           the guard and every planted mutant (each caught by its case)
 //
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -300,6 +302,27 @@ const CASES = {
     if (new Set(one.found.map((p) => p.key + ':' + p.atMs + ':' + p.kill)).size !== one.found.length) return 'one kill made two pieces for one hero';
     return null;
   },
+  /* DF-7 NO RARE ON A BODY UNDER ITS GROUND'S TIER (the designer, 12-targets 8.6.1, built by lane/refhero-recut): every base a scale ground
+     offers a Trait piece (drop-rate.js traitBasesOf, the server's hr_piece_bases) carries the numbers of the ground's tier or a later one.
+     The Catacomb wings stamped the 24 Hearth Chest helmets and boots at item Level 160 on their key tiers' bodies (defense 2 to 50), so a wing
+     Rare could land on a bronze-tier hat; each wing drops its tier's base alone now (catacomb-wings.js, base-drops.js). */
+  'DF-7'(M) {
+    let read = 0;
+    for (const [gid, row] of Object.entries(M.D.DANGER_GROUNDS)) {
+      const g = M.grounds.HUNT_GROUNDS[gid];
+      if (!g) continue;
+      const tier = row.gearLevel / M.GS.GEAR_STEPS.tierSteps + 1;
+      for (const [slot, ids] of Object.entries(M.DR.traitBasesOf(g, M.GS.GEAR_STEPS.traitSlots, row.gearLevel, M.MONSTERS, M.ITEMS))) {
+        for (const id of ids) {
+          read += 1;
+          const it = M.ITEMS[id];
+          if (!it || !(it.tier >= tier)) return gid + ' offers ' + id + ' (tier ' + (it && it.tier) + ') as a ' + slot + ' base, under its tier ' + tier;
+        }
+      }
+    }
+    if (read < 200) return 'CONTROL: only ' + read + ' Trait bases read';
+    return null;
+  },
   'DF-6'(M) {
     if (M.GS.GEAR_STEPS.traitsLive !== false) return 'GEAR_STEPS.traitsLive is ' + M.GS.GEAR_STEPS.traitsLive + ': Traits are dark until wave 4';
     /* (lane/t1-traits-drop) the settle hands the roll only when the server's read says its `trait_drops` switch is on (1071-trait-pieces.sql,
@@ -354,6 +377,9 @@ const CASES = {
 };
 
 const MUTANTS = [
+  { name: 'a wing drops a Hearth Chest hat again (a bronze-tier body at item Level 160)', case: 'DF-7', edits: [['src/data/catacomb-wings.js',
+    '  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n',
+    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"]] },
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */

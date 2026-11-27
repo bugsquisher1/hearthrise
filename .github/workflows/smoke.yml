@@ -266,6 +266,91 @@ jobs:
         id: look
         run: node tools/release-proven.mjs
 
+  # client-guards-6: Lineups (V4), alone (lane/ci-job-budgets, 2026-11-27). In client-guards-2 it ran out that job's 60 four times
+  # (45885226247, 45897216951, 45912760535, 45919097452); its PLAIN run alone is 28.3-39.0 min on a four-core runner (45900652922,
+  # 45923114056; its header's "about 20 s on 8 workers" was one ground). Here: setup 0.4 + the plain run 39.0 = 39.4 min;
+  # x2 = 79. ITS --mutate HAS NEVER RUN ON A RUNNER: V4-1 is red, so the step stops at the plain run. It calls measure()
+  # twice (the shipped game, then the one-style fours 40 Levels up), every cell again, about 2 x 39 = 78 min more, which no
+  # job fits. Before V4-1 goes green, tests/lineup-v4.mjs --mutate reuses the plain measure (only the mono cells move) or
+  # shards; until then a green plain run here is cancelled at 79 inside --mutate. Registered by the guard's own header.
+  client-guards-6:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 79
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/lineup-v4.mjs
+      - name: Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/lineup-v4.mjs
+          node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (lane/ci-speed, 2026-11-18). in-page-21 ran 38.3-38.4 min
+  # on the nightlies 44139839256 and 43931474595. Here: Death popup 7.1 + HUD in reach 13.7 + setup 1.0 = 21.8 min; x2 = 44.
+  # 2026-11-27 (lane/ci-job-budgets): HUD in reach ALONE, timeout 44 -> 69. CANCELLED at its own 44 on 45900652922 and
+  # 45919097452 (723e91713) inside HUD in reach, every mutant caught (HR-8 on); 39.5-43.6 min whole on the nightly 45822566260
+  # and the set pushes (43.6 of 44 on 45931376842). hud-reachable --mutate grew to 27 mutants: the step is 31.4-33.2 min by
+  # itself, so Death popup (7.5-11.2) moved to in-page-24. Here, each at its slowest of 12 runs: setup 0.4 + install 0.7 + HUD
+  # in reach 33.2 (45931376842) = 34.3 min; x2 = 69. Past the 33-min split line by itself: a --shard in tests/hud-reachable.mjs
+  # (its owner's, the test's content) is what brings it back under.
+  in-page-46:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 69
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # EVERY PANEL IN REACH (friends' panel, 2026-11-01): at six desktop sizes, solo and a party of 4, every
+      # HUD panel and window on screen and pressable, the bar at home, a moved panel clear of it; the away
+      # card follows the server and blocks nothing. --mutate plants seventeen defects.
+      - name: HUD in reach (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hud-reachable.mjs
+          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-46
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ── in-page-23 ── THE AUTH LOCK, SPLIT OUT OF in-page 2026-10-31. release/v0.2.77 (run
   # 41226511232) CANCELLED in-page at its 30 min with 0 failures, 3 mutants into auth-lock
   # --mutate: setup 1 + node suite 8.5 + client boot 0.5 (--mutate 13.6) left 6 min for a proof
@@ -451,6 +536,77 @@ jobs:
         run: |
           node tools/gen-hunt-after.mjs --check
           node tools/mutant-gate.mjs node tools/gen-hunt-after.mjs --selftest
+
+  # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
+  # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
+  # on origin/main (M1 double anchor, S5/S6 anchors removed by b374, M5/M8/M10
+  # unreachable since cooking was armed). It plants into the WORKING TREE
+  # (tests/mutation-safety.mjs restores and hash-verifies), so it shares a job
+  # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
+  # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
+  # 2026-11-18 (lane/ci-speed): Hunt live view took 31.0 of this job's 39.7 min on the full sweep 44144849725; its mutants run in two shards
+  # (tests/hunt-live.mjs --shard): 1/2 here, 2/2 in artisan-selftest-2. Here: Artisan 3.8 + Hunt live about 1 plain + 15 +
+  # Conservation 4.6 + setup 0.5 = about 25 min; x2 = 50.
+  # 2026-11-27 (lane/ci-job-budgets): FOUR shards, 1/4 here, 2/4 to 4/4 in artisan-selftest-2, -3, -4; timeout 50 -> 63.
+  # hunt-live --mutate grew to 101 mutants at up to 40 s each (shard 1/2: 51 in 33.9 min on 45923114056; shard 2/2: 47 in
+  # 30.4 min on 45919097452, then CANCELLED at artisan-selftest-2's own 32, nothing red; 50 in 30.8 min, green at 31.2 of 32,
+  # on 45931376842), 67 min in all; this job ran 43.5 of its 50 on 45912760535 with the conservation proof skipped (7.0 on the
+  # nightly 45822566260). Here, each at its slowest of 12 runs: setup 0.4 + Artisan 6.0 + Hunt live plain 0.6 + shard 1/4
+  # (26 mutants x 40 s) 17.3 + Conservation 7.0 = 31.4 min; x2 = 63.
+  artisan-selftest:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 63
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
+        run: node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest
+
+      # MOVED HERE FROM client-guards 2026-10-24: client-guards ran 20.3-20.9 min of
+      # its 24 (87%) on runs 40034325773..40043808165, this step 500-546 s of it; this
+      # job ran 2.7-3.6 min of 56. Node only, no browser, no database: any job serves.
+      # client-guards ~11.8 min (49%), this job ~12.7 min (23%).
+      # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
+      # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
+      # holds, a divergence eases back, and a melee hero holds its tile like the sim's.
+      - name: Hunt live view
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-live.mjs
+          node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=1/4
+
+      # MOVED HERE FROM economy-selftests 2026-10-24 (lane i-v0241): the market lane
+      # grew the fuzz (Storage + packed hunt supplies, 22 plants), --selftest ~270 ->
+      # ~370 s locally. economy-selftests ran 18.7-37.2 min of its 61 (61%) on runs
+      # 39788815419..40072613184, this step 146-351 s of it; on v0.2.38's slow runner
+      # (35.3 min, no fuzz) plus the grown fuzz (~466 s) it projected ~44 min (73%).
+      # This job ran 0.5-13.6 min of 56. economy-selftests ~36 min worst (59%), this
+      # job ~22.5 (40%, one cold chain-prefix build here). Its own PGlite chain, no browser.
+      # THE CONSERVATION FUZZ. Randomised, seeded operations across several
+      # characters against the REAL server-authority migrations, running on an
+      # in-process PostgreSQL — no database credentials, no branch, nothing to
+      # clean up. --selftest runs the clean pass AND plants known conservation
+      # violations, demanding that every one of them is caught: a fuzz that
+      # cannot fail on a planted bug is decoration, and this repo has shipped six
+      # always-null probes. Bounded op count here; soak with
+      # `npm run test:conservation:soak`.
+      - name: Conservation fuzz + injection selftest
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/conservation-fuzz.mjs --ops=400
+          node tools/mutant-gate.mjs node tests/conservation-fuzz.mjs --selftest --ops=400
 
   # ── in-page-2 ── THE SECOND BROWSER FAMILY, SPLIT OUT 2026-10-20. in-page was
   # CANCELLED at its 34-min timeout on runs 39364441644, 39373063699 and
@@ -974,373 +1130,6 @@ jobs:
         run: |
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
-      # ── END SELF-REGISTERED GUARDS ──
-
-  # client-guards-2: the second half of client-guards, split at World art (lane a-ci-speed, 2026-11-01). Run
-  # 41339988105 measured the family at 31.6 of its 32 min: 12.0 stays, 19.7 + setup here, x2 = 41.
-  # 2026-11-18 (lane/ci-speed): timeout 41 -> 60: the full sweep measured 29.9 min, x2.
-  client-guards-2:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 60
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install node modules (no browser)
-        run: npm install --no-audit --no-fund
-
-      # World art (lane W2): every committed world atlas keeps one scale and stands
-      # on the floor - class body budget, locked palette, shared 64x64 character
-      # anchor, contact row, no baked shadow, no isometric corner, atlas <= 2048 -
-      # and equals a rebuild of art/world/** (tools/world-art/build.mjs). --selftest
-      # plants a floated chest, a 50 px hero, an off-palette pixel, a baked shadow,
-      # an iso-corner chest and a hand-edited atlas pixel into real sprites.
-      - name: World art - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-assets.mjs --selftest
-
-      - name: World art - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-assets.mjs
-
-      # Ground seams (lane a-ground-seams 2026-11-16): tools/world-art/seams.mjs redraws where two ground materials meet.
-      # --selftest: a dead-straight border is broken (100% of rows on one column before, under 35% after), the output is
-      # deterministic and palette-closed, and every wang variant keeps its key's outer ring.
-      - name: Ground seams - proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tools/world-art/seams.mjs --selftest
-
-      # Cave walls (lane a-cave-walls 2026-11-17): tools/world-art/cave-walls.mjs draws a cave's walls from its map rows, the foot
-      # curving inside the wall cells only. --selftest: no px of a walked cell drawn as wall (and a wall grown onto the floor is
-      # counted), a one-cell staircase bends (no straight edge over 20 px), a south face stands in its wall row, a lone pillar
-      # keeps its rock, deterministic and palette-closed.
-      - name: Cave walls - proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tools/world-art/cave-walls.mjs --selftest
-
-      # The hunt's combat clips (lane a-hunt-clips 2026-11-10): every swing, flinch and fall in the sheets is what
-      # tools/world-art/import-clips.mjs lays from the reviewed raw frames named in tools/world-art/hunt-clips.mjs.
-      - name: Hunt clips - drift
-        if: ${{ !cancelled() }}
-        run: node tools/world-art/import-clips.mjs --check
-
-      # Hero outfit region masks (dyes, lane c-hero-masks 2026-11-05): every outfit is masked or held with a
-      # reason; each mask lines up with its shipped frames (no key on a transparent pixel), holds only the four
-      # region keys, is what a second byte-identical run of tools/world-art/outfit-masks.mjs writes, and its set
-      # loads on need, never at first open. --selftest plants a shifted mask, a key on the floor, a fifth colour,
-      # a half-transparent key, a moved anchor, a forgotten / doubly-listed / missing outfit, a non-repeatable run,
-      # hand edits, and the set loaded at first open.
-      - name: Outfit masks - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/outfit-masks.mjs --selftest
-
-      - name: Outfit masks - base run
-        if: ${{ !cancelled() }}
-        run: node tests/outfit-masks.mjs
-
-      # Pixel item icons (2026-10-14): one 32x32, palette-locked, binary-alpha PNG per
-      # ITEMS key under assets/icons-bundle/pixel/items/, none orphaned, and the one
-      # ITEM_ART_SET switch still wired. --selftest plants a missing icon, an orphan,
-      # a 16x16, an off-palette pixel, a partial-alpha pixel, an empty icon and a
-      # lost switch.
-      - name: Pixel item icons - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/pixel-icons.mjs --selftest
-
-      - name: Pixel item icons - base run
-        if: ${{ !cancelled() }}
-        run: node tests/pixel-icons.mjs
-
-      # The World pane renders server state and writes nothing but G._world:
-      # no engine imports, no server calls, no simulate*, no Math.random /
-      # setInterval, no storage (AWAY-12's one-engine rule, extended to
-      # src/world). --selftest plants 24 violations + 5 negative controls.
-      - name: World no-authority - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-no-authority.mjs --selftest
-
-      - name: World no-authority - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-no-authority.mjs
-
-      # The renderer's pure rules on the real modules: y-sort, roofs, shadows,
-      # zoom/camera steps, map lint + mask hashes, A*, Wang, routing, art budget,
-      # layer order. --selftest plants 18 defects into a temp copy.
-      - name: World core - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-core.mjs --selftest
-
-      - name: World core - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-core.mjs
-
-      # The hunt scene (lane W3) on the REAL engine's attended tick: the foe is
-      # G.activeMonster and next to the hero at every swing for tickMs 600..3600;
-      # knocked out = down with no floats; a swap breaks off with no corpse;
-      # no item name before the receipt; the overlay prints only the settled
-      # Analyzer; the room camera; one engine. --selftest plants 8 defects.
-      - name: World hunt - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-hunt.mjs --selftest
-
-      - name: World hunt - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-hunt.mjs
-
-      # The town and the home (lane W4): only the local hero's building lifts its
-      # roof; walking moves only G._world.pos and RESIDUE_FIELDS holds no world
-      # field; peers stand at their activity's station by sorted name, an empty
-      # plaza prints no count; furniture is REPLACED per envelope (kitchen
-      # 2 -> 3 -> {}); the mill hatch only navigates; steering + the 3 s walk
-      # home to the station; peers stand only on tiles no prop, tree, wall or
-      # roof shares (read off the drawn frame). --selftest plants 16 defects.
-      - name: World town and home - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-town-home.mjs --selftest
-
-      - name: World town and home - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-town-home.mjs
-
-      # Havora's stations (src/data/world/stations.js, the real-town plan of
-      # 2026-10-25): every stand walkable, reachable, in plain view, unique, inside
-      # its district and at the plan's count (Hearth Square >= 130, town >= 545);
-      # every activity, hunt and arrival resolves to a station of its kind; every
-      # tap opens a real window or skill. --selftest plants 11 defects.
-      - name: Town stations - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/town-stations.mjs --selftest
-
-      - name: Town stations - base run
-        if: ${{ !cancelled() }}
-        run: node tests/town-stations.mjs
-
-      # The 64 px sandbox (src/data/world/sandbox.js): in by the Common's sign,
-      # the hd64 grid drawn at x1 from its own book, the keys walk, the wanderer
-      # stays in its leash, out by the exit sign; the town presence is parked
-      # (no leave, no sandbox tile); nothing it loads reaches the hunt engine or
-      # the session; the switch closes it. --mutate plants 8 defects.
-      - name: World sandbox - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/world-sandbox.mjs --mutate
-
-      - name: World sandbox - base run
-        if: ${{ !cancelled() }}
-        run: node tests/world-sandbox.mjs
-
-      # The World shell (src/shell/*, not mounted until the cutover): the window
-      # manager (cap of 3, 60% dock, Esc, focus, phone sheet, keys, motion, inset)
-      # and the HUD contract (defaults, per-size-class layout, reset) on the pure
-      # modules; --selftest plants 11 defects into a temp copy.
-      - name: World shell core - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/shell-core.mjs --selftest
-
-      - name: World shell core - base run
-        if: ${{ !cancelled() }}
-        run: node tests/shell-core.mjs
-
-      # The Storage window's sort and filter (Tyler 10-22): the kind chips, the
-      # search, the five sorts and the "recently added" residue marks, on the
-      # pure models; --selftest plants 11 defects into a temp copy.
-      - name: Storage sort and filter - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/storage-view.mjs --selftest
-
-      - name: Storage sort and filter - base run
-        if: ${{ !cancelled() }}
-        run: node tests/storage-view.mjs
-
-      # The Weighhouse before a press: the buy plan, the fee and cut, the refusal words, the
-      # gesture's key, the notices, the price sample; --selftest plants 14 defects into a temp copy.
-      - name: Market window - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/market-window.mjs --selftest
-
-      - name: Market window - base run
-        if: ${{ !cancelled() }}
-        run: node tests/market-window.mjs
-
-      # Every shell window/widget row has a renderer and every renderer a row.
-      - name: World shell renderers - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/shell-renderers.mjs --selftest
-
-      - name: World shell renderers - base run
-        if: ${{ !cancelled() }}
-        run: node tests/shell-renderers.mjs
-
-      # Settings are registry rows (src/data/settings.js); the window holds none.
-      - name: Settings registry - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/settings-registry.mjs --selftest
-
-      - name: Settings registry - base run
-        if: ${{ !cancelled() }}
-        run: node tests/settings-registry.mjs
-
-      # A hunt's level floor is a warning (Tyler 10-18): the picker warns, the
-      # server refuses only 15+ levels under it (the data margin), and the
-      # enter answer's below_range reaches the window.
-      - name: Hunt floor warning - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hunt-floor-warning.mjs --selftest
-
-      - name: Hunt floor warning - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-floor-warning.mjs
-
-      # The end-of-hunt summary and the death explanation: names the killing
-      # blows, an event id counts once, Hunt again is ONE hr_hunt_enter with
-      # the same settings, the stored history is bounded.
-      - name: Hunt summary - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hunt-summary.mjs --selftest
-
-      - name: Hunt summary - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-summary.mjs
-
-      # The `hudLayout` residue is display-only: read by the HUD and the residue
-      # store alone, and the HUD talks to no server.
-      - name: HUD layout display-only - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hud-layout-display-only.mjs --selftest
-
-      - name: HUD layout display-only - base run
-        if: ${{ !cancelled() }}
-        run: node tests/hud-layout-display-only.mjs
-
-      # Sort automatically on the Hunt prep builder (lane/b-hunt-prep-builder, 2026-11-11): a pure reorder of the bar
-      # by the engine's own lane rule (src/shell/bar-sort.js); --mutate plants seven defects into a temp copy.
-      - name: Bar sort - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/bar-sort.mjs --mutate
-
-      - name: Bar sort - base run
-        if: ${{ !cancelled() }}
-        run: node tests/bar-sort.mjs
-
-      # Hunt prep's Basic setup per weapon type and the new spell prompt (lane/b-prep-defaults, Tyler 2026-11-16): pure, over
-      # the real modules with a fake hero and server; --mutate plants fifteen defects into a temp copy.
-      - name: Prep defaults and new spell prompt - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/prep-defaults.mjs --mutate
-
-      - name: Prep defaults and new spell prompt - base run
-        if: ${{ !cancelled() }}
-        run: node tests/prep-defaults.mjs
-
-      # THE REBUILT CLIENT (2026-10-17). session-core: one rule per session law
-      # (envelope replace, frame order, residue allowlist, per-character
-      # isolation, the concurrent cap, sign-out clears every copy, the tab id,
-      # honest sign-up copy, channel re-join/hello). client-intent-surface: the
-      # client's whole RPC surface, pinned. client-module-size: no module over
-      # 600 lines. Each with its mutation proof. Pure node, seconds.
-      - name: Client session rules
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/session-core.mjs
-          node tools/mutant-gate.mjs node tests/session-core.mjs --mutate
-          node tests/new-version-banner.mjs
-          node tools/mutant-gate.mjs node tests/new-version-banner.mjs --mutate
-
-      # The hunt screen's pure rules: the visual timeline (events once, a new
-      # envelope never restarts an animation, gaps hold, poses are walked to),
-      # sections replace, roles from weapons, float defaults, intents only.
-      - name: Hunt view core
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-view-core.mjs
-          node tools/mutant-gate.mjs node tests/hunt-view-core.mjs --mutate
-
-      # The live hunt in the World pane: a new envelope never restarts an
-      # animation, each event plays once, units stay inside their track, the
-      # same instant draws the same at any frame rate, every event type mapped
-      # to the shipped vfx atlas.
-      - name: Hunt scene
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-scene.mjs
-          node tools/mutant-gate.mjs node tests/hunt-scene.mjs --mutate
-          node tests/hunt-clips.mjs
-          node tools/mutant-gate.mjs node tests/hunt-clips.mjs --mutate
-
-      # The live hunt from a REAL post-rebuild envelope (the v0.2.7 P0): a read alone draws the
-      # hero and the pose's monsters, windows at the player door's cadence play with no jump and
-      # no burst, regen reads per second. The page half (frame budget vs the sim) runs in in-page.
-      - name: Hunt scene, live envelope
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-scene-live.mjs --node
-          node tools/mutant-gate.mjs node tests/hunt-scene-live.mjs --mutate
-
-      # (Hunt live view moved to artisan-selftest 2026-10-24: see the note there.)
-
-      - name: Client intent surface
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/client-intent-surface.mjs
-          node tools/mutant-gate.mjs node tests/client-intent-surface.mjs --selftest
-
-      - name: Client module size
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/client-module-size.mjs
-          node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest
-
-      # play.html's generated modulepreload block IS the page's module graph, so every
-      # module is asked for at once (10-23: eight import levels, 1.61 s of a cold boot).
-      # After adding or dropping an import: node tests/module-preload.mjs --write
-      - name: Client module preload
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/module-preload.mjs
-          node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest
-
-      # THE SITE IS WHAT THE GAME LOADS (2026-11-10: Pages published the whole repository, 253 MB, and v0.2.114's
-      # deploy timed out four times). .github/workflows/pages.yml deploys the folder tools/build-site.mjs builds from
-      # its allowlist. A file a page, a module, a stylesheet or an art row asks for that the allowlist lacks is red
-      # HERE, on the release branch, not at the deploy after main is pushed. A new art folder: one PUBLISH row there.
-      # The build also writes the release stamp (?v=<version>) onto every import and page tag (SITE-9, architecture
-      # audit 2026-11-18 item 1); tools/strip-version-stamps.mjs is the one-time codemod that takes it out of the source.
-      - name: Site publish set - every file the game asks for is in the Pages artifact
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/build-site.mjs --check
-          node tools/mutant-gate.mjs node tools/build-site.mjs --selftest
-          node tools/mutant-gate.mjs node tools/strip-version-stamps.mjs --selftest
-
-      # The Coordinator's release check reads the deploy's runs: a failed, cancelled or timed-out deploy prints RED.
-      - name: Release check - the Pages line reads a deploy's runs right
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tools/release-check.local.mjs --selftest
-
-      - name: Guard hygiene — no orphans, no vacuous selftests
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest
-
-      - name: Guard hygiene — base run
-        if: ${{ !cancelled() }}
-        run: node tests/guard-hygiene.mjs
-
-      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
-      # tests/lineup-v4.mjs
-      - name: Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/lineup-v4.mjs
-          node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate
       # ── END SELF-REGISTERED GUARDS ──
 
   # ── in-page-3 ── THE HUNT SCREEN, SPLIT OUT 2026-10-21. in-page-2 was
@@ -2044,25 +1833,31 @@ jobs:
           node tests/mutant-control.mjs
           node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest
 
-  # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
-  # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
-  # on origin/main (M1 double anchor, S5/S6 anchors removed by b374, M5/M8/M10
-  # unreachable since cooking was armed). It plants into the WORKING TREE
-  # (tests/mutation-safety.mjs restores and hash-verifies), so it shares a job
-  # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
-  # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
-  # 2026-11-18 (lane/ci-speed): Hunt live view took 31.0 of this job's 39.7 min on the full sweep 44144849725; its mutants run in two shards
-  # (tests/hunt-live.mjs --shard): 1/2 here, 2/2 in artisan-selftest-2. Here: Artisan 3.8 + Hunt live about 1 plain + 15 +
-  # Conservation 4.6 + setup 0.5 = about 25 min; x2 = 50.
-  artisan-selftest:
+  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
+  # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
+  # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
+  # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
+  # 2026-11-18 (lane/ci-speed): timeout 44 -> 20: the full sweep measured 9.8 min, x2.
+  # + deploy-differential --selftest (2026-11-26, lane/deploy-diff-arm3, measured locally on a cached chain): 62 s, a proof
+  # only (nightly, or a release that moves the tool); x2 = 2.1 min, 20 -> 22.
+  # 2026-11-27 (lane/ci-job-budgets): timeout 22 -> 52. CANCELLED at its own 22 on 45912760535 (be079455d), 23 s into
+  # deploy-differential, and on 45931376842 (2abcb1b6f) inside Hero slots, every step before green; 17.0 and 17.7 min on
+  # 45885226247 / 45900652922. The 9.8 was main's family: the set added Hunting day and blocks, Level costs, Store step,
+  # Company trades and Social layer since. The full sweep, each step at its slowest of 12 runs (set pushes
+  # 45885226247..45931376842, rehearsals, nightly 45822566260): setup 0.7 + Scaled hunts 4.3 + per-player cost 4.5 + Hunting
+  # day 4.5 + Store step 2.5 + Area spells 1.9 + Tank runes 1.7 + Hero slots 1.6 (cut off by the cancel) + deploy-differential
+  # 0.8 + the eight others 3.0 = 25.5 min; x2 = 51, 52 for the step the cancel cut short.
+  db-replay-11:
     runs-on: ubuntu-latest
     needs: release-proven
     if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 50
+    timeout-minutes: 52
 
     steps:
       - uses: actions/checkout@v4
         with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2072,42 +1867,182 @@ jobs:
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
 
-      - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
-        run: node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest
-
-      # MOVED HERE FROM client-guards 2026-10-24: client-guards ran 20.3-20.9 min of
-      # its 24 (87%) on runs 40034325773..40043808165, this step 500-546 s of it; this
-      # job ran 2.7-3.6 min of 56. Node only, no browser, no database: any job serves.
-      # client-guards ~11.8 min (49%), this job ~12.7 min (23%).
-      # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
-      # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
-      # holds, a divergence eases back, and a melee hero holds its tile like the sim's.
-      - name: Hunt live view
+      # SCALED HUNTS, THE SERVER HALF (2027-03-21-scaled-hunts*.sql, lane/c-scaled-hunts): a gold purchase priced by the server, capped by
+      # the bank and the day, paid once with one ledger row; the leader's hours spent only by the window's world swings, browser closed and
+      # hunt viewed alike; the hours running out, the switch and a leader change at the next settle; every forged claim refused; the
+      # server feature switch (2027-03-21-feature-switches.sql) turns the whole feature off and on with a row, no release. The
+      # catalogue is GENERATED from src/data/scaled-hunts.js (tools/gen-scaled-hunts.mjs): --check holds the file to the data.
+      - name: Scaled hunts — the purchase, the bank and the settle, both paths
         if: ${{ !cancelled() }}
         run: |
-          node tests/hunt-live.mjs
-          node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=1/2
+          node tools/gen-scaled-hunts.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest
+          node tests/scaled-hunts-server.mjs
+          node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
 
-      # MOVED HERE FROM economy-selftests 2026-10-24 (lane i-v0241): the market lane
-      # grew the fuzz (Storage + packed hunt supplies, 22 plants), --selftest ~270 ->
-      # ~370 s locally. economy-selftests ran 18.7-37.2 min of its 61 (61%) on runs
-      # 39788815419..40072613184, this step 146-351 s of it; on v0.2.38's slow runner
-      # (35.3 min, no fuzz) plus the grown fuzz (~466 s) it projected ~44 min (73%).
-      # This job ran 0.5-13.6 min of 56. economy-selftests ~36 min worst (59%), this
-      # job ~22.5 (40%, one cold chain-prefix build here). Its own PGlite chain, no browser.
-      # THE CONSERVATION FUZZ. Randomised, seeded operations across several
-      # characters against the REAL server-authority migrations, running on an
-      # in-process PostgreSQL — no database credentials, no branch, nothing to
-      # clean up. --selftest runs the clean pass AND plants known conservation
-      # violations, demanding that every one of them is caught: a fuzz that
-      # cannot fail on a planted bug is decoration, and this repo has shipped six
-      # always-null probes. Bounded op count here; soak with
-      # `npm run test:conservation:soak`.
-      - name: Conservation fuzz + injection selftest
+      # ARCHITECTURE AUDIT RULES 10 AND 11 (CLAUDE.md §6, lane/c-ops-gates 2026-11-19). per-player-cost: statements a settle, ledger rows
+      # a hero-hour and row writes a settle for a lone hero and a party of four, on the replay with the shipped engine, browser closed;
+      # the baseline only shrinks (--selftest: a ledger-duplicating trigger and one extra round trip a settle must each go red).
+      # write-answers-state: every client write RPC that writes a table the envelope carries answers with the envelope (hr_state_of),
+      # or is on an allowlist that only shrinks (--selftest: a new {ok:true} write, a commented-out hr_state_of, two stale entries).
+      # MEASURED locally on a cached chain: per-player-cost 4 s plain, ~12 s --selftest; write-answers-state 3 s each.
+      - name: Per-hero server cost ratchet and client writes answer with the envelope (rules 10, 11)
         if: ${{ !cancelled() }}
         run: |
-          node tests/conservation-fuzz.mjs --ops=400
-          node tools/mutant-gate.mjs node tests/conservation-fuzz.mjs --selftest --ops=400
+          node tests/per-player-cost.mjs
+          node tools/mutant-gate.mjs node tests/per-player-cost.mjs --selftest
+          node tests/write-answers-state.mjs
+          node tools/mutant-gate.mjs node tests/write-answers-state.mjs --selftest
+
+      # A SECOND PRESS OF ONE KEY ANSWERS THE FIRST, UNDER THE LOCK (2027-04-19-key-under-lock.sql, lane/c-audit-db-fixes): the audit's P1.
+      # hr_scaled_hunt_buy, hr_hearth_burn and hr_stamina_refill read their key only before hr_hunt_lock, so a second press that waited on
+      # the lock reached hr_apply with a decided key (ok, replayed, nothing charged) and banked hours / lit a town flame / refilled stamina
+      # free. The second press is played as the body it runs after the lock; KL-CLASS holds every definer verb of that shape to a read under
+      # its lock or a named check that refuses the second press. KL-TIME holds hr_time_buy (the hunting block that replaced the refill,
+      # 1058-hunting-blocks.sql) to the same; KL-AGAIN re-applies the file at its own place. --mutate restores each old body (and drops a safe
+      # verb's check): 7 mutants.
+      - name: Key under lock — a second press of one key moves nothing (scaled hours, the Hearth, stamina) and the class census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/key-under-lock.mjs
+          node tools/mutant-gate.mjs node tests/key-under-lock.mjs --mutate
+
+      # THE HUNTING DAY AND BOUGHT BLOCKS (1058-hunting-blocks.sql, lane/r8-hunting-day; Tyler 2026-11-22): a free hero hunts 10 h on the
+      # server and ends `stamina` to the swing, buys two 2 h blocks at x1.5 through the real client, and a third is refused block_limit;
+      # two blocks bought mid-hunt run it to exactly 14 h on the tick door (browser closed) and the player door (hunt viewed) alike;
+      # Premium's 12 h day banks to 16 h; a replayed key moves nothing and a stale price is quote_changed. The catalogue is GENERATED
+      # (tools/gen-time-blocks.mjs --check holds it to src/data/time-blocks.js, --selftest proves each refusal). --mutate (7): the cap
+      # off by one, no x1.5, the pool never written, the wrong instant, the ceiling forgets the blocks, no ceiling, no price check.
+      - name: Hunting day and blocks — 10 h, two blocks at x1.5, the third refused, both paths (7 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-time-blocks.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-time-blocks.mjs --selftest
+          node tests/hunting-blocks.mjs
+          node tools/mutant-gate.mjs node tests/hunting-blocks.mjs --mutate
+
+      # PER-HERO COSTS BY LEVEL (1063-level-costs*.sql, lane/level-costs; Tyler 2026-11-22: per-hero costs read the wage at the hero's
+      # Level): a death takes the lesser of 6% of the Level XP and 7.5 hours of progress at the hero's Level, the same on the tick door
+      # (browser closed) and the player door (hunt viewed) at Level 200, blessed and not; the ONE Blessing is an hour of the wage at the
+      # hero's Level (free under 30) and halves one death; the Talent reset is priced 0.5 h of the wage x2 a paid reset, first free,
+      # Premium's first of the day free, and DARK (no client role). The catalogue is GENERATED (tools/gen-level-costs.mjs --check holds it
+      # to src/data, --selftest proves each refusal). --mutate (13, with a reset that ignores the Talents switch): the bound without the hours, at Level 1 or open with no row, the Blessing at the Level 1
+      # wage, no reset growth, a quarter cut, a Blessing never used up, no price check, a second Blessing, no free first, Premium every
+      # time, a reset at an unquoted price.
+      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset behind the Talents switch, both paths (13 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-level-costs.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-level-costs.mjs --selftest
+          node tests/level-costs.mjs
+          node tools/mutant-gate.mjs node tests/level-costs.mjs --mutate
+
+      # THE STORE PRICED AT THE BUYER'S STEP (1061-store-step-catalogue.generated.sql, 1062-store-step.sql, lane/econ-followups; Tyler
+      # 2026-11-22: goods are priced by depth): a store use costs its row at the depth the hunt stands at as each window opens (the wage's
+      # unit), off the scale at the hero's Level. The twin is the JS at every step; a four falling back from step 760 on Muster is billed
+      # each window's depth, browser closed and hunt viewed; the engine's input and the client's list read the same price; no function
+      # prices a use from a row's list price. The catalogue is GENERATED (tools/gen-store-prices.mjs --check holds it to src/data, --selftest
+      # proves each refusal). --mutate (13): the list price in the bill, the read, the view, the gold_out proof and a called room; the step
+      # taken late, frozen at the start, raw, by Level, uncapped, or 1 in town; the twin rounding down or losing its floor.
+      - name: Store priced at the buyer's step — the server's depth or Level, both paths (13 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-store-prices.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-store-prices.mjs --selftest
+          node tests/store-step.mjs
+          node tools/mutant-gate.mjs node tests/store-step.mjs --mutate
+
+      # COMPANY TRADES AND THE WORK DAY (1059-company-trades*.sql, lane/r12-company-trades; Tyler 2026-11-22 CR-Q1 a, CR-Q3 b): one company,
+      # two heroes, both doors (viewed and the tick) mine into ONE trade total every hero reads; a hero's town work stops at its day's end
+      # (work_cap) with the window open and with the browser closed; the server refuses a window past the day and a new job on a spent
+      # day; the JS rule and its SQL twin agree. The catalogue is GENERATED (tools/gen-work-day.mjs --check holds it to src/data/work-day.js,
+      # --selftest proves each refusal). --mutate (5): no stop in the engine, no carry between tick polls, no refusal in hr_apply, no
+      # fan-out to the other heroes, a credit that replaces the total.
+      - name: Company trades and the work day — one total, the day's end, both paths (5 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-work-day.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-work-day.mjs --selftest
+          node tests/company-trades.mjs
+          node tools/mutant-gate.mjs node tests/company-trades.mjs --mutate
+
+      # LIVE EVENTS, STEPS 1 AND 2 (2027-03-22-live-events*.sql, lane/c-live-events): a Level XP dial paid by each kill's own time to the
+      # accounts whose switch is on, browser closed and hunt viewed alike, kept apart on the tally so a personal best leaves it out; the
+      # commit's bound grows by the account's own dial only; Open Halls makes a Call out free through the quote, journalled and counted;
+      # the section and the announcer. The catalogue is GENERATED from src/data/live-events.js (tools/gen-live-events.mjs).
+      - name: Live events — the XP dial, the fee dial, the section and the announcer, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-live-events.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest
+          node tests/live-events.mjs
+          node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
+
+      # THE SOCIAL LAYER (1036 to 1039, lane/c-social FB-12): the clan, chat, friend link and presence rules the server reads are GENERATED
+      # from src/data/clans.js and chat-channels.js (tools/gen-social-catalogue.mjs); the clans, the clan chat with the castle hidden, the
+      # friend link from both sides and the strip are tests/social-layer.mjs, on the replayed chain.
+      - name: Social layer — the generated rules, clans, the friend link from both sides, the presence strip
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-social-catalogue.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-social-catalogue.mjs --selftest
+          node tests/social-layer.mjs
+          node tools/mutant-gate.mjs node tests/social-layer.mjs --mutate
+
+      # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
+      # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;
+      # a second apply moves nothing. Every other guard boots the quiet calendar (tests/schema-replay.mjs quietCalendar), so no guard reads
+      # another fee or Level XP on a Wednesday evening or a bonus weekend: AS-QUIET holds that. A scaled run sets no best. --mutate: 8 defects.
+      - name: Armed switches — scaled hunts, the Bonus XP weekend and Open Halls for a stranger, and the guards' quiet calendar
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/arm-switches.mjs
+          node tools/mutant-gate.mjs node tests/arm-switches.mjs --mutate
+
+      # AREA SPELLS, THE SERVER HALF (the three 2027-03-28-area-* files, lane/b-area-set): a monster's whole-group spell and a marked one
+      # land on a party of four with the browser closed and the hunt viewed, the same world and tallies; Turning Cut, Hoarfrost and
+      # Spring Tide are saved through the real bar check and cast on both doors; the Defense bound has room; against the chain as one
+      # difficulty leaves it only the area rows differ (nothing an apply could roll back); a second apply moves nothing.
+      # Measured locally 2026-11-10 on a cached chain: plain 18 s, --mutate 108 s (8 mutants).
+      - name: Area spells — both paths, only the area rows differ, the Defense bound
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/area-spells-server.mjs
+          node tools/mutant-gate.mjs node tests/area-spells-server.mjs --mutate
+
+      # THE TANK RUNE SPELLS, THE SERVER HALF (the two 2027-05-25-tank-runes-* files, lane/b-tank-runes; Tyler 2026-11-19): a tank's bar with
+      # Frost Slam and Shelter is saved through the real bar check and both cast beside a Healer on both doors (the same world and tallies),
+      # never alone (party only); against the chain before them only the tank rows differ (two abilities, the shape's shieldBy, two rune
+      # spells on Melee); refused before and accepted after; a second apply moves nothing.
+      # Measured locally 2026-11-19: plain 142 s, --mutate 18 s on a cached chain (8 mutants).
+      - name: Tank rune spells — both paths in a party, never alone, only the tank rows differ
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tank-runes-server.mjs
+          node tools/mutant-gate.mjs node tests/tank-runes-server.mjs --mutate
+
+      # PROOF ARMS (2026-11-13, lane/a-audit-guards): money and credit, plain runs in run-smoke.mjs (plot-tier-price-replay: spawned plain by plot-tier-parity's REPLAY arm). Measured locally: 136 s.
+      - name: Hero slots — mutation proof (four free slots, the purchase gone, a live account kept whole)
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --mutate
+
+      # Measured locally: 92 s.
+      - name: Plot tier price replay — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/plot-tier-price-replay.mjs --mutate
+
+      # Measured locally: 48 s.
+      - name: Kill daily credit — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/kill-daily-credit.mjs --selftest
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tools/deploy-differential.mjs
+      - name: Gather deploy differential - every planted pack fault caught on a synthetic probe, through the replayed hr_apply
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
+      # ── END SELF-REGISTERED GUARDS ──
 
   # ── in-page-19 ── PRESET NAMES (2026-10-26 re-shard; its alpha-windows shard 6/6 left for the time-balanced
   # 15 on 2026-11-15, lane a-133-ci-time). MEASURED on nightly 43608955464 (job 132552464018, every mutant run):
@@ -2218,6 +2153,224 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # client-guards-2: the second half of client-guards, split at World art (lane a-ci-speed, 2026-11-01). Run
+  # 41339988105 measured the family at 31.6 of its 32 min: 12.0 stays, 19.7 + setup here, x2 = 41.
+  # 2026-11-18 (lane/ci-speed): timeout 41 -> 60: the full sweep measured 29.9 min, x2.
+  # 2026-11-27 (lane/ci-job-budgets): the World guards only, timeout 60 -> 50. CANCELLED at its own 60 on 45885226247, 45897216951,
+  # 45912760535 and 45919097452, inside Lineups (V4), which is 28-39 min by itself: it moved to client-guards-6, and the client
+  # half (Hunt floor warning to Guard hygiene, 22.3 min) to client-guards-5. Here, each at its slowest of 12 runs: setup 0.4 +
+  # World town and home 10.4 (nightly 45822566260) + World core 5.8 + World shell core 2.5 + World art 3.3 + the others 2.1 =
+  # 24.5 min; x2 = 50.
+  client-guards-2:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # World art (lane W2): every committed world atlas keeps one scale and stands
+      # on the floor - class body budget, locked palette, shared 64x64 character
+      # anchor, contact row, no baked shadow, no isometric corner, atlas <= 2048 -
+      # and equals a rebuild of art/world/** (tools/world-art/build.mjs). --selftest
+      # plants a floated chest, a 50 px hero, an off-palette pixel, a baked shadow,
+      # an iso-corner chest and a hand-edited atlas pixel into real sprites.
+      - name: World art - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-assets.mjs --selftest
+
+      - name: World art - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-assets.mjs
+
+      # Ground seams (lane a-ground-seams 2026-11-16): tools/world-art/seams.mjs redraws where two ground materials meet.
+      # --selftest: a dead-straight border is broken (100% of rows on one column before, under 35% after), the output is
+      # deterministic and palette-closed, and every wang variant keeps its key's outer ring.
+      - name: Ground seams - proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/world-art/seams.mjs --selftest
+
+      # Cave walls (lane a-cave-walls 2026-11-17): tools/world-art/cave-walls.mjs draws a cave's walls from its map rows, the foot
+      # curving inside the wall cells only. --selftest: no px of a walked cell drawn as wall (and a wall grown onto the floor is
+      # counted), a one-cell staircase bends (no straight edge over 20 px), a south face stands in its wall row, a lone pillar
+      # keeps its rock, deterministic and palette-closed.
+      - name: Cave walls - proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/world-art/cave-walls.mjs --selftest
+
+      # The hunt's combat clips (lane a-hunt-clips 2026-11-10): every swing, flinch and fall in the sheets is what
+      # tools/world-art/import-clips.mjs lays from the reviewed raw frames named in tools/world-art/hunt-clips.mjs.
+      - name: Hunt clips - drift
+        if: ${{ !cancelled() }}
+        run: node tools/world-art/import-clips.mjs --check
+
+      # Hero outfit region masks (dyes, lane c-hero-masks 2026-11-05): every outfit is masked or held with a
+      # reason; each mask lines up with its shipped frames (no key on a transparent pixel), holds only the four
+      # region keys, is what a second byte-identical run of tools/world-art/outfit-masks.mjs writes, and its set
+      # loads on need, never at first open. --selftest plants a shifted mask, a key on the floor, a fifth colour,
+      # a half-transparent key, a moved anchor, a forgotten / doubly-listed / missing outfit, a non-repeatable run,
+      # hand edits, and the set loaded at first open.
+      - name: Outfit masks - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/outfit-masks.mjs --selftest
+
+      - name: Outfit masks - base run
+        if: ${{ !cancelled() }}
+        run: node tests/outfit-masks.mjs
+
+      # Pixel item icons (2026-10-14): one 32x32, palette-locked, binary-alpha PNG per
+      # ITEMS key under assets/icons-bundle/pixel/items/, none orphaned, and the one
+      # ITEM_ART_SET switch still wired. --selftest plants a missing icon, an orphan,
+      # a 16x16, an off-palette pixel, a partial-alpha pixel, an empty icon and a
+      # lost switch.
+      - name: Pixel item icons - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/pixel-icons.mjs --selftest
+
+      - name: Pixel item icons - base run
+        if: ${{ !cancelled() }}
+        run: node tests/pixel-icons.mjs
+
+      # The World pane renders server state and writes nothing but G._world:
+      # no engine imports, no server calls, no simulate*, no Math.random /
+      # setInterval, no storage (AWAY-12's one-engine rule, extended to
+      # src/world). --selftest plants 24 violations + 5 negative controls.
+      - name: World no-authority - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-no-authority.mjs --selftest
+
+      - name: World no-authority - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-no-authority.mjs
+
+      # The renderer's pure rules on the real modules: y-sort, roofs, shadows,
+      # zoom/camera steps, map lint + mask hashes, A*, Wang, routing, art budget,
+      # layer order. --selftest plants 18 defects into a temp copy.
+      - name: World core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-core.mjs --selftest
+
+      - name: World core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-core.mjs
+
+      # The hunt scene (lane W3) on the REAL engine's attended tick: the foe is
+      # G.activeMonster and next to the hero at every swing for tickMs 600..3600;
+      # knocked out = down with no floats; a swap breaks off with no corpse;
+      # no item name before the receipt; the overlay prints only the settled
+      # Analyzer; the room camera; one engine. --selftest plants 8 defects.
+      - name: World hunt - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-hunt.mjs --selftest
+
+      - name: World hunt - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-hunt.mjs
+
+      # The town and the home (lane W4): only the local hero's building lifts its
+      # roof; walking moves only G._world.pos and RESIDUE_FIELDS holds no world
+      # field; peers stand at their activity's station by sorted name, an empty
+      # plaza prints no count; furniture is REPLACED per envelope (kitchen
+      # 2 -> 3 -> {}); the mill hatch only navigates; steering + the 3 s walk
+      # home to the station; peers stand only on tiles no prop, tree, wall or
+      # roof shares (read off the drawn frame). --selftest plants 16 defects.
+      - name: World town and home - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-town-home.mjs --selftest
+
+      - name: World town and home - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-town-home.mjs
+
+      # Havora's stations (src/data/world/stations.js, the real-town plan of
+      # 2026-10-25): every stand walkable, reachable, in plain view, unique, inside
+      # its district and at the plan's count (Hearth Square >= 130, town >= 545);
+      # every activity, hunt and arrival resolves to a station of its kind; every
+      # tap opens a real window or skill. --selftest plants 11 defects.
+      - name: Town stations - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/town-stations.mjs --selftest
+
+      - name: Town stations - base run
+        if: ${{ !cancelled() }}
+        run: node tests/town-stations.mjs
+
+      # The 64 px sandbox (src/data/world/sandbox.js): in by the Common's sign,
+      # the hd64 grid drawn at x1 from its own book, the keys walk, the wanderer
+      # stays in its leash, out by the exit sign; the town presence is parked
+      # (no leave, no sandbox tile); nothing it loads reaches the hunt engine or
+      # the session; the switch closes it. --mutate plants 8 defects.
+      - name: World sandbox - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/world-sandbox.mjs --mutate
+
+      - name: World sandbox - base run
+        if: ${{ !cancelled() }}
+        run: node tests/world-sandbox.mjs
+
+      # The World shell (src/shell/*, not mounted until the cutover): the window
+      # manager (cap of 3, 60% dock, Esc, focus, phone sheet, keys, motion, inset)
+      # and the HUD contract (defaults, per-size-class layout, reset) on the pure
+      # modules; --selftest plants 11 defects into a temp copy.
+      - name: World shell core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/shell-core.mjs --selftest
+
+      - name: World shell core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-core.mjs
+
+      # The Storage window's sort and filter (Tyler 10-22): the kind chips, the
+      # search, the five sorts and the "recently added" residue marks, on the
+      # pure models; --selftest plants 11 defects into a temp copy.
+      - name: Storage sort and filter - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/storage-view.mjs --selftest
+
+      - name: Storage sort and filter - base run
+        if: ${{ !cancelled() }}
+        run: node tests/storage-view.mjs
+
+      # The Weighhouse before a press: the buy plan, the fee and cut, the refusal words, the
+      # gesture's key, the notices, the price sample; --selftest plants 14 defects into a temp copy.
+      - name: Market window - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/market-window.mjs --selftest
+
+      - name: Market window - base run
+        if: ${{ !cancelled() }}
+        run: node tests/market-window.mjs
+
+      # Every shell window/widget row has a renderer and every renderer a row.
+      - name: World shell renderers - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/shell-renderers.mjs --selftest
+
+      - name: World shell renderers - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-renderers.mjs
+
+      # Settings are registry rows (src/data/settings.js); the window holds none.
+      - name: Settings registry - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/settings-registry.mjs --selftest
+
+      - name: Settings registry - base run
+        if: ${{ !cancelled() }}
+        run: node tests/settings-registry.mjs
 
   # economy-selftests-3: the account steps of economy-selftests, split out 2026-11-18 (lane/ci-speed). economy-selftests ran
   # 44.6 min on the nightly 43931474595 and on the diff-scoped release 44021995226 (plain runs, not proofs, fill it), the longest
@@ -2527,6 +2680,175 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # client-guards-5: the client half of client-guards-2, from Hunt floor warning to Guard hygiene (lane/ci-job-budgets, 2026-11-27;
+  # see client-guards-2). Each at its slowest of 12 runs (set pushes 45885226247..45931376842, rehearsals, nightly 45822566260):
+  # setup 0.4 + the gate's first read 1.4 + Hunt scene, live envelope 14.3 + Client session rules 4.1 + Hunt summary 1.2 + the
+  # eighteen others 2.3 = 23.7 min; x2 = 48. Node only, no browser, no database.
+  client-guards-5:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 48
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # A hunt's level floor is a warning (Tyler 10-18): the picker warns, the
+      # server refuses only 15+ levels under it (the data margin), and the
+      # enter answer's below_range reaches the window.
+      - name: Hunt floor warning - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hunt-floor-warning.mjs --selftest
+
+      - name: Hunt floor warning - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-floor-warning.mjs
+
+      # The end-of-hunt summary and the death explanation: names the killing
+      # blows, an event id counts once, Hunt again is ONE hr_hunt_enter with
+      # the same settings, the stored history is bounded.
+      - name: Hunt summary - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hunt-summary.mjs --selftest
+
+      - name: Hunt summary - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-summary.mjs
+
+      # The `hudLayout` residue is display-only: read by the HUD and the residue
+      # store alone, and the HUD talks to no server.
+      - name: HUD layout display-only - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hud-layout-display-only.mjs --selftest
+
+      - name: HUD layout display-only - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hud-layout-display-only.mjs
+
+      # Sort automatically on the Hunt prep builder (lane/b-hunt-prep-builder, 2026-11-11): a pure reorder of the bar
+      # by the engine's own lane rule (src/shell/bar-sort.js); --mutate plants seven defects into a temp copy.
+      - name: Bar sort - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/bar-sort.mjs --mutate
+
+      - name: Bar sort - base run
+        if: ${{ !cancelled() }}
+        run: node tests/bar-sort.mjs
+
+      # Hunt prep's Basic setup per weapon type and the new spell prompt (lane/b-prep-defaults, Tyler 2026-11-16): pure, over
+      # the real modules with a fake hero and server; --mutate plants fifteen defects into a temp copy.
+      - name: Prep defaults and new spell prompt - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/prep-defaults.mjs --mutate
+
+      - name: Prep defaults and new spell prompt - base run
+        if: ${{ !cancelled() }}
+        run: node tests/prep-defaults.mjs
+
+      # THE REBUILT CLIENT (2026-10-17). session-core: one rule per session law
+      # (envelope replace, frame order, residue allowlist, per-character
+      # isolation, the concurrent cap, sign-out clears every copy, the tab id,
+      # honest sign-up copy, channel re-join/hello). client-intent-surface: the
+      # client's whole RPC surface, pinned. client-module-size: no module over
+      # 600 lines. Each with its mutation proof. Pure node, seconds.
+      - name: Client session rules
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/session-core.mjs
+          node tools/mutant-gate.mjs node tests/session-core.mjs --mutate
+          node tests/new-version-banner.mjs
+          node tools/mutant-gate.mjs node tests/new-version-banner.mjs --mutate
+
+      # The hunt screen's pure rules: the visual timeline (events once, a new
+      # envelope never restarts an animation, gaps hold, poses are walked to),
+      # sections replace, roles from weapons, float defaults, intents only.
+      - name: Hunt view core
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-view-core.mjs
+          node tools/mutant-gate.mjs node tests/hunt-view-core.mjs --mutate
+
+      # The live hunt in the World pane: a new envelope never restarts an
+      # animation, each event plays once, units stay inside their track, the
+      # same instant draws the same at any frame rate, every event type mapped
+      # to the shipped vfx atlas.
+      - name: Hunt scene
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-scene.mjs
+          node tools/mutant-gate.mjs node tests/hunt-scene.mjs --mutate
+          node tests/hunt-clips.mjs
+          node tools/mutant-gate.mjs node tests/hunt-clips.mjs --mutate
+
+      # The live hunt from a REAL post-rebuild envelope (the v0.2.7 P0): a read alone draws the
+      # hero and the pose's monsters, windows at the player door's cadence play with no jump and
+      # no burst, regen reads per second. The page half (frame budget vs the sim) runs in in-page.
+      - name: Hunt scene, live envelope
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-scene-live.mjs --node
+          node tools/mutant-gate.mjs node tests/hunt-scene-live.mjs --mutate
+
+      # (Hunt live view moved to artisan-selftest 2026-10-24: see the note there.)
+
+      - name: Client intent surface
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-intent-surface.mjs
+          node tools/mutant-gate.mjs node tests/client-intent-surface.mjs --selftest
+
+      - name: Client module size
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-module-size.mjs
+          node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest
+
+      # play.html's generated modulepreload block IS the page's module graph, so every
+      # module is asked for at once (10-23: eight import levels, 1.61 s of a cold boot).
+      # After adding or dropping an import: node tests/module-preload.mjs --write
+      - name: Client module preload
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/module-preload.mjs
+          node tools/mutant-gate.mjs node tests/module-preload.mjs --selftest
+
+      # THE SITE IS WHAT THE GAME LOADS (2026-11-10: Pages published the whole repository, 253 MB, and v0.2.114's
+      # deploy timed out four times). .github/workflows/pages.yml deploys the folder tools/build-site.mjs builds from
+      # its allowlist. A file a page, a module, a stylesheet or an art row asks for that the allowlist lacks is red
+      # HERE, on the release branch, not at the deploy after main is pushed. A new art folder: one PUBLISH row there.
+      # The build also writes the release stamp (?v=<version>) onto every import and page tag (SITE-9, architecture
+      # audit 2026-11-18 item 1); tools/strip-version-stamps.mjs is the one-time codemod that takes it out of the source.
+      - name: Site publish set - every file the game asks for is in the Pages artifact
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/build-site.mjs --check
+          node tools/mutant-gate.mjs node tools/build-site.mjs --selftest
+          node tools/mutant-gate.mjs node tools/strip-version-stamps.mjs --selftest
+
+      # The Coordinator's release check reads the deploy's runs: a failed, cancelled or timed-out deploy prints RED.
+      - name: Release check - the Pages line reads a deploy's runs right
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/release-check.local.mjs --selftest
+
+      - name: Guard hygiene — no orphans, no vacuous selftests
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest
+
+      - name: Guard hygiene — base run
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs
 
   # 2026-11-18 (lane/ci-speed): timeout 40 -> 47: the full sweep measured 23.5 min, x2.
   in-page-6:
@@ -4103,60 +4425,6 @@ jobs:
           node tests/legacy-keys.mjs
           node tools/mutant-gate.mjs node tests/legacy-keys.mjs --selftest
 
-  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (lane/ci-speed, 2026-11-18). in-page-21 ran 38.3-38.4 min
-  # on the nightlies 44139839256 and 43931474595. Here: Death popup 7.1 + HUD in reach 13.7 + setup 1.0 = 21.8 min; x2 = 44.
-  in-page-46:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 44
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Playwright + Chromium
-        uses: ./.github/actions/playwright-chromium
-
-      # THE DEATH POPUP (tracker r15, Tyler 2026-10-19): a death opens a centred
-      # popup whose every line is the server's death row (where, the killer, the
-      # XP dying cost, what a Blessing kept, back in town), viewed, after a reload
-      # and on return from away; OK / Hunt summary store the dismissal so it never
-      # shows twice. --mutate plants nine defects.
-      - name: Death popup (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/death-popup.mjs
-          node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate
-
-      # EVERY PANEL IN REACH (friends' panel, 2026-11-01): at six desktop sizes, solo and a party of 4, every
-      # HUD panel and window on screen and pressable, the bar at home, a moved panel clear of it; the away
-      # card follows the server and blocks nothing. --mutate plants seventeen defects.
-      - name: HUD in reach (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hud-reachable.mjs
-          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate
-
-      # A failing run is far easier to diagnose with the page state attached.
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-46
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
   # economy-selftests-4: the Hearthfind steps of economy-selftests-2, split out 2026-11-18 (lane/ci-speed). economy-selftests-2
   # ran 40.6 min on the full sweep 44144849725. Here: Hearthfind 10.4 + boss rate 0.2 + Lucky finds 2.7 + Field salvage 5.1 +
   # hr_apply 1.6 + setup and one chain build 1.5 = 21.5 min; x2 = 43.
@@ -5535,6 +5803,73 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # in-page-24: Town stands and Phone touch, split out of in-page-13 (lane a-ci-speed, 2026-11-01). Run 41339988105
+  # measured in-page-13 at 37.0 min: 23.6 stays, 13.3 + setup here, x2 = 30. 2026-11-17 (lane/fix135-ci-budget): Phone
+  # touch moved to in-page-40 (see there); this keeps setup 0.9 + Town stands 4.5 = 5.4 min (run 44118906758).
+  # 2026-11-18 (lane/ci-speed): timeout 30 -> 27: the full sweep measured 6.6 min, x2, with 20 min for the install's own deadlines.
+  # 2026-11-27 (lane/ci-job-budgets): + Death popup, moved here from in-page-46 (cancelled at its 44; see there), timeout 27 -> 40.
+  # Each at its slowest of 12 runs (set pushes 45885226247..45931376842, rehearsals, nightly 45822566260): setup 0.4 + install
+  # 0.7 + Town stands 6.8 + Death popup 11.2 (both 45900652922) = 19.1 min; x2 = 38, with 20 min for the install's own deadlines 40.
+  in-page-24:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
+      # real-town plan): the SERVER places every body on a stand of its activity's station
+      # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
+      # read through a windowed delta (hr_town_view). The catalogue is generated from
+      # src/data/world/stations.js and the town map rows (--check is the twin guard, its
+      # refusals --selftest: a stand off the map, on a blocked tile, shared, an activity
+      # that lands nowhere); the guard plays the verbs on a replayed chain call by call
+      # with the real clock: closed-browser workers on their stands, the viewed hero
+      # placed, steered, moved and sent to a counter, a hunt out (gone) and back (the
+      # arrival), an empty delta. --mutate plants 6 defects in the migration.
+      - name: Town stands — every body on its server stand
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-town-stations.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-town-stations.mjs --selftest
+          node tests/town-stands.mjs
+          node tools/mutant-gate.mjs node tests/town-stands.mjs --mutate
+
+      # THE DEATH POPUP (tracker r15, Tyler 2026-10-19): a death opens a centred
+      # popup whose every line is the server's death row (where, the killer, the
+      # XP dying cost, what a Blessing kept, back in town), viewed, after a reload
+      # and on return from away; OK / Hunt summary store the dismissal so it never
+      # shows twice. --mutate plants nine defects.
+      - name: Death popup (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/death-popup.mjs
+          node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-24
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   # db-replay-14: the last steps of db-replay-6, from "Frame self-echo" on, split out 2026-11-18 (lane/ci-speed). db-replay-6 took up to 39.2 min
   # (the sum of each step's slowest run on the full sweeps 44139839256, 44144849725 and 43931474595). Here about 19.2 min with setup and
   # one chain build; x2 = 39.
@@ -6098,6 +6433,81 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # artisan-selftest-2: hunt-live --mutate, shard 2 of 2 (see artisan-selftest's header). About 15 min + setup; x2 = 32.
+  # 2026-11-27 (lane/ci-job-budgets): shard 2 of 4 (see artisan-selftest's header), timeout 32 -> 37. CANCELLED at its own 32 on
+  # 45885226247, 45897216951 and 45919097452, nothing red; green at 31.2 of 32 on 45931376842. Here: setup 0.4 + the gate's first
+  # read and the load 1.4 (45919097452)
+  # + 25 mutants x 40 s 16.7 = 18.5 min; x2 = 37.
+  artisan-selftest-2:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 37
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Hunt live view mutants, shard 2 of 4
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=2/4
+
+  # artisan-selftest-3: hunt-live --mutate, shard 3 of 4 (lane/ci-job-budgets, 2026-11-27; see artisan-selftest's header).
+  # Sized as artisan-selftest-2: setup 0.4 + gate and load 1.4 + 25 mutants x 40 s 16.7 = 18.5 min; x2 = 37.
+  artisan-selftest-3:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 37
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Hunt live view mutants, shard 3 of 4
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=3/4
+
+  # artisan-selftest-4: hunt-live --mutate, shard 4 of 4 (lane/ci-job-budgets, 2026-11-27; see artisan-selftest's header).
+  # Sized as artisan-selftest-2: setup 0.4 + gate and load 1.4 + 25 mutants x 40 s 16.7 = 18.5 min; x2 = 37.
+  artisan-selftest-4:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 37
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Hunt live view mutants, shard 4 of 4
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=4/4
 
   # ── settle-properties ── PROPERTY TESTS OVER THE HUNT SETTLE (lane/b-settle-properties, 2026-11-18; fast-check, MIT,
   # a dev dependency only). The hunt core's sibling, in its own job: economy-selftests measured 25.9 min, and this guard's
@@ -7377,29 +7787,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # artisan-selftest-2: hunt-live --mutate, shard 2 of 2 (see artisan-selftest's header). About 15 min + setup; x2 = 32.
-  artisan-selftest-2:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 32
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install node modules (no browser)
-        run: npm install --no-audit --no-fund
-
-      - name: Hunt live view mutants, shard 2 of 2
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=2/2
-
   # ── db-replay-5 ── SPLIT OUT OF db-replay-3 2026-10-06 (CI-SPLIT-5). The
   # GitHub run for e585a031 (branch next, run 37470960216) CANCELLED db-replay-3
   # at its own 19-min timeout after 1151 s, every step green; the five runs
@@ -7720,59 +8107,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/race-test.mjs --selftest
           node tools/mutant-gate.mjs node tests/recipe-yield-guard.mjs --mutate
 
-  # in-page-24: Town stands and Phone touch, split out of in-page-13 (lane a-ci-speed, 2026-11-01). Run 41339988105
-  # measured in-page-13 at 37.0 min: 23.6 stays, 13.3 + setup here, x2 = 30. 2026-11-17 (lane/fix135-ci-budget): Phone
-  # touch moved to in-page-40 (see there); this keeps setup 0.9 + Town stands 4.5 = 5.4 min (run 44118906758).
-  # 2026-11-18 (lane/ci-speed): timeout 30 -> 27: the full sweep measured 6.6 min, x2, with 20 min for the install's own deadlines.
-  in-page-24:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 27
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Playwright + Chromium
-        uses: ./.github/actions/playwright-chromium
-
-      # THE REAL TOWN'S STANDS (2026-10-25, Tyler: heroes stacked on one tile; L2 of the
-      # real-town plan): the SERVER places every body on a stand of its activity's station
-      # (2027-01-28-town-stands.sql), one body a stand, in town instances of 60 players,
-      # read through a windowed delta (hr_town_view). The catalogue is generated from
-      # src/data/world/stations.js and the town map rows (--check is the twin guard, its
-      # refusals --selftest: a stand off the map, on a blocked tile, shared, an activity
-      # that lands nowhere); the guard plays the verbs on a replayed chain call by call
-      # with the real clock: closed-browser workers on their stands, the viewed hero
-      # placed, steered, moved and sent to a counter, a hunt out (gone) and back (the
-      # arrival), an empty delta. --mutate plants 6 defects in the migration.
-      - name: Town stands — every body on its server stand
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-town-stations.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-town-stations.mjs --selftest
-          node tests/town-stands.mjs
-          node tools/mutant-gate.mjs node tests/town-stands.mjs --mutate
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-24
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
   # pg17-load: THE REAL-CONCURRENCY GATE, NIGHTLY ONLY (lane/c-ops-gates, 2026-11-19; server audit
   # tools/qa/audit-2026-11-19-server/findings.md row 8: "lock orders never ran on two backends", the rig last ran 11-02).
   # tools/beta-load.mjs plays a beta population at once on a real PostgreSQL 17 (the chain template, tools/pg-replay.mjs):
@@ -7888,210 +8222,6 @@ jobs:
       - name: Beta load audit — mutation proof (PostgreSQL 17)
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tools/beta-load.mjs --selftest
-
-  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
-  # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
-  # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
-  # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
-  # 2026-11-18 (lane/ci-speed): timeout 44 -> 20: the full sweep measured 9.8 min, x2.
-  # + deploy-differential --selftest (2026-11-26, lane/deploy-diff-arm3, measured locally on a cached chain): 62 s, a proof
-  # only (nightly, or a release that moves the tool); x2 = 2.1 min, 20 -> 22.
-  db-replay-11:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 22
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install node modules (no browser)
-        run: npm install --no-audit --no-fund
-
-      # SCALED HUNTS, THE SERVER HALF (2027-03-21-scaled-hunts*.sql, lane/c-scaled-hunts): a gold purchase priced by the server, capped by
-      # the bank and the day, paid once with one ledger row; the leader's hours spent only by the window's world swings, browser closed and
-      # hunt viewed alike; the hours running out, the switch and a leader change at the next settle; every forged claim refused; the
-      # server feature switch (2027-03-21-feature-switches.sql) turns the whole feature off and on with a row, no release. The
-      # catalogue is GENERATED from src/data/scaled-hunts.js (tools/gen-scaled-hunts.mjs): --check holds the file to the data.
-      - name: Scaled hunts — the purchase, the bank and the settle, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-scaled-hunts.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest
-          node tests/scaled-hunts-server.mjs
-          node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
-
-      # ARCHITECTURE AUDIT RULES 10 AND 11 (CLAUDE.md §6, lane/c-ops-gates 2026-11-19). per-player-cost: statements a settle, ledger rows
-      # a hero-hour and row writes a settle for a lone hero and a party of four, on the replay with the shipped engine, browser closed;
-      # the baseline only shrinks (--selftest: a ledger-duplicating trigger and one extra round trip a settle must each go red).
-      # write-answers-state: every client write RPC that writes a table the envelope carries answers with the envelope (hr_state_of),
-      # or is on an allowlist that only shrinks (--selftest: a new {ok:true} write, a commented-out hr_state_of, two stale entries).
-      # MEASURED locally on a cached chain: per-player-cost 4 s plain, ~12 s --selftest; write-answers-state 3 s each.
-      - name: Per-hero server cost ratchet and client writes answer with the envelope (rules 10, 11)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/per-player-cost.mjs
-          node tools/mutant-gate.mjs node tests/per-player-cost.mjs --selftest
-          node tests/write-answers-state.mjs
-          node tools/mutant-gate.mjs node tests/write-answers-state.mjs --selftest
-
-      # A SECOND PRESS OF ONE KEY ANSWERS THE FIRST, UNDER THE LOCK (2027-04-19-key-under-lock.sql, lane/c-audit-db-fixes): the audit's P1.
-      # hr_scaled_hunt_buy, hr_hearth_burn and hr_stamina_refill read their key only before hr_hunt_lock, so a second press that waited on
-      # the lock reached hr_apply with a decided key (ok, replayed, nothing charged) and banked hours / lit a town flame / refilled stamina
-      # free. The second press is played as the body it runs after the lock; KL-CLASS holds every definer verb of that shape to a read under
-      # its lock or a named check that refuses the second press. KL-TIME holds hr_time_buy (the hunting block that replaced the refill,
-      # 1058-hunting-blocks.sql) to the same; KL-AGAIN re-applies the file at its own place. --mutate restores each old body (and drops a safe
-      # verb's check): 7 mutants.
-      - name: Key under lock — a second press of one key moves nothing (scaled hours, the Hearth, stamina) and the class census
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/key-under-lock.mjs
-          node tools/mutant-gate.mjs node tests/key-under-lock.mjs --mutate
-
-      # THE HUNTING DAY AND BOUGHT BLOCKS (1058-hunting-blocks.sql, lane/r8-hunting-day; Tyler 2026-11-22): a free hero hunts 10 h on the
-      # server and ends `stamina` to the swing, buys two 2 h blocks at x1.5 through the real client, and a third is refused block_limit;
-      # two blocks bought mid-hunt run it to exactly 14 h on the tick door (browser closed) and the player door (hunt viewed) alike;
-      # Premium's 12 h day banks to 16 h; a replayed key moves nothing and a stale price is quote_changed. The catalogue is GENERATED
-      # (tools/gen-time-blocks.mjs --check holds it to src/data/time-blocks.js, --selftest proves each refusal). --mutate (7): the cap
-      # off by one, no x1.5, the pool never written, the wrong instant, the ceiling forgets the blocks, no ceiling, no price check.
-      - name: Hunting day and blocks — 10 h, two blocks at x1.5, the third refused, both paths (7 mutants)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-time-blocks.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-time-blocks.mjs --selftest
-          node tests/hunting-blocks.mjs
-          node tools/mutant-gate.mjs node tests/hunting-blocks.mjs --mutate
-
-      # PER-HERO COSTS BY LEVEL (1063-level-costs*.sql, lane/level-costs; Tyler 2026-11-22: per-hero costs read the wage at the hero's
-      # Level): a death takes the lesser of 6% of the Level XP and 7.5 hours of progress at the hero's Level, the same on the tick door
-      # (browser closed) and the player door (hunt viewed) at Level 200, blessed and not; the ONE Blessing is an hour of the wage at the
-      # hero's Level (free under 30) and halves one death; the Talent reset is priced 0.5 h of the wage x2 a paid reset, first free,
-      # Premium's first of the day free, and DARK (no client role). The catalogue is GENERATED (tools/gen-level-costs.mjs --check holds it
-      # to src/data, --selftest proves each refusal). --mutate (13, with a reset that ignores the Talents switch): the bound without the hours, at Level 1 or open with no row, the Blessing at the Level 1
-      # wage, no reset growth, a quarter cut, a Blessing never used up, no price check, a second Blessing, no free first, Premium every
-      # time, a reset at an unquoted price.
-      - name: Per-hero costs by Level - the death in hours, one Blessing at the wage, the reset behind the Talents switch, both paths (13 mutants)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-level-costs.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-level-costs.mjs --selftest
-          node tests/level-costs.mjs
-          node tools/mutant-gate.mjs node tests/level-costs.mjs --mutate
-
-      # THE STORE PRICED AT THE BUYER'S STEP (1061-store-step-catalogue.generated.sql, 1062-store-step.sql, lane/econ-followups; Tyler
-      # 2026-11-22: goods are priced by depth): a store use costs its row at the depth the hunt stands at as each window opens (the wage's
-      # unit), off the scale at the hero's Level. The twin is the JS at every step; a four falling back from step 760 on Muster is billed
-      # each window's depth, browser closed and hunt viewed; the engine's input and the client's list read the same price; no function
-      # prices a use from a row's list price. The catalogue is GENERATED (tools/gen-store-prices.mjs --check holds it to src/data, --selftest
-      # proves each refusal). --mutate (13): the list price in the bill, the read, the view, the gold_out proof and a called room; the step
-      # taken late, frozen at the start, raw, by Level, uncapped, or 1 in town; the twin rounding down or losing its floor.
-      - name: Store priced at the buyer's step — the server's depth or Level, both paths (13 mutants)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-store-prices.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-store-prices.mjs --selftest
-          node tests/store-step.mjs
-          node tools/mutant-gate.mjs node tests/store-step.mjs --mutate
-
-      # COMPANY TRADES AND THE WORK DAY (1059-company-trades*.sql, lane/r12-company-trades; Tyler 2026-11-22 CR-Q1 a, CR-Q3 b): one company,
-      # two heroes, both doors (viewed and the tick) mine into ONE trade total every hero reads; a hero's town work stops at its day's end
-      # (work_cap) with the window open and with the browser closed; the server refuses a window past the day and a new job on a spent
-      # day; the JS rule and its SQL twin agree. The catalogue is GENERATED (tools/gen-work-day.mjs --check holds it to src/data/work-day.js,
-      # --selftest proves each refusal). --mutate (5): no stop in the engine, no carry between tick polls, no refusal in hr_apply, no
-      # fan-out to the other heroes, a credit that replaces the total.
-      - name: Company trades and the work day — one total, the day's end, both paths (5 mutants)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-work-day.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-work-day.mjs --selftest
-          node tests/company-trades.mjs
-          node tools/mutant-gate.mjs node tests/company-trades.mjs --mutate
-
-      # LIVE EVENTS, STEPS 1 AND 2 (2027-03-22-live-events*.sql, lane/c-live-events): a Level XP dial paid by each kill's own time to the
-      # accounts whose switch is on, browser closed and hunt viewed alike, kept apart on the tally so a personal best leaves it out; the
-      # commit's bound grows by the account's own dial only; Open Halls makes a Call out free through the quote, journalled and counted;
-      # the section and the announcer. The catalogue is GENERATED from src/data/live-events.js (tools/gen-live-events.mjs).
-      - name: Live events — the XP dial, the fee dial, the section and the announcer, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-live-events.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest
-          node tests/live-events.mjs
-          node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
-
-      # THE SOCIAL LAYER (1036 to 1039, lane/c-social FB-12): the clan, chat, friend link and presence rules the server reads are GENERATED
-      # from src/data/clans.js and chat-channels.js (tools/gen-social-catalogue.mjs); the clans, the clan chat with the castle hidden, the
-      # friend link from both sides and the strip are tests/social-layer.mjs, on the replayed chain.
-      - name: Social layer — the generated rules, clans, the friend link from both sides, the presence strip
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-social-catalogue.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-social-catalogue.mjs --selftest
-          node tests/social-layer.mjs
-          node tools/mutant-gate.mjs node tests/social-layer.mjs --mutate
-
-      # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
-      # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;
-      # a second apply moves nothing. Every other guard boots the quiet calendar (tests/schema-replay.mjs quietCalendar), so no guard reads
-      # another fee or Level XP on a Wednesday evening or a bonus weekend: AS-QUIET holds that. A scaled run sets no best. --mutate: 8 defects.
-      - name: Armed switches — scaled hunts, the Bonus XP weekend and Open Halls for a stranger, and the guards' quiet calendar
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/arm-switches.mjs
-          node tools/mutant-gate.mjs node tests/arm-switches.mjs --mutate
-
-      # AREA SPELLS, THE SERVER HALF (the three 2027-03-28-area-* files, lane/b-area-set): a monster's whole-group spell and a marked one
-      # land on a party of four with the browser closed and the hunt viewed, the same world and tallies; Turning Cut, Hoarfrost and
-      # Spring Tide are saved through the real bar check and cast on both doors; the Defense bound has room; against the chain as one
-      # difficulty leaves it only the area rows differ (nothing an apply could roll back); a second apply moves nothing.
-      # Measured locally 2026-11-10 on a cached chain: plain 18 s, --mutate 108 s (8 mutants).
-      - name: Area spells — both paths, only the area rows differ, the Defense bound
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/area-spells-server.mjs
-          node tools/mutant-gate.mjs node tests/area-spells-server.mjs --mutate
-
-      # THE TANK RUNE SPELLS, THE SERVER HALF (the two 2027-05-25-tank-runes-* files, lane/b-tank-runes; Tyler 2026-11-19): a tank's bar with
-      # Frost Slam and Shelter is saved through the real bar check and both cast beside a Healer on both doors (the same world and tallies),
-      # never alone (party only); against the chain before them only the tank rows differ (two abilities, the shape's shieldBy, two rune
-      # spells on Melee); refused before and accepted after; a second apply moves nothing.
-      # Measured locally 2026-11-19: plain 142 s, --mutate 18 s on a cached chain (8 mutants).
-      - name: Tank rune spells — both paths in a party, never alone, only the tank rows differ
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/tank-runes-server.mjs
-          node tools/mutant-gate.mjs node tests/tank-runes-server.mjs --mutate
-
-      # PROOF ARMS (2026-11-13, lane/a-audit-guards): money and credit, plain runs in run-smoke.mjs (plot-tier-price-replay: spawned plain by plot-tier-parity's REPLAY arm). Measured locally: 136 s.
-      - name: Hero slots — mutation proof (four free slots, the purchase gone, a live account kept whole)
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --mutate
-
-      # Measured locally: 92 s.
-      - name: Plot tier price replay — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/plot-tier-price-replay.mjs --mutate
-
-      # Measured locally: 48 s.
-      - name: Kill daily credit — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/kill-daily-credit.mjs --selftest
-
-      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
-      # tools/deploy-differential.mjs
-      - name: Gather deploy differential - every planted pack fault caught on a synthetic probe, through the replayed hr_apply
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
-      # ── END SELF-REGISTERED GUARDS ──
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on

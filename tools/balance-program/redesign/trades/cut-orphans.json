@@ -1,15 +1,7 @@
 {
- "count": 145,
+ "count": 128,
  "byBand": {
   "0": {
-   "ammo": [
-    "chalked_earth_rune",
-    "chalked_ice_rune",
-    "chalked_poison_rune",
-    "chalked_rupture_rune",
-    "chalked_water_rune",
-    "copper_whetstone"
-   ],
    "food": [
     "cooked_copper_crab",
     "cooked_herring",
@@ -20,6 +12,9 @@
    ],
    "material": [
     "copper_bar"
+   ],
+   "ammo": [
+    "copper_whetstone"
    ],
    "armor": [
     "graypelt_cloak"
@@ -41,31 +36,15 @@
     "fang_studs_steady_focus"
    ],
    "ammo": [
-    "barbed_arrows",
-    "iron_arrows",
-    "iron_bolts",
-    "iron_whetstone",
-    "scored_earth_rune",
-    "scored_fire_rune",
-    "scored_ice_rune",
-    "scored_poison_rune",
-    "scored_rupture_rune",
-    "scored_water_rune"
-   ],
-   "drink": [
-    "carrot_juice"
+    "barbed_arrows"
    ],
    "food": [
     "cooked_pikeperch",
-    "cooked_trout",
     "wheat_bread"
    ],
    "tool": [
     "iron_axe",
     "iron_pickaxe"
-   ],
-   "material": [
-    "oak_plank"
    ]
   },
   "2": {
@@ -373,16 +352,6 @@
    ]
   },
   {
-   "id": "carrot_juice",
-   "name": "Carrot Juice",
-   "kind": "drink",
-   "band": 1,
-   "by": "bench Level 12",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
    "id": "carrot_stew",
    "name": "Carrot Stew",
    "kind": "food",
@@ -460,56 +429,6 @@
    "by": "item Level 160",
    "doors": [
     "made by crafting"
-   ]
-  },
-  {
-   "id": "chalked_earth_rune",
-   "name": "Chalked Earth Rune",
-   "kind": "ammo",
-   "band": 0,
-   "by": "bench Level 1",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "chalked_ice_rune",
-   "name": "Chalked Ice Rune",
-   "kind": "ammo",
-   "band": 0,
-   "by": "bench Level 1",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "chalked_poison_rune",
-   "name": "Chalked Poison Rune",
-   "kind": "ammo",
-   "band": 0,
-   "by": "bench Level 1",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "chalked_rupture_rune",
-   "name": "Chalked Rupture Rune",
-   "kind": "ammo",
-   "band": 0,
-   "by": "bench Level 1",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "chalked_water_rune",
-   "name": "Chalked Water Rune",
-   "kind": "ammo",
-   "band": 0,
-   "by": "bench Level 1",
-   "doors": [
-    "made by runecrafting"
    ]
   },
   {
@@ -658,16 +577,6 @@
    "kind": "food",
    "band": 4,
    "by": "bench Level 45",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "cooked_trout",
-   "name": "Cooked Trout",
-   "kind": "food",
-   "band": 1,
-   "by": "bench Level 15",
    "doors": [
     "made by cooking"
    ]
@@ -1123,16 +1032,6 @@
    ]
   },
   {
-   "id": "iron_arrows",
-   "name": "Iron Arrows",
-   "kind": "ammo",
-   "band": 1,
-   "by": "metal iron",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "iron_axe",
    "name": "Iron Axe",
    "kind": "tool",
@@ -1143,29 +1042,9 @@
    ]
   },
   {
-   "id": "iron_bolts",
-   "name": "Iron Bolts",
-   "kind": "ammo",
-   "band": 1,
-   "by": "metal iron",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "iron_pickaxe",
    "name": "Iron Pickaxe",
    "kind": "tool",
-   "band": 1,
-   "by": "metal iron",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
-   "id": "iron_whetstone",
-   "name": "Iron Whetstone",
-   "kind": "ammo",
    "band": 1,
    "by": "metal iron",
    "doors": [
@@ -1250,16 +1129,6 @@
    "by": "bench Level 90",
    "doors": [
     "gathered"
-   ]
-  },
-  {
-   "id": "oak_plank",
-   "name": "Oak Plank",
-   "kind": "material",
-   "band": 1,
-   "by": "metal oak",
-   "doors": [
-    "made by crafting"
    ]
   },
   {
@@ -1380,66 +1249,6 @@
    "by": "item Level 140",
    "doors": [
     "made by crafting"
-   ]
-  },
-  {
-   "id": "scored_earth_rune",
-   "name": "Scored Earth Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "scored_fire_rune",
-   "name": "Scored Fire Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "scored_ice_rune",
-   "name": "Scored Ice Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "scored_poison_rune",
-   "name": "Scored Poison Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "scored_rupture_rune",
-   "name": "Scored Rupture Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "scored_water_rune",
-   "name": "Scored Water Rune",
-   "kind": "ammo",
-   "band": 1,
-   "by": "bench Level 15",
-   "doors": [
-    "made by runecrafting"
    ]
   },
   {

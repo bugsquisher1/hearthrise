@@ -844,6 +844,59 @@ The four land as one merge on the set, after the designer's item batches, in the
 
 Found on the way and fixed: `validateKitRecipes` read the shipped faces whatever faces it was handed, so a caller passing its own table was checked against the wrong one. It reads its `faces` argument now.
 
+**Band 1, iron: built (STAGED, dark with `trade_jobs`).** Two batches, each read for repetition (CLAUDE.md section 10).
+
+*How it plays:* once a hero has a depth record on the Mosslight Glade and a trade reaches Level 11, the Work window offers that trade's iron job. Iron ore smelts to Iron Bars, which forge Iron Arrowheads and grind Iron Whetstones. Oak logs saw to Oak Planks. An arrowhead and a plank make an Iron Arrow or an Iron Bolt. Trout cooks to Cooked Trout, carrots press to Carrot Juice, and two Blank Runes and a bone cut any of the six Scored runes. A band 0 caster can now cut every family of Chalked rune, not only fire.
+
+| Batch | Rows | What |
+|---|---|---|
+| `band0-runes` | 5 | Cut Chalked Earth, Water, Ice, Poison and Rupture Runes. The sample cut only fire, so a caster on any other family had only the store on the first day |
+| `band1-iron` | 18 | Mine Iron Ore, Chop Oak Logs, Catch Trout, Pull Carrots, Smelt Iron Bars, Saw Oak Planks, Cook Trout, Press Carrot Juice, Grind Iron Whetstones, Forge Iron Arrowheads, Fletch Iron Arrows, Fletch Iron Bolts, and Cut Scored Earth, Water, Fire, Ice, Poison and Rupture Runes |
+
+43 named rows in five batches (5, 9, 6, 5, 18), 48 job recipes with the imbuements. Every band 1 row opens at its trade's Level 11 (rung 2, `bandRung`), and the Tempering Salts (band 1's Temper kit, already named) at Smithing 21, the kind's own rung.
+
+*Calls made here.*
+
+- **The rune's stone has no metal.** Rune Essence and Blank Runes are every band's goods, made by band 0's two jobs alone, so a band's rune is its tier (Scored at band 1) and its binder. A stone a band would be eight new goods with no decision in them, and a second Cut Blank Runes job behind Level 11 would be the same good at the same work behind a gate. The validator now refuses any good made by two rows ("one good, one recipe"), and `KIT_FACES` names the shared face at each band so a rune's inputs still read its own band.
+- **Band 1's Remains are Bones** (`STREAM_FACES.remains[1]`). Band 1 has no imbuement, but its runes bind with Remains. The Mosslight Glade, the band 1 ground (gear Level 20), drops Bones from the Glade Poacher, the Goblin Sluicer and Rook the Poacher, so bands 0 to 2 bind with one good, and the binder changes where the imbuement's does.
+- **The first bolt is band 1's.** The bolt opens at Woodcrafting's second rung, so band 0 has none. Iron Bolts take the Iron Arrowhead and an Oak Plank, the arrow's own chain, so a ranged company makes both from one forge.
+- **One new good: Iron Arrowheads** (`iron_arrowheads`, booked at 25 under the Iron Bar's 30 like the bronze head under its bar, a placeholder icon re-dyed from the Barrow Nail by `tools/world-art/job-face-icons.mjs` for the Art Director to judge).
+- **Band 1's meal is Cooked Trout and its drink Carrot Juice.** The other band 1 foods (`cooked_pikeperch`, `wheat_bread`) and `barbed_arrows` are second goods of one kind at one band, cut with the bench (4.12). Kitchen 1's Cooked Trout keeps its source, and Kitchen 3's Wheat Bread is the cut's data lane's to re-point.
+
+*Every input has a source and every output a use* (`tests/kit-recipes.mjs` KR-SOURCE and KR-CLOSED, read from `catalogue-coherence`). Every town input of every band 0 and band 1 job is made by a job at its band or below. The bones are a monster drop. Every output is worn, eaten, drunk or spent by another job. After band 1 the cut orphans **128** live items, not 145 (`cut-orphans.mjs`): 17 gained a job (the five Chalked runes, the six Scored runes, Iron Arrows, Iron Bolts, Iron Whetstones, Cooked Trout, Carrot Juice and Oak Planks). Band 1's last five are the cut's (`barbed_arrows`, `cooked_pikeperch`, `wheat_bread`, the iron axe and pickaxe), and its nine rings and studs are Artificing's.
+
+**Walk-through: a company's first iron day, on real data.** It holds what the band 0 walk-through (4.11) ends with: band 0 goods and every trade trained on band 0 jobs. Each trade needs 7.5 work-hours of its own XP to reach Level 11 (`tradeXpTable`), about a quarter of one free day of a company of four. Every id was grepped on the set (`items.js`, `monsters.js`, `hunt-grounds.js`, `danger.js`, `trades.js`).
+
+| # | Step | Holds and can reach (steps before only, plus band 0) | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Mosslight Glade to a depth record | Band 0 gear and kit. The Glade opens at Level 16 | `hunt-grounds.js mosslight_glade`, `DANGER_GROUNDS.mosslight_glade` gear Level 20 (band 1, `hr_trade_band_open`). Drops `bones` (`glade_poacher`, `goblin_sluicer`, `rook_poacher`) | Yes |
+| 1 | Mine Iron Ore, Mining 11 | The band 1 record from step 0. No input | `ore_b1`, face `iron_ore` | Yes once lit |
+| 2 | Smelt Iron Bars, Smithing 11 | Ore from step 1 | `bar_b1`, 1 `iron_ore` to `iron_bar` | Yes once lit |
+| 3 | Forge Iron Arrowheads, Smithing 11 | Bars from step 2 | `arrowhead_b1`, 1 `iron_bar` to `iron_arrowheads` (new) | Yes once lit |
+| 4 | Chop Oak Logs and Saw Oak Planks, Woodcutting 11 and Woodcrafting 11 | Nothing needed for the logs | `log_b1` (`oak_log`), `shaft_b1` (1 `oak_log` to `oak_plank`) | Yes once lit |
+| 5 | Fletch Iron Arrows or Iron Bolts, Woodcrafting 11 | Arrowheads from step 3, planks from step 4 | `arrow_b1`, `bolt_b1`: 1 `iron_arrowheads` and 1 `oak_plank` each | Yes once lit |
+| 6 | Grind Iron Whetstones, Smithing 11 | Bars from step 2 | `honing_stone_b1`, 2 `iron_bar` to `iron_whetstone` | Yes once lit |
+| 7 | Catch Trout and Cook Trout, Fishing 11 and Cooking 11 | Nothing needed for the fish | `fish_b1` (`trout`), `meal_b1` (1 `trout` to `cooked_trout`) | Yes once lit |
+| 8 | Pull Carrots and Press Carrot Juice, Farming 11 and Cooking 11 | Nothing needed for the crop (or the plots' carrots, `carrot_seed` from the shop) | `grain_b1` (`carrot`), `drink_b1` (1 `carrot` to `carrot_juice`) | Yes once lit |
+| 9 | Cut Scored runes, Runecutting 11 | Blank Runes from band 0's Mine Rune Essence and Cut Blank Runes, bones from step 0 | `rune_<family>_b1`: 2 `rune_blank` and 1 `bones` to `scored_<family>_rune`, six families | Yes once lit |
+| 10 | Mix Tempering Salts, Smithing 21 | Bars from step 2 | `temper_kit_b1`, 3 `iron_bar` to `temper_salts` | Yes once lit |
+
+No step needs a good only the bench, the store or the start kit makes. The walk found one gap, now ruled: band 1's runes had no Remains face (`STREAM_FACES` had none at band 1), so the server would have refused to sell all six.
+
+**The labor ratio at 10, 12 and 14 hours, at band 1,** MEASURED. The burn is the real engine's: the Steady four (hammer, bow, mage, healer) at the Glade's reference Level 23, mid kit, nothing over item Level 39, 8 seeds x 10 h (`node tools/balance-program/redesign/v1-climb.mjs --ground mosslight_glade --level 23 --only base:steady --seeds 8 --hours 10 --max-il 39`, saved as `k1-band1-glade.json`), priced by the K1 tool (`measure.mjs --from tools/balance-program/redesign/trades/k1-band1-glade.json --days 10,12,14`, saved as `k1-band1-measured.txt`). The Glade's casters drink far more than Muster's four (the drink line is 2,862 g of the kit an hour), so the kit asks 0.66 work-hours a hunted hour (0.74 with imbuements), against Muster's 0.56.
+
+| Hunting a hero a day | Free 8 h, whole day planned | Free 8 h, 0.8 used | Premium 10 h, whole day | Kit made at home / from the store (free, whole day) | Gold the kit costs, share of gross (free, whole day) |
+|---|---|---|---|---|---|
+| 10 h | 0.82 | 1.03 | 0.66 | 100% / 0% | 0.042 |
+| 12 h | 0.99 | 1.23 | 0.79 | 100% / 0% | 0.042 |
+| 14 h | 1.15 | 1.44 | 0.92 | 87% / 13% | 0.068 |
+
+So the band 1 kit sits inside the 0.8 to 1.0 this page wants at 10 and 12 hours on a planned day, and 14 hours leans on the store for an eighth of its kit. In band, so no lever moves (CLAUDE.md 3.5).
+
+**The store a band behind stays the fallback** (the same tool, a hero at band 1's first step, gold an hour of effect): the meal line is 729 at the store against 488 crafted at band 1 and 485 crafted at band 0, the charge line 1,457 against 976 and 971. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind, as at every band 0 to 8 (KR-STORE).
+
+*Read with care:* the K1 tool's pace table applies one measured burn to the whole career, so the Glade's heavier mana bill read as a career-long rate overstates the lag past band 2. The pace of 4.9 (the Muster burn) is unchanged by this batch: no kind's work moved.
+
 ---
 
 ## 5. The supply and demand lifecycle

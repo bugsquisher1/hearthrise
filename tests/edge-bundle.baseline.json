@@ -578,6 +578,11 @@
         "bytes": 3897215,
         "on": "2026-11-27",
         "why": "lane/f1-inner-flame +2,870 B: the Inner Flame claim (hunt-settle.js flameDropsOf/flameFor, the giveDrop note in hunt-rewards.js, its plumbing through accrue-hunt.js and combat-sim.js, 1074-inner-flame-luck.sql); the fuel list comes from the server read, so no flame data module ships"
+      },
+      {
+        "bytes": 3898399,
+        "on": "2026-11-27",
+        "why": "lane/work-blocks-midnight (re-run on the merged set after f1-inner-flame): src/core/work-day.js counts each UTC day's own bought work blocks (boughtOn, boughtOf, the section's bought key), so a hero inside yesterday's block at midnight is not stopped"
       }
     ]
   }

@@ -32,6 +32,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { wholeViewOrRerun, foldedPacks } from './pack/whole.mjs';
+import { packIds, GROUNDS_DIR } from './pack/files.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2026-12-23-tally-catalogue.generated.sql, 2027-02-21-tally-glade-steel.generated.sql (the Wickstead task, then the
@@ -347,6 +349,13 @@ async function selftest() {
   const book = sql.split('insert into public.hr_tally_tiers')[1].split(';')[0];
   if (!/\('bronze_helm', 'helmet', 1\)/.test(book) || !/\('steel_platebody', 'body', 3\)/.test(book)) { console.error('  MISSED  a worn piece is not in her tier book at its tier'); bad++; }
   if (/'iron_sword'|'practice_shield'|'ring1'|'cape'/.test(book)) { console.error('  MISSED  an item worn outside her slots is in her tier book'); bad++; }
+  /* the whole view: a pack this file does not fold (staged, or not shipped before it) puts no row in her book */
+  const folded = foldedPacks(OUT_FILE);
+  for (const id of packIds().filter((p) => !folded.includes(p))) {
+    const pack = (await import(pathToFileURL(join(GROUNDS_DIR(), id, 'pack.js')).href)).default;
+    const leak = Object.keys((pack && pack.items) || {}).find((it) => book.includes(`(${lit(it)}, `));
+    if (leak) { console.error(`  MISSED  ${leak} of the unfolded pack ${id} is in her tier book (no hr_item_slots row serves it)`); bad++; }
+  }
   /* read off the ladder, never typed: a re-stamp moves every rung's Level (gear-phase-b's 12-targets 8.3 moved Level 95 from tier 7 to 6) */
   const rungs = [...D.ladder].sort((a, b) => a.level - b.level), mid = rungs[rungs.length - 2], top = rungs[rungs.length - 1];
   const between = Math.floor((mid.level + top.level) / 2);
@@ -379,4 +388,8 @@ async function main() {
   console.log('gen-tally-tasks: wrote ' + OUT_FILE);
 }
 
-if (isMain(import.meta.url)) main();
+/* THE WHOLE VIEW (lane/ci-reds-1127b, 2026-11-27): hr_tally_tiers is a whole rewrite, so its book names the base and the FOLDED ground
+   packs only (tools/pack/whole.mjs), the item set the items catalogue serves. Read off every pack, a staged pack's wearables (the
+   Catacomb and Roost named pieces lane/retire-dawnsteel-lines re-homed, PENDING_SOURCE) entered the book with no hr_item_slots row
+   under them: --check went stale, and a regenerated file would refuse its own full-join self-check on the replay. */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_FILE)) main();

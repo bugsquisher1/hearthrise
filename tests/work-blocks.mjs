@@ -2,13 +2,17 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/work-blocks.mjs — TOWN WORK IS BOUGHT IN 2 H BLOCKS (4 A DAY), AND A STANDING "BUY UP TO N A DAY" RULE BUYS WITHOUT A PRESS
 //   (v0.3.0 lane B1; supabase/migrations/1071-work-blocks.sql, 1072-work-blocks-catalogue.generated.sql, src/data/time-blocks.js;
+//   the UTC midnight: 1075-work-blocks-midnight.sql and src/core/work-day.js, lane/work-blocks-midnight;
 //   Tyler 2026-11-22; the designer's ruling on the rule, 12-targets.md section 9.3; CLAUDE.md §1, §4 both paths).
 //
 //   node tests/work-blocks.mjs            the guard (every arm, the whole replayed chain, the shipped edge)
-//   node tests/work-blocks.mjs --mutate   the proof: each SQL mutant planted in the live body must turn its arm red
+//   node tests/work-blocks.mjs --mutate   the proof: each SQL mutant planted in the live body, and each JS mutant in a temporary copy of
+//                                         the engine, must turn its arm red
 //
-// mutant-anchors: none — every mutant is planted in a live function body read from the replayed chain (pg_get_functiondef), inside the
-//   arm's rolled-back transaction; no tracked file is patched
+// mutant-anchors: src/core/work-day.js supabase/migrations/1075-work-blocks-midnight.sql
+//   (the JS mutant patches a temporary copy of src/core, src/data and the edge; every SQL mutant is planted in a live function body
+//   read from the replayed chain (pg_get_functiondef), inside the arm's rolled-back transaction; the §6 clock mutant plants into the
+//   text WB-MIDNIGHT-CHECK reads, in memory; no tracked file is patched)
 //
 // ci-step: db-replay | Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
 // ci-run: node tests/work-blocks.mjs
@@ -30,6 +34,11 @@
 //              buys nothing (rule_limit)
 //   WB-RULE-HUNT BOTH DOORS: the account answers the offer "Up to 2 a day"; the hunt runs on the server and the sweep buys each block
 //              only once the pool is under one block, and the hunt ends `stamina` at exactly 14 h, the same two prices on both doors
+//   WB-MIDNIGHT THE UTC MIDNIGHT, BOTH DOORS: a hero that worked its free day and 90 minutes of a block bought at 21:00 starts a new
+//              job at 23:50; at 00:04 the next UTC day the world tick (browser closed) and the viewed settle each land the 14 minutes,
+//              the 10 before midnight on yesterday's own cap and the 4 after on today's, the job running on (no work_cap, the new day)
+//   WB-MIDNIGHT-CHECK 1075's own §6 self-check completes with the server clock pinned at a day's last tenth of a second, its first
+//              instant, inside and either side of its first minute, at 00:04:30 and at 10:00 (an apply is never refused by its hour)
 //   WB-OFFER   THE OFFER ONCE: none under 3 days of the company's pay, one over it (the client's reader sees it); "Up to 2 a day" sets
 //              both heroes' rule and the offer is gone; a second answer is offer_answered; a hero's rule stays its own to change; Not
 //              now on another account sets nothing and is never asked again
@@ -43,6 +52,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { isMain } from './_is-main.mjs';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { goldOf } from './_gold.mjs';
@@ -326,6 +337,88 @@ const ARMS = {
     return p;
   },
 
+  /* THE UTC MIDNIGHT (lane/work-blocks-midnight; 1075-work-blocks-midnight.sql). A block is sold only while today can work it whole, so
+     a hero inside a block at midnight is one whose job paused: the free day and 90 minutes of a 21:00 block worked, a new job at 23:50
+     with 30 minutes of it left. At 00:04 the next UTC day each door settles the 14 minutes: the 10 before midnight on yesterday's own
+     cap (the block in it), the 4 after on today's fresh one, the job running on. Before the fix the first settle after midnight read
+     yesterday's cap as the free day: the engine stopped the job at its watermark (work_cap) and hr_apply refused the window. */
+  'WB-MIDNIGHT': async (db, M, edge) => {
+    const p = [];
+    const node = await one(db, "select activity_id from public.hr_activities where kind = 'gather' and req_skill = 'mining' and coalesce(req_lv, 1) <= 1 order by activity_id limit 1");
+    const next = new Date(Date.parse(DAY + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+    const midMs = Date.parse(next + 'T00:00:00Z');
+    const seen = {};
+    for (const door of ['fire', 'viewed']) {
+      await pin(db, at('21:00'));
+      const u = await makeHero(db);
+      await setPurse(db, u, 1000000000);
+      const base = Number(await one(db, 'select public.hr_work_base_ms($1::uuid, 0)::text', [u]));
+      await db.query('update public.player_state set work_day = $2::date, work_ms = $3 where user_id = $1 and slot = 0', [u, DAY, base]);
+      const q1 = await one(db, 'select public.hr_work_block_quote($1::uuid, 0)', [u]);
+      await clear(db);
+      const b = await as(db, u, "select public.hr_time_buy('work', 0, $1::bigint, $2::uuid) as r", [q1 && q1.price, idem()]);
+      if (!b || b.ok !== true) { p.push(door + ': the block pressed at 21:00 answered ' + js(b) + ' (quote ' + js(q1) + ')'); continue; }
+      /* 90 minutes of the block worked (its job ended), a new job at 23:50 with the last 30 minutes of it */
+      await db.query('update public.player_state set work_ms = $2 where user_id = $1 and slot = 0', [u, base + 90 * MIN]);
+      await pin(db, at('23:50'));
+      const st = await startJob(db, edge, u, 0, { kind: 'gather', id: node, count: 100000, next: 'wait' });
+      if (st.status !== 200) throw Object.assign(new Error('the job start at 23:50 refused: ' + js(st.body)), { harness: true });
+      await db.query('update public.hr_return_anchor set real_return_at = now() where user_id = $1 and slot = 0', [u]);
+      if (door === 'fire') {
+        await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [u]);
+        await db.query('select public.hr_tick_enrol(200)');
+      }
+      /* 00:04 the next UTC day */
+      await pin(db, next + 'T00:04:00Z');
+      const now = await nowMs(db);
+      if (door === 'fire') {
+        for (let i = 0; i < 20; i++) {
+          await fire(db, edge, [[u, 0]]);
+          const s = await stateOf(db, u, 0);
+          if (s.active_kind !== 'gather' || Number(s.wm) >= now - 100000) break;
+        }
+      } else await viewedSettle(db, edge, u, 0);
+      const end = await stateOf(db, u, 0);
+      const rows = await q(db, "select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'gather' and intent = 'accrue' order by id", [u]);
+      seen[door] = end.work_day;
+      if (end.active_kind !== 'gather' || (end.job_end && end.job_end.end === 'work_cap') || end.work_day !== next
+          || !(Number(end.work_ms) > 0 && Number(end.work_ms) <= 4 * MIN) || !(Number(end.wm) > midMs) || !rows.length
+          || (door === 'fire' && rows.some((r) => !r.meta || r.meta.src !== 'tick'))) {
+        p.push(door + ': inside yesterday\'s block at midnight the hero reads ' + js(end) + ' after ' + rows.length + ' journalled window(s) '
+          + js(rows.map((r) => r.meta && [r.meta.src, r.meta.ms, r.meta.stopped])) + ', want the job running into ' + next
+          + ' (0 < work_ms <= 4 min, watermark past midnight, no work_cap)');
+      }
+    }
+    if (seen.fire && seen.viewed && seen.fire !== seen.viewed) p.push('the two doors landed on different days: closed ' + seen.fire + ', viewed ' + seen.viewed);
+    return p;
+  },
+
+  /* 1075's OWN §6 SELF-CHECK AT EVERY HOUR THAT DECIDES IT (the class of 1073's 2026-11-27 rehearsal red): run on the server clock pinned
+     at a day's last tenth of a second, its first instant, inside its first minute, either side of 00:01, inside the five-minute window
+     tests/utc-midnight-replay.mjs replays the chain in, and mid-morning, it must complete at every one, so the hour never refuses an apply. */
+  'WB-MIDNIGHT-CHECK': async (db) => {
+    const p = [];
+    let text = readFileSync(join(ROOT, 'supabase', 'migrations', '1075-work-blocks-midnight.sql'), 'utf8').replace(/\r/g, '');
+    if (S6_PLANT) {
+      if (text.split(S6_PLANT.from).length !== 2) throw Object.assign(new Error('the §6 plant is not found once in 1075'), { harness: true });
+      text = text.replace(S6_PLANT.from, () => S6_PLANT.to);
+    }
+    const s6 = text.indexOf('-- ── §6 SELF-CHECK');
+    const from = s6 < 0 ? -1 : text.indexOf('\ndo $$', s6);
+    const to = text.lastIndexOf('end $$;');
+    if (from < 0 || to < from) throw Object.assign(new Error('the §6 self-check block is not found in 1075-work-blocks-midnight.sql'), { harness: true });
+    const check = text.slice(from + 1, to + 'end $$;'.length);
+    const next = new Date(Date.parse(DAY + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
+    for (const iso of [DAY + 'T23:59:59.900Z', next + 'T00:00:00.000Z', next + 'T00:00:00.400Z', next + 'T00:00:59.999Z',
+      next + 'T00:01:00.001Z', next + 'T00:04:30.000Z', next + 'T10:00:00.000Z']) {
+      await db.query('savepoint wb_s6');
+      await pin(db, iso);
+      try { await db.exec(check); } catch (e) { p.push('1075\'s §6 self-check run at ' + iso + ' raised: ' + String(e.message).split('\n')[0].slice(0, 300)); }
+      await db.query('rollback to savepoint wb_s6');
+    }
+    return p;
+  },
+
   'WB-RULE-HUNT': async (db, M) => {
     const p = [];
     const ends = {};
@@ -445,6 +538,33 @@ const MUTANTS = [
     repl: "    for h in select p_slot as slot loop\n      perform public.hr_time_rule_write" },
   { arm: 'WB-SURFACE', name: 'a rule past the kind\'s daily cap accepted', fn: 'public.hr_time_auto_set(text,integer,integer,bigint,uuid)',
     find: 'if p_up_to is not null and (p_up_to < 0 or p_up_to > v_per) then', repl: 'if false then' },
+  /* the UTC midnight (1075-work-blocks-midnight.sql): each of the fix's four server parts, taken away alone */
+  { arm: 'WB-MIDNIGHT', name: 'hr_apply folds yesterday on the free day (no earlier day\'s blocks)', fn: 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)',
+    find: '                  public.hr_work_bought(v_uid, v_slot, v_st.accrued_to));', repl: "                  '{}'::jsonb);" },
+  { arm: 'WB-MIDNIGHT', name: 'the engine\'s read forgets an earlier day\'s blocks', fn: 'public.hr_work_state(uuid,integer)',
+    find: "'bought', case when ps.active_kind = any (public.hr_work_kinds())", repl: "'bought', case when false" },
+  { arm: 'WB-MIDNIGHT', name: 'the bought read skips the watermark\'s own day', fn: 'public.hr_work_bought(uuid,integer,timestamp with time zone)',
+    find: 'and l.at >= v_d0 and l.at < least(', repl: "and l.at >= v_d0 + interval '1 day' and l.at < least(" },
+  { arm: 'WB-MIDNIGHT', name: 'the fold ignores an earlier day\'s bought work',
+    fn: 'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date,jsonb)',
+    find: "when jsonb_typeof(v_b) = 'number' and v_b::text ~ '^[0-9]{1,15}$' then (v_b::text)::bigint", repl: 'when false then 0' },
+];
+
+/* JS MUTANTS, planted in a temporary copy of the engine (src/core, src/data and the edge): the arm runs on that copy's two doors. */
+const JS_MUTANTS = [
+  { arm: 'WB-MIDNIGHT', name: 'the engine caps an earlier UTC day at the free day (boughtMs never read)', file: 'src/core/work-day.js',
+    from: "  return b && typeof b === 'object' && Object.prototype.hasOwnProperty.call(b, dayMs) ? nat(b[dayMs]) : 0;", to: '  return 0;' },
+];
+const townDoors = async (dir) => ({ tick: await import(pathToFileURL(join(dir, FN, 'tick.js')).href),
+  sa: await import(pathToFileURL(join(dir, FN, 'set-activity.js')).href) });
+
+/* A CLOCK MUTANT of 1075's §6 text (WB-MIDNIGHT-CHECK reads the file): the window's end taken as a fixed minute past midnight, not the
+   server's now, so in a day's first minute the probe proposes an instant past now and the check refuses its own apply at that hour. */
+let S6_PLANT = null;
+const S6_MUTANTS = [
+  { arm: 'WB-MIDNIGHT-CHECK', name: 'the self-check\'s window ends past now in a day\'s first minute (an hour that refuses the apply)',
+    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
+    from: "    v_end := least(now(), v_t + interval '1 minute');", to: "    v_end := v_t + interval '1 minute';" },
 ];
 
 async function main() {
@@ -452,7 +572,7 @@ async function main() {
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(2); }
   await H.pinDice(db);
   const M = await H.loadEdge(H.ROOT);
-  const edge = { tick: await import(pathToFileURL(join(ROOT, FN, 'tick.js')).href), sa: await import(pathToFileURL(join(ROOT, FN, 'set-activity.js')).href) };
+  const edge = await townDoors(ROOT);
   await db.query('update public.hr_hunt_config set enabled = true where id');
   await db.query("insert into public.hr_flags (key, enabled, note) values ('town_presence', true, 'work-blocks') on conflict (key) do update set enabled = true");
   await db.query("update public.hr_flags set enabled = false where key = 'beta_premium'");
@@ -474,7 +594,31 @@ async function main() {
         else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + first.slice(0, 110) + ')');
       } finally { await db.exec(def); }
     }
-    console.log(bad ? 'work-blocks --mutate: ' + bad + ' failure(s)' : 'work-blocks --mutate: all ' + MUTANTS.length + ' mutants killed');
+    for (const m of JS_MUTANTS) {
+      const dir = mkdtempSync(join(tmpdir(), 'hr-wblocks-'));
+      try {
+        for (const d of ['src/core', 'src/data', FN]) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+        cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
+        const f = join(dir, m.file);
+        const src = readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+        if (src.split(m.from).length !== 2) { console.error('✗ JS mutant "' + m.name + '": its anchor is not found exactly once in ' + m.file); bad++; continue; }
+        writeFileSync(f, src.replace(m.from, () => m.to));
+        const first = ((await runArms(db, M, await townDoors(dir), [m.arm]))[m.arm] || [])[0];
+        if (!first) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); bad++; }
+        else if (/^threw|^harness/.test(first)) { console.error('✗ harness: ' + m.arm + ' broke on: ' + m.name + ' (' + first.slice(0, 200) + ')'); bad++; }
+        else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + first.slice(0, 110) + ')');
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+    for (const m of S6_MUTANTS) {
+      S6_PLANT = m;
+      try {
+        const first = ((await runArms(db, M, edge, [m.arm]))[m.arm] || [])[0];
+        if (!first) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); bad++; }
+        else if (/^threw|^harness/.test(first)) { console.error('✗ harness: ' + m.arm + ' broke on: ' + m.name + ' (' + first.slice(0, 200) + ')'); bad++; }
+        else console.log('✓ ' + m.arm + ' goes red on: ' + m.name + '  (' + first.slice(0, 110) + ')');
+      } finally { S6_PLANT = null; }
+    }
+    console.log(bad ? 'work-blocks --mutate: ' + bad + ' failure(s)' : 'work-blocks --mutate: all ' + (MUTANTS.length + JS_MUTANTS.length + S6_MUTANTS.length) + ' mutants killed');
     process.exit(bad ? 1 : 0);
   }
   const oi = process.argv.indexOf('--only');

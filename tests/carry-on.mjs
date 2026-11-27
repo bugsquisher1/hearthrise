@@ -976,7 +976,7 @@ const MUTANTS = [
   { name: 'nothing passes between heroes', arm: 'dress', want: /^CO-DRESS (viewed|closed): the (tank|spare)/, src: ['src/core/upgrade-pick.js',
     '      const donor = own ? null : [...left].find(([s2, m]) => s2 !== slot && (m.get(id) || 0) > 0);', '      const donor = null;'] },
   { name: 'the server picks from the browser\'s view (an empty bag)', arm: 'dress', want: /^CO-DRESS (viewed|closed): the tank went out/, src: ['supabase/functions/hr-accrue/company-wear.js',
-    '    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => h.env[k]) })));', "    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => (k === 'inventory' ? {} : h.env[k])) })));"] },
+    '    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => h.env[k], h.slot) })));', "    .map((h) => ({ slot: h.slot, input: wearInputOf((k) => (k === 'inventory' ? {} : h.env[k]), h.slot) })));"] },
   { name: '"If one falls" writes no box', arm: 'lines', want: /^CO-LINES all come home/, fn: 'public.hr_company_line_set(text,text,uuid)',
     find: "      update public.player_state set party_leave_together = case when p_value = 'all_home' then true end,", replace: '      update public.player_state set party_leave_together = party_leave_together,' },
   { name: 'the leader is not worked out at the press', arm: 'lead', want: /^CO-LEAD at the press/, fn: FN.press,

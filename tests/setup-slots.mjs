@@ -63,7 +63,8 @@ const VIEW = 'public.hr_setup_slots_view(uuid,integer)';
 const SAVE = 'public.hr_hunt_preset_save(integer,integer,text,uuid)';
 const COPY = 'public.hr_action_set_copy(integer,integer,uuid)';
 const APPLY = 'public.hr_hunt_preset_apply(integer,integer,uuid)';
-const FOLLOW = 'public.hr_setup_gear_follow()';
+/* 1074-setup-pieces.sql moved hr_setup_gear_follow()'s write into one writer (both follow triggers call it): the owner rule lives there */
+const GEAR_WRITE = 'public.hr_setup_gear_write(uuid,integer)';
 const PRESETS_VIEW = 'public.hr_hunt_presets_view(uuid,integer)';
 const SWAP_FILE = '2027-05-04-setup-swap-mid-hunt.sql';
 
@@ -113,7 +114,7 @@ export const MUTANTS = {
     db: [APPLY, 'update public.hunt_sessions set preset = v_p.action_set, version = version + 1 where id = v_s.id;', 'update public.hunt_sessions set preset = v_p.action_set, version = version + 1 where instance_id = v_s.instance_id and ended_at is null;'] },
   swap_owner_lost: { arm: 'SS-SWAP-GEAR', why: 'the mid-hunt swap forgets whose gear is worn, so the next equip lands on the setup in use',
     db: [APPLY, 'set gear_set = nullif(coalesce(a.gear_set, a.action_set), excluded.action_set), action_set = excluded.action_set,', 'set gear_set = null, action_set = excluded.action_set,'] },
-  follow_in_use: { arm: 'SS-SWAP-GEAR', why: 'an equip writes the setup in use, not the setup whose gear it is', db: [FOLLOW, 'p.preset = public.hr_hunt_gear_set(v_u, v_s)', 'p.preset = public.hr_hunt_active_set(v_u, v_s)'] },
+  follow_in_use: { arm: 'SS-SWAP-GEAR', why: 'an equip writes the setup in use, not the setup whose gear it is', db: [GEAR_WRITE, 'p.preset = public.hr_hunt_gear_set(p_user, p_slot)', 'p.preset = public.hr_hunt_active_set(p_user, p_slot)'] },
   town_owner_kept: { arm: 'SS-SWAP-GEAR', why: 'a town Use keeps the old owner, so the setup it wears writes another setup\'s gear',
     db: [APPLY, 'do update set action_set = excluded.action_set, gear_set = null, updated_at = now();', 'do update set action_set = excluded.action_set, updated_at = now();'] },
   owner_trigger_off: { arm: 'SS-SWAP-GEAR', why: 'Use equipped leaves the old owner, so the next equip writes another setup', ddl: 'drop trigger hr_setup_gear_owner on public.player_hunt_active' },

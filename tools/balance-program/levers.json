@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f72ff87280a8db7e",
+ "authored": "bfef19a6f5d2b4fd",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 757,
-  "typed": 17542,
+  "bindings": 756,
+  "typed": 17539,
   "files": 263,
-  "lever": 325,
+  "lever": 324,
   "notLever": 432,
   "unclaimed": 0
  },
@@ -1432,9 +1432,11 @@
     ],
     "mentions": [
      "tests/balance-sheet.mjs",
+     "tests/drop-formula.mjs",
+     "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7605,7 +7607,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 313,
+     "line": 314,
      "text": "export const CLIMB = Object.freeze({ cleanRun: 2, climbMax: 8, fallSteps: 18, deathSteps: 120, coolPulls: 10 });",
      "binding": "CLIMB"
     }
@@ -7674,19 +7676,19 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 320,
+     "line": 321,
      "text": "careful: Object.freeze({ fallPm: 450, cleanPm: 650, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 321,
+     "line": 322,
      "text": "steady: Object.freeze({ fallPm: 250, cleanPm: 450, afterDeath: 'careful' }),",
      "binding": "RISKS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 322,
+     "line": 323,
      "text": "bold: Object.freeze({ fallPm: 80, cleanPm: 300, afterDeath: 'steady', breakOff: false }),",
      "binding": "RISKS"
     }
@@ -7752,7 +7754,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 349,
+     "line": 350,
      "text": "export const HOLDER = Object.freeze({ linePm: 700 });",
      "binding": "HOLDER"
     }
@@ -7956,8 +7958,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 234,
-     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 235,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -7999,7 +8001,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8030,91 +8032,91 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 234,
-     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 235,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 236,
+     "line": 237,
      "text": "catacomb_bone_wing: ground({ refStep: 590, floorStep: 510, topStep: 605, refKillsHead: 125, refHeld: 585, coinPm: 5500, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 241,
-     "text": "meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
-     "binding": "DANGER_GROUNDS"
-    },
-    {
-     "file": "src/data/danger.js",
-     "line": 244,
-     "text": "wickstead: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 140, refHeld: 65, coinPm: 17700, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),",
+     "line": 242,
+     "text": "meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 245,
-     "text": "millrace_sewer: ground({ refStep: 20, floorStep: 0, topStep: 110, coinPm: 6200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),",
+     "text": "wickstead: ground({ refStep: 80, floorStep: 0, topStep: 125, refKillsHead: 135, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 246,
-     "text": "mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),",
+     "text": "millrace_sewer: ground({ refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 251,
-     "text": "mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 125, refKillsHead: 140, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
+     "line": 247,
+     "text": "mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 252,
-     "text": "coppercap_warrens: ground({ refStep: 80, floorStep: 25, topStep: 135, refKillsHead: 125, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),",
+     "text": "mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 255,
-     "text": "the_slake: ground({ refStep: 120, floorStep: 65, topStep: 140, refHeld: 115, coinPm: 5300, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),",
+     "line": 253,
+     "text": "coppercap_warrens: ground({ refStep: 80, floorStep: 30, topStep: 125, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 256,
-     "text": "pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
+     "text": "the_slake: ground({ refStep: 100, floorStep: 45, topStep: 135, refKillsHead: 125, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 257,
+     "text": "pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
+     "binding": "DANGER_GROUNDS"
+    },
+    {
+     "file": "src/data/danger.js",
+     "line": 258,
      "text": "krells_hold: ground({ refStep: 60, floorStep: 15, topStep: 125, refHeld: 65, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 261,
+     "line": 262,
      "text": "carters_rest: ground({ refStep: 90, floorStep: 5, topStep: 110, refKillsHead: 160, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 262,
+     "line": 263,
      "text": "ox_road: ground({ refStep: 160, floorStep: 70, topStep: 240, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 263,
+     "line": 264,
      "text": "wyvern_roost: ground({ refStep: 190, floorStep: 70, topStep: 235, refHeld: 185, coinPm: 3700, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
-     "line": 265,
+     "line": 266,
      "text": "catacomb_flooded_wing: ground({ refStep: 510, floorStep: 460, topStep: 525, refKillsHead: 145, coinPm: 3500, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
@@ -8168,7 +8170,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8199,8 +8201,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 235,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 545, topStep: 655, refKillsHead: 135, refHeld: 605, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "line": 236,
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 645, refKillsHead: 130, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8249,7 +8251,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8280,7 +8282,7 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 283,
+     "line": 284,
      "text": "export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, topTo: 5 });",
      "binding": "BAND_RULE"
     }
@@ -8554,12 +8556,13 @@
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/hall-formula.mjs",
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8662,12 +8665,13 @@
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/hall-formula.mjs",
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8727,12 +8731,13 @@
      "tests/balance-sheet.mjs",
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/hall-formula.mjs",
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-roles.mjs",
      "tests/hunt-event-names.mjs",
      "tests/tower-climb.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8794,9 +8799,10 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8859,9 +8865,10 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8921,9 +8928,10 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8983,9 +8991,10 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9060,9 +9069,10 @@
      }
     ],
     "mentions": [
+     "tests/hunt-core/hunt-data.mjs",
      "tests/hunt-core/monster-formula.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9833,7 +9843,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 64,
+     "distinct": 71,
      "low": 0.06,
      "high": 1
     }
@@ -10061,12 +10071,11 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows, the reforge patterns' boss drops, and the Catacomb wings' named-armor rate (catacomb-wings.js ARMOR_PM_KILL, STATED)",
+    "what": "ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows and the reforge patterns' boss drops",
     "homes": [
      "src/data/monsters.js#MONSTERS",
      "src/data/grounds/*/pack.js#default",
-     "src/data/patterns.js#PATTERNS",
-     "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS"
+     "src/data/patterns.js#PATTERNS"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -10077,7 +10086,7 @@
       "trophy"
      ],
      "rows": 308,
-     "distinct": 86,
+     "distinct": 87,
      "low": 0.0005,
      "high": 0.05
     }
@@ -11743,8 +11752,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 234,
-     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 235,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -11799,7 +11808,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11818,8 +11827,8 @@
    "sites": [
     {
      "file": "src/data/danger.js",
-     "line": 234,
-     "text": "muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
+     "line": 235,
+     "text": "muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -11875,7 +11884,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 27,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17604,14 +17613,6 @@
    "pin": "open",
    "bindings": 1
   },
-  "src/data/catacomb-wings.js#ARMOR_EVERY_HOURS": {
-   "pin": "count",
-   "keys": [
-    "·"
-   ],
-   "typed": 1,
-   "bindings": 1
-  },
   "src/data/hearthfind.js#HEARTHFIND_HOURS_MAX": {
    "pin": "count",
    "keys": [
@@ -18573,7 +18574,7 @@
    "keys": [
     "·"
    ],
-   "typed": 129,
+   "typed": 127,
    "bindings": 1
   },
   "src/data/to-hit.js#TO_HIT": {

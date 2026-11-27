@@ -37,9 +37,12 @@
 -- §3 INTERNAL (owner only):
 --    hr_trade_work_stop(user, slot, from) -> timestamptz   the twin of src/core/work-day.js workStopMs on hr_work_state (pinned by
 --      tests/trade-jobs.mjs TJ-TWIN): from `from`, the hero works until the day's town work is used, the next UTC day's cap after midnight.
+--      Each UTC day's cap is its own (lane/k1-server-fixes): the base plus the work blocks bought on that day, so a job read after
+--      midnight stops where it did on its own day (TJ-MIDNIGHT); for a start today it is workStopMs exactly.
 --    hr_trade_level_of(user, trade) -> int                 the company's trade Level (hr_trade_level of company_trade_xp).
---    hr_trade_band_open(user, band) -> boolean             band 0 always (09 4.9); any other band only with a depth record there: some
---      hero of the account holds hunt_density.danger_held on a Danger scale ground of that band (hr_trade_ground_bands).
+--    hr_trade_band_open(user, band) -> boolean             band 0 always (09 4.9); any other band only with a depth record at that band
+--      or deeper: some hero of the account holds hunt_density.danger_held on a Danger scale ground of band >= it (hr_trade_ground_bands;
+--      the designer's ruling, HANDOFFS 2026-11-27 designer-kit-band1 item 4).
 --    hr_trade_job_quote(user, slot, recipe, count) -> jsonb   the start's decision without a write, its refusals in the spec's order
 --      after `busy`: bad_recipe · rung_locked · band_locked · work_cap · count_cap; ok { fee, count, count_cap, spent_ms, ends_at, ... }.
 --    hr_trade_job_close(user, slot, at, early) -> jsonb    THE SETTLE, the caller holding the hero's lock. The job's true end E is
@@ -210,10 +213,14 @@ create or replace function public.hr_trade_work_stop(p_user uuid, p_slot int, p_
 returns timestamptz language plpgsql stable set search_path = public, pg_catalog as $fn$
 declare
   c_day constant bigint := 86400000; w jsonb; v_from bigint; v_d0 bigint; v_dms bigint; v_tms bigint; v_base bigint; v_extra bigint;
-  v_used bigint; v_left bigint; v_mid bigint; v_stop bigint;
+  v_used bigint; v_left bigint; v_mid bigint; v_stop bigint; v_block bigint; v_x0 bigint; v_x1 bigint;
 begin
   -- K1 (1073-k1-job-slice.sql): the twin of src/core/work-day.js workStopMs on the server's own work state (hr_work_state): from p_from
   -- the hero works until the day's town work is used; if midnight comes first, the next UTC day's cap. Null for no hero.
+  -- EACH UTC DAY'S CAP IS ITS OWN (lane/k1-server-fixes): the base day plus the work blocks bought ON THAT DAY. Today's are
+  -- hr_work_state's extra_ms (1071's hr_work_extra_ms), so a start today is workStopMs exactly; an earlier day's are counted from the
+  -- ledger the way 1071's hr_time_bought counts today's, so a job read after midnight (the sweep, a Collect, the section) still stops
+  -- where it did on the day it started, its bought blocks in it. A day after today has bought none yet.
   w := public.hr_work_state(p_user, p_slot);
   if w is null then return null; end if;
   v_from := floor(extract(epoch from p_from) * 1000)::bigint;
@@ -223,10 +230,26 @@ begin
   v_base := greatest(0, coalesce((w->>'base_ms')::bigint, 0));
   v_extra := greatest(0, coalesce((w->>'extra_ms')::bigint, 0));
   v_used := greatest(0, coalesce((w->>'used_ms')::bigint, 0));
-  v_left := greatest(0, v_base + case when v_d0 = v_tms then v_extra else 0 end - case when v_d0 = v_dms then v_used else 0 end);
   v_mid := v_d0 + c_day;
+  if v_d0 < v_tms then
+    select b.block_min::bigint * 60000 into v_block from public.hr_time_blocks b where b.kind = 'work';
+  end if;
+  v_x0 := case when v_d0 = v_tms then v_extra when v_d0 > v_tms or v_block is null then 0
+               else v_block * (select count(*) from public.player_ledger l
+                                where l.user_id = p_user and l.slot = p_slot and l.kind = 'shop' and l.intent like 'time\_buy:%'
+                                  and l.intent like 'time\_buy:work:%'
+                                  and l.at >= timestamptz '1970-01-01 00:00:00+00' + v_d0 * interval '1 millisecond'
+                                  and l.at < timestamptz '1970-01-01 00:00:00+00' + v_mid * interval '1 millisecond') end;
+  v_left := greatest(0, v_base + v_x0 - case when v_d0 = v_dms then v_used else 0 end);
   if v_from + v_left < v_mid then v_stop := v_from + v_left;
-  else v_stop := v_mid + greatest(0, v_base + case when v_mid = v_tms then v_extra else 0 end - case when v_mid = v_dms then v_used else 0 end);
+  else
+    v_x1 := case when v_mid = v_tms then v_extra when v_mid > v_tms or v_block is null then 0
+                 else v_block * (select count(*) from public.player_ledger l
+                                  where l.user_id = p_user and l.slot = p_slot and l.kind = 'shop' and l.intent like 'time\_buy:%'
+                                    and l.intent like 'time\_buy:work:%'
+                                    and l.at >= timestamptz '1970-01-01 00:00:00+00' + v_mid * interval '1 millisecond'
+                                    and l.at < timestamptz '1970-01-01 00:00:00+00' + (v_mid + c_day) * interval '1 millisecond') end;
+    v_stop := v_mid + greatest(0, v_base + v_x1 - case when v_mid = v_dms then v_used else 0 end);
   end if;
   return timestamptz '1970-01-01 00:00:00+00' + v_stop * interval '1 millisecond';
 end $fn$;
@@ -240,9 +263,10 @@ $fn$;
 create or replace function public.hr_trade_band_open(p_user uuid, p_band int)
 returns boolean language sql stable set search_path = public, pg_catalog as $fn$
   -- K1 (1073-k1-job-slice.sql; 09 4.2 and 4.9): band 0 is open to every company; any other band only where a hero of the account holds
-  -- a depth record (hunt_density.danger_held) on a Danger scale ground of that band.
+  -- a depth record (hunt_density.danger_held) on a Danger scale ground of THAT BAND OR DEEPER (the designer, 2026-11-27: bands 1 to 3
+  -- have one or two grounds each, so a company that went from the Thicket to the Warrens would never open iron on an exact match).
   select coalesce(p_band, -1) = 0 or exists (select 1 from public.hunt_density d join public.hr_trade_ground_bands g on g.hunt_id = d.hunt_id
-                                              where d.user_id = p_user and d.danger_held is not null and g.band = p_band);
+                                              where d.user_id = p_user and d.danger_held is not null and g.band >= p_band);
 $fn$;
 
 create or replace function public.hr_trade_job_quote(p_user uuid, p_slot int, p_recipe text, p_count int)
@@ -815,8 +839,8 @@ do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'sele
 --     baseline; the cron is scheduled; grant hygiene is quiet.
 -- (b) THE TWIN: hr_trade_work_stop at a fresh hero's first instant is that instant plus its whole day.
 -- (c) LIT, THE REFUSALS IN ORDER, each moving nothing: bad_recipe (no such recipe), busy (a gathering pointer), rung_locked (Smithing 1
---     on the Iron salts), band_locked (band 1, no depth record), count_cap (one past the day), quote_changed (fee + 1), short_inputs
---     (Cook Shrimp with no shrimp), work_cap (the day used).
+--     on the Iron salts), band_locked (band 1, no depth record; a record at a deeper band opens it, one at a shallower band does not),
+--     count_cap (one past the day), quote_changed (fee + 1), short_inputs (Cook Shrimp with no shrimp), work_cap (the day used).
 -- (d) LIT, A JOB, STARTED AND COLLECTED: Cook Shrimp for the whole day's count from the bag and Storage: the shrimp leave, the fee burns,
 --     one trade_fee and one trade_in row; the key pressed again answers the same job and moves nothing; the pointer cannot leave idle
 --     (HRJ01); a collect before the end is not_due; with the job's clock run back to its end, the sweep collects it: the goods are
@@ -824,13 +848,21 @@ do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'sele
 --     span, and a second sweep and a collect find nothing (no_job).
 -- (e) LIT, A STOP: a second job stopped at once lands nothing made, refunds every set to Storage (trade_refund) and the whole fee
 --     (trade_fee_refund, the purse back where it was), and spends its seed; (d)'s done job had no fee back.
--- (f) LIT, THE RULE FOR A JOB: no job is not_working; a whole day's job on the day's last minutes wants a block, the rule buys it (or
---     day_ending near midnight) and the job's end moves out.
+-- (f) LIT, THE RULE FOR A JOB: no job is not_working; then a whole day's job on the day's last minutes of work, its answer decided by
+--     the server's one clock (now() is one instant in the apply) at EVERY time of day (lane/k1-server-fixes: this check was red in
+--     the day's last 5 minutes and from 21:49 to 21:55 UTC, so an apply there was refused):
+--       its work ends before midnight: it wants a block; the rule buys it while today can still work the block whole (the quote's
+--         room), and the job's end moves out; later in the day the rule answers day_ending
+--       midnight comes first: the job runs on into the next UTC day's fresh cap with its whole count, so it wants no block (the rule
+--         answers not_working) and it ends past midnight
+-- (g) A JOB'S OWN DAY (lane/k1-server-fixes): a stop read on a later UTC day counts the work blocks bought on the job's day, both where
+--     that day's cap ends the work and where its block carries the work past midnight.
 do $$
 declare
   v_u constant uuid := '000000c0-0000-4000-a000-000000c11073';
   v jsonb; q jsonb; v_job public.trade_jobs%rowtype; v_roll jsonb; v_g bigint; v_n bigint; v_cap bigint; v_ms bigint; v_t timestamptz;
-  v_fine bigint; v_master bigint; v_plain bigint; v_stock bigint;
+  v_fine bigint; v_master bigint; v_plain bigint; v_stock bigint; v_now bigint; v_left bigint; v_blk bigint; v_room bigint; v_y timestamptz;
+  v_base bigint;
 begin
   -- (a) the surface, before any probe
   if exists (select 1 from pg_class t where t.oid in ('public.trade_jobs'::regclass, 'public.company_trade_xp'::regclass, 'public.company_stock'::regclass)
@@ -899,6 +931,21 @@ begin
     delete from public.hunt_density where user_id = v_u;
     v := public.hr_trade_job_start(0, 'temper_kit_b1', 1, 1, gen_random_uuid());
     if v->>'error' is distinct from 'band_locked' or (v->>'band')::int <> 1 then raise exception 'VERIFY(c): band 1 with no depth record answered %', v; end if;
+    -- a depth record at a DEEPER band opens band 1 (the designer, 2026-11-27); one at band 1 does not open band 2
+    insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held)
+      select v_u, 0, g.hunt_id, 1, 10 from public.hr_trade_ground_bands g where g.band = (select max(band) from public.hr_trade_ground_bands);
+    if not public.hr_trade_band_open(v_u, 1) or not public.hr_trade_band_open(v_u, (select max(band) from public.hr_trade_ground_bands))
+       or public.hr_trade_band_open(v_u, (select max(band) from public.hr_trade_ground_bands) + 1)
+       or coalesce(public.hr_trade_job_quote(v_u, 0, 'temper_kit_b1', 1)->>'ok', '') <> 'true' then
+      raise exception 'VERIFY(c): a record at the deepest band opens band 1 %, its own %, the next %; the Iron salts quote %', public.hr_trade_band_open(v_u, 1),
+        public.hr_trade_band_open(v_u, (select max(band) from public.hr_trade_ground_bands)),
+        public.hr_trade_band_open(v_u, (select max(band) from public.hr_trade_ground_bands) + 1), public.hr_trade_job_quote(v_u, 0, 'temper_kit_b1', 1); end if;
+    delete from public.hunt_density where user_id = v_u;
+    insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held)
+      select v_u, 0, g.hunt_id, 1, 10 from public.hr_trade_ground_bands g where g.band = 1;
+    if not public.hr_trade_band_open(v_u, 1) or public.hr_trade_band_open(v_u, 2) then
+      raise exception 'VERIFY(c): a band 1 record opens band 1 %, band 2 %', public.hr_trade_band_open(v_u, 1), public.hr_trade_band_open(v_u, 2); end if;
+    delete from public.hunt_density where user_id = v_u;
     q := public.hr_trade_job_quote(v_u, 0, 'meal_b0', 1);
     v := public.hr_trade_job_start(0, 'meal_b0', (q->>'count_cap')::int + 1, 0, gen_random_uuid());
     if v->>'error' is distinct from 'count_cap' then raise exception 'VERIFY(c): one past the day''s count answered %', v; end if;
@@ -996,32 +1043,65 @@ begin
       raise exception 'VERIFY(e): the stop gave back % of the fee % (purse % from %)', v->>'fee_refund', q->>'fee',
         (select gold from public.account_wallet where user_id = v_u), v_g; end if;
 
-    -- (f) THE STANDING WORK RULE BUYS FOR A RUNNING JOB (09 4.11 row 7): no job, not_working; a whole day's job with the day's last few
-    --     minutes left is working for the rule, the block is bought (or day_ending this close to midnight), and the job's end moves out
+    -- (f) THE STANDING WORK RULE BUYS FOR A RUNNING JOB (09 4.11 row 7): no job, not_working; a whole day's job with half the rule's lead
+    --     of the day's work left. Which answer is right is the server's one clock (now() is one instant here), read the two ways the
+    --     functions read it: the job's midnight as hr_trade_work_stop counts it (whole ms from the start), and the block's room as
+    --     hr_work_block_quote counts it (day_ending is what is left plus a block past the room)
     insert into public.hero_time_rules (user_id, slot, kind, up_to, max_price) values (v_u, 0, 'work', 1, null)
       on conflict (user_id, slot, kind) do update set up_to = 1, max_price = null;
     if public.hr_time_auto_buy(v_u, 0, 'work')->>'why' is distinct from 'not_working' then
       raise exception 'VERIFY(f): a hero with no job answered %', public.hr_time_auto_buy(v_u, 0, 'work'); end if;
     v_ms := (select lead_min::bigint * 60000 from public.hr_time_blocks where kind = 'work');
+    v_blk := (select block_min::bigint * 60000 from public.hr_time_blocks where kind = 'work');
     update public.player_state set work_day = (now() at time zone 'utc')::date,
            work_ms = (public.hr_work_state(v_u, 0)->>'base_ms')::bigint - v_ms / 2 where user_id = v_u and slot = 0;
+    if (public.hr_work_state(v_u, 0)->>'extra_ms')::bigint <> 0 then
+      raise exception 'VERIFY(f)-harness: the probe holds bought work before its job: %', public.hr_work_state(v_u, 0); end if;
+    v_left := v_ms / 2;
+    v_now := floor(extract(epoch from now()) * 1000)::bigint;
+    v_room := (v_now / 86400000 + 1) * 86400000 - v_now;
     q := public.hr_trade_job_quote(v_u, 0, 'meal_b0', 1);
     insert into public.account_bank as b (user_id, item_id, qty) values (v_u, 'shrimp', (q->>'count_cap')::bigint)
       on conflict (user_id, item_id) do update set qty = b.qty + excluded.qty;
     q := public.hr_trade_job_quote(v_u, 0, 'meal_b0', (q->>'count_cap')::int);
     delete from public.hr_rate_counters where user_id = v_u;
     v := public.hr_trade_job_start(0, 'meal_b0', (q->>'count')::int, (q->>'fee')::bigint, gen_random_uuid());
-    if coalesce(v->>'ok', '') <> 'true' or not public.hr_trade_job_wants_block(v_u, 0) then
-      raise exception 'VERIFY(f): a whole day''s job on the day''s last minutes answered % (wants a block: %)', v - 'envelope', public.hr_trade_job_wants_block(v_u, 0); end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(f): a whole day''s job on the day''s last minutes answered %', v - 'envelope'; end if;
     v_t := (select ends_at from public.trade_jobs where user_id = v_u and slot = 0 and settled_at is null);
-    v := public.hr_time_auto_buy(v_u, 0, 'work');
-    if extract(epoch from (date_trunc('day', now() at time zone 'utc') + interval '1 day' - (now() at time zone 'utc'))) * 1000
-         >= (select block_min::bigint * 60000 from public.hr_time_blocks where kind = 'work') + v_ms + 60000 then
-      if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(f): the rule did not buy for the running job: %', v; end if;
-      q := public.hr_trade_job_close(v_u, 0, now(), false);
-      if q->>'error' is distinct from 'not_due' or (select ends_at from public.trade_jobs where user_id = v_u and slot = 0 and settled_at is null) <= v_t then
-        raise exception 'VERIFY(f): the bought block did not move the job''s end past % (close %, work %)', v_t, q, public.hr_work_state(v_u, 0); end if;
-    elsif v->>'why' is distinct from 'day_ending' then raise exception 'VERIFY(f): late in the day the rule answered %', v; end if;
+    if v_left < v_room then
+      -- its work ends before midnight, so the day's cap would stop it with sets left: it wants a block
+      if not public.hr_trade_job_wants_block(v_u, 0) then
+        raise exception 'VERIFY(f): a job whose work ends % ms before midnight wants no block (ends %)', v_room - v_left, v_t; end if;
+      v := public.hr_time_auto_buy(v_u, 0, 'work');
+      if v_left + v_blk <= floor(extract(epoch from (public.hr_utc_day_start(now()) + interval '1 day' - now())) * 1000)::bigint then
+        if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(f): the rule did not buy for the running job: %', v; end if;
+        q := public.hr_trade_job_close(v_u, 0, now(), false);
+        if q->>'error' is distinct from 'not_due' or (select ends_at from public.trade_jobs where user_id = v_u and slot = 0 and settled_at is null) <= v_t then
+          raise exception 'VERIFY(f): the bought block did not move the job''s end past % (close %, work %)', v_t, q, public.hr_work_state(v_u, 0); end if;
+      elsif v->>'why' is distinct from 'day_ending' then raise exception 'VERIFY(f): % ms before midnight the rule answered %', v_room, v; end if;
+    else
+      -- midnight comes first: the job runs on into the next UTC day's fresh cap with its whole count, so no block is wanted
+      if public.hr_trade_job_wants_block(v_u, 0) or v_t <= public.hr_utc_day_start(now()) + interval '1 day'
+         or public.hr_time_auto_buy(v_u, 0, 'work')->>'why' is distinct from 'not_working' then
+        raise exception 'VERIFY(f): % ms before midnight a whole day''s job wants a block % (ends %, the rule %)', v_room,
+          public.hr_trade_job_wants_block(v_u, 0), v_t, public.hr_time_auto_buy(v_u, 0, 'work'); end if;
+    end if;
+
+    -- (g) A JOB'S OWN DAY: a stop from yesterday, read today, counts yesterday's bought block (a probe row of the ledger's own shape),
+    --     where yesterday's cap ends the work and where the block carries it past midnight into today's cap
+    v_y := public.hr_utc_day_start(now()) - interval '1 day';
+    v_base := (public.hr_work_state(v_u, 0)->>'base_ms')::bigint;
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
+      values (v_u, 0, 'shop', 'time_buy:work:1', 0, jsonb_build_object('reason', 'time_buy', 'kind', 'work', 'n', 1, 'probe', '1073 §9 (g)'),
+              v_y + interval '1 hour');
+    update public.player_state set work_day = v_y::date, work_ms = v_base - 3600000 where user_id = v_u and slot = 0;
+    v_t := public.hr_trade_work_stop(v_u, 0, v_y + interval '1 hour');
+    if v_t is distinct from v_y + interval '2 hours' + v_blk * interval '1 millisecond' then
+      raise exception 'VERIFY(g): yesterday''s last hour and its bought block, read today, stop at % (want %)', v_t, v_y + interval '2 hours' + v_blk * interval '1 millisecond'; end if;
+    update public.player_state set work_day = v_y::date, work_ms = 0 where user_id = v_u and slot = 0;
+    v_t := public.hr_trade_work_stop(v_u, 0, v_y + interval '1 day' - (v_base + v_blk / 2) * interval '1 millisecond');
+    if v_t is distinct from v_y + interval '1 day' + (v_base + (public.hr_work_state(v_u, 0)->>'extra_ms')::bigint) * interval '1 millisecond' then
+      raise exception 'VERIFY(g): yesterday''s block carrying the work past midnight, read today, stops at % (want today''s whole cap)', v_t; end if;
 
     raise exception using errcode = 'HRF73', message = 'k1-job-slice §9 complete - rolling back';
   exception when sqlstate 'HRF73' then

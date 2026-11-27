@@ -179,14 +179,14 @@ Note: Earth rune shield, so #26 works with it. Stagger replaces Quarry Blow in w
 ## Ranged
 
 **9. Lurcher's Collar** · Necklace · Drops from: Pyre Field, Lurcher
-Hunter's Mark: when the target dies, the mark moves to the nearest monster with its time left
+Hunter's Mark: your hits on the marked target add a Bleed stack (once every 4 s)
 Best for: Ranger
-Note: Never wastes a mark on a kill. The Mark now goes on the bow's own target, so this keeps it on what the bow shoots next.
+Note: Built for a long fight. The stacks build while the Mark's target lives, so a boss or a brute bleeds and a fast pack barely does. Shares the 5-stack Bleed cap with an axe user. (Re-written 2026-11-26, batch 2: the moved Mark read 0 on five shapes.)
 
 **10. Coal Runner's Bow** · Weapon (bow) · Drops from: Ox Road, Coal Runner
-Flame Volley: leaves the ground burning for 4s (10% of its damage a second)
+Flame Volley kills: Flame Volley is ready again (10 s cooldown)
 Best for: Ranger
-Note: Best when the tank holds the pack in one place. Needs a burning ground effect (new).
+Note: Best on big pulls of weak monsters. (Reshaped 2026-11-26, batch 2: the burning ground is now the Roads' Burning Volley option, so the Signature repeated a branch.)
 
 **11. Provost's Longbow** · Weapon (bow) · Drops from: Pyre Field, Provost
 Precision Shot: takes 1s off Flame Volley's and Raking Shot's cooldowns
@@ -194,9 +194,9 @@ Best for: Ranger
 Note: More area shots in a long pull.
 
 **12. Wyvern Barb Crossbow** · Weapon (crossbow) · Drops from: Wyvern Roost, Crag Wyvern
-Raking Shot: applies 1 Bleed stack to every monster hit
+Raking Shot: also Poisons every monster hit (20% of its damage over 6 s)
 Best for: Ranger
-Note: A bleed build for the bow. Shares the 5-stack Bleed cap with an axe user.
+Note: A poison build for the crossbow. (Reshaped 2026-11-26, batch 2: a Bleed stack on every monster hit is now the Roads' Bleeding Rake option.)
 
 ## Destruction
 
@@ -442,14 +442,15 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Chill | Frost Slam, Hoarfrost, Chilling Lance, the support's Cold Palm, #23, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
 | Silenced (can't start a spell) | #15, the support's Cold Palm | One at a time. Restarts the time |
 | Ends a wind-up | Stagger (wave 3) | Its own key. A wind-up ends once |
-| Bleed | Rend, Gash (wave 3), #12 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
-| Poisoned | Poison (#7) and Sickness | What Traits #30 and #40 read |
-| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #1, #17, #46 | Different sources add. The Lab sets one cap for the total. The same party Trait counts once |
+| Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
+| Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
+| Blunted (a monster's next blow) | #1 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #17, #46 | Different sources add. The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |
 | Healing done | Healing Traits, #45, healing branches | Add |
 | Mana back | #19, #20, #27, #33, #34, Lasting Ward, Arcane Barrier's refund | Add |
-| Free casts and cooldown resets | #3, #4, #5, #6, #11, #14, #32 | A free cast or reset can't set off another one |
+| Free casts and cooldown resets | #3, #4, #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
 
 ## New engine pieces needed
 

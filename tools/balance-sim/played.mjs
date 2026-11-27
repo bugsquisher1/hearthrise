@@ -86,13 +86,14 @@ export function playedBar(role, o) {
 /**
  * ONE PLAYED SLOT FOR MOVE `id`, a move the recorded bars never cast (a Lab cell adds it: a Signature's own move, Frost Slam or Shelter on the
  * tank, lane/signatures-batch-2; cell.mjs addMovesBySeat): a rune spell on its family's store rune at the shopping tier, as playedBar writes
- * its own, else a plain move; its conditions the row's own trigger (Shelter: two allies under 80%), none for a row with none (it casts
- * whenever it is ready). o: { magic, tierOf } as playedBar's.
+ * its own, else a plain move, with no conditions: a hero wearing a Signature for that move casts it whenever it is ready (Shelter's own
+ * trigger, two allies under 80%, left the reference four on Krell's Hold playing the identical hunt with Shelter and without it).
+ * o: { magic, tierOf } as playedBar's.
  */
 export function playedSlot(id, o) {
   const row = ABILITIES[id];
   if (!row) throw new Error('played: no move ' + id);
-  const cond = Array.isArray(row.trigger) ? row.trigger.map((c) => ({ ...c })) : [];
+  const cond = [];
   const fam = typeof row.rune === 'string' ? row.rune.replace(/^chalked_/, '').replace(/_rune$/, '') : null;
   if (!fam) return move(id, cond);
   const tierOf = o && typeof o.tierOf === 'function' ? o.tierOf : () => runeTierAt((o && o.magic) || 1);

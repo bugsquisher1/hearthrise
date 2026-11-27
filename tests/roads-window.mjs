@@ -9,7 +9,7 @@
 // ci-run: node tests/roads-window.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
 //
-// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/road-plan.js src/shell/windows/talents/find.js src/core/talent-route.js
+// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/road-plan.js src/shell/windows/talents/find.js src/core/talent-route.js src/styles/roads.css
 //
 // docs/design/redesign/20-v030-the-roads.md section 4 (R-UI), 18-roads-review-ux.md sections 3 to 6. The pure half reads the layout,
 // the route and the camera in node; the page half is play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs),
@@ -407,6 +407,14 @@ async function checks(overrides, opts = {}) {
       await page.waitForTimeout(200);
       const hits = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' .rdw-found [data-node]')].map((x) => x.getAttribute('data-node')), { W });
       if (hits[0] !== 'challenge.x1') fails.push('RW-14 Find talent lists ' + JSON.stringify(hits));
+      /* the tools stand on one plate (no label shows between the presses), and the found list hangs under it, never stretching it */
+      const plate = await page.evaluate(({ W }) => {
+        const tools = document.querySelector(W + ' .rdw-tools'), r = tools.getBoundingClientRect(), list = document.querySelector(W + ' .rdw-found').getBoundingClientRect();
+        const f = document.querySelector(W + ' .rdw-filter').getBoundingClientRect();
+        const field = document.querySelector(W + ' .rdw-find').getBoundingClientRect();
+        return { bg: getComputedStyle(tools).backgroundColor, tall: Math.round(r.height - f.height), under: list.top >= field.bottom && list.height > 0 };
+      }, { W });
+      if (/rgba\(0, 0, 0, 0\)|transparent/.test(plate.bg) || plate.tall > 16 || !plate.under) fails.push('RW-14 the tools are not one plate over the map: ' + JSON.stringify(plate));
       await page.keyboard.press('Enter');
       await page.waitForTimeout(400);
       const picked = await page.evaluate(({ W }) => {
@@ -527,6 +535,13 @@ async function checks(overrides, opts = {}) {
       await page.waitForTimeout(400);
       const list = await page.evaluate(({ W }) => [...document.querySelectorAll(W + ' .rdw-countries .rdw-country')].filter((b) => b.offsetParent !== null).length, { W });
       if (list !== L.countries.length) fails.push('RW-10 Country view lists ' + list + ' countries on the phone');
+      /* the band's Plan works in Country view too (visual read 2026-11-26: it lit and showed nothing there) */
+      await page.click(W + ' [data-hs-act="rd-sheet"]');
+      await page.waitForTimeout(400);
+      const countrySheet = await page.evaluate(({ W }) => document.querySelector(W + ' .rdw-card').getBoundingClientRect().left, { W });
+      if (!(countrySheet < 922 - 200)) fails.push('RW-10 the band\'s Plan opens nothing in Country view: the card stands at ' + countrySheet);
+      await page.click(W + ' [data-hs-act="rd-sheet"]');
+      await page.waitForTimeout(300);
       /* the band's Plan opens the sheet with nothing picked: the plan's rows and Spend on plan, on the screen */
       await page.click(W + ' [data-hs-act="rd-tier"][data-tier="road"]');
       await page.waitForTimeout(300);
@@ -570,6 +585,10 @@ const MUTANTS = [
   { name: 'Spend on plan pays past the server\'s points', file: 'src/shell/windows/talents/road-plan.js', from: 'if (!tl || !(tl.left > 0)) break;', to: 'if (!tl) break;', want: /RW-13/ },
   { name: 'Find talent ignores the options\' names', file: 'src/shell/windows/talents/find.js', from: "if (PICK_KINDS.includes(n.kind) && n.kind !== 'crossing') for (const o of optionsOf(n))", to: 'if (false) for (const o of optionsOf(n))', want: /RW-14/ },
   { name: 'a filter dims nothing', file: 'src/shell/windows/talents/map.js', from: "cls(M.svg, 'is-filtered', filters.size > 0);", to: "cls(M.svg, 'is-filtered', false);", want: /RW-14/ },
+  /* visual read 2026-11-26 */
+  { name: 'the tools float over the map with no plate', file: 'src/styles/roads.css', from: 'padding: 6px; background: var(--bg-1);', to: 'padding: 6px;', want: /RW-14/ },
+  { name: 'the found list stretches the plate', file: 'src/styles/roads.css', from: '.rdw-found { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; ', to: '.rdw-found { ', want: /RW-14/ },
+  { name: 'Plan opens nothing in Country view', file: 'src/styles/roads.css', from: '.rdw.is-sheet .rdw-card { transform: none; }', to: '.rdw.is-sheet:not([data-tier="country"]) .rdw-card { transform: none; }', want: /RW-10/ },
   { name: 'an arrow key picks nothing', file: 'src/shell/windows/talents/index.js', from: 'if (next) pickStone(body, ctx, sc, next);', to: 'if (next) patchBody(body, ctx);', want: /RW-15/ },
 ];
 

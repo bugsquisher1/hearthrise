@@ -23,7 +23,9 @@ run() {
   if [ "$WANT" != "  " ] && [[ "$WANT" != *" $name "* ]]; then return 0; fi
   if [ -z "$FRESH" ] && [ -s "$OUT/$name.json" ]; then return 0; fi
   echo "$(date +%H:%M:%S) $name" >&2
-  node "$V1" --ground "$g" --level "$l" --gear mid --only base:steady --styles "$styles" --seeds "$SEEDS" --hours "$HOURS" --workers "$W" "$@" \
+  # (a step named *-bold reads the Bold stance: a low-health rule's best cell, since Steady falls back at 25% before a hero gets under it)
+  local risk=steady; [[ "$name" == *-bold ]] && risk=bold
+  node "$V1" --ground "$g" --level "$l" --gear mid --only base:$risk --styles "$styles" --seeds "$SEEDS" --hours "$HOURS" --workers "$W" "$@" \
     --json "$OUT/$name.json" > "$OUT/$name.txt" 2> "$OUT/$name.err"
 }
 T=tank,bow,mage,healer; S=sword,bow,mage,healer; A=axes,bow,mage,healer; X=hammer,bow,mage,healer; C=hammer,crossbow,mage,healer
@@ -60,6 +62,11 @@ run b2-bone-mixed         catacomb_bone_wing 175 $X
 run b2-bone-shroud        catacomb_bone_wing 175 $X --signatures -,-,catacomb_shroud,-
 run b2-slake-mixed        the_slake 57 $X
 run b2-slake-pole         the_slake 57 $X --signatures -,-,-,bargemans_pole
+# (the low-health rules on Bold: Steady falls back at 25%, so "below 30%" and "below 20%" seldom hold there, 15 #17 "Best on Bold")
+run b2-slake-mixed-bold   the_slake 57 $X
+run b2-slake-pole-bold    the_slake 57 $X --signatures -,-,-,bargemans_pole
+run b2-muster-tank-bold   muster_barrows 60 $T
+run b2-muster-pennies-bold muster_barrows 60 $T --signatures ferry_pennies,-,-,-
 # ── the second scale ground (the spread bar) ──
 run b2-krell-tank           krells_hold 97 $T
 run b2-krell-pavise         krells_hold 97 $T --signatures bannermans_pavise,-,-,-

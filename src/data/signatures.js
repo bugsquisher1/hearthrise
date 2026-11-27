@@ -137,7 +137,7 @@ export const SIGNATURES = Object.freeze({
     tip: 'Hoarfrost: monsters it Chills are Silenced for 3 s',
     reacts: [{ on: 'hit', of: 'hoarfrost', do: 'status', status: 'silenced', ms: 3000 }] }),
   lamplighters_robe: sig({ id: 'lamplighters_robe', n: 16, name: 'Lamplighter\'s Robe', slot: 'body', move: 'arcane_barrier',
-    home: { kind: 'chest', id: 'bronze' }, best: { seat: 'mage', ground: 'muster_barrows' },
+    home: { kind: 'chest', id: 'bronze' }, best: { seat: 'mage', ground: 'pyre_field' },
     tip: 'When your Arcane Barrier breaks: your next Fireball or Frost Lance deals 30% more damage',
     reacts: [{ on: 'shield_break', do: 'boon', status: 'kindled' }] }),
   bargemans_pole: sig({ id: 'bargemans_pole', n: 17, name: 'Bargeman\'s Pole', slot: 'weapon', weapon: 'magic', move: 'greater_mend',

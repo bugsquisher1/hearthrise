@@ -38,13 +38,15 @@ const ROWS2 = [
   ['#12 Wyvern Barb Crossbow (crossbow)', ['Wyvern Roost', 'b2-roost-crossbow', 'b2-roost-barb'], ['Pyre Field', 'b2-pyre-crossbow', 'b2-pyre-barb']],
   ['#13 Hall Fire Wand (mage)', ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-wand'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-wand']],
   ['#15 Catacomb Shroud (mage)', ['Bone Wing', 'b2-bone-mixed', 'b2-bone-shroud'], ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-shroud']],
-  ['#16 Lamplighter\'s Robe (mage)', ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-robe'], ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-robe']],
-  ['#17 Bargeman\'s Pole (healer)', ['The Slake', 'b2-slake-mixed', 'b2-slake-pole'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-pole']],
+  /* (the mage takes 0.1% of the damage on Muster and 12% on Pyre Field: its barrier breaks only where it is hit) */
+  ['#16 Lamplighter\'s Robe (mage)', ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-robe'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-robe']],
+  /* (a low-health rule's best cell is Bold: Steady falls back at 25%, so a hero is seldom under 30% or 20%; its Steady reading is the second) */
+  ['#17 Bargeman\'s Pole (healer)', ['The Slake, Bold', 'b2-slake-mixed-bold', 'b2-slake-pole-bold'], ['The Slake, Steady', 'b2-slake-mixed', 'b2-slake-pole']],
   ['#21 Drover\'s Hat (healer)', ['Ox Road', 'b2-ox-mixed', 'b2-ox-hat'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-hat']],
-  ['#23 Ferry Pennies (tank)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies'], ['Krell\'s Hold', 'b2-krell-tank', 'b2-krell-pennies']],
-  /* (the home ground pinned: the tank four at Hask's Ford's top, kept as the reading of why the tank reads elsewhere) */
-  ['#1 on Hask\'s Ford (pinned)', ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pavise'], ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pavise']],
+  ['#23 Ferry Pennies (tank)', ['Muster Barrows, Bold', 'b2-muster-tank-bold', 'b2-muster-pennies-bold'], ['Muster Barrows, Steady', 'b2-muster-tank', 'b2-muster-pennies']],
 ];
+/* (the home ground pinned: the tank four at Hask's Ford's top; printed under the table as the reading of why the tank reads elsewhere) */
+const PINNED = [['#1 Bannerman\'s Pavise on Hask\'s Ford, its home', 'b2-ford-tank', 'b2-ford-pavise', 655]];
 const cellOf = (name, need) => {
   const f = join(HERE, name + '.json');
   if (!existsSync(f)) { if (need) { console.error('sum: no report ' + f); process.exit(2); } return null; }
@@ -84,4 +86,8 @@ for (const [name, best, other] of ROWS2) {
   const size = B.owed || !B.d ? 'owed' : B.d.se > 3 ? 'se ' + B.d.se.toFixed(1) + ' over 3: more seeds' : B.d.m > 13 ? 'OVER (cut its number)' : B.d.m < 7 ? 'UNDER (raise or reshape)' : 'in band';
   const spread = B.owed || O.owed || !B.d || !O.d ? 'owed' : O.d.m <= B.d.m / 2 ? 'holds' : 'FAILS (big everywhere: reshape)';
   console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), show(B), B.owed ? '' : pct(B.s.xpPerHeroH, B.p.xpPerHeroH), O.g, show(O), size, spread].join(' | ') + ' |');
+}
+for (const [name, a, b, top] of PINNED) {
+  const p = cellOf(a), s = cellOf(b), d = p && s ? paired(p, s) : null;
+  if (d) console.log('\npinned: ' + name + ': the plain four holds ' + p.held.mean.toFixed(1) + ' of the ground\'s top ' + top + ', the Signature ' + sgn(d.m) + ' (' + d.se.toFixed(1) + ')');
 }

@@ -18,6 +18,11 @@
 // releases). A free slot now takes the next file at once: the same 33 files, the same 4
 // processes, the same verdict; ~400 s modelled from that run's own per-file times.
 // tests/hunt-core/pool.mjs proves the pool (every file once, never past four, no barrier).
+//
+// ITS OWN JOB (lane/ci-reds-1127): this step ran 11.0-26.5 min (first-week-bands alone up to 24.4) and took economy-selftests past its 52
+// on 45939361593, so it stands alone in economy-selftests-5.
+// ci-step: economy-selftests-5 | Hunt core — movement, leash, world step (cases + mutants)
+// ci-run: node tests/hunt-core/run-all.mjs
 import { readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

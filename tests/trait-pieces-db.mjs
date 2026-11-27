@@ -13,7 +13,9 @@
 //        the guard plants the rate and proves the bounds), the closed and the viewed hunt from one anchor store the SAME pieces for the
 //        same seats (base, Traits, step, depth, the kill, its instant) and the same pity; every piece is a Muster cell's at rank I (its
 //        entry Level opens rank I only), its base a Muster piece of its slot at item Level 60, its depth the server's reading of its step,
-//        its session the hero's; one `trait` journal row a piece; more than one hero found (personal loot); the read hands each hero the
+//        its session the hero's, its base the kind its finder wears in that slot where Muster drops one (the designer's base rule,
+//        12-targets 8.6: the four wear a steel sword, plate and a shield, so they find a Mithril Sword, mithril plate and the Mithril-Faced
+//        Shield); one `trait` journal row a piece; more than one hero found (personal loot); the read hands each hero the
 //        pity the server holds; the viewer's answers name every piece its kills made (the drop moment); the `pieces` section lists them
 //        with their session (the return card's line).
 //   TP-3 THE WORN PIECE, BOTH PATHS: with trait_pieces and signatures lit, the leader wears a First Rank III piece on its steel body and
@@ -22,7 +24,7 @@
 //        closed and the viewed hunt store the same world, and the world differs from the same four with the switches off (the Trait
 //        played; a dark read hands nothing); a base that left its slot plays nothing.
 //   TP-4 THE BOUNDS, THROUGH THE REAL COMMIT: a found piece the edge proposes, tampered (a rank over the ground's, a base off the ground's,
-//        more pieces than kills, a pity past the kills), refuses the whole settle with its code and lands nothing; the untampered proposal
+//        more pieces than kills, a pity past the kills' worth), refuses the whole settle with its code and lands nothing; the untampered proposal
 //        then lands and answers what it found.
 //
 // mutant-anchors: supabase/migrations/1071-trait-pieces.sql supabase/functions/hr-accrue/hunt-settle.js
@@ -36,6 +38,14 @@ import { bootReplay, closeReplays } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { plant } from './hunt-core/fixtures/h1.js';
 import { decodeStored } from '../src/core/hunt/world-state.js';
+import { pityStep } from '../tools/gen-trait-pieces.mjs';
+import * as DR from '../src/core/drop-rate.js';
+import * as DH from '../src/data/drop-hours.js';
+import * as PARTY from '../src/data/party.js';
+import * as FLAME from '../src/data/inner-flame.js';
+import * as DANGER from '../src/data/danger.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { ITEMS } from '../src/data/items.js';
 
 const MUSTER = 'muster_barrows';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
@@ -49,6 +59,12 @@ const exec = (db) => async (text, params) => { await db.exec('set role hr_engine
 
 /* THE PLANTED RATE: a Rare every 0.005 hunted hours, a Very Rare every 0.05 (src/data/drop-hours.js says 40 and 400), so four short windows
    find pieces. `more`: a mutant's own edge edits on the same plant. */
+const PLANTED = Object.freeze({ rare: 0.005, very_rare: 0.05 });
+/* ...and the server's pity step at the same planted hours (the one pity counts the finds owed, so its bound follows the rate: the guard
+   plants it on both sides, as it plants the rate; tools/gen-trait-pieces.mjs pityStep, the catalogue's own formula) */
+const plantedDh = { ...DH, DROP_HOURS: { ...DH.DROP_HOURS, rarity: { ...DH.DROP_HOURS.rarity,
+  rare: { ...DH.DROP_HOURS.rarity.rare, everyHours: PLANTED.rare }, very_rare: { ...DH.DROP_HOURS.rarity.very_rare, everyHours: PLANTED.very_rare } } } };
+const PLANTED_STEP = Object.freeze(Object.fromEntries(['rare', 'very_rare'].map((r) => [r, pityStep({ dr: DR, dh: plantedDh, party: PARTY, flame: FLAME, danger: DANGER }, HUNT_GROUNDS[MUSTER], r)])));
 function fastEdge(more = []) {
   return plant([
     ['src/data/drop-hours.js', 'rare: Object.freeze({ everyHours: 40, band', 'rare: Object.freeze({ everyHours: 0.005, band'],
@@ -65,6 +81,9 @@ const fixture = ({ flags = [], wear = null }) => async ({ db, uids, asUser, one:
   const r = await q(db, 'select public.hr_hunt_risk_set(0, $1, $2::uuid)', ['steady', id()]);
   if (!r || r.ok !== true) throw new Error('the stance was refused: ' + JSON.stringify(r).slice(0, 200));
   await db.query('update public.hr_flags set enabled = (key = any ($1::text[])) where key = any ($2::text[])', [flags, FLAGS]);
+  if (flags.includes('trait_drops')) {
+    await db.query('update public.hr_piece_grounds set pity_step_rare = $2, pity_step_very_rare = $3 where hunt_id = $1', [MUSTER, PLANTED_STEP.rare, PLANTED_STEP.very_rare]);
+  }
   if (wear) {
     await db.query(`insert into public.trait_pieces (user_id, found_slot, base, slot, item_level, rarity, traits, hunt_id, step, depth, instance_id, kill_unit, at_ms,
                       worn_slot, worn_equip_slot, worn_at) values ($1, 0, $2, $3, 60, 'rare', $4::jsonb, $5, 600, 3, gen_random_uuid(), 1, 1, 0, $3, now())`,
@@ -153,6 +172,15 @@ async function roll(boot, o = {}) {
         p.traits.length !== (p.rarity === 'rare' ? 1 : 2) && 'Trait count'].filter(Boolean);
       if (bad.length) { problems.push('TP-2 a piece breaks its ' + bad.join(', ') + ': ' + JSON.stringify(p)); break; }
     }
+    /* (designer, lane/designer-pity) the base is the kind its finder wears there: every hero wears GEAR, Muster drops each of its kinds */
+    const kinds = new Map();
+    for (const p of a) {
+      const worn = GEAR[p.slot];
+      if (!worn) continue;
+      kinds.set(p.slot, p.base);
+      if (DR.kindOf(ITEMS[p.base]) !== DR.kindOf(ITEMS[worn])) { problems.push('TP-2 a hero in ' + worn + ' found a ' + p.slot + ' piece on ' + p.base + ', not its kind'); break; }
+    }
+    EVIDENCE.push('TP-2 bases by worn slot ' + JSON.stringify(Object.fromEntries(kinds)));
     const journal = (await closed.db.query(`select meta->>'piece' as piece from public.player_ledger where kind = 'trait' and intent = 'trait_piece'`)).rows.map((x) => x.piece).sort();
     if (JSON.stringify(journal) !== JSON.stringify(a.map((p) => p.id).sort())) problems.push('TP-2 the journal names ' + journal.length + ' pieces, the table holds ' + a.length);
     /* the read hands each hero the pity the server holds */
@@ -257,7 +285,8 @@ async function bounds(boot) {
       ['piece_base', (m) => { m.traits.found[0].base = 'rune_sword'; return m; }],
       /* forty pieces of forty different kills: only the kill bound (and the fuse) stands between them and the table */
       ['traits_over', (m) => { m.traits.found = Array.from({ length: 40 }, (_, k) => ({ ...m.traits.found[0], kill: 900000 + k })); return m; }],
-      ['pity_over', (m) => { m.traits.pity.rare = 1000000; return m; }]]) {
+      /* the one pity counts the finds owed: a window may add at most its kills times the ground's pity step (12 digits is the shape's cap) */
+      ['pity_over', (m) => { m.traits.pity.rare = 999999999999; return m; }]]) {
       const res = await M.HS.commitHuntSettle(ex, tamper(fn));
       if (!res || res.ok !== false || res.error !== want) problems.push('TP-4 a forged ' + want + ' answered ' + JSON.stringify(res).slice(0, 160));
     }
@@ -279,7 +308,7 @@ const MUTANTS = [
   { name: 'the land skips the rank', fn: 'public.hr_trait_pieces_land(text,uuid,integer,uuid,uuid,jsonb,jsonb,timestamp with time zone,timestamp with time zone)',
     find: 'if v_top < 1 or v_rank > v_top or v_rank < greatest(1, v_top - 1) then', repl: 'if false then', want: /^TP-4/, test: bounds },
   { name: 'the land trusts the pity', fn: 'public.hr_trait_pieces_land(text,uuid,integer,uuid,uuid,jsonb,jsonb,timestamp with time zone,timestamp with time zone)',
-    find: 'if v_after > v_before + v_kills or (v_rar = any (v_found) and v_after > v_kills) then', repl: 'if false then', want: /^TP-4/, test: bounds },
+    find: 'if v_after > v_before + v_kills * v_pstep or (v_rar = any (v_found) and v_after > v_kills * v_pstep) then', repl: 'if false then', want: /^TP-4/, test: bounds },
   { name: 'the land counts no kills', fn: 'public.hr_trait_pieces_land(text,uuid,integer,uuid,uuid,jsonb,jsonb,timestamp with time zone,timestamp with time zone)',
     find: 'if v_n > v_kills or v_n > r.found_max then', repl: 'if false then', want: /^TP-4/, test: bounds },
   { name: 'the settle never lands the pieces', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',

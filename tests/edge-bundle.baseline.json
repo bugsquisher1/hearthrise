@@ -528,6 +528,11 @@
         "bytes": 3916314,
         "on": "2026-11-27",
         "why": "lane/designer-pity: the Trait roller reads the one pity (src/core/personal-loot.js + src/data/party.js PERSONAL_LOOT/PITY_UNIT), 12-targets 8.6.1"
+      },
+      {
+        "bytes": 3949675,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: 14 batch-2 Signature rows and the reaction pieces they play (a cast's and a shell's moments, a status's reach, fixed tick and patch, cast again, burst, reflect, Blunted and Kindled), +23.3 KB with their comments, no new module reached; the set at 723e91713 was already 10.0 KB over its ceiling from lanes merged after be079455d"
       }
     ]
   }

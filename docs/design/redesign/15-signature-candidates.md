@@ -124,7 +124,44 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 
 MEASURED on `lane/signatures-batch-2` (engine on `set/v0.2.144` be079455d, no hunt engine change merged since), `tools/balance-program/redesign/signature-depth/batch2.sh` and `sum.mjs --batch 2`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, held from hour 4), paired against the same four with none on the same seeds. A reshaped row's shapes were played as temporary ids on a scratch copy of the tree and taken out (the reports `b2v-*`). A move the played bars never cast (Frost Slam, Shelter) is on the tank's bar in both arms.
 
-TABLE_PENDING
+| Signature (seat) | The rule now | Best cell | Plain held | Held delta (se), 12 seeds | Level XP/h | Second ground | Its delta (se) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| #1 Bannerman's Pavise (tank) | **Dropped** | Muster Barrows | 676.2 | -0.2 (2.9) | +0.1% | Hask's Ford, its home (pinned) | +0.5 (0.4) | No moment: the tank taunts about 13 monsters an hour |
+| #2 Ossuary Helm (tank, Frost Slam on the bar) | **Cut:** 2% of max health a monster it Chills, up to 10% | Muster Barrows | 678.7 | +10.8 (1.6) | +3.5% | the tank's others pinned or unsettled | | **In band** (as written +15.8 (2.1)) |
+| #3 Grave Guard's Mail (tank, Shelter on the bar) | **Reshaped:** a shell you cast breaks, that hero takes 30% less for 8 s | Muster Barrows | 682.0 | +9.3 (1.6) | +2.9% | the tank's others pinned or unsettled | | **In band** (Challenge ready -1.9 (2.3)) |
+| #4 Charred Sabre (sword) | **Reshaped:** Flame Strike's target's next blow lands at half | Pyre Field | 73.3 | +7.4 (2.2) | +3.2% | Muster Barrows | +4.0 (3.6) | **In band**, spread within its se (a free recast on a kill +1.5 (2.0)) |
+| #5 Pikeman's Gauntlets (sword) | as built | Pyre Field | 73.3 | +0.2 (1.9) | +0.5% | Muster Barrows | -5.2 (3.6) | Under (damage) |
+| #7 Floodwater Hatchets (axes) | as built | Flooded Wing | 505.9 | +3.1 (3.1) | +0.5% | | | Under (damage; 60% of the cast -0.6 (2.7)) |
+| #9 Lurcher's Collar (bow) | re-written | Muster Barrows | 623.9 | -1.2 (2.3) | +2.5% | | | Under (damage) |
+| #10 Coal Runner's Bow (bow) | reshaped off the Roads | Ox Road | 166.7 | -3.8 (1.9) | -0.6% | | | Under (damage) |
+| #11 Provost's Longbow (bow) | as built | Pyre Field | 77.0 | -0.1 (2.1) | +1.4% | | | Under (damage) |
+| #12 Wyvern Barb Crossbow (crossbow) | reshaped off the Roads | Wyvern Roost | 190.9 | +4.3 (1.8) | +1.0% | Pyre Field | +0.1 (1.4) | Under (damage) |
+| #13 Hall Fire Wand (mage) | as built | Krell's Hold | 67.0 | -0.9 (2.1) | +2.1% | Muster Barrows | -0.1 (2.4) | Under (damage) |
+| #15 Catacomb Shroud (mage) | as built | Bone Wing | 588.2 | +0.5 (1.8) | +0.5% | Krell's Hold | -4.3 (2.7) | Under |
+| #16 Lamplighter's Robe (mage) | as built | Pyre Field (the mage takes 12% of the blows) | 77.0 | -1.7 (2.5) | +0.5% | Muster Barrows (0.1%) | +1.4 (2.7) | Under (damage) |
+| #17 Bargeman's Pole (healer) | **Reshaped and cut:** a Greater Mend on a target under half, -15% taken 4 s | Muster Barrows | 623.9 | +10.5 (2.4) | +2.7% | The Slake (at -20%) | +3.0 (2.3) | **In band**, spread holds |
+| #21 Drover's Hat (healer) | as built | Ox Road | 166.7 | +0.5 (1.9) | +8.8% | Muster Barrows | -5.3 (1.1) | Under (damage) |
+| #23 Ferry Pennies (tank) | **Reshaped:** a Mend under 45%, every monster next to you has its next blow at half | Muster Barrows | 676.2 | +12.3 (2.3) | +3.7% | the tank's others pinned or unsettled | | **In band** (Chill under 20% +0.3 (0.7)) |
+
+Every shape tried on a row that missed (`sum.mjs --batch 2`, the shapes table):
+
+| Shape tried | Held delta (se), 12 seeds | Level XP/h |
+|---|---|---|
+| #2 Ossuary Helm as written, 3% a monster up to 15% (Muster) | +15.8 (2.1) | +4.5% |
+| #2 Ossuary Helm as written (Krell's Hold, where the tank four never falls back) | -6.3 (7.5) | -18.0% |
+| #2 Ossuary Helm, 2% a monster up to 10% (Muster) | +10.8 (1.6) | +3.5% |
+| #3 Grave Guard's Mail as written, Challenge ready (Muster) | -1.9 (2.3) | -0.8% |
+| #3 a shell it cast breaks: that hero Guarded -20% 4 s / -30% 6 s / -30% 8 s (Muster) | +4.3 (1.5) / +7.0 (1.5) / +9.3 (1.6) | +1.2% / +2.3% / +2.9% |
+| #3 a shell it cast breaks: Shelter 10 s sooner (Muster) | -1.3 (1.8) | -0.2% |
+| #4 Charred Sabre as written, a Flame Strike kill: cast again at no cost (Pyre) | +1.5 (2.0) | -0.1% |
+| #4 any Flame Strike hit: cast again at no cost (Pyre) | +2.6 (1.7) | +4.1% |
+| #4 a Flame Strike cast: Blunted on every monster next to you / on a kill / on its target (Pyre) | +24.3 (2.2) / +0.5 (2.2) / +7.4 (2.2) | +10.1% / +0.5% / +3.2% |
+| #7 Floodwater Hatchets, Poison 60% of the cast (Flooded Wing) | -0.6 (2.7) | -0.1% |
+| #17 Bargeman's Pole, under half, -20% 4 s (Muster / the Slake) | +14.6 (2.7) / +3.0 (2.3) | +3.9% / +0.7% |
+| #17 under half, -15% 4 s / under 40%, -20% 4 s (Muster) | +10.5 (2.4) / +7.3 (2.5) | +2.7% / +2.0% |
+| #23 Ferry Pennies as written, under 20%: Chill 3 s / under 40%: Chill 3 s / Chill 6 s within 2 tiles (Muster) | +0.3 (0.7) / +2.0 (2.0) / +5.3 (2.1) | 0.0% / +0.5% / +1.4% |
+| #23 under 40%: Blunted next to you / within 2 tiles / Chill and Blunted (Muster) | +6.6 (1.8) / +5.8 (2.6) / +5.5 (1.6) | +1.8% / +1.7% / +1.6% |
+| #23 Blunted next to you, under half / under 45% (Muster) | +16.3 (1.4) / +12.3 (2.3) | +5.8% / +3.7% |
 
 **Where a Signature can show at all (read before the 12 seeds, 2 seeds a cell).**
 
@@ -137,6 +174,7 @@ TABLE_PENDING
 
 - **A rule that keeps a hero alive reads; a rule that adds damage does not.** Every shield, Guarded or Blunted read in band or over. Every rule that only adds damage read near 0 or below with Level XP up 1 to 9% (the Hat's reflected blows +0.5 held, XP +8.8%). The held step is the front's health over a pull, and a faster kill of a pull already held buys little of it (the sample's Blade read the same). Held to 10 +- 3, the pool would turn defensive. The damage rows are kept dark as built, their readings here, and the metric is the designer's call (CONFLICTS 2026-11-26, options there). A row was reshaped only where its own move has a defensive form that reads (the Sabre's Flame Strike).
 - **Mana does not bind on the held step.** The healer on the Slake given 30% of its max mana on every heal it lands (a probe row, 6 seeds, paired against the plain four's first 6 seeds) read -0.7 (se 2.2) held while its four's drink bill fell from 2,587 to 679 coin a hero-hour (`b2p-slake-mana`). Batch 2 writes no mana Signature: #19 Passing Bell and #20 Greened Bracers wait for a cell where mana binds, or for a size bar that reads coin.
+- **Two cells sit over the se bar** (the Hatchets' Flooded Wing at 3.1, the Gauntlets' Muster at 3.6): both rows read under on every cell they were played on, so more seeds would not change a verdict. The in-band rows all read at se 2.4 or under. The adopted shapes replay from the tree by their real ids (`batch2.sh`, the `b2v-*` steps).
 - **Repetition, audited.** Blunted carries two rows (#4 on a Flame Strike's target, #23 round a Mend under 45%), Guarded two (#3 on a broken shell's hero, #17 on a Greater Mend's low target), Poison two (#7 on Rend, #12 on Raking Shot). Different seats, moves and moments, one status each. The designer judges whether the pool reads as variety.
 - **The luck ceiling (V10).** The kit sampler is still owed (04 section 10). COMPUTED bound only: Traits picked for the ground added 12 to 14 own steps (12-targets 8.2, the Muster reading pinned at its top), a Signature at most 13 here, together at most 27 own steps against the gear slice's 20 power steps at about 1.42 own steps a power step (about 28). Inside, but the Trait reading and the Signature readings are on different fours. No row turns on before the sampler reads them together.
 - **Rows that changed here** (the designer keeps, re-words or re-shapes each): #2 Ossuary Helm cut to 2% a monster up to 10%; #3 Grave Guard's Mail, #4 Charred Sabre, #17 Bargeman's Pole and #23 Ferry Pennies reshaped; #9 Lurcher's Collar re-written; #10 Coal Runner's Bow and #12 Wyvern Barb Crossbow reshaped off the Roads' options before any reading; #1 Bannerman's Pavise dropped.

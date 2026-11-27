@@ -17,7 +17,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 import { MATERIAL_TIERS, STEP_MATERIALS, GEAR_LADDERS } from './gear-tiers.js';
-import { SHIELD_ITEMS } from './shields.js';
+import { SHIELD_LADDER } from './shields.js';
 import { DANGER_GROUNDS, PAY } from './danger.js';
 import { DROP_HOURS, chanceOf, roundChance } from './drop-hours.js';
 import { GROUND_PACKS } from './grounds/index.js';
@@ -28,13 +28,18 @@ export const EVERY_HOURS = 1.5;
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
-/** The dropped pieces of step tier `mat`, in ladder order (every GEAR_LADDERS rung at its tier, then its shield). */
+/** The dropped pieces of step tier `mat`, in ladder order (every GEAR_LADDERS rung at its tier, then its plain shield). */
 export function basePiecesOf(mat) {
   const i = MATERIAL_TIERS.indexOf(mat);
-  const ids = GEAR_LADDERS.map((l) => l.ids[i]).filter(Boolean);
-  for (const [id, it] of Object.entries(SHIELD_ITEMS)) if (it.step === mat.step) ids.push(id);
-  return ids;
+  return [...GEAR_LADDERS.map((l) => l.ids[i]), SHIELD_LADDER[i]].filter(Boolean);
 }
+
+/** THE PLAIN LADDER (systems, lane/no-named-trait-bases, 2026-11-27; 12-targets 8.9 item 8, 8.6.1): every piece a ground's plain base can
+    be, at any tier: each GEAR_LADDERS rung (the armor lines, the weapon families, the spellbook) and each tier's plain shield (shields.js
+    SHIELD_LADDER), sorted. A Trait piece lands only on one of these (src/core/drop-rate.js traitBasesOf, the server's hr_piece_bases). A
+    piece off it is a NAMED piece whose one door is its own row: a `statsAs` twin, a ground's own `pieces` (danger.js), a drop row's
+    one-off (a Rat King's grate, a bane blade), and every cape and jewel (made, never a ground's base: slot-ladders.js STEP_MADE). */
+export const PLAIN_PIECES = Object.freeze([...new Set([...GEAR_LADDERS.flatMap((l) => l.ids), ...SHIELD_LADDER].filter(Boolean))].sort());
 
 /** The pieces the bodies of a home ground's pack drop on their own rows (empty for a ground cut from another pack's rooms, the wings). */
 function ownDrops(ground) {

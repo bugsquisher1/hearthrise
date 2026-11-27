@@ -81,6 +81,19 @@ export const SHIELD_ITEMS = Object.freeze(withGearStats({
     shield(m.name + ' Shield', Math.max(1, Math.round((75 * m.value) / 5) * 5), m.tier, m.rarity)])),
 }));
 
+/* THE SHIELD LADDER (systems, lane/no-named-trait-bases, 2026-11-27; 12-targets 8.9 item 8): each tier's ONE plain shield (SOURCES above),
+   tier 1 up, null where a tier has none. It is the shield rung of a ground's plain base (src/data/base-drops.js PLAIN_PIECES): a home drops
+   it (basePiecesOf) and a Trait piece may land on it. A named shield (Kingsgrate, Steelgrate, the Cauldron Lid) is never on it, so it is
+   never a Trait base: its one door is its own row. A plain shield is the profile's (no gearProfile) and of its own tier, or this throws. */
+const SHIPPED_PLAIN = ['bronze_rimmed_shield', 'ironbound_shield', 'coppercap_shield', 'mithril_faced_shield', 'runebound_shield', 'ember_tower_shield'];
+export const SHIELD_LADDER = Object.freeze(MATERIAL_TIERS.map((m, i) => {
+  const id = i < SHIPPED_PLAIN.length ? SHIPPED_PLAIN[i] : m.id + '_shield';
+  const it = Object.prototype.hasOwnProperty.call(SHIELD_ITEMS, id) ? SHIELD_ITEMS[id] : null;
+  if (!it) { if (i < SHIPPED_PLAIN.length) throw new Error('shields.js: the tier ' + m.tier + ' plain shield ' + id + ' is no shield row'); return null; }
+  if (it.tier !== m.tier || it.gearProfile) throw new Error('shields.js: ' + id + ' is no plain tier ' + m.tier + ' shield');
+  return id;
+}));
+
 /* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */
 const r = (id, name, inputs, output, xp, req, ms) => Object.freeze({ id, name, icon: '🛡️', inputs: Object.freeze(inputs), output, xp, req, ms });
 export const SHIELD_RECIPES = Object.freeze([

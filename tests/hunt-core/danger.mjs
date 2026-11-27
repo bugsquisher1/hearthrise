@@ -721,11 +721,21 @@ const CASES = {
      lowBy ride the world) and at odd instants, the events are the same, and each cut's analyzer reports, folded window by window
      (report.js addReport), hold the same falls and deepest step, each hero the company's. */
   falls(M) {
-    const plan = { risk: 'bold', danger: 700 };
+    /* THE DEPTH THAT SHOWS BOTH (lane/refhero-recut, 2026-11-27): which step a two-hero Bold party both falls back from and dies at moves
+       with the monster rows (the clock's REF_HERO moved every formula monster's aim: at 700 it now dies with no fall first), so the plan is
+       the first of these steps whose uncut run shows a fall and a death, and every check below reads that plan */
     const span = 2 * 60000;
-    const cuts = [[], Array.from({ length: span / 2000 }, (_, i) => T0 + (i + 1) * 2000), [T0 + 9300, T0 + 11650, T0 + 20000, T0 + 41700, T0 + 63000]];
-    const runs = cuts.map((c) => play(M, plan, span, c));
     const causes = (r) => r.danger.filter((e) => e.why === 'fall' || e.why === 'death');
+    const both = (r) => causes(r).some((e) => e.why === 'fall') && causes(r).some((e) => e.why === 'death');
+    let plan = null, uncut = null;
+    for (const danger of [700, 650, 750, 600, 800]) {
+      const p = { risk: 'bold', danger }, r = play(M, p, span, []);
+      if (!uncut) uncut = r;
+      if (both(r)) { plan = p; uncut = r; break; }
+    }
+    plan = plan || { risk: 'bold', danger: 700 };
+    const cuts = [[], Array.from({ length: span / 2000 }, (_, i) => T0 + (i + 1) * 2000), [T0 + 9300, T0 + 11650, T0 + 20000, T0 + 41700, T0 + 63000]];
+    const runs = [uncut, ...cuts.slice(1).map((c) => play(M, plan, span, c))];
     const one = causes(runs[0]);
     if (!one.some((e) => e.why === 'fall') || !one.some((e) => e.why === 'death')) return 'CONTROL: the deep Bold party ' + JSON.stringify(one.map((e) => e.why)) + ', not a fall back and a death';
     for (const e of one) {

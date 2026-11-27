@@ -206,7 +206,15 @@ const SEED = '-4611686018427387904';
    timeline hash and every kill count held (512 / 147); glade-4's tally moves from settle 1, glade-1-kite's at settles 7, 9 and 11. Cause, data:
    the sweep's Glade rows after its own re-pin (12e6b4fb4, 826ce98ca: one Scarce weapon a body, so the Oak Wand leaves the bear's Scarce for
    the vine's Rare beside the Oakboard Spellbook, the Ironbound Shield goes Rare on the sluicer). Proof: src/data/monsters.js of 9ed4c362e (the
-   pin before) laid back over a git archive of set/v0.2.144 b6f8409d2: all five scenarios hold the old pin (exit 0), Signatures (dark) included. */
+   pin before) laid back over a git archive of set/v0.2.144 b6f8409d2: all five scenarios hold the old pin (exit 0), Signatures (dark) included.
+   RE-PINNED 2026-11-27 (lane/refhero-recut step 1, 12-targets 8.5 item 2), DATA ONLY, sewer-2 and muster-steps-4: warrens-4, glade-4 and
+   glade-1-kite hold. Cause: src/data/to-hit.js REF_HERO from the careers on the Level clock (merged from lane/scale-grounds-sweep-refhero)
+   moves muster-steps-4 (world from settle 1, kills 171 held: a formula ground reads its aim and evasion from REF_HERO), and src/data/
+   monsters.js moves sewer-2 (kills 105 -> 108: the Sewer's rows rewritten on that REF_HERO by gen-ground-stats, played off the scale as
+   hand rows, and their drops re-derived from hours). Proof, one file at a time over a git archive of set/v0.2.144 43df64f73: to-hit.js alone
+   moves muster-steps-4 (the four tier scenarios hold), monsters.js alone moves sewer-2, danger.js (the four bronze bands) alone holds all five
+   (exit 0). The engine
+   (src/core, supabase/functions) diff against the set is empty. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

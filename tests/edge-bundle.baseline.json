@@ -558,6 +558,11 @@
         "bytes": 3890640,
         "on": "2026-11-27",
         "why": "cut locked in (69450 bytes)"
+      },
+      {
+        "bytes": 3890761,
+        "on": "2026-11-27",
+        "why": "lane/refhero-recut step 1: the four bronze grounds' drop chances re-derived from their hours at the re-cut kill rates (gen-drop-hours --write, more significant figures), the Rat King's hours re-aimed to the set's chances"
       }
     ]
   }

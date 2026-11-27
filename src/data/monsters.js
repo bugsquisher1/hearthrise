@@ -741,7 +741,7 @@ export const MONSTERS = {
     hp: 612, atk: 6, aim: 25, evasion: 22, def: 8, xp: 1844, gp: [79, 239], formula: true, speed: 2800,
     /* his spells (monster-spells.js): the Tail Lash his tank stands in, and the Squeal the whole party takes */
     spells: ['tail_lash', 'squeal'],
-    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', everyHours: 2.332, ch: 0.172, band: 'uncommon' }, { id: 'crown_shard', everyHours: 24.92, ch: 0.0161, band: 'rare' }, { id: 'kingsgrate', everyHours: 21.88, ch: 0.0183, band: 'rare' }, { id: 'rat_kings_knot', everyHours: 24.92, ch: 0.0161, band: 'rare' }, { id: 'rat_kings_crown', everyHours: 206, ch: 0.00194, band: 'trophy' }] },
+    drops: [{ id: 'rat_tail', ch: 1, band: 'common' }, { id: 'bones', ch: 1, band: 'common' }, { id: 'knotted_tails', everyHours: 2.67, ch: 0.15, band: 'uncommon' }, { id: 'crown_shard', everyHours: 28.6, ch: 0.014, band: 'rare' }, { id: 'kingsgrate', everyHours: 25, ch: 0.016, band: 'rare' }, { id: 'rat_kings_knot', everyHours: 28.6, ch: 0.014, band: 'rare' }, { id: 'rat_kings_crown', everyHours: 270, ch: 0.00148, band: 'trophy' }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one

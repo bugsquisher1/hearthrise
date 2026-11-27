@@ -256,12 +256,18 @@ const CASES = {
     const ground = groundRow({ id: 'muster_barrows', drops: ['rune_sword', 'runebound_shield', 'rune_platebody', 'rune_belt'].map((id) => ({ id, ch: 0, band: 'scarce' })) });
     const grid = gridOf(M);
     const SPAN = 12 * 60000;
+    /* A HEARTHFIND ON EVERY KILL'S STREAM AFTER THE ROLL (lane/refhero-recut, 2026-11-27): the kill's own stream draws last for the Hearthfind
+       (hunt-rewards.js payKill), so a roll that drew on it would move every find after it. With no Hearthfind row on the ground's monsters
+       nothing drew after the roll, and a roll on the kill's stream (the mutant) played the identical hunt once the clock's REF_HERO moved
+       Muster's kills. Each find is an item the run reads. */
+    const HF = Object.fromEntries(Object.keys(M.MONSTERS).map((id) => ['monster:' + id, { item: 'df5_find', kind: 'monster', id, oneIn: 2 }]));
     const run = (cuts, roll, forget) => {
       const items = { a: {}, b: {} };
-      const fx = (k) => ({ addItem: (id, q) => { items[k][id] = (items[k][id] || 0) + q; } });
+      const fx = (k) => ({ addItem: (id, q) => { items[k][id] = (items[k][id] || 0) + q; },
+        onHearthfind: (f) => { items[k]['find:' + f.id] = (items[k]['find:' + f.id] || 0) + 1; } });
       const ms = ['a', 'b'].map((k, i) => member(M, k, { seat: i, maxHp: 4000, hp: 4000, maxHit: 400, fx: fx(k) }));
       for (const m of ms) m.hero = { ...m.hero, risk: 'steady', danger: M.D.DANGER_GROUNDS.muster_barrows.refStep };
-      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('df5', 3, d, i), monsters: M.MONSTERS, ground, grid };
+      const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('df5', 3, d, i), monsters: M.MONSTERS, ground, grid, hearthfind: HF };
       const edges = [T0, ...cuts, T0 + SPAN];
       let w = null, next = T0, tr = roll ? { luckPm: { a: 0, b: 300 }, pity: {}, found: [], hours: { rare: 0.01, very_rare: 0.04 } } : null;
       const events = [];
@@ -282,6 +288,7 @@ const CASES = {
     const forgot = run(Array.from({ length: SPAN / 10000 - 1 }, (_, i) => T0 + (i + 1) * 10000), true, true);
     if (one.found.length < 3) return 'CONTROL: ' + one.found.length + ' pieces found in twelve minutes on fast hours';
     if (new Set(one.found.map((p) => p.key)).size < 2) return 'CONTROL: only one hero found anything';
+    if (!one.rest.includes('"find:')) return 'CONTROL: no Hearthfind landed, so nothing drew on the kill\'s stream after the roll';
     const f = JSON.stringify(one.found);
     if (JSON.stringify(tens.found) !== f) return 'the pieces moved with 10 s windows';
     if (JSON.stringify(odd.found) !== f) return 'the pieces moved with odd cuts';

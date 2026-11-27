@@ -26,9 +26,11 @@ const PAIRS = [
 ];
 /* batch 2: [name, [best ground, plain, worn], [second ground, plain, worn]] */
 const ROWS2 = [
-  ['#1 Bannerman\'s Pavise (tank)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pavise'], ['Krell\'s Hold', 'b2-krell-tank', 'b2-krell-pavise']],
-  ['#2 Ossuary Helm (tank, + Frost Slam)', ['Krell\'s Hold', 'b2-krell-tank-slam', 'b2-krell-helm'], ['Muster Barrows', 'b2-muster-tank-slam', 'b2-muster-helm']],
-  ['#3 Grave Guard\'s Mail (tank, + Shelter)', ['Krell\'s Hold', 'b2-krell-tank-shelter', 'b2-krell-mail'], ['Muster Barrows', 'b2-muster-tank-shelter', 'b2-muster-mail']],
+  /* (the tank's one ground in equilibrium with room is Muster: its four sits at the top of the Ford, Pyre and the Bone Wing and never falls
+     back on Krell's, so a tank row's second reading is its home's pinned one or Krell's unsettled one, batch2.sh) */
+  ['#1 Bannerman\'s Pavise (tank)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pavise'], ['Hask\'s Ford (pinned)', 'b2-ford-tank', 'b2-ford-pavise']],
+  ['#2 Ossuary Helm (tank, + Frost Slam)', ['Muster Barrows', 'b2-muster-tank-slam', 'b2-muster-helm'], ['Krell\'s Hold (unsettled)', 'b2-krell-tank-slam', 'b2-krell-helm']],
+  ['#3 Grave Guard\'s Mail (tank, + Shelter)', ['Muster Barrows', 'b2-muster-tank-shelter', 'b2-muster-mail'], ['(none: pinned or unsettled)', 'b2-none', 'b2-none']],
   ['#4 Charred Sabre (sword)', ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-sabre'], ['Muster Barrows', 'b2-muster-sword', 'b2-muster-sabre']],
   ['#5 Pikeman\'s Gauntlets (sword)', ['Muster Barrows', 'b2-muster-sword', 'b2-muster-gauntlets'], ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-gauntlets']],
   ['#7 Floodwater Hatchets (axes)', ['Flooded Wing', 'b2-flood-axes', 'b2-flood-hatchets'], ['Muster Barrows', 'b2-muster-axes', 'b2-muster-hatchets']],

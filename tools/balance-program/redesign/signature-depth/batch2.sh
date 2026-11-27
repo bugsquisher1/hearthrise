@@ -31,15 +31,19 @@ run() {
 T=tank,bow,mage,healer; S=sword,bow,mage,healer; A=axes,bow,mage,healer; X=hammer,bow,mage,healer; C=hammer,crossbow,mage,healer
 # ── the home cells (the size bar) ──
 # (the tank four sits at the top of Hask's Ford, 654.5 of 655 at Level 52 and 643.5 at 45, of Pyre Field, 116.8 of 120, and of the Bone
-#  Wing, 602.9 of 605: a Signature there reads 0 by construction, so the tank's rows read on Muster Barrows and Krell's Hold, its two grounds
-#  with room over the plain four; the Ford's pair is kept as the pinned reading, b2-ford-tank and b2-ford-pavise)
+#  Wing, 602.9 of 605, and on Krell's Hold it never falls back (it takes 99.7% of the blows and its held step is a climb still running:
+#  the Helm's 12 seeds read -54 to +38). So the tank's rows read on Muster Barrows, its one ground in equilibrium with room over the plain
+#  four; a tank Signature buys no held step on the others (the Ford's pair is kept as the pinned reading, b2-ford-tank and b2-ford-pavise,
+#  and the Krell Helm pair as the unsettled one, b2-krell-tank-slam and b2-krell-helm))
 run b2-muster-tank        muster_barrows 60 $T
 run b2-muster-pavise      muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
 run b2-muster-pennies     muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+run b2-muster-tank-slam   muster_barrows 60 $T --add-moves frost_slam,-,-,-
+run b2-muster-helm        muster_barrows 60 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
+run b2-muster-tank-shelter muster_barrows 60 $T --add-moves shelter,-,-,-
+run b2-muster-mail        muster_barrows 60 $T --add-moves shelter,-,-,- --signatures grave_guards_mail,-,-,-
 run b2-krell-tank-slam    krells_hold 97 $T --add-moves frost_slam,-,-,-
 run b2-krell-helm         krells_hold 97 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
-run b2-krell-tank-shelter krells_hold 97 $T --add-moves shelter,-,-,-
-run b2-krell-mail         krells_hold 97 $T --add-moves shelter,-,-,- --signatures grave_guards_mail,-,-,-
 run b2-pyre-sword         pyre_field 80 $S
 run b2-pyre-sabre         pyre_field 80 $S --signatures charred_sabre,-,-,-
 run b2-muster-sword       muster_barrows 60 $S
@@ -48,12 +52,12 @@ run b2-flood-axes         catacomb_flooded_wing 160 $A
 run b2-flood-hatchets     catacomb_flooded_wing 160 $A --signatures floodwater_hatchets,-,-,-
 run b2-muster-mixed       muster_barrows 60 $X
 run b2-muster-collar      muster_barrows 60 $X --signatures -,lurchers_collar,-,-
-run b2-muster-robe        muster_barrows 60 $X --signatures -,-,lamplighters_robe,-
 run b2-ox-mixed           ox_road 120 $X
 run b2-ox-coalbow         ox_road 120 $X --signatures -,coal_runners_bow,-,-
 run b2-ox-hat             ox_road 120 $X --signatures -,-,-,drovers_hat
 run b2-pyre-mixed         pyre_field 80 $X
 run b2-pyre-longbow       pyre_field 80 $X --signatures -,provosts_longbow,-,-
+run b2-pyre-robe          pyre_field 80 $X --signatures -,-,lamplighters_robe,-
 run b2-roost-crossbow     wyvern_roost 140 $C
 run b2-roost-barb         wyvern_roost 140 $C --signatures -,wyvern_barb_crossbow,-,-
 run b2-krell-mixed        krells_hold 97 $X
@@ -68,13 +72,6 @@ run b2-slake-pole-bold    the_slake 57 $X --signatures -,-,-,bargemans_pole
 run b2-muster-tank-bold   muster_barrows 60 $T
 run b2-muster-pennies-bold muster_barrows 60 $T --signatures ferry_pennies,-,-,-
 # ── the second scale ground (the spread bar) ──
-run b2-krell-tank           krells_hold 97 $T
-run b2-krell-pavise         krells_hold 97 $T --signatures bannermans_pavise,-,-,-
-run b2-krell-pennies        krells_hold 97 $T --signatures ferry_pennies,-,-,-
-run b2-muster-tank-slam     muster_barrows 60 $T --add-moves frost_slam,-,-,-
-run b2-muster-helm          muster_barrows 60 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
-run b2-muster-tank-shelter  muster_barrows 60 $T --add-moves shelter,-,-,-
-run b2-muster-mail          muster_barrows 60 $T --add-moves shelter,-,-,- --signatures grave_guards_mail,-,-,-
 run b2-muster-sabre         muster_barrows 60 $S --signatures charred_sabre,-,-,-
 run b2-pyre-gauntlets       pyre_field 80 $S --signatures pikemans_gauntlets,-,-,-
 run b2-muster-axes          muster_barrows 60 $A
@@ -86,6 +83,5 @@ run b2-pyre-crossbow        pyre_field 80 $C
 run b2-pyre-barb            pyre_field 80 $C --signatures -,wyvern_barb_crossbow,-,-
 run b2-muster-wand          muster_barrows 60 $X --signatures -,-,hall_fire_wand,-
 run b2-krell-shroud         krells_hold 97 $X --signatures -,-,catacomb_shroud,-
-run b2-pyre-robe            pyre_field 80 $X --signatures -,-,lamplighters_robe,-
-run b2-muster-pole          muster_barrows 60 $X --signatures -,-,-,bargemans_pole
+run b2-muster-robe          muster_barrows 60 $X --signatures -,-,lamplighters_robe,-
 run b2-muster-hat           muster_barrows 60 $X --signatures -,-,-,drovers_hat

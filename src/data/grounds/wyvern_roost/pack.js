@@ -96,7 +96,8 @@ export default definePack({
          everyone else steps off. */
       spells: ['fire_breath'],
       elements: { ember: 25, frost: -15 },
-      drops: [{ id: 'dragon_bones', everyHours: 0.1143, ch: 0.429, band: 'common' }, { id: 'dragon_scale', everyHours: 0.286, ch: 0.171, band: 'common' }, { id: 'fire_gland', everyHours: 0.714, ch: 0.0686, band: 'uncommon' }],
+      drops: [{ id: 'dragon_bones', everyHours: 0.1143, ch: 0.429, band: 'common' }, { id: 'dragon_scale', everyHours: 0.286, ch: 0.171, band: 'common' }, { id: 'fire_gland', everyHours: 0.714, ch: 0.0686, band: 'uncommon' },
+        { id: 'burnt_crag_leg_plates', everyHours: 26.5, ch: 0.00185, band: 'rare' }],
       hp: 244, atk: 151, aim: 145, evasion: 53, def: 11, xp: 2350, gp: [36, 107], formula: true },
     brood_wyvern: {
       name: 'Brood Wyvern', icon: '🐲', tier: 6, level: 140, cls: 'dragon', family: 'Dragon', speed: 2800,
@@ -116,8 +117,9 @@ export default definePack({
     tail_spur: { n: 'Tail Spur', icon: '🦴', v: 266, raw: true, part: true },
     fire_gland: { n: 'Fire Gland', icon: '🔥', v: 272, raw: true, part: true },
     stolen_fleece: { n: 'Stolen Fleece', icon: '🐑', v: 280, raw: true, part: true },
-    /* THE ROOST'S NAMED PIECE (28-named-pieces.md 2.7): Cobalt's plate legs (`statsAs`) and less fire, the Crag Wyvern's Fire Breath. Its Rare
-       row waits for the Roost's art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
+    /* THE ROOST'S NAMED PIECE (28-named-pieces.md 2.7): Cobalt's plate legs (`statsAs`) and less fire, the Crag Wyvern's Fire Breath. Its door
+       is the Crag Wyvern's Rare row (lane/named-piece-drops): 26.5 h at the reference, about 15 h a lone tank at the floor (drop-tables
+       rare-pace). Its icon is a placeholder (tools/world-art/named-piece-icons.mjs) until the Art Director's pass; tests/gear-stats.mjs GSF-11 */
     burnt_crag_leg_plates: { n: 'Burnt Crag Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',
       resistPm: { ember: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'cobalt_platelegs' },
   },

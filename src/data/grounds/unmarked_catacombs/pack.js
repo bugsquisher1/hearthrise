@@ -83,7 +83,8 @@ export default definePack({
          wrist. Undead, no override: a hammer breaks them, fire does 15% more. Bones and grave dust for the Hearth, and the tag. */
       /* THE SWARM (src/data/monster-roles.js; the Danger scale only, so the wings: src/data/catacomb-wings.js) */
       role: 'swarm',
-      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
+      drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' },
+        { id: 'paupers_shroud', ch: 0.000687, band: 'rare' }, { id: 'watchmans_sword', ch: 0.000687, band: 'rare' }],
       hp: 238, atk: 154, aim: 149, evasion: 53, def: 7, xp: 2641, gp: [35, 105], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
@@ -104,7 +105,8 @@ export default definePack({
          (its own ring and warning, the formula's hit and cooldown) */
       role: 'brute',
       spells: ['bone_slide'],
-      drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
+      drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' },
+        { id: 'limewashed_plate', ch: 0.00278, band: 'rare' }],
       hp: 371, atk: 150, aim: 130, evasion: 82, def: 42, xp: 4604, gp: [55, 163], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
@@ -125,7 +127,8 @@ export default definePack({
       /* THE CASTER (monster-roles.js; the wings): Snuff the Candles is the Caster's wind-up on the formula. Kill him first */
       role: 'caster',
       spells: ['snuff_the_candles'],
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' },
+        { id: 'keepers_leg_plates', ch: 0.003, band: 'rare' }, { id: 'dunns_mallet', ch: 0.003, band: 'rare' }],
       hp: 518, atk: 196, aim: 179, evasion: 94, def: 58, xp: 6843, gp: [76, 229], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
@@ -141,7 +144,10 @@ export default definePack({
     /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
     live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
     /* THE WINGS' NAMED PIECES (28-named-pieces.md 2.7): Wolfram's plain piece (`statsAs`) plus one rule that answers the wings (Lime Sack,
-       Snuff the Candles, the Carters, the Bone Walls). Each Rare row waits for the wings' art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
+       Snuff the Candles, the Carters, the Bone Walls). Each one's door is a Rare row on its body (lane/named-piece-drops), a typed chance (this
+       pack is off the scale; its wings read these rows) sized to about 15 h a hero where the body is farmed: the Bone Wall and the Paupers
+       on the Bone Wing, Keeper Dunn on the Flooded Wing (tests/hunt-core/drop-tables.mjs rare-pace, a body several grounds share). The
+       icons are placeholders (tools/world-art/named-piece-icons.mjs) until the Art Director's pass; tests/gear-stats.mjs GSF-11 */
     limewashed_plate: { n: 'Limewashed Plate', icon: '🛡️', type: 'armor', slot: 'body', armourClass: 'plate',
       resistPm: { poison: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platebody' },
     keepers_leg_plates: { n: 'Keeper\'s Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',

@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3046,
+  "replay_ms": 3552,
   "counts": {
     "tracked_names": 1180,
-    "entries": 1004
+    "entries": 991
   },
   "functions": [
     {
@@ -3025,12 +3025,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "7978159fa73f820d20b8bacca1cd9071",
-        "norm_len": 10121,
+        "md5": "66f3cb1cab32f846d129fe841f597552",
+        "norm_len": 9925,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql, 1051-company-start.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1051-company-start.sql."
+      "why": "STAGED for the v0.2.144 release by 1024-carry-on.sql, 1051-company-start.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1051-company-start.sql."
     },
     {
       "sig": "hr_carry_on_scope_ok(p_slots integer[])",
@@ -8369,11 +8369,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "2c7044d66655fd18f92d9b6c9c0750ca",
-        "norm_len": 3947,
+        "md5": "5f741088d1c1c0ba67696b405b521316",
+        "norm_len": 3825,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "2026-11-27 (Coordinator, --codediff, lane/retire-tier-chain 1072): STAGED CHANGE, not drift. Replay drops the outgrown door's `and public.hr_hunt_scaled_at_door(p_user, p_slot, p_hunt) is null` clause (66 code chars, the whole delta): scaled hunts are retired, so an outgrown hero is refused at the door with no scaled exception. Live keeps it until 1072 applies."
     },
     {
       "sig": "hr_hunt_after_freeze()",
@@ -8648,8 +8649,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3a212e13dc7324f98b6d7b72fcd854c7",
-        "norm_len": 23521,
+        "md5": "5dd68890caa1dd3b67adde1797319e89",
+        "norm_len": 20947,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -8697,8 +8698,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3bfdce73fb36467541281c69c67a1dfb",
-        "norm_len": 44253,
+        "md5": "bb7c85739e08b888383ba295f2a886df",
+        "norm_len": 42589,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -8825,6 +8826,7 @@
         "restate"
       ],
       "touched_by": [
+        "1072-retire-tier-chain.sql",
         "2026-11-04-hunt-bests.sql",
         "2026-12-06-hunt-bests-supply.sql",
         "2027-03-22-live-events.sql",
@@ -8837,11 +8839,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "4bfba427c9f416601ea621598b547af6",
-        "norm_len": 2827,
+        "md5": "fa7421f3a9d55fff27ae53d254196540",
+        "norm_len": 2578,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1072-retire-tier-chain.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1072-retire-tier-chain.sql."
     },
     {
       "sig": "hr_hunt_best_min()",
@@ -9077,11 +9080,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "47359da9146dfac326fdb6006c6fe6e0",
-        "norm_len": 1069,
+        "md5": "f6f663ac3c793a83c32d859ef1b91987",
+        "norm_len": 669,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "2026-11-27 (Coordinator, --codediff, lane/retire-tier-chain 1072): STAGED CHANGE, not drift. Replay drops the tier branch (`declare v_tier text; v_size int` and the hr_ground_tiers size lookup) that froze a party's density from its picked tier: the tier chain is retired, so density freezes from the instance row alone. Live keeps the tier read until 1072 applies."
     },
     {
       "sig": "hr_hunt_enter(p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_hours integer, p_idem uuid)",
@@ -9372,8 +9376,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "f330992f3aaf0ffd152f8ed7469db00c",
-        "norm_len": 8531,
+        "md5": "2a278f9c142130809241edea19196358",
+        "norm_len": 8130,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -10114,8 +10118,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "7adf5381c7520d793bf835b811f055af",
-        "norm_len": 9860,
+        "md5": "1d2ffc7244e8259230ecdf7129c4d9e1",
+        "norm_len": 9574,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -10740,29 +10744,6 @@
       "agree": true
     },
     {
-      "sig": "hr_hunt_scaled_at_door(p_user uuid, p_slot integer, p_hunt text)",
-      "name": "hr_hunt_scaled_at_door",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-05-28-cellar-outgrown.sql"
-      ],
-      "live": {
-        "md5": "78dfc18c3b92e8ad225b23a54e064467",
-        "norm_len": 1641,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "78dfc18c3b92e8ad225b23a54e064467",
-        "norm_len": 1641,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
       "sig": "hr_hunt_section_view(p_user uuid, p_slot integer)",
       "name": "hr_hunt_section_view",
       "tracked_by": [
@@ -11321,121 +11302,6 @@
       "agree": true
     },
     {
-      "sig": "hr_hunt_tier_open()",
-      "name": "hr_hunt_tier_open",
-      "tracked_by": [
-        "restate"
-      ],
-      "touched_by": [
-        "2027-05-24-session-tier-open.sql"
-      ],
-      "live": {
-        "md5": "71e49bf1faf51c15474d99f73a797ed1",
-        "norm_len": 867,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "71e49bf1faf51c15474d99f73a797ed1",
-        "norm_len": 867,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_tier_pick(p_instance uuid, p_user uuid, p_slot integer)",
-      "name": "hr_hunt_tier_pick",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-02-27-hunt-tiers.sql"
-      ],
-      "live": {
-        "md5": "f456c264e7db77304846e56be404a683",
-        "norm_len": 776,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "f456c264e7db77304846e56be404a683",
-        "norm_len": 776,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_tier_set(p_slot integer, p_hunt text, p_tier text, p_idem uuid)",
-      "name": "hr_hunt_tier_set",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-02-27-hunt-tiers.sql"
-      ],
-      "live": {
-        "md5": "e027f1ea19db2a2cc02f25e6340e1187",
-        "norm_len": 2675,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "e027f1ea19db2a2cc02f25e6340e1187",
-        "norm_len": 2675,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_tier_stamp()",
-      "name": "hr_hunt_tier_stamp",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-16-ended-hunt-tier.sql",
-        "2027-05-24-session-tier-open.sql"
-      ],
-      "live": {
-        "md5": "e8d261ec54323c1868ee7fd5dcf030ca",
-        "norm_len": 576,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "e8d261ec54323c1868ee7fd5dcf030ca",
-        "norm_len": 576,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_hunt_tier_view(p_user uuid, p_slot integer)",
-      "name": "hr_hunt_tier_view",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-02-27-hunt-tiers.sql"
-      ],
-      "live": {
-        "md5": "d79821c0de80921cb5817124de46c5be",
-        "norm_len": 701,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "d79821c0de80921cb5817124de46c5be",
-        "norm_len": 701,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
       "sig": "hr_hunt_view(p_session uuid)",
       "name": "hr_hunt_view",
       "tracked_by": [
@@ -11468,8 +11334,8 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "8541275858fe99b428fb8c1a8134a383",
-        "norm_len": 6433,
+        "md5": "833fc51f8e2025cf769e5bcbaaa702ea",
+        "norm_len": 6286,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -16494,166 +16360,6 @@
       "replay": {
         "md5": "5284ba707f3dee55deb4dd542f57bbc7",
         "norm_len": 7770,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_scaled_hours_hold()",
-      "name": "hr_scaled_hours_hold",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "1053-lever-gates.sql"
-      ],
-      "live": null,
-      "replay": {
-        "md5": "7a91bbc33565a36e324e14b093104e5c",
-        "norm_len": 2221,
-        "source": "computed-from-replay"
-      },
-      "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1053-lever-gates.sql."
-    },
-    {
-      "sig": "hr_scaled_hours_today(p_user uuid, p_slot integer)",
-      "name": "hr_scaled_hours_today",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-21-scaled-hunts.sql"
-      ],
-      "live": {
-        "md5": "b5df5577f6951f2eb1a21dd18b30a063",
-        "norm_len": 459,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "b5df5577f6951f2eb1a21dd18b30a063",
-        "norm_len": 459,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_scaled_hunt_buy(p_slot integer, p_hunt text, p_hours integer, p_price bigint, p_idem uuid)",
-      "name": "hr_scaled_hunt_buy",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-21-scaled-hunts.sql",
-        "2027-04-19-key-under-lock.sql"
-      ],
-      "live": {
-        "md5": "723241d5d15bdaaf0da98cccbb16c5d2",
-        "norm_len": 6203,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "723241d5d15bdaaf0da98cccbb16c5d2",
-        "norm_len": 6203,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_scaled_hunt_of(p_instance uuid)",
-      "name": "hr_scaled_hunt_of",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "1053-lever-gates.sql",
-        "2027-03-21-scaled-hunts.sql"
-      ],
-      "live": {
-        "md5": "54a04356df8b489ef10ea955a1ca455d",
-        "norm_len": 1791,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "5c9ecada1a54807c2425578bc96edf86",
-        "norm_len": 2841,
-        "source": "computed-from-replay"
-      },
-      "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1053-lever-gates.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1053-lever-gates.sql."
-    },
-    {
-      "sig": "hr_scaled_hunt_switch(p_slot integer, p_hunt text, p_on boolean, p_idem uuid)",
-      "name": "hr_scaled_hunt_switch",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-21-scaled-hunts.sql"
-      ],
-      "live": {
-        "md5": "6bcd82f56f0a2026ff477ba7eb2b6bad",
-        "norm_len": 2543,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "6bcd82f56f0a2026ff477ba7eb2b6bad",
-        "norm_len": 2543,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_scaled_hunts_view(p_user uuid, p_slot integer)",
-      "name": "hr_scaled_hunts_view",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-21-scaled-hunts.sql"
-      ],
-      "live": {
-        "md5": "62abe06c1a53fc8926afee2d8ba7a0af",
-        "norm_len": 1973,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "62abe06c1a53fc8926afee2d8ba7a0af",
-        "norm_len": 1973,
-        "source": "computed-from-replay"
-      },
-      "agree": true
-    },
-    {
-      "sig": "hr_scaled_level(p_hunt text, p_level integer)",
-      "name": "hr_scaled_level",
-      "tracked_by": [
-        "pin",
-        "restate"
-      ],
-      "touched_by": [
-        "2027-03-21-scaled-hunts.sql"
-      ],
-      "live": {
-        "md5": "4b34cd05b4cef8c93a2df5184c489fa9",
-        "norm_len": 531,
-        "measured": "2026-11-20",
-        "source": "measured-live"
-      },
-      "replay": {
-        "md5": "4b34cd05b4cef8c93a2df5184c489fa9",
-        "norm_len": 531,
         "source": "computed-from-replay"
       },
       "agree": true

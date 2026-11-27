@@ -11,7 +11,7 @@
 // ci-run: node tests/item-standing.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
 //
-// mutant-anchors: src/shell/item-standing.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css
+// mutant-anchors: src/shell/item-standing.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css src/styles/summary.css
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 // Plain gear is the floor; a Rare carries a Trait, a Signature is a named piece (06-comparison.md 2c). The step is the PIECE's (the
@@ -102,6 +102,12 @@ async function pure(base) {
     out.push('IS-2 a plain piece\'s kind line names a rung: ' + L.kindWords('steel_sword') + ' / ' + L.kindWords('krells_tollgate'));
   }
   if (!/, Rare$/.test(L.kindWords('iron_sword', RARE))) out.push('IS-2 a Rare piece\'s kind line is ' + L.kindWords('iron_sword', RARE));
+  /* a Signature has no catalogue row: its name is its own and its kind line names it (visual read 2026-11-26: the bag read
+     "Barrow knights blade" with no kind line) */
+  for (const id of sigIds) {
+    if (B.itemName(id) !== SG.SIGNATURES[id].name) out.push('IS-2 the Signature ' + id + ' is named ' + JSON.stringify(B.itemName(id)) + ', not its own name');
+    if (!/^(Weapon|Armor|Jewelry), Signature$/.test(L.kindWords(id))) out.push('IS-2 the Signature ' + id + '\'s kind line is ' + JSON.stringify(L.kindWords(id)));
+  }
   const sigCard = C.cardLayout(Object.assign(C.cardFacts({ kind: 'rare', item: sig }), { icon: 'assets/icons-bundle/pixel/items/' + sig + '.png' }));
   const plainCard = C.cardLayout(C.cardFacts({ kind: 'rare', item: 'steel_sword' }));
   const nine = sigCard.steps.find((s) => s.op === 'nine'), icon = sigCard.steps.find((s) => s.op === 'icon');
@@ -136,6 +142,8 @@ async function pure(base) {
   }
   if (!/position:\s*relative/.test(rule(hunt, '.hh-std > .hh-std-art, .hh-std > .hs-glyph'))) out.push('IS-4 the icon is not positioned above its frame');
   if (!/border-color:\s*transparent/.test(rule(win, '.hw-pocket:has(.hh-std), .hw-slot:has(.hh-std)'))) out.push('IS-4 a framed pocket keeps its rim beside the frame');
+  /* the summary's drop lines keep a find's whole name (a half-width cell wraps it), so a Signature is never "Barrow Knight's Bl..." */
+  if (!/white-space:\s*normal/.test(rule(read('src/styles/summary.css'), '.hsum-loot .hsum-name b'))) out.push('IS-4 the summary cuts a long find\'s name');
   return out;
 }
 
@@ -146,10 +154,13 @@ const MUTANTS = [
   ['the icon drops its frame', 'src/shell/widgets/bits.js', '  if (std) return ', '  if (false) return '],
   ['the pocket paints the old rung', 'src/shell/windows/inventory/pockets.js', "'<li class=\"hw-pocket is-' + kindOf(id) + '\"", "'<li class=\"hw-pocket is-' + kindOf(id) + ' rar-rare\""],
   ['a plain piece is called Rare', 'src/shell/item-lore.js', "if (std) parts.push(t('item.rarity_' + std));", "parts.push(t('item.rarity_' + (std || 'rare')));"],
+  ['a Signature reads its id spelled out', 'src/shell/widgets/bits.js', 'return Object.hasOwn(SIGNATURES, id) ? SIGNATURES[id].name : spelled(id);', 'return spelled(id);'],
+  ['a Signature has no kind line', 'src/shell/item-lore.js', "  if (!it && Object.hasOwn(SIGNATURES, id)) return ", "  if (false) return "],
   ['the share card inks every find gold', 'src/shell/share-card.js', "fill: std ? std.ink : '--gold-2' }", "fill: '--gold-2' }"],
   ['the summary draws its own icon', 'src/shell/windows/hunt-summary.js', "'<li class=\"hsum-item\"><span class=\"hsum-ico\">' + itemIconHtml(ctx.glyphs, x.it) + '</span>'", "'<li class=\"hsum-item\"><span class=\"hsum-ico\"><img src=\"' + PIXEL_DIR + x.it + '.png\"></span>'"],
   ['the frame sits inside the icon', 'src/styles/hunt.css', 'inset: calc(-1 * var(--art-px));', 'inset: 0;'],
   ['the Signature frame at the Rare slice', 'src/styles/hunt.css', "std-frame-signature.png') 4 / var(--art-4)", "std-frame-signature.png') 3 / var(--art-3)"],
+  ['the summary cuts a find\'s name again', 'src/styles/summary.css', '.hsum-loot .hsum-name b { white-space: normal; line-height: 1.2; }', ''],
   ['the frame is drawn over the icon', 'src/styles/hunt.css', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: relative; }', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: static; }'],
 ];
 

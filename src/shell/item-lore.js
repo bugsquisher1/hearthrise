@@ -41,6 +41,7 @@ import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js'
 import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, JEWEL_GUARANTEES, JEWEL_SWITCH, perksFor } from '../data/jewelry.js';
 import { t } from '../render/player-text.js';
 import { standingOf } from './item-standing.js';
+import { SIGNATURES } from '../data/signatures.js';
 import { baneIndex, baneMultFor, classOfMonster } from '../core/bane.js';
 import { resistProfile } from '../core/elements.js';
 import { groundOfHunt, monstersOn } from '../data/hunt-grounds.js';
@@ -52,6 +53,8 @@ const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 /* A type's word (item.type_<type>, else `or`); own-property reads only. */
 const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy', 'training']);
 const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or));
+/* a Signature's type word by its slot (src/data/signatures.js): any other slot is armor */
+const SIG_TYPE = Object.freeze({ weapon: 'weapon', necklace: 'jewelry', ring: 'jewelry' });
 
 let INDEX = null;
 /* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, row:{skill: the bench recipe or node at that
@@ -92,6 +95,8 @@ function index() {
 export function kindWords(id, piece) {
   const it = ITEMS[id], dr = DRINK_ITEMS[id];
   if (dr) return t('item.kind_drink', { mana: dr.mana });
+  /* a Signature is its own item, with no catalogue row: its kind by its slot, then its step ("Weapon, Signature") */
+  if (!it && Object.hasOwn(SIGNATURES, id)) return typeWord(SIG_TYPE[SIGNATURES[id].slot] || 'armor', 'item.type_gear') + ', ' + t('item.rarity_signature');
   if (!it) return '';
   const k = kindOf(id);
   if (k === 'gear') {

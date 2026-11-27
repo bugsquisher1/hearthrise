@@ -39,16 +39,16 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
-| Economy sources and sinks | 45 | 31 | 2 | 11 | 1 | 0 | 40 | 33 |
-| **All** | **241** | 127 | 32 | 52 | 30 | 31 | 127 | 132 |
+| Economy sources and sinks | 48 | 34 | 2 | 11 | 1 | 0 | 43 | 36 |
+| **All** | **244** | 130 | 32 | 52 | 30 | 31 | 130 | 135 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 769 (in 263 files, 17534 typed numbers) |
-| Claimed by a lever | 331 |
-| Claimed by a not-a-lever reason | 438 |
+| Top-level bindings in the rule code that hold a typed number | 769 (in 263 files, 17543 typed numbers) |
+| Claimed by a lever | 332 |
+| Claimed by a not-a-lever reason | 437 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 19 and 11 |
 | Values read at | 861ae52e3 (origin/baseline/overhaul-start). Rule code and migrations the same as the baseline: NO |
@@ -316,6 +316,8 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `damage.permanent-cap` Cap on permanent perks | Base damage coefficients | the kits hold no House rooms or renown, so no cell carries a permanent perk to cap |
 | outside-hunt | `econ.bank` Bank and key ring | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.bench-tax` Public bench tax | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
+| outside-hunt | `econ.block-rule-offer` When the standing block rule is offered | Economy sources and sinks | a coach card's trigger, never read by a cell |
+| outside-hunt | `econ.block-rule-reserve` The standing block rule's purse reserve | Economy sources and sinks | a purse rule, never read by a cell. Tools/balance-program/redesign/sinks/ledger.mjs models it |
 | outside-hunt | `econ.clans` Founding a clan | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.faction-stock` The quartermasters' stock (the two sides' pieces) | Economy sources and sinks | a piece is claimed or bought in town, never by a cell |
 | outside-hunt | `econ.gold-estimate-risk` A Risk's gold an hour against Steady, as the Hunts window estimates it | Economy sources and sinks | a printed estimate, never read by a cell |
@@ -341,6 +343,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.trade-work` Town work behind a kit-hour: the line and stage shares, the ladder, the durable goods | Economy sources and sinks | town work is not a hunt cell. Tools/balance-program/redesign/trades/measure.mjs plays the closed-form job |
 | outside-hunt | `econ.wage-base` The wage at step 0 | Economy sources and sinks | a price, never read by a cell. Tools/balance-program/redesign/w/fit.mjs reads it against the measured pay |
 | outside-hunt | `econ.wage-step` The wage's growth a step | Economy sources and sinks | a price, never read by a cell. Fit.mjs fits it |
+| outside-hunt | `econ.work-block` Bought town-work block price | Economy sources and sinks | a block is bought in town, never by a cell |
 | outside-hunt | `econ.work-day` A hero's daily town work | Economy sources and sinks | town work is not a hunt cell. 09 section 5.8 names the labor model the Lab must add |
 | outside-hunt | `econ.work-premium` Premium's extra town work | Economy sources and sinks | town work is not a hunt cell |
 | outside-hunt | `rare.chest-keys` Chest keys and opens | Rare-drop probabilities | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |

@@ -706,6 +706,9 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     ...(towerOf(where.ground) ? { towerFloor: inst.tower_floor } : {}),
     ...(drops ? { traitDrops: drops } : {}),
     ...(flame ? { flameDrops: flame } : {}),
+    /* PERSONAL LOOT (1076-personal-loot.sql): the instance's own rule, frozen by the server when its hunt began (hunt_instances.personal_loot
+       through the read); each hero that took part in a kill rolls its own drops (src/core/hunt-rewards.js payPersonal). Never a client value */
+    ...(inst.personal_loot === true ? { personalLoot: true } : {}),
   });
   const engineMs = Math.max(0, tick() - t0);
   if (!out.accrued) return { out, commit: null, engineMs };

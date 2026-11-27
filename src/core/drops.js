@@ -35,12 +35,21 @@ export function bandOf(row) {
  * cannot be made "more than certain", and letting a buff scale it would
  * silently turn a guarantee into a multi-roll.
  *
- * @param row     { id, ch }
- * @param mods    { dropMult, dropBuff, featuredMult, depthPm }
+ * @param {{ id?: string, ch: number }} row
+ * @param {{ dropMult?: number, dropBuff?: number, featuredMult?: number, depthPm?: number, share?: number }} [mods]
  *   depthPm  the Danger scale's depth on the kill's own table, permille (src/core/hunt/danger.js dangerDial dropPm; absent off the scale)
+ *   share    PERSONAL LOOT (src/core/hunt/took-part.js, hunt-rewards.js): the heroes rolling this kill, each at 1 / share of the row's whole
+ *            chance after every multiplier and the cap, a guarantee's too, so the kill's expected drops are the row's in any party
+ *            (21-flame-temper-imbue-loot.md section 4.2). Absent or 1: the row's whole chance, exactly as before
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
+  const share = Number.isInteger(m.share) && m.share > 1 ? m.share : 1;
+  return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;
+}
+
+/* The row's WHOLE chance on a kill, every multiplier and the cap applied (a guarantee untouched): effectiveDropChance before a share. */
+function wholeDropChance(row, m) {
   if (row.ch >= 1) return Math.min(1, row.ch);
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;

@@ -198,7 +198,9 @@ export async function loadPlay(root) {
       const t0 = performance.now();
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + WIN) },
         secret, ground, grid, items: ITEMS, monsters, members: playing, ...(opts.sessionMode ? { sessionMode: opts.sessionMode } : {}),
-        ...(opts.tower ? { towerFloor: towerTop === null ? opts.tower.floor : towerTop + 1 } : {}) });
+        ...(opts.tower ? { towerFloor: towerTop === null ? opts.tower.floor : towerTop + 1 } : {}),
+        /* opts.personalLoot: the instance's frozen personal loot rule, as the server's read hands it (src/core/hunt-rewards.js payPersonal) */
+        ...(opts.personalLoot === true ? { personalLoot: true } : {}) });
       const engineMs = performance.now() - t0;
       if (!out.accrued) continue;
       /* opts.onWindow(out, members, engineMs): an observer of each settled window's events and members (party-defense.mjs),
@@ -257,7 +259,7 @@ export async function loadPlay(root) {
     const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { grid, spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
+    return { grid, spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key), world,
       members: members.map((m) => ({ key: m.key, levelXp: m.levelXp, skills: { ...m.skills }, gold: m.gold, hp: m.hp, ended: m.ended || null })),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended,

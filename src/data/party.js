@@ -26,8 +26,10 @@ export const PARTY = Object.freeze({
 /* PERSONAL LOOT (systems, lane/flame-temper-build, 2026-11-22; docs/design/redesign/21-flame-temper-imbue-loot.md section 4). Each hero at a
    kill rolls each drop row itself at ch / n (n the heroes alive at the kill), so a party drops what its heroes would apart; its Rare rolls
    read its own company's flame (src/core/inner-flame.js luckPm) and its own pity. Coin stays the even split above. It REPLACES lootSplit's
-   item half and the rare roll the day the roller (lane/drop-formula, wave 4) ships it; until then it is dark: the hr_flags switch
-   `personal_loot` is off and nothing here is read by a hunt.
+   item half and the rare roll on an instance whose hunt began with the hr_flags switch `personal_loot` on (hunt_instances.personal_loot,
+   frozen by 1076-personal-loot.sql; lane/p1-personal-loot): every hero that took part in a kill (src/core/hunt/took-part.js) rolls the
+   kill's table at ch / n on its own stream (src/core/hunt-rewards.js payPersonal). The switch is off: until it lights, every hunt rolls
+   the party split above.
    THE PITY (04 guard 5; src/core/personal-loot.js): a hero's chance after missed rolls is p0 x (1 + growPm / 1000 x x), x the sum of p0 over
    its misses since its last find, p0 = p x basePm / 1000. In x the hours to a find do not depend on the row's rate, so one pair of levers
    serves every row: at growPm 4000 the 90th percentile of rolls to a find is 1.94x the mean (21 section 4.2 asks under 2x; growth alone

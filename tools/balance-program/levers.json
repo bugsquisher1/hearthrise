@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17535,
+  "typed": 17542,
   "files": 263,
   "lever": 324,
   "notLever": 432,
@@ -1437,9 +1437,10 @@
      "tests/drop-formula.mjs",
      "tests/hunt-core/danger.mjs",
      "tests/hunt-core/engine-parity.mjs",
-     "tests/hunt-core/first-week-bands.mjs"
+     "tests/hunt-core/first-week-bands.mjs",
+     "tests/hunt-live.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6984,7 +6985,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 48,
+    "mentionCount": 49,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7072,7 +7073,7 @@
      "tests/boss-call.mjs",
      "tests/boss-hall-advice.mjs"
     ],
-    "mentionCount": 49,
+    "mentionCount": 50,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7367,7 +7368,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7446,7 +7447,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7522,7 +7523,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7591,7 +7592,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 26,
+    "mentionCount": 25,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8002,9 +8003,9 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
-     "tests/gear-stats.mjs"
+     "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 29,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8171,9 +8172,9 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
-     "tests/gear-stats.mjs"
+     "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 29,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8252,9 +8253,9 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
-     "tests/gear-stats.mjs"
+     "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 29,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9861,9 +9862,9 @@
    "sites": [
     {
      "file": "src/core/drops.js",
-     "line": 49,
+     "line": 58,
      "text": "return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);",
-     "binding": "effectiveDropChance"
+     "binding": "wholeDropChance"
     }
    ],
    "definition": "min(0.95, ch x the row's dropBonus x (1 + drop-rate buff) x featured); a 100% row is never multiplied",
@@ -9885,16 +9886,9 @@
    "tests": {
     "asserts": [],
     "mentions": [
-     "tests/core-purity.mjs",
-     "tests/field-salvage.mjs",
-     "tests/hunt-core/conditions.mjs",
-     "tests/hunt-core/drop-tables.mjs",
-     "tests/hunt-core/forest-cave.mjs",
-     "tests/lucky-finds.mjs",
-     "tests/monster-facts.mjs",
-     "tests/w0f-fun-content.mjs"
+     "tests/personal-loot-play.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 1,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10088,8 +10082,8 @@
       "key",
       "trophy"
      ],
-     "rows": 308,
-     "distinct": 91,
+     "rows": 314,
+     "distinct": 95,
      "low": 0.0005,
      "high": 0.05
     }
@@ -10421,7 +10415,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11652,9 +11646,10 @@
     "mentions": [
      "tests/content-coherence.mjs",
      "tests/drop-formula.mjs",
+     "tests/flame-settle-db.mjs",
      "tests/trait-pieces-db.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11808,9 +11803,9 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
-     "tests/gear-stats.mjs"
+     "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 29,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11884,9 +11879,9 @@
      "tests/danger-client.mjs",
      "tests/danger-db.mjs",
      "tests/drop-formula.mjs",
-     "tests/gear-stats.mjs"
+     "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 27,
+    "mentionCount": 29,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12432,43 +12427,43 @@
    "sites": [
     {
      "file": "src/data/inner-flame.js",
-     "line": 42,
+     "line": 43,
      "text": "decayPpm1: 80000,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 44,
+     "line": 45,
      "text": "coverPm: 1500,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 45,
+     "line": 46,
      "text": "luckMaxPm: 600,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 46,
+     "line": 47,
      "text": "luckHalfMpts: 25000,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 47,
+     "line": 48,
      "text": "topRankPm: 500,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 50,
+     "line": 51,
      "text": "pointsTo99: 6000,",
      "binding": "FLAME"
     },
     {
      "file": "src/data/inner-flame.js",
-     "line": 53,
+     "line": 54,
      "text": "fuelRef: 100,",
      "binding": "FLAME"
     }
@@ -12500,16 +12495,16 @@
      }
     ],
     "mentions": [
+     "tests/accrual-engine.mjs",
      "tests/activity-intent.mjs",
+     "tests/flame-client.mjs",
      "tests/flame-rules.mjs",
+     "tests/flame-settle-db.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/hearth-moods.mjs",
-     "tests/hunt-sessions-settle.mjs",
-     "tests/inner-flame.mjs",
-     "tests/town-shows.mjs",
-     "tests/trait-pieces-db.mjs"
+     "tests/hunt-sessions-settle.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 11,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12760,13 +12755,13 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 41,
+     "line": 43,
      "text": "pityGrowPm: 4000,",
      "binding": "PERSONAL_LOOT"
     },
     {
      "file": "src/data/party.js",
-     "line": 42,
+     "line": 44,
      "text": "pityBasePm: 438,",
      "binding": "PERSONAL_LOOT"
     }
@@ -13852,7 +13847,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 58,
+    "mentionCount": 59,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14773,9 +14768,10 @@
      }
     ],
     "mentions": [
+     "tests/chain-removals/1075-work-blocks-midnight.mjs",
      "tests/company-trades.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14821,9 +14817,10 @@
      }
     ],
     "mentions": [
+     "tests/chain-removals/1075-work-blocks-midnight.mjs",
      "tests/company-trades.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -16359,10 +16356,12 @@
     "mentions": [
      "tests/activity-intent.mjs",
      "tests/flame-rules.mjs",
+     "tests/flame-settle-db.mjs",
+     "tests/ground-pack.mjs",
      "tests/hearth-fuel-rate.mjs",
      "tests/inner-flame.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 6,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -19263,7 +19262,7 @@
    "typed": 6,
    "bindings": 1
   },
-  "src/core/drops.js#effectiveDropChance": {
+  "src/core/drops.js#wholeDropChance": {
    "pin": "count",
    "keys": [
     "·"

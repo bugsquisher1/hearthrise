@@ -544,6 +544,12 @@
         "gzipBytes": 983183,
         "on": "2026-11-27",
         "why": "lane/named-piece-drops: the 6 named pieces' Rare drop rows in the Roost and Catacomb packs, and drop-rate.js isTwin"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983649,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: the engine's who-took-part module (src/core/hunt/took-part.js, persisted on the world, so the live view imports it) and personal loot in hunt-rewards.js, drops.js, combat-sim.js (+0.5 KB gzip to the town stage)"
       }
     ]
   }

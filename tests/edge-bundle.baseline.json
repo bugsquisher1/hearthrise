@@ -583,6 +583,31 @@
         "bytes": 3898399,
         "on": "2026-11-27",
         "why": "lane/work-blocks-midnight (re-run on the merged set after f1-inner-flame): src/core/work-day.js counts each UTC day's own bought work blocks (boughtOn, boughtOf, the section's bought key), so a hero inside yesterday's block at midnight is not stopped"
+      },
+      {
+        "bytes": 3907085,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: personal loot in the engine (+8,686 B): src/core/hunt/took-part.js new (who took part in a kill, persisted on the hero unit), hunt-rewards.js payPersonal and its walk, drops.js effectiveDropChance share, combat-sim.js lootStreams, hunt-settle.js / accrue-hunt.js personalLoot"
+      },
+      {
+        "bytes": 3907329,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: src/data/party.js PERSONAL_LOOT note now says what reads the switch (+244 B, a comment)"
+      },
+      {
+        "bytes": 3907490,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: drops.js wholeDropChance split out so the row's whole chance keeps its own lines (+161 B)"
+      },
+      {
+        "bytes": 3907775,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: payPersonal skips an empty table (no stream seeded) and names each roller's own odds (+285 B)"
+      },
+      {
+        "bytes": 3907836,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: drops.js effectiveDropChance's params typed for the type ratchet (+61 B)"
       }
     ]
   }

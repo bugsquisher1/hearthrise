@@ -130,6 +130,8 @@ function fightOf(sim, unitId, call) {
  *        the engine pushes what it finds onto `found` and counts `pity` in place (src/core/trait-roll.js)
  * @param inp.flameDrops  the Inner Flame's note (hunt-settle.js flameDropsOf: { fuel, list, seq }), only when the server's read says the fire
  *        is lit; the engine pushes each Remains picked up onto `list` (src/core/hunt-rewards.js giveDrop)
+ * @param inp.personalLoot  true when the instance rolls PERSONAL LOOT (hr_hunt_instance_read `personal_loot`, frozen on the instance when its
+ *        hunt began, 1076-personal-loot.sql): each hero that took part in a kill rolls its own drops (src/core/hunt-rewards.js payPersonal)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }] }
  */
@@ -168,7 +170,9 @@ export function accrueHunt(inp) {
       ...(inp.traitDrops ? { traitDrops: inp.traitDrops } : {}),
       /* THE INNER FLAME (hunt-settle.js flameDropsOf, only when the server's read says the fire is lit; 1074-inner-flame-luck.sql): the
          engine notes each Remains a hero picks up, and when, onto its list; the server walks the company's fire from it */
-      ...(inp.flameDrops ? { flameDrops: inp.flameDrops } : {}) });
+      ...(inp.flameDrops ? { flameDrops: inp.flameDrops } : {}),
+      /* PERSONAL LOOT (hunt-settle.js, only when the instance's frozen rule says so): every roller's own drops on its own stream */
+      ...(inp.personalLoot === true ? { personalLoot: true } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
   /* THE LEDGER'S WINDOW (analyzerOf): on the scale, the swings this settle played and the seat of each hero (the server's hunt_sessions.seat) */
   const ledger = sim.world && dangerOn(sim.world) ? { step: sim.world.danger, fromMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), toMs: sim.nextSwingAtMs,

@@ -215,8 +215,8 @@ const ARMS = { data: dataArm, door: doorArm, proof: proofArm, engine: engineArm,
 const FN = { admit: 'public.hr_hunt_admit(uuid,integer,text)', settle: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)' };
 const MUTANTS = [
   { name: 'the door asks no Level', arm: 'door', want: /^CO-DOOR at Level/, fn: FN.admit,
-    find: "    if exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level)\n",
-    replace: "    if false and exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level)\n" },
+    find: "    if exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level) then",
+    replace: "    if false and exists (select 1 from public.hr_hunt_grounds g\n                where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level) then" },
   { name: 'the door refuses one Level early', arm: 'door', want: /^CO-DOOR one XP under/, fn: FN.admit,
     find: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level) then', replace: 'public.hr_level_of(p_user, p_slot) >= g.ends_at_level - 1) then' },
   { name: 'the proof takes any outgrown end', arm: 'proof', want: /^CO-PROOF one XP under/, fn: FN.settle,

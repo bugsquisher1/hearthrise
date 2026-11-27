@@ -78,7 +78,7 @@ begin
     raise exception 'PRECONDITION: the hunt chain, the RPC baseline, the envelope sections or the Danger scale are missing'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_density_freeze()', '022927b62a7d6264ddb6bf783f6324b2', '335ac885fa0259604797ac146778c4c8'),
-    ('public.hr_hunt_admit(uuid,integer,text)', 'bc37e6068b6078f26f7e4e586efc4d48', 'd6e40529d2d466c90fc7c38fb239c189'),
+    ('public.hr_hunt_admit(uuid,integer,text)', 'bc37e6068b6078f26f7e4e586efc4d48', '1dc959bf0e8067e59084d785c1baa4e1'),
     ('public.hr_hunt_best_fold(uuid)', 'b8a8da109b268ed62848d52073d6dbd9', 'eb6f87fd1cbd443551db6691d60cfae8')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
@@ -123,7 +123,7 @@ $b$),
                 where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level)
        and public.hr_hunt_scaled_at_door(p_user, p_slot, p_hunt) is null then$a$,
      $b$    -- (hr_hunt_grounds.ends_at_level, hunt-grounds.js endsAtLevel: the Mill Cellar's 5) is refused to a hero already at it or over
-    -- (RETIRE-TIER-CHAIN, 1071: no scaled hunt lets one in). The engine ends a hunt the moment its hero reaches the Level (END_ORDER's
+    -- (RETIRE-TIER-CHAIN, 1072: no scaled hunt lets one in). The engine ends a hunt the moment its hero reaches the Level (END_ORDER's
     -- outgrown), so a hunt let in here would end at its first swing.
     if exists (select 1 from public.hr_hunt_grounds g
                 where g.hunt_id = p_hunt and g.ends_at_level is not null and public.hr_level_of(p_user, p_slot) >= g.ends_at_level) then$b$)) t(fn, find, repl) loop

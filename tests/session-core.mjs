@@ -16,6 +16,10 @@
 //          its envelope's version
 //   ENV-5  malformed / not ok / no `state` answers change nothing
 //   ENV-6  the record is frozen and never aliases the server's object
+//   DELTA-1 a delta frame (1076-frame-delta.sql) is whole only on the copy it was cut from, and there it IS the
+//          server's envelope at its frame; on any other copy, or malformed, it is nothing
+//   DELTA-2 the session's chain: a join asks for a whole next frame (hr_frame_rebase), a delta on the chain replaces
+//          the record whole, an orphan delta changes nothing and asks once (paced), the chain moves on every frame
 //   RES-1  the residue is an allowlist: unknown client_state fields never arrive
 //   ISO-1  two characters never share a record, a topic, a listener or a residue write
 //   ISO-2  a frame for one character changes only that one
@@ -393,6 +397,57 @@ async function rules(M) {
     try { a.data.skills.mining = 1; } catch (e) { /* strict-mode throw is fine */ }
     return (a.data.skills.mining === 5 && Object.isFrozen(a) && Object.isFrozen(a.data.skills)) || 'the record is writable';
   });
+  /* DELTA-1 (1076-frame-delta.sql): a delta is whole only on the copy it was cut from (`base`), and there it IS the server's
+     envelope at `frame`, key for key; on any other copy, no copy, a base not older than the frame or a bad shape it is nothing. */
+  await t('DELTA-1', () => {
+    const e5 = env(5, { skills: { melee: 3 }, big: { pad: 'x' }, now: 'a' });
+    const e6 = env(6, { state: { gold: 12 }, skills: { melee: 3 }, big: { pad: 'x' }, now: 'b' });
+    const d = { t: 'delta', frame: 6, base: 5, env: { version: 6, state: { gold: 12 }, now: 'b' } };
+    const w = E.frameOfDelta(e5, d);
+    if (!w || w.t !== 'state' || w.frame !== 6 || JSON.stringify(w.env) !== JSON.stringify(Object.assign({}, e5, d.env))) return 'a delta on its base was not made whole';
+    if (JSON.stringify(Object.keys(w.env).sort().map((k) => [k, w.env[k]])) !== JSON.stringify(Object.keys(e6).sort().map((k) => [k, e6[k]]))) return 'the whole delta is not the envelope at 6';
+    if (E.frameEnvelope(E.applyEnvelope(null, e5).record, w).verdict !== 'fresh') return 'the whole delta is not a fresh frame';
+    for (const [held, m, why] of [[env(4), d, 'another base'], [null, d, 'no copy'], [e5, { ...d, base: 6 }, 'a base not older than its frame'],
+      [e5, { ...d, env: null }, 'no env'], [e5, { ...d, frame: 'x' }, 'no frame number'], [e5, { t: 'state', frame: 6, base: 5, env: d.env }, 'not a delta']]) {
+      if (E.frameOfDelta(held, m) !== null) return 'a delta was made whole on ' + why;
+    }
+    return E.frameEnvelope(E.applyEnvelope(null, e5).record, d).env === null || 'a raw delta was taken as a whole frame';
+  });
+  /* DELTA-2: the session's chain. A join asks for a whole next frame; a whole frame starts the chain; a delta on it replaces
+     the record whole (a key the delta does not name is the base's, never the record's own older copy); a delta on another
+     base changes nothing and asks ONE whole frame (paced); the chain moves on every frame, even one older than the record
+     an answer gave, so the next delta still builds. */
+  await t('DELTA-2', async () => {
+    const srv = fakeServer({ 0: env(1, { skills: { melee: 1 }, big: { pad: 'load' } }) });
+    const hub = fakeHub();
+    let clock = 0;
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: hub.channel, ...timers, now: () => clock });
+    const topic = C.frameTopic(UID, 0);
+    const flush = async () => { for (let k = 0; k < 4; k++) await new Promise((r) => setImmediate(r)); };
+    const rebases = () => srv.calls.filter((c) => c[0] === 'hr_frame_rebase').length;
+    await cs.load(); cs.connect();
+    hub.topics.get(topic).onStatus('SUBSCRIBED'); await flush();
+    if (rebases() !== 1 || srv.calls.find((c) => c[0] === 'hr_frame_rebase')[1].p_slot !== 0) return 'a join did not ask once for its own whole next frame';
+    hub.send(topic, sframe(3, { skills: { melee: 3 }, big: { pad: 'p' } }));
+    if (cs.record.version !== 3) return 'the whole frame was refused: ' + cs.lastVerdict;
+    hub.send(topic, { t: 'delta', frame: 4, base: 3, env: { version: 4, skills: { melee: 4 } } });
+    if (cs.record.version !== 4 || cs.read('skills').melee !== 4 || cs.read('big').pad !== 'p' || cs.read('state').gold !== 1) return 'the delta on the chain was not made whole: ' + cs.lastVerdict + ' ' + JSON.stringify(cs.record.data);
+    clock = 10000;
+    hub.send(topic, { t: 'delta', frame: 9, base: 7, env: { version: 9, skills: { melee: 9 } } });
+    if (cs.record.version !== 4 || cs.lastVerdict !== 'no_base') return 'a delta on another base changed the record (' + cs.record.version + ', ' + cs.lastVerdict + ')';
+    await flush();
+    if (rebases() !== 2) return 'a delta with no copy did not ask for a whole frame (' + rebases() + ' asks)';
+    hub.send(topic, { t: 'delta', frame: 10, base: 8, env: { version: 10 } }); await flush();
+    if (rebases() !== 2) return 'a second orphan delta inside the pacing asked again';
+    /* an answer gives the record a newer version than the push's copy; the push's next frames still build */
+    hub.send(topic, sframe(11, { skills: { melee: 11 }, big: { pad: 'q' } }));
+    await cs.load(env(20, { skills: { melee: 20 }, big: { pad: 'answer' } }));
+    hub.send(topic, { t: 'delta', frame: 15, base: 11, env: { version: 15, skills: { melee: 15 } } });
+    if (cs.record.version !== 20 || cs.lastVerdict !== 'reorder') return 'a delta older than the answered record replaced it (' + cs.record.version + ')';
+    hub.send(topic, { t: 'delta', frame: 21, base: 15, env: { version: 21, state: { gold: 21 } } });
+    if (cs.record.version !== 21 || cs.read('skills').melee !== 15 || cs.read('big').pad !== 'q') return 'the chain did not move on a frame the record did not take: ' + cs.lastVerdict + ' ' + JSON.stringify(cs.record.data);
+    return rebases() === 2 || 'the chain asked for a whole frame while it held one';
+  });
   await t('RES-1', () => {
     const a = E.applyEnvelope(null, env(1, { client_state: { hudLayout: { desktop: { vitals: { visible: false } } }, gold: 1e9, playerName: 'x' } })).record;
     if (Object.keys(a.residue).join() !== 'hudLayout') return 'non-allowlisted residue arrived: ' + Object.keys(a.residue);
@@ -597,7 +652,10 @@ async function rules(M) {
     const t3 = hub.topics.get(topic); if (t3) t3.onStatus('SUBSCRIBED');
     const back = clock;
     await until(back + 3 * MIN);
-    const quiet = calls.filter((c) => c.at > back);
+    /* the join's one ask for a whole next frame (hr_frame_rebase, 1076-frame-delta.sql) is no read: one DELETE of its own memo */
+    const asked = calls.filter((c) => c.at >= back && c.name === 'hr_frame_rebase').length;
+    if (asked !== 1) return 'the re-join asked for a whole frame ' + asked + ' time(s) (once a join)';
+    const quiet = calls.filter((c) => c.at > back && c.name !== 'hr_frame_rebase');
     if (quiet.length) return 'with the channel back and quiet the unviewed hunter read ' + quiet.length + ' time(s) in three minutes (none): ' + quiet.map((c) => c.name + '@' + (c.at - back)).join(',');
     ver++; hub.send(topic, { t: 'state', frame: ver, env: open(ver) });
     return cs.record.version === ver || 'the frame after the quiet did not bring the record to the server\'s ' + ver + ' (at ' + cs.record.version + ')';
@@ -2878,6 +2936,13 @@ const MUTANTS = [
   ['stale accepted', 'src/session/envelope.js', "if (current && env.version < current.version) return keep('stale');", ''],
   ['a frame merges into the record', 'src/session/character-session.js', 'return f.env !== null && this._take(f.env, FRAME_EVENT);', 'return f.env !== null && this._take(Object.assign({}, this._record.data, f.env), FRAME_EVENT);'],
   ['a reordered frame is taken', 'src/session/envelope.js', "  if (msg.frame < current.version) return { verdict: 'reorder', env: null };\n", ''],
+  ['[DELTA] a delta is laid on any copy, not the one it was cut from', 'src/session/envelope.js', '  if (!isObj(held) || held.version !== msg.base) return null;', '  if (!isObj(held)) return null;'],
+  ['[DELTA] a delta is laid on the record an answer gave, not the push\'s own copy', 'src/session/character-session.js', 'frameOfDelta(this._chain, msg)', 'frameOfDelta(this._record && Object.assign({}, this._record.data, { version: this._record.version, ok: true }), msg)'],
+  ['[DELTA] the chain never moves past its first frame', 'src/session/character-session.js', "    if (f.verdict !== 'malformed') this._chain = whole.env;", "    if (!this._chain) this._chain = whole.env;"],
+  ['[DELTA] an orphan delta never asks for a whole frame', 'src/session/character-session.js', "this.lastVerdict = 'no_base'; this._rebase(); return false;", "this.lastVerdict = 'no_base'; return false;"],
+  ['[DELTA] a join never asks for a whole frame', 'src/session/character-session.js', "    if (st === 'SUBSCRIBED') this._rebase();", ''],
+  ['[DELTA] an orphan delta asks on every frame', 'src/session/character-session.js', ' || this._now() - this._rebasedAt < SESSION_CONFIG.frameRebaseMs', ''],
+  ['[DELTA] a delta replaces a section with the base\'s', 'src/session/envelope.js', 'Object.assign({}, held, msg.env)', 'Object.assign({}, msg.env, held)'],
   ['a frame not stamped with its own version is taken', 'src/session/envelope.js', '    || msg.env.version !== msg.frame || msg.env.ok !== true', '    || msg.env.ok !== true'],
   ['a frame before the first load is taken', 'src/session/envelope.js', "  if (!current) return { verdict: 'not_loaded', env: null };\n", "  if (!current) return { verdict: 'fresh', env: msg.env };\n"],
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
@@ -3082,7 +3147,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (52 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (54 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

@@ -81,6 +81,8 @@ declare
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
     /* the last viewed ask's numbers of a hero's hunt (1060-watched-stamp.sql): its away card's baseline, gone with the hunts it marks */
     'hunt_watch',
+    /* what each open hero's push topic was last sent (1076-frame-delta.sql): a wiped hero's next frame is whole, as a new one's */
+    'hr_frame_memo',
     /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
     'hunt_setup_holds',
     /* an open hunt instance's held scale to its seed horizon (1053-lever-gates.sql): goes with the instances it holds for */

@@ -116,6 +116,12 @@
         "gzipBytes": 206847,
         "on": "2026-11-27",
         "why": "lane/f1-inner-flame: the flame section reader and the return card's flame line (flame-sections.js, away.js)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206860,
+        "on": "2026-11-27",
+        "why": "lane/realtime-budget: the client's frame-delta chain (envelope.js frameOfDelta, character-session.js), with lane/p1-personal-loot's reader"
       }
     ],
     "town": [
@@ -550,6 +556,12 @@
         "gzipBytes": 983649,
         "on": "2026-11-27",
         "why": "lane/p1-personal-loot: the engine's who-took-part module (src/core/hunt/took-part.js, persisted on the world, so the live view imports it) and personal loot in hunt-rewards.js, drops.js, combat-sim.js (+0.5 KB gzip to the town stage)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983876,
+        "on": "2026-11-27",
+        "why": "lane/realtime-budget: the client's frame-delta chain (envelope.js frameOfDelta, character-session.js), with lane/p1-personal-loot's reader"
       }
     ]
   }

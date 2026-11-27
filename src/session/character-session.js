@@ -33,7 +33,7 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, refusalEnvelope, withResidue } from './envelope.js';
+import { applyEnvelope, frameEnvelope, frameOfDelta, refusalEnvelope, withResidue } from './envelope.js';
 import { createTimeline } from '../hunt-view/timeline.js';
 import { LiveLink } from './live-link.js';
 import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js';
@@ -96,8 +96,8 @@ export class CharacterSession {
     this._leaveAsk = null; this._asking = null; this._confirming = false; this._wholeAt = -1; this._wholeMs = -Infinity; this._fed = false;   // the hello in flight (a confirm?); the version known whole and when the server gave it (display clock); re-read last armed by a frame
     this._pending = {}; this._sent = {}; this._putAt = -Infinity;   // residue to put; put and not yet seen back (residue.js unconfirmedResidue); the last put
     this._closed = false; this._viewed = o.viewed !== false; this._away = false;   // shown (AccountSession.view): only it streams live (setViewed); away: setAway
-    this.lastVerdict = null;
-    this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
+    this.lastVerdict = null; this._chain = null; this._rebasedAt = -Infinity;   // the push's last whole envelope (a delta's base), the last whole-frame ask
+    this._now =o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
     this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
     this._pace = new AskPacer({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now() });
     this._reads = new ReadGate({ read: () => this._loadOnce(), setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now() });
@@ -500,9 +500,20 @@ export class CharacterSession {
       the engine (the account's accrue budget is shared): a version gap is closed by the frame itself. */
   onFrame(msg) {
     if (this._closed) return false;
-    const f = frameEnvelope(this._record, msg);
+    /* A DELTA is whole only on the push's own last copy (envelope.js E8); on no copy it changes nothing and asks for a whole frame. */
+    const whole = msg && msg.t === 'delta' ? frameOfDelta(this._chain, msg) : msg;
+    if (whole === null) { this.lastVerdict = 'no_base'; this._rebase(); return false; }
+    const f = frameEnvelope(this._record, whole);
+    if (f.verdict !== 'malformed') this._chain = whole.env;   // the next delta's base, whether or not the record took it
     this.lastVerdict = f.verdict;
     return f.env !== null && this._take(f.env, FRAME_EVENT);
+  }
+
+  /** Ask the server to push this hero's next frame whole (hr_frame_rebase), at most once a frameRebaseMs. Nothing waits on it. */
+  _rebase() {
+    if (this._closed || !this._server.rpc || this._now() - this._rebasedAt < SESSION_CONFIG.frameRebaseMs) return;
+    this._rebasedAt = this._now();
+    Promise.resolve().then(() => this._server.rpc('hr_frame_rebase', { p_slot: this.slot })).catch(() => { /* the next delta asks again */ });
   }
 
   /** Join the character's push topic (and re-join after a drop, with backoff). */
@@ -525,6 +536,7 @@ export class CharacterSession {
 
   _onChannel(st) {
     if (this._closed) return;
+    if (st === 'SUBSCRIBED') this._rebase();   // a join: the server's last frame on the topic may be one this tab never saw
     if (st === 'SUBSCRIBED') { this._attempt = 0; if (!this._huntOpen()) this.hello(); return; }   // hunting: the armed re-read restates
     if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
       this._dropChannel();

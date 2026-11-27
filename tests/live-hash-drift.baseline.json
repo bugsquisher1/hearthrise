@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2702,
+  "replay_ms": 2975,
   "counts": {
-    "tracked_names": 1188,
-    "entries": 1000
+    "tracked_names": 1191,
+    "entries": 1003
   },
   "functions": [
     {
@@ -6665,6 +6665,42 @@
       "agree": true
     },
     {
+      "sig": "hr_frame_delta(p_user uuid, p_slot integer, p_msg jsonb, OUT msg jsonb, OUT version bigint, OUT keys text, OUT sums text)",
+      "name": "hr_frame_delta",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1076-frame-delta.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "a24f51cd280502fcc06adeab6f0cb636",
+        "norm_len": 1337,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1076-frame-delta.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1076-frame-delta.sql."
+    },
+    {
+      "sig": "hr_frame_memo_prune(p_limit integer)",
+      "name": "hr_frame_memo_prune",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1076-frame-delta.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "32e868807d3dec4e3e18d09973a142a5",
+        "norm_len": 651,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1076-frame-delta.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1076-frame-delta.sql."
+    },
+    {
       "sig": "hr_frame_own_held(p_member jsonb, p_project_user uuid, p_project_slot integer, p_from timestamp with time zone, p_to timestamp with time zone)",
       "name": "hr_frame_own_held",
       "tracked_by": [
@@ -6711,6 +6747,24 @@
       "agree": true
     },
     {
+      "sig": "hr_frame_rebase(p_slot integer)",
+      "name": "hr_frame_rebase",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1076-frame-delta.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "f3ee061a2b5f3a0487185ca6bd4e6cd2",
+        "norm_len": 856,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1076-frame-delta.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1076-frame-delta.sql."
+    },
+    {
       "sig": "hr_frame_send(p_user uuid, p_slot integer, p_env jsonb)",
       "name": "hr_frame_send",
       "tracked_by": [
@@ -6719,6 +6773,7 @@
         "restate"
       ],
       "touched_by": [
+        "1076-frame-delta.sql",
         "2026-09-23-frame-emit-from-apply.sql",
         "2026-10-07-frame-emit-online-only.sql",
         "2026-12-25-frame-push-revive.sql"
@@ -6730,11 +6785,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3b3ac359a7258ebcba916cfe1298a503",
-        "norm_len": 2669,
+        "md5": "4bed0579983825908f9e78350c77a243",
+        "norm_len": 3392,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1076-frame-delta.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1076-frame-delta.sql."
     },
     {
       "sig": "hr_frame_topic(p_user uuid, p_slot integer)",

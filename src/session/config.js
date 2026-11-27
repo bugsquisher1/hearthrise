@@ -34,6 +34,9 @@ export const SESSION_CONFIG = Object.freeze({
   /** Reconnect delay bounds for a character's push channel. */
   reconnectMinMs: 1000,
   reconnectMaxMs: 60000,
+  /** A delta frame that cannot be made whole (a join, a lost frame) asks the server for a whole one (hr_frame_rebase,
+      1076-frame-delta.sql) at most this often: the deltas still in flight when it asked find no copy either. */
+  frameRebaseMs: 5000,
   /** While a hunt is open, the character asks the engine to bring it up to date this often (hr-accrue
       {slot}: the hunter's settle, with its track and events). Just over the engine's player-door floor
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a

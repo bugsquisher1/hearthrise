@@ -629,6 +629,8 @@
     "node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate": "db-replay",
     "node tests/flame-settle-db.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/flame-settle-db.mjs --mutate": "db-replay",
+    "node tests/frame-delta.mjs": "db-replay",
+    "node tools/mutant-gate.mjs node tests/frame-delta.mjs --mutate": "db-replay",
     "node tests/personal-loot-db.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/personal-loot-db.mjs --mutate": "db-replay",
     "node tools/gen-piece-value.mjs --check": "db-replay",

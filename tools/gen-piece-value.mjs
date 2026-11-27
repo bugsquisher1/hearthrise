@@ -3,10 +3,10 @@
 // tools/gen-piece-value.mjs — GENERATE THE PRICE THE STORE PAYS FOR A TRAIT PIECE (lane/t1b-piece-verbs, backend-architect, 2026-11-26;
 // docs/design/redesign/13-market.md section 3.2, 20-v030-the-roads.md section 1.2).
 //
-// src/data is the one source of the price: src/data/piece-price.js PIECE_VALUE (sharePm, rankValuePm), src/data/drop-hours.js
-// DROP_HOURS.rarity (everyHours, as milli-hours) and src/core/piece-value.js (the formula). The store's floor share is the trades
-// catalogue's (hr_trade_levers.floor_share_pm, generated from TRADE_LEVERS.store.floorShare by tools/gen-trades.mjs), read, not copied.
-//   hr_piece_value_rules   one row: share_pm, rank_value_pm, sell_day (SELL_DAY below)
+// src/data is the one source of the price: src/data/piece-price.js PIECE_VALUE (sharePm, rankValuePm, floorSharePm), src/data/drop-hours.js
+// DROP_HOURS.rarity (everyHours, as milli-hours) and src/core/piece-value.js (the formula). The store's floor share for a piece is the
+// piece's own (floorSharePm, the designer's ruling 12-targets 8.7), never the stack floor of hr_trade_levers.
+//   hr_piece_value_rules   one row: share_pm, rank_value_pm, floor_share_pm, sell_day (SELL_DAY below)
 //   hr_piece_value_hours   every rarity the drop table authors hours for: hours_pm
 //   hr_piece_store_bid(rarity, item_level, top_rank)   internal: the twin of piece-value.js pieceStoreBid, pinned in the self-check at
 //                          every rarity x every rank x item Levels across the wage's range against the JS
@@ -17,7 +17,7 @@
 //   node tools/gen-piece-value.mjs --check    exit 1 if OUT_NAME is not what it would write
 //   node tools/gen-piece-value.mjs --selftest every refusal bites
 //
-// REFUSES (throws, nothing written): a share or rank value outside 0..1000 permille, a rarity whose hours are not positive, a rarity the
+// REFUSES (throws, nothing written): a share, rank value or floor share outside 0..1000 permille, a rarity whose hours are not positive, a rarity the
 // piece table does not hold, a JS twin that is not a whole non-negative number or that falls as the rank or the item Level climbs, a fuse
 // under one sale.
 // ════════════════════════════════════════════════════════════════════════
@@ -51,7 +51,7 @@ const permille = (x) => Number.isInteger(x) && x >= 0 && x <= 1000;
 /** The resolved rows of the data, refused on a defect. */
 export function rowsOf({ gs, dh, pv, pp }) {
   const P = pp.PIECE_VALUE;
-  if (!permille(P.sharePm) || !permille(P.rankValuePm)) throw new Error('gen-piece-value: sharePm ' + P.sharePm + ' or rankValuePm ' + P.rankValuePm + ' is not a whole permille');
+  if (!permille(P.sharePm) || !permille(P.rankValuePm) || !permille(P.floorSharePm)) throw new Error('gen-piece-value: sharePm ' + P.sharePm + ', rankValuePm ' + P.rankValuePm + ' or floorSharePm ' + P.floorSharePm + ' is not a whole permille');
   if (!(Number.isInteger(SELL_DAY) && SELL_DAY >= 1)) throw new Error('gen-piece-value: the day fuse ' + SELL_DAY + ' is under one sale');
   const hours = [];
   for (const rarity of Object.keys(dh.DROP_HOURS.rarity).sort()) {
@@ -83,7 +83,7 @@ export function rowsOf({ gs, dh, pv, pp }) {
       if (rarity === 'signature') break;
     }
   }
-  return { share: P.sharePm, rankValue: P.rankValuePm, sellDay: SELL_DAY, hours, pins };
+  return { share: P.sharePm, rankValue: P.rankValuePm, floorShare: P.floorSharePm, sellDay: SELL_DAY, hours, pins };
 }
 
 const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -97,9 +97,9 @@ export function buildSql(r) {
 --   src/core/piece-value.js. Any hand edit FAILS \`node tools/gen-piece-value.mjs --check\`.
 --
 -- WHAT (lane/t1b-piece-verbs, backend-architect, 2026-11-26; 13-market.md 3.2, 20-v030-the-roads.md 1.2): the numbers 1072-piece-verbs.sql
--- prices a sale with, so none is typed twice: hr_piece_value_rules (one row: share_pm ${r.share}, rank_value_pm ${r.rankValue}, sell_day ${r.sellDay}),
--- hr_piece_value_hours (${r.hours.length} rarities), rewritten whole; hr_piece_store_bid(rarity, item_level, top_rank), internal (no client grant),
--- the twin of piece-value.js pieceStoreBid, its floor share read from hr_trade_levers, pinned at ${r.pins.length} points (§3).
+-- prices a sale with, so none is typed twice: hr_piece_value_rules (one row: share_pm ${r.share}, rank_value_pm ${r.rankValue}, floor_share_pm ${r.floorShare},
+-- sell_day ${r.sellDay}), hr_piece_value_hours (${r.hours.length} rarities), rewritten whole; hr_piece_store_bid(rarity, item_level, top_rank), internal
+-- (no client grant), the twin of piece-value.js pieceStoreBid, the piece's own floor share (12-targets 8.7), pinned at ${r.pins.length} points (§3).
 -- ORDER: 1072 in its name, before 1072-piece-verbs.sql (its reader). Idempotent: the tables are made if missing and their rows rewritten
 -- whole, the function restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; one internal function revoked from every
@@ -110,8 +110,8 @@ export function buildSql(r) {
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
 do $mig$
 begin
-  if to_regclass('public.hr_trade_levers') is null or to_regprocedure('public.hr_wage(integer)') is null then
-    raise exception 'PRECONDITION: the trades catalogue and the wage first (hr_trade_levers, hr_wage)'; end if;
+  if to_regprocedure('public.hr_wage(integer)') is null then
+    raise exception 'PRECONDITION: the wage first (hr_wage)'; end if;
 end $mig$;
 
 -- ── §1 THE TABLES ────────────────────────────────────────────────────────────
@@ -119,6 +119,7 @@ create table if not exists public.hr_piece_value_rules (
   id            boolean primary key default true check (id),
   share_pm      int not null check (share_pm between 0 and 1000),
   rank_value_pm int not null check (rank_value_pm between 0 and 1000),
+  floor_share_pm int not null check (floor_share_pm between 0 and 1000),
   sell_day      int not null check (sell_day >= 1)
 );
 create table if not exists public.hr_piece_value_hours (
@@ -141,23 +142,22 @@ delete from public.hr_piece_value_hours where rarity not in (${r.hours.map((h) =
 insert into public.hr_piece_value_hours (rarity, hours_pm) values
   ${r.hours.map((h) => `(${q(h.rarity)}, ${h.pm})`).join(', ')}
 on conflict (rarity) do update set hours_pm = excluded.hours_pm;
-insert into public.hr_piece_value_rules (id, share_pm, rank_value_pm, sell_day) values (true, ${r.share}, ${r.rankValue}, ${r.sellDay})
-on conflict (id) do update set share_pm = excluded.share_pm, rank_value_pm = excluded.rank_value_pm, sell_day = excluded.sell_day;
+insert into public.hr_piece_value_rules (id, share_pm, rank_value_pm, floor_share_pm, sell_day) values (true, ${r.share}, ${r.rankValue}, ${r.floorShare}, ${r.sellDay})
+on conflict (id) do update set share_pm = excluded.share_pm, rank_value_pm = excluded.rank_value_pm, floor_share_pm = excluded.floor_share_pm, sell_day = excluded.sell_day;
 
 -- ── §2b THE TWIN (internal; plpgsql, so a call is plan-cached: tests/settle-budget.mjs SB-3) ──
 create or replace function public.hr_piece_store_bid(p_rarity text, p_item_level int, p_top_rank int)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare r public.hr_piece_value_rules%rowtype; v_h bigint; v_floor int; v_v numeric;
+declare r public.hr_piece_value_rules%rowtype; v_h bigint; v_v numeric;
 begin
   -- PIECE-VALUE (${OUT_NAME}; src/core/piece-value.js pieceStoreBid): floor(floor_share x V / 1000), V = floor(share x hours x
-  -- (1000 + rank_value x (top - 1)) x wage(item Level) / 10^9). null for a rarity with no hours: the store does not buy it.
+  -- (1000 + rank_value x (top - 1)) x wage(item Level) / 10^9), floor_share the piece's own. null for a rarity with no hours.
   select * into r from public.hr_piece_value_rules where id;
   select h.hours_pm into v_h from public.hr_piece_value_hours h where h.rarity = p_rarity;
-  select c.floor_share_pm into v_floor from public.hr_trade_levers c;
-  if r.id is null or v_h is null or v_floor is null then return null; end if;
+  if r.id is null or v_h is null then return null; end if;
   v_v := div(r.share_pm::numeric * v_h * (1000 + r.rank_value_pm::numeric * (greatest(coalesce(p_top_rank, 1), 1) - 1))
              * public.hr_wage(case when p_item_level is null then 1 else p_item_level end), 1000000000);
-  return div(v_floor::numeric * v_v, 1000)::bigint;
+  return div(r.floor_share_pm::numeric * v_v, 1000)::bigint;
 end $fn$;
 revoke execute on function public.hr_piece_store_bid(text, int, int) from public, anon, authenticated, service_role;
 
@@ -197,6 +197,7 @@ async function selftest() {
   const dhWith = (rar) => ({ dh: { ...base.dh, DROP_HOURS: { ...base.dh.DROP_HOURS, rarity: { ...R, ...rar } } } });
   tryRows('a share past 1000 permille', () => gsWith({ sharePm: 1001 }));
   tryRows('a fractional rank value', () => gsWith({ rankValuePm: 12.5 }));
+  tryRows('a floor share past 1000 permille', () => gsWith({ floorSharePm: 1001 }));
   tryRows('a rarity of no hours', () => dhWith({ rare: { ...R.rare, everyHours: 0 } }));
   tryRows('hours on a rarity no piece is of', () => dhWith({ legendary: { everyHours: 900 } }));
   tryRows('a core that reads other hours than the data', () => ({ pv: { ...base.pv, rarityHoursPm: (r) => (r === 'rare' ? 1 : base.pv.rarityHoursPm(r)) } }));
@@ -205,10 +206,12 @@ async function selftest() {
   tryRows('a bid that is not a whole number', () => ({ pv: { ...base.pv, pieceStoreBid: (p) => base.pv.pieceStoreBid(p) + 0.5 } }));
   /* the twin is pinned at every rarity the table prices, where the rank and the item Level both move the price */
   { const r = rowsOf(base); if (!r.hours.every((h) => r.pins.some((p) => p.rarity === h.rarity)) || !r.pins.some((p) => p.rank === 3)) bites.push('the twin is not pinned at every rarity and rank'); }
-  /* the SQL names the floor share the trades catalogue holds, never a typed one */
-  { const sql = buildSql(rowsOf(base)); if (!/from public\.hr_trade_levers/.test(sql) || /floor_share_pm\s+int\b/.test(sql)) bites.push('the floor share is typed into this catalogue'); }
+  /* the twin prices with the piece's own floor share (12-targets 8.7), never the stack floor of the trades catalogue */
+  { const sql = buildSql(rowsOf(base)); if (/hr_trade_levers/.test(sql) || !/div\(r\.floor_share_pm::numeric \* v_v, 1000\)/.test(sql)) bites.push('the twin does not price with the piece floor share'); }
+  /* the core and the data agree on the floor share (the pins carry it to SQL) */
+  if (base.pv.PIECE_PM.floorShare !== P.floorSharePm) bites.push('the core prices with floor share ' + base.pv.PIECE_PM.floorShare + ', the data says ' + P.floorSharePm);
   if (bites.length) { console.error('gen-piece-value --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-piece-value --selftest: 8 refusals bite, the twin pinned at every rarity and rank, the floor share read from the trades catalogue');
+  console.log('gen-piece-value --selftest: 9 refusals bite, the twin pinned at every rarity and rank, the piece floor share in the core and the twin');
 }
 
 if (isMain(import.meta.url)) {

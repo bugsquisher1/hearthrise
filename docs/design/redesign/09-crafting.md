@@ -715,6 +715,22 @@ At V the same kit is 0.135 of gross and from the store 0.187. So a 10 h day sits
 
 **Not built here (the backend lane, HANDOFFS 2026-11-26, K1):** the job verb and its settle, the face items and the bundle unit in the hunt engine, the band 0 open rule, the store a band behind in strength as well as price (W1's remainder), and the rest of the recipes. The rest land in batches of 20 or fewer once the sample is read: band 0's other kinds first (the drink, the honing stone, the bolt, the ward charm, the other five rune families and the gather and refine rows), then a band a batch.
 
+### 4.10 Built: the job slice (lane/k1-job-slice, 2026-11-26, backend architect)
+
+**How it plays:** in the Work window a resting hero picks a recipe and presses Start. The server quotes a whole work day of it (as many as the bag and Storage feed, its fee). The hero works it with the page open or the browser closed; at the end Collect, or the server a minute later, puts the goods in Storage (Fine and Master in the company's stock) and the XP on the company. Stop lands what is done and hands the rest of the materials back.
+
+**The contract** is the header of `supabase/migrations/1073-k1-job-slice.sql`; Security rows S-10 and S-25. Sixteen recipes: the eleven named rows and one job an imbuement (`src/data/trades.js IMBUE_JOBS`, imbueRecipe's 5 parts and 4 Remains). `hr_trade_job_start` refuses in the spec's order (bad_recipe, busy, rung_locked, band_locked, work_cap, count_cap, quote_changed, short_inputs); `hr_trade_job_end` collects (not_due before the server's end) or stops. The settle is `hr_trade_roll`, the generated twin of `settleJob`, on the seed the server drew at the start, re-checked inside `hr_trade_job_bound`. Both doors run the same function at the same instant (the job's true end), so `tests/trade-jobs.mjs` TJ-BOTH lands identical goods viewed and closed.
+
+**Calls made here (each in CONFLICTS 2026-11-26 k1-job-slice for the designer):**
+- **The server rolls the dice itself.** Section 6's one roller is kept as one rule: `hr_trade_roll` is generated from `src/core/trades.js` and pinned to it exactly (every sample and every recipe's own job, plus a sweep in the guard), so no engine call, no proposal to bound and no edge change; a job keeps running with nothing awake but the database.
+- **Trade XP has its own store**, `company_trade_xp`, on this page's table (seconds of work). `company_trades` is the live skills' XP on their old curve; one number read on two curves would let a job's hours open the live bench and back. The two meet when the slice replaces the live town work.
+- **An hour-unit of a stream is what 21's imbuement takes of it:** 4 Remains, 0.75 rare parts. So an imbuement is exactly imbueRecipe's set and a rune's 0.15 hour-units of Remains is one bone (rounded, never under one).
+- **Remains a band:** Bones at bands 0 and 2, Razor Claw at band 3 (`STREAM_FACES.remains`).
+- **Imbuements open at Artificing 1**, not at their band's rung: none sits under band 2, so a Level-21 gate would leave the trade untrainable.
+- **A stop burns the fee** (the spec's): the materials of every unattempted set come back, the fee does not.
+
+**Not built (handed on):** the bundle unit in the hunt engine (a kit good opening into its hour of uses, Systems); Fine and Master goods spent by the hunt and by `hr_imbue_apply` (they wait in `company_stock`); the stock rules and the planned day (3.4); the standing work-block rule buying for a job (its sweep reads the pointer); Mastery, the bench bonus and tools (the roller takes them, nothing passes them yet).
+
 ---
 
 ## 5. The supply and demand lifecycle

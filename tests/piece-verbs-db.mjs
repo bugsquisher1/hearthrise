@@ -268,9 +268,15 @@ const hunt = ({ worn }) => async ({ db, uids, asUser, one: q, idem: id }) => {
 async function door(db, which, o) {
   const run = await prepare({ heroes: 4, windows: WINDOWS, hunt: MUSTER, door: which, db, level: 60, anchorMs: ANCHOR, gear: GEAR, beforeEnter: hunt(o) });
   await run.warm();
-  for (let w = 2; w <= WINDOWS + 1; w++) await run.step(w);
+  /* the world stored after every window (lane/refhero-recut, 2026-11-27): the last one alone can sit between pulls, the party whole and the
+     packs as they spawned, so a worn piece that played read the same last world on the re-cut Muster (4 and 8 windows; 6 differed) */
+  const worlds = [];
+  for (let w = 2; w <= WINDOWS + 1; w++) {
+    await run.step(w);
+    worlds.push((await db.query('select world::text as world from public.hunt_instances where hunt_id = $1', [MUSTER])).rows[0].world);
+  }
   const inst = (await db.query('select id, refusals, world::text as world from public.hunt_instances where hunt_id = $1', [MUSTER])).rows[0];
-  return { db, inst, users: run.users };
+  return { db, inst, users: run.users, worlds };
 }
 async function bothPaths(boot) {
   const problems = [];
@@ -287,8 +293,8 @@ async function bothPaths(boot) {
   const freeRead = await one(free.db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [free.users[0]]);
   if (!freeRead || freeRead.members.some((m) => m.worn_traits !== null)) problems.push('PV-4 a piece left in the bag plays');
   if (closed.inst.world !== viewed.inst.world) problems.push('PV-4 the two doors stored different worlds');
-  if (closed.inst.world === free.inst.world) problems.push('PV-4 the worn piece changed nothing: the hunt stored the world of the piece left in the bag');
-  console.log('  PV-4 worn through the verb: doors ' + (closed.inst.world === viewed.inst.world ? 'store one world' : 'DIFFER') + ', ' + (closed.inst.world === free.inst.world ? 'SAME' : 'a different') + ' world from the piece left in the bag');
+  if (closed.worlds.join('|') === free.worlds.join('|')) problems.push('PV-4 the worn piece changed nothing: every window stored the world of the piece left in the bag');
+  console.log('  PV-4 worn through the verb: doors ' + (closed.inst.world === viewed.inst.world ? 'store one world' : 'DIFFER') + ', ' + (closed.worlds.join('|') === free.worlds.join('|') ? 'SAME' : 'different') + ' windows from the piece left in the bag');
   /* setups change in town: a wear while the hunt is open is refused */
   const p2 = await plant(closed.db, closed.users[1], { base: GEAR.body, slot: 'body', kill: 9 });
   const mid = await wear(closed.db, closed.users[1], 0, p2);

@@ -603,6 +603,11 @@
         "bytes": 3907775,
         "on": "2026-11-27",
         "why": "lane/p1-personal-loot: payPersonal skips an empty table (no stream seeded) and names each roller's own odds (+285 B)"
+      },
+      {
+        "bytes": 3907836,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: drops.js effectiveDropChance's params typed for the type ratchet (+61 B)"
       }
     ]
   }

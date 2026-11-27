@@ -281,6 +281,13 @@ export function bornHpOf(u, evs) {
   return Math.max(0, Math.min(u.maxHp, hp));
 }
 
+/* EACH HERO'S LOOT STREAM FOR SWING `sw` (personal loot, seed domain l:<unit>): made lazily, once a hero a swing, so a swing with no kill
+   seeds nothing. */
+function lootStreams(ctx, sw) {
+  const made = new Map();
+  return (unit) => { if (!made.has(unit)) made.set(unit, createRng(seedOf(ctx, 'l:' + unit, sw))); return made.get(unit); };
+}
+
 /**
  * THE HUNT INSTANCE'S SPAN (spec §1.1 engine contract).
  *
@@ -309,13 +316,6 @@ export function bornHpOf(u, evs) {
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary (on the Tower, `tower`: { floors: the floors
  *            this member cleared standing, in order }) } }
  */
-/* EACH HERO'S LOOT STREAM FOR SWING `sw` (personal loot, seed domain l:<unit>): made lazily, once a hero a swing, so a swing with no kill
-   seeds nothing. */
-function lootStreams(ctx, sw) {
-  const made = new Map();
-  return (unit) => { if (!made.has(unit)) made.set(unit, createRng(seedOf(ctx, 'l:' + unit, sw))); return made.get(unit); };
-}
-
 export function simulateHuntInstance(inst, ctx) {
   const tick = Number.isInteger(ctx.tickMs) && ctx.tickMs > 0 ? ctx.tickMs : COMBAT_BALANCE.tickMs;
   const toMs = Math.floor(Number(ctx.toMs) || 0);

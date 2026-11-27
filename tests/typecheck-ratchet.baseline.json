@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 309,
+  "total": 302,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/world-pane.js": {"TS2322":1},
@@ -8,10 +8,10 @@
     "src/core/artisan.js": {"TS1005":2},
     "src/core/away.js": {"TS1005":1,"TS2304":1},
     "src/core/buffs.js": {"TS1005":1,"TS2304":3},
-    "src/core/combat-sim.js": {"TS1005":2,"TS2339":1,"TS2502":1},
-    "src/core/combat.js": {"TS1005":3,"TS2304":1,"TS2502":2},
+    "src/core/combat-sim.js": {"TS1005":2,"TS2502":1},
+    "src/core/combat.js": {"TS1005":2,"TS2304":1,"TS2502":1},
     "src/core/companion-xp.js": {"TS1005":1,"TS2304":1,"TS8032":5},
-    "src/core/drops.js": {"TS1005":3,"TS2304":1,"TS2502":1},
+    "src/core/drops.js": {"TS1005":1},
     "src/core/hearthfind.js": {"TS1005":1,"TS2304":1},
     "src/core/hunt-spawn.js": {"TS1005":1,"TS2304":1,"TS2339":1},
     "src/core/hunt/abilities.js": {"TS2339":2,"TS2362":1,"TS2363":1},

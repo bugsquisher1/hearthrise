@@ -173,7 +173,7 @@ export const FORMULA_IO = Object.freeze({
   'E41': f(['src/data/town-works.js#TOWN_WORKS'], [], ['sink.works']),
   'E42': f(NO_HOME, [['+hero.skill', 'the fee is 100 gold x skill level an hour']], [['sink.other', 'the public yard\'s fee']], { note: 'SQL only and staged: supabase/migrations/2027-04-16-combat-training.sql' }),
   'E43': f(['src/data/homestead-tiers.js#HELD_HOME_OFFERS,HELD_HOME_ROOMS,PROPERTY_TIERS,ROOM_RUNGS,STORAGE_CHESTS'], [], ['sink.house']),
-  'E44': f(['src/core/drops.js#effectiveDropChance'], ['+drop.base'], ['drop.chance'], { note: 'reads the row\'s written chance and the multipliers on it (the monster\'s dropBonus, a drop buff, a featured row) and writes the chance after them' }),
+  'E44': f(['src/core/drops.js#effectiveDropChance,wholeDropChance'], ['+drop.base'], ['drop.chance'], { note: 'reads the row\'s written chance and the multipliers on it (the monster\'s dropBonus, a drop buff, a featured row) and writes the chance after them (wholeDropChance); a personal roller takes 1 / n of it (effectiveDropChance share)' }),
   'E45': f(['src/core/drops.js#rollDropTable'], ['+drop.chance'], ['drop.items']),
   'E46': f(['src/data/loot-bands.js#BAND_TARGETS'], [['!killsPerH', 'each row\'s chance is typed by hand until a test\'s measured hours land in the band']], ['drop.base']),
   'E47': f(['src/core/party-split.js#rareRoll'], [['+drop.items', 'the unit to give arrives as the argument']], ['drop.rare']),

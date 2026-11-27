@@ -29,12 +29,16 @@
 //   THE COST GATE. Journal rows, statements and row writes a hero-hour (every settle kind's statements, the public tables' tuple writes)
 //   against tests/per-player-cost.mjs's fixtures, blended by each group's kit and tab share (ltCostVerdict): past +25%
 //   (CONCURRENCY.band) is red. The exact per-settle numbers with the switches on are per-player-cost --lit's (every push, PGlite).
-//   THE BENCH. A runner holds the engine, the edges' JSON and PostgreSQL on one box (production splits them), so the report carries the
-//   box's busy cores, the postgres processes' cores and each worker's event-loop use: a red read on a saturated bench names that.
+//   THE BENCH. A runner holds the engine, the edges' JSON and PostgreSQL on one box (production gives every edge request its own
+//   isolate), so the report carries the box's busy cores, the postgres processes' cores and each worker's event-loop use: a red read
+//   on a saturated bench names that. MEASURED (run 45993601381, 4 vCPU): 1,000 fours with a tenth of the tabs open saturate it (3.64
+//   cores busy, worker loops 0.91), the engine's wall per run inflates to 1.2 s, bodies defer on the 800 ms engine budget and every
+//   watched confirm simulates the growing lag, so the nightly runs 2% open: the tick's whole closed load, the door's locks still met.
+//   The watched door's cost a tab is the heavy four band's (40 fours, half open) and the fixtures'. Costs are per PAID hero-hour.
 //   PERSONAL LOOT AS BUILT: each hero rolls its own Trait finds with its own pity (src/core/trait-roll.js, hero_pity). The per-hero
 //   ordinary drop roll (20-v030 lane P1) is not built and nothing reads `personal_loot` yet: when P1 lands, this re-runs.
 // ci-step: pg17-lt | The v0.3.0 load test, 1,000 accounts x 4 heroes with the drop switches on, settle lag and per-hero cost in budget (nightly, PostgreSQL 17)
-// ci-run: node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.1 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
+// ci-run: node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.02 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
 //
 // THE HEAVY FOUR'S BAND (lane/c-cost-fixtures 2026-11-20; balance program L11, call 28 step 10). --shape=krell4 makes every account the
 // heavy four on Krell's Hold, Deadly (tests/per-player-cost.mjs HEAVY_FOUR, built by its buildFour: the fixture the release path measures
@@ -248,7 +252,7 @@ async function workerMain() {
       const h = r.hunts;
       s.settled = (s.settled || 0) + (h.settled || 0); s.nothing = (s.nothing || 0) + (h.nothing || 0);
       s.refused = (s.refused || 0) + (h.refused || 0); s.ended = (s.ended || 0) + (h.ended || 0); s.deferred = (s.deferred || 0) + (h.deferred || 0);
-      s.engine += h.engine_ms || 0; s.engineMax = Math.max(s.engineMax || 0, h.engine_ms || 0); s.engineRunMax = Math.max(s.engineRunMax || 0, h.engine_max_ms || 0);
+      s.engine += h.engine_ms || 0; s.engineMax = Math.max(s.engineMax || 0, h.engine_ms || 0); if (h.engine_ms) { s.bodyEngine = s.bodyEngine || []; s.bodyEngine.push(h.engine_ms); } s.engineRunMax = Math.max(s.engineRunMax || 0, h.engine_max_ms || 0);
       for (const [k, v] of Object.entries(h.reasons || {})) { s.reasons = s.reasons || {}; s.reasons[k] = (s.reasons[k] || 0) + v; }
     }
     return { summary: r && r.hunts };
@@ -686,6 +690,10 @@ async function main() {
   const tables0 = new Map((await admin.unsafe(tableSql)).map((r) => [r.relname, Number(r.b)]));
   const fr0 = (await admin.unsafe('select count(*)::bigint n, coalesce(sum(length(payload::text)), 0)::bigint b from realtime.bench_frames'))[0];
   const led0 = Number((await admin.unsafe(`select count(*)::bigint n from public.player_ledger where intent <> 'beta_load_fill'`))[0].n);
+  /* THE PAID HERO-TIME: every session's clock (settled_to) summed, s, at both ends: the hours the window actually paid, the denominator
+     tests/per-player-cost.mjs uses (a population that fell behind is judged on the hours it was paid, not the wall's) */
+  const paidSql = 'select coalesce(sum(extract(epoch from settled_to)), 0)::float8 s from public.hunt_sessions';
+  const paid0 = Number((await admin.unsafe(paidSql))[0].s);
   /* rule 10's row writes: every public table's inserts + updates + deletes (pg_stat_user_tables, one autocommit read each end) */
   const writesSql = `select relname, (n_tup_ins + n_tup_upd + n_tup_del)::bigint w from pg_stat_user_tables where schemaname = 'public'`;
   const writes0 = new Map((await admin.unsafe(writesSql)).map((r) => [r.relname, Number(r.w)]));
@@ -736,6 +744,7 @@ async function main() {
   const tables1 = (await admin.unsafe(tableSql)).map((r) => ({ t: r.relname, grew: Number(r.b) - (tables0.get(r.relname) || 0), b: Number(r.b) })).filter((r) => r.grew > 0).sort((a, b) => b.grew - a.grew);
   const fr1 = (await admin.unsafe('select count(*)::bigint n, coalesce(sum(length(payload::text)), 0)::bigint b from realtime.bench_frames'))[0];
   const led1 = Number((await admin.unsafe(`select count(*)::bigint n from public.player_ledger where intent <> 'beta_load_fill'`))[0].n);
+  const paidHeroHours = (Number((await admin.unsafe(paidSql))[0].s) - paid0) / 3600;
   const ledBytes = Number((await admin.unsafe(`select coalesce(avg(pg_column_size(l.*)), 0)::float8 a from public.player_ledger l where intent <> 'beta_load_fill'`))[0].a);
   const conns = (await admin.unsafe(`select count(*)::int n from pg_stat_activity where datname = current_database()`))[0].n;
   /* Stop the driver and gather its numbers. */
@@ -749,7 +758,7 @@ async function main() {
   for (const g of gathered) for (const [k, s] of g.stats) {
     const m = merged.get(k) || { n: 0, wall: [], queue: 0, db: 0, bytes: 0, errors: 0, engine: 0 };
     for (const [f, v] of Object.entries(s)) {
-      if (f === 'wall' || f === 'walls') m[f] = (m[f] || []).concat(v);
+      if (f === 'wall' || f === 'walls' || f === 'bodyEngine') m[f] = (m[f] || []).concat(v);
       else if (f === 'outcomes' || f === 'reasons') { m[f] = m[f] || {}; for (const [x, y] of Object.entries(v)) m[f][x] = (m[f][x] || 0) + y; }
       else if (f === 'last') m.last = v;
       else if (f === 'engineMax' || f === 'engineRunMax') m[f] = Math.max(m[f] || 0, v);
@@ -763,7 +772,8 @@ async function main() {
     rows[k] = { n: s.n, stmts: s.stmts || 0, perMin: Math.round(perMin(s.n) * 10) / 10, p50: Math.round(pct(s.wall, 0.5)), p95: Math.round(pct(s.wall, 0.95)), max: Math.round(pct(s.wall, 1)),
       queueMean: s.n ? Math.round(s.queue / s.n) : 0, dbMean: s.n ? Math.round(s.db / s.n) : 0, kbMean: s.n ? Math.round(s.bytes / s.n / 102.4) / 10 : 0, errors: s.errors, n5xx: s.n5xx, lost: s.lost,
       settled: s.settled, nothing: s.nothing, refused: s.refused, ended: s.ended, deferred: s.deferred, engineMs: s.engine ? Math.round(s.engine) : undefined, engineMax: s.engineMax, engineRunMax: s.engineRunMax,
-      outcomes: s.outcomes, reasons: s.reasons, last: s.last };
+      outcomes: s.outcomes, reasons: s.reasons, last: s.last,
+      ...(s.bodyEngine && s.bodyEngine.length ? { bodyEngineMs: { n: s.bodyEngine.length, p50: Math.round(pct(s.bodyEngine, 0.5)), p95: Math.round(pct(s.bodyEngine, 0.95)), max: Math.round(pct(s.bodyEngine, 1)) } } : {}) };
   }
   const lagMax = lagSeries.reduce((m, r) => Math.max(m, r.mx), 0);
   report.measured = {
@@ -798,18 +808,19 @@ async function main() {
   if (world.lt) {
     const PPC = await import('../tests/per-player-cost.mjs');
     const base = JSON.parse(readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), 'tests', 'per-player-cost.baseline.json'), 'utf8'));
-    const hours = elapsedS / 3600;
     const stmts = SETTLE_KINDS.reduce((n, k) => n + Number((rows[k] || {}).stmts || 0) + Number((rows[k + ':retry'] || {}).stmts || 0), 0);
     const written = writes1.reduce((n, r) => n + r.w, 0);
     const paidOf = (r) => Object.entries((r || {}).outcomes || {}).reduce((n, [k, v]) => n + (k === 'paid' || k.startsWith('paid:') ? Number(v) : 0), 0);
     const saves = Number((rows.tick_body || {}).settled || 0) + paidOf(rows.hello) + paidOf(rows.hello_early);
-    const per = { ledger_rows_a_hero_hour: r1((led1 - led0) / openN.s / hours), statements_a_hero_hour: r1(stmts / openN.s / hours), row_writes_a_hero_hour: r1(written / openN.s / hours) };
+    const ph = paidHeroHours > 0 ? paidHeroHours : NaN;
+    const per = { ledger_rows_a_hero_hour: r1((led1 - led0) / ph), statements_a_hero_hour: r1(stmts / ph), row_writes_a_hero_hour: r1(written / ph) };
     const groups = Object.values(report.lt.groups).map((g) => ({ kit: g.kit, heroes: g.heroes, tabs: g.accounts ? g.online / g.accounts : 0 }));
     const cost = ltCostVerdict(per, base, groups, PPC.CONCURRENCY.band);
     const lag = ltLagVerdict(lagReadings, Number(dials.flush_seconds) || 90, await lookAheadS());
     const refusals = await admin.unsafe('select code, sum(n)::int n from public.hr_rejections group by 1 order by 2 desc limit 12').catch(() => []);
+    const { HUNT_ENGINE_BUDGET_MS } = await import('../supabase/functions/hr-accrue/hunt-settle.js');
     report.lt.lag = lag;
-    report.lt.cost = { band: PPC.CONCURRENCY.band, per, per_save: saves ? { statements: r1(stmts / saves), row_writes: r1(written / saves), ledger_rows: r1((led1 - led0) / saves) } : null, saves, ...cost };
+    report.lt.cost = { band: PPC.CONCURRENCY.band, engine_budget_ms: HUNT_ENGINE_BUDGET_MS, paid_hero_hours: r1(paidHeroHours), paid_share: r2(paidHeroHours / (openN.s * elapsedS / 3600)), per, per_save: saves ? { statements: r1(stmts / saves), row_writes: r1(written / saves), ledger_rows: r1((led1 - led0) / saves) } : null, saves, ...cost };
     report.lt.drops = Object.fromEntries(Object.keys(drops1).map((k) => [k, Number(drops1[k]) - Number(drops0[k])]));
     report.lt.refusals = refusals;
     report.lt.bench = bench;
@@ -844,8 +855,8 @@ async function main() {
     const L = report.lt; const g = L.lag; const c = L.cost; const b = L.bench;
     log(`THE v0.3.0 LOAD, ${openN.i} fours (${openN.s} heroes), ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open, ${m.seconds} s measured over ${g.readings} lag readings:`);
     log(`  settle lag p50 ${g.raw.p50} / p95 ${g.raw.p95} / p99 ${g.raw.p99} / max ${g.raw.max} s; past the ${g.flush_s} s flush p50 ${g.past_due.p50} / p95 ${g.past_due.p95} / p99 ${g.past_due.p99} / max ${g.past_due.max} s (budget ${g.budget_s} s)`);
-    log(`  a hero-hour: ${c.per.ledger_rows_a_hero_hour} journal rows, ${c.per.statements_a_hero_hour} statements, ${c.per.row_writes_a_hero_hour} row writes against the fixtures' blend ${JSON.stringify(c.expected)} (band +${c.band * 100}%)`);
-    if (c.per_save) log(`  a save (${c.saves}): ${c.per_save.statements} statements, ${c.per_save.row_writes} row writes, ${c.per_save.ledger_rows} journal rows; engine max ${m.rows.tick_body?.engineRunMax ?? '-'} ms a run, deferred ${m.rows.tick_body?.deferred || 0}`);
+    log(`  a paid hero-hour (${c.paid_hero_hours} paid, ${Math.round(c.paid_share * 100)}% of the wall's): ${c.per.ledger_rows_a_hero_hour} journal rows, ${c.per.statements_a_hero_hour} statements, ${c.per.row_writes_a_hero_hour} row writes against the fixtures' blend ${JSON.stringify(c.expected)} (band +${c.band * 100}%)`);
+    if (c.per_save) log(`  a save (${c.saves}): ${c.per_save.statements} statements, ${c.per_save.row_writes} row writes, ${c.per_save.ledger_rows} journal rows; engine max ${m.rows.tick_body?.engineRunMax ?? '-'} ms a run, a body p50 ${m.rows.tick_body?.bodyEngineMs?.p50 ?? '-'} / p95 ${m.rows.tick_body?.bodyEngineMs?.p95 ?? '-'} / max ${m.rows.tick_body?.bodyEngineMs?.max ?? '-'} ms (budget ${c.engine_budget_ms}), deferred ${m.rows.tick_body?.deferred || 0}, bodies ${m.bodies_posted} (${m.bodies_per_fire_p95} a fire p95), fire p50 ${m.fire_ms_p50} ms`);
     log(`  the switches wrote ${JSON.stringify(L.drops)}; refusals ${JSON.stringify(L.refusals)}`);
     log(`  bench: ${b.busy_cores ?? '-'} of ${b.cores} cores busy, postgres ${b.postgres_cores ?? '-'}, worker loops ${b.worker_elu.join(' / ')}${b.saturated ? ' SATURATED' : ''}`);
     for (const r of ltRed) log('  RED ' + r);
@@ -859,7 +870,7 @@ async function main() {
         row('Load', `${openN.i} fours (${openN.s} heroes) over ${Object.keys(L.groups).join(', ')}; ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open; lit ${L.lit.join(', ')}`),
         row('Settle lag (s)', `p50 ${g.raw.p50} · p95 ${g.raw.p95} · p99 ${g.raw.p99} · max ${g.raw.max}`),
         row(`Past the ${g.flush_s} s flush (s)`, `p50 ${g.past_due.p50} · p95 ${g.past_due.p95} · p99 ${g.past_due.p99} · max ${g.past_due.max} (budget ${g.budget_s})`),
-        row('A hero-hour', `${c.per.ledger_rows_a_hero_hour} journal rows · ${c.per.statements_a_hero_hour} statements · ${c.per.row_writes_a_hero_hour} row writes; blend ${JSON.stringify(c.expected)} +${c.band * 100}%`),
+        row('A paid hero-hour', `(${Math.round(c.paid_share * 100)}% of the wall paid) ${c.per.ledger_rows_a_hero_hour} journal rows · ${c.per.statements_a_hero_hour} statements · ${c.per.row_writes_a_hero_hour} row writes; blend ${JSON.stringify(c.expected)} +${c.band * 100}%`),
         row('A save', c.per_save ? `${c.per_save.statements} statements · ${c.per_save.row_writes} row writes · ${c.per_save.ledger_rows} journal rows (${c.saves} saves)` : '-'),
         row('Bench', `${b.busy_cores ?? '-'} of ${b.cores} cores busy · postgres ${b.postgres_cores ?? '-'} · worker loops ${b.worker_elu.join(' / ')}${b.saturated ? ' · SATURATED' : ''}`),
         row('Audit', `${audit.sessions} sessions, ${audit.windows} windows, ${audit.red.length} red`),

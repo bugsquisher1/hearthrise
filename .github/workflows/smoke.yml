@@ -6017,7 +6017,8 @@ jobs:
   # section 4 Band 6 LT, section 5 gate 10). Two halves, both with the release's drop switches lit in their own database only (personal
   # loot, Trait pieces and drops, Signatures, the Inner Flame): tests/per-player-cost.mjs --lit, every fixture's exact per-settle cost on
   # the PGlite replay against the shipped baseline; then tools/beta-load.mjs --shape=lt, 1,000 synthetic accounts x 4 heroes, every four
-  # hunting a Trait ground in one party, a tenth of the tabs open, the world tick on the chain's own dials. Red (exit 1) when a fixture
+  # hunting a Trait ground in one party, 2% of the tabs open (a 4-vCPU runner holds the tick's closed load, not the watched doors' isolates
+  # too: run 45993601381), the world tick on the chain's own dials. Red (exit 1) when a fixture
   # passes its baseline, when a hunt's settle waits past its flush by the 32 s look-ahead, when journal rows, statements or row writes
   # a hero-hour pass the fixtures' blend by 25%, or when the conservation audit is red. Its own job and its own scratch server: three
   # edges' pools and the builders need more than pg-replay's default 30 connections (HR_PG_MAX_CONNECTIONS), and it runs beside the
@@ -6061,7 +6062,7 @@ jobs:
       - name: The v0.3.0 load test, 1,000 accounts x 4 heroes with the drop switches on, settle lag and per-hero cost in budget (nightly, PostgreSQL 17)
         if: ${{ !cancelled() }}
         run: |
-          node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.1 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
+          node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.02 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-14: the last steps of db-replay-6, from "Frame self-echo" on, split out 2026-11-18 (lane/ci-speed). db-replay-6 took up to 39.2 min

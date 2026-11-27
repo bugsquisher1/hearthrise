@@ -13,46 +13,6 @@
    "file": "src/data/abilities.js",
    "from": "].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));",
    "to": "].flatMap(lend).reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));"
-  },
-  {
-   "file": "src/core/hunt/cast-targets.js",
-   "from": "export const reachOf = (h, row) => Math.max(1, int(h && h.range) || 1) + ",
-   "to": "export const reachOf = (h, row) => (row.reach || Math.max(1, int(h && h.range) || 1)) + "
-  },
-  {
-   "file": "src/core/hunt/conditions.js",
-   "from": "(a === cx.u || reaches(cx.inst, cx.u, cx.h && cx.h.range, a)));",
-   "to": "(a === cx.u || reaches(cx.inst, cx.u, (cx.slot && cx.slot.action && ABILITIES[cx.slot.action.id] && ABILITIES[cx.slot.action.id].reach) || (cx.h && cx.h.range), a)));"
-  },
-  {
-   "file": "src/core/hunt/abilities.js",
-   "from": "case 'taunt': return challengeable(inst, hero).length ? hero : null;",
-   "to": "case 'taunt': return challengeable(inst, hero, row.lent).length ? hero : null;"
-  },
-  {
-   "file": "src/core/hunt/abilities.js",
-   "from": "case 'taunt': challengeFrom(inst, sc, u); break;",
-   "to": "case 'taunt': challengeFrom(inst, sc, u, row); break;"
-  },
-  {
-   "file": "src/core/hunt/targeting.js",
-   "from": "export function challengeable(inst, k) {\n",
-   "to": "export function challengeable(inst, k, lent) {\n"
-  },
-  {
-   "file": "src/core/hunt/targeting.js",
-   "from": "  return inReachOf(inst, k).filter(",
-   "to": "  return inReachOf(inst, k, lent).filter("
-  },
-  {
-   "file": "src/core/hunt/targeting.js",
-   "from": "function inReachOf(inst, k) {\n  if (!isTank(k) || !k.alive) return [];",
-   "to": "function inReachOf(inst, k, lent) {\n  if ((!isTank(k) && !lent) || !k.alive) return [];"
-  },
-  {
-   "file": "src/core/hunt/targeting.js",
-   "from": "export function challengeFrom(inst, sc, k) {\n  const took = challengeable(inst, k);\n  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }",
-   "to": "export function challengeFrom(inst, sc, k, row) {\n  const took = challengeable(inst, k, row && row.lent);\n  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = row && row.holdPm ? Math.floor((tauntHold(k) * row.holdPm) / 1000) : tauntHold(k); }"
   }
  ],
  "assumptions": [

@@ -389,6 +389,9 @@ export const REFUSAL_WORDS = Object.freeze({
   offer_closed: 'Not offered yet',
   /* Town work (1059-company-trades.sql hr_apply): the hero's town work for the day is used up (Tyler 2026-11-22 CR-Q3 b). */
   work_cap: 'No town work left today · Resets 00:00 UTC',
+  /* a kit-trade job (1073-k1-job-slice.sql): more attempts than one work day, and materials short across the bag and Storage */
+  count_cap: 'More than one work day',
+  short_inputs: 'Not enough materials',
   already_blessed: 'Already blessed',
   needs_previous: 'Buy the previous Blessing first',
   unknown_tier: 'No such Blessing',

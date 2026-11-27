@@ -53,7 +53,7 @@ export const SHARE_TEXT = Object.freeze({
   news_head: 'What\'s new in {version}',
   news_got_it: 'Got it',
   news_030_fresh: 'Everyone starts fresh in this version. Your old heroes did not carry over, so make a new one and jump back in.',
-  news_030_lead: 'The Roads are open. Every weapon has its own country of talents now, and every hunting ground runs twenty steps deep. Your party climbs while it is winning and pulls back before it is beaten.',
+  news_030_lead: 'The Roads are open. Every weapon has its own country of talents now, and every hunting ground runs twenty steps deep. Your party climbs as deep as it can hold.',
   news_030_talents: 'Talents · 1 point every Level from Level 2',
   news_030_depth: 'Depth · Every ground runs from Depth 1 to 20',
   news_030_risk: 'Risk · Careful, Steady or Bold · Only Bold can die',

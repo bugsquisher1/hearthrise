@@ -1271,7 +1271,10 @@ function rules(M) {
     const HUNT = 'millrace_sewer', SHARE = 6;
     const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
       for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
-    const deadly = deadlyRows(M, HUNT, mk()[0], { share: SHARE });
+    /* A TO-HIT FLOOR OF 28% (lane/refhero-recut, 2026-11-27): the Sewer's aims re-derived on the clock's REF_HERO land less on this tank, and with
+       none the duo never fell in 10 minutes; at 28% the tank falls at 264 s, the set's fight to the tenth of a second (from 40% it falls in the
+       first pull, before the ranger fights) */
+    const deadly = deadlyRows(M, HUNT, mk()[0], { share: SHARE, hit: 0.28 });
     const tankHp = deadly.hp;
     deadly.put();
     try {

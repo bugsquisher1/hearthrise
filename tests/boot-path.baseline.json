@@ -526,6 +526,12 @@
         "gzipBytes": 982604,
         "on": "2026-11-27",
         "why": "lane/ci-reds-1127 (re-raised on the merged base a3731a069): the Trait piece words moved into the text table (bag.js, item.js rows read by piece-words, inventory actions and doll: text-home TH-1), +0.1 KB"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 982612,
+        "on": "2026-11-27",
+        "why": "lane/refhero-recut: the game half's data grew with the re-cut (drop chances re-derived from their hours at the new kill rates carry more figures, the Hearth Chest pieces' own item Levels, the bands' rows)"
       }
     ]
   }

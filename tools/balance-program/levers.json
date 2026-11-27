@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "30e9cb9ca2341fda",
+ "authored": "717c8ef623d0cb8f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 770,
-  "typed": 17583,
+  "bindings": 769,
+  "typed": 17582,
   "files": 264,
   "lever": 333,
-  "notLever": 437,
+  "notLever": 436,
   "unclaimed": 0
  },
  "problems": [],
@@ -11548,7 +11548,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 128,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11646,7 +11646,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 128,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11759,7 +11759,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11834,7 +11834,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11933,7 +11933,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12236,7 +12236,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 15,
+    "mentionCount": 16,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13803,7 +13803,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 128,
+    "mentionCount": 129,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14780,7 +14780,7 @@
      "tests/live-settlement.mjs",
      "tests/recovery-relief-guard.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14835,7 +14835,7 @@
      "tests/live-settlement.mjs",
      "tests/recovery-relief-guard.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15416,24 +15416,24 @@
     },
     {
      "file": "src/data/trades.js",
-     "line": 48,
-     "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),",
+     "line": 51,
+     "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5, live: false }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 50,
+     "line": 53,
      "text": "speedAt99: 1.25,",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 58,
+     "line": 61,
      "text": "masteryCap: 3,",
      "binding": "TRADE_LEVERS"
     }
    ],
-   "definition": "for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up",
+   "definition": "for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up; while quality.live is false (a switch, not a lever: 09 4.11 row 6) every job lands Plain and the cascade waits",
    "range": "09 4.4 and 4.7 (Masteries: three an account, CR-Q1 a). SQL twins hr_trade_yield_pm, hr_trade_fine_pm, hr_trade_master_pm, hr_trade_speed_pm (1063, generated, swept by TF-TWIN)",
    "touches": "material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.11 to 0.19 hours of wage at Level 1, 0.28 at 50 on the first rung, 0.46 at 99 with a Mastery and a bench: measured.txt)",
    "outcomes": [],
@@ -15480,13 +15480,13 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 53,
+     "line": 56,
      "text": "table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 56,
+     "line": 59,
      "text": "xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15536,7 +15536,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 60,
+     "line": 63,
      "text": "jobFee: 0.25,",
      "binding": "TRADE_LEVERS"
     }
@@ -15584,7 +15584,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 63,
+     "line": 66,
      "text": "store: Object.freeze({ lagSteps: 20, floorShare: 0.4, budgetHours: 1 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15640,7 +15640,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 66,
+     "line": 69,
      "text": "tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15689,7 +15689,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 69,
+     "line": 72,
      "text": "cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15737,7 +15737,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 155,
+     "line": 158,
      "text": "export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });",
      "binding": "RUNE_KINDS"
     }
@@ -17643,12 +17643,8 @@
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
   },
   {
-   "at": "src/data/trades.js#KIT_SAMPLE_MAX",
-   "why": "a content process bound: at most 5 named band 0 kit recipes until the first day sample is read (CLAUDE.md section 10), no outcome reads it"
-  },
-  {
    "at": "src/data/trades.js#KIT_BATCH_MAX",
-   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10), no outcome reads it"
+   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10; band 0 whole is 14 of them, 09 4.11 row 1b), no outcome reads it"
   },
   {
    "at": "src/data/trades.js#KIT_RECIPES",

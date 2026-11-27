@@ -5,6 +5,7 @@
 //
 //   node tests/worn-imbues-db.mjs            the guard
 //   node tests/worn-imbues-db.mjs --mutate   the proof: each planted SQL or edge defect turns its case red
+//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths>   one case (WI_TRACE=1 prints the lit and dark fights)
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick (browser closed, the `fire` door, the 90 s flush) and the viewed hello
 // (hunt viewed, the `viewed` door, 30 s windows) through tools/settle-cost.mjs, the real engine: a Level 60 four from four accounts in the

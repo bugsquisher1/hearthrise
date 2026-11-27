@@ -107,6 +107,7 @@ export async function loadEngine(root) {
   const { wornRoleKey } = await import(u('src/data/hunt-roles.js'));
   const { gridOfMap } = await import(u('src/core/hunt-ground.js'));
   const { COMBAT_BALANCE } = await import(u('src/core/combat.js'));
+  const { DANGER_GROUNDS, RISKS, DANGER } = await import(u('src/data/danger.js'));
   /* the measured hero's ladder kit (the balance runs' gear by Level), one source with tests/hunt-core */
   const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
   const { kitFor } = await loadPlay(root);
@@ -119,7 +120,8 @@ export async function loadEngine(root) {
     if (!grids.has(id)) grids.set(id, { ground: G.HUNT_GROUNDS[id], grid: gridOfMap(G.HUNT_GROUNDS[id].map) });
     return grids.get(id);
   };
-  return { AC, SPAWN, XP, HUNTS, MONSTERS, ITEMS, wornRoleKey, kitFor, basics, grounds, whereOf, tickMs: COMBAT_BALANCE.tickMs };
+  return { AC, SPAWN, XP, HUNTS, MONSTERS, ITEMS, wornRoleKey, kitFor, basics, grounds, whereOf, tickMs: COMBAT_BALANCE.tickMs,
+    dangerOn: (id) => Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, id), risks: Object.keys(RISKS), stepMax: DANGER.stepMax };
 }
 
 /* canonical JSON (sorted keys): the one equality every comparison here uses */
@@ -165,7 +167,10 @@ const heroArb = fc.record({
 const cutArb = fc.record({ u: fc.integer({ min: 1, max: 999999 }), snap: fc.constantFrom('ms', 's', 'swing'), mode: fc.constantFrom('land', 'lost', 'retry') });
 const scenarioArb = (grounds) => fc.record({
   hunt: fc.constantFrom(...grounds),
-  /* (the tier a case picked left with the tier rows, lane/retire-tier-chain 2026-11-26) */
+  /* THE STANCE (the tier a case picked left with the tier rows, lane/retire-tier-chain 2026-11-26): the plan's risk and starting step, played
+     only on a Danger ground (where the server freezes one); 'none' is the ground as built. The axis that decides who can die, as the tier was */
+  risk: fc.oneof({ arbitrary: fc.constant('none'), weight: 3 }, { arbitrary: fc.constantFrom('careful', 'steady'), weight: 2 }, { arbitrary: fc.constant('bold'), weight: 2 }),
+  step: fc.integer({ min: 0, max: 4000 }),
   density: fc.option(fc.integer({ min: 1, max: 8 }), { nil: null }),
   secret: fc.bigInt({ min: -(2n ** 63n), max: 2n ** 63n - 1n }).map(String),
   spanMs: fc.integer({ min: 1000, max: SPAN_MAX }),
@@ -205,6 +210,7 @@ function heroState(E, sc, h, i) {
     levelXp: at + Math.floor(((next > at ? next - at : 0) * h.over) / 1000), xpFrac: {}, hp: null, unitId: null,
     swingIndex: 0, nextSwingAtMs: T0, staminaMs: h.stamina === null ? 12 * 3600000 : h.stamina * E.tickMs, bag,
     options: { ...(h.role === 'healer' ? { role: 'healer' } : {}), ...(sc.density !== null ? { density: sc.density } : {}),
+      ...(sc.risk && sc.risk !== 'none' && E.dangerOn(sc.hunt) && E.risks.includes(sc.risk) ? { risk: sc.risk, danger: Math.min(sc.step, E.stepMax) } : {}),
       ...(h.stop ? { stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: h.stop.pct }], join: 'and', forMs: h.stop.forMs }] } : {}) },
     onEmpty: h.onEmpty, source: h.source, together: h.together, leaveAtMs: h.leaveAt === null ? null : T0 + h.leaveAt, ended: null,
   };
@@ -412,7 +418,7 @@ export function engineCase(E, sc, tally) {
 
 /* The shrunk case, compact: what a reader needs to see the failure. */
 function describe(sc) {
-  return JSON.stringify({ hunt: sc.hunt, density: sc.density, secret: sc.secret, spanMs: sc.spanMs,
+  return JSON.stringify({ hunt: sc.hunt, risk: sc.risk, step: sc.step, density: sc.density, secret: sc.secret, spanMs: sc.spanMs,
     heroes: sc.heroes, cuts: cutOffsets(sc), near: sc.near || [] });
 }
 const sizeOf = (sc) => ({ heroes: sc.heroes.length, cuts: cutOffsets(sc).length + (sc.near ? sc.near.length : 0), spanMs: sc.spanMs });

@@ -18,7 +18,7 @@
 // BATCH 2 (one case a row, each with its mutant):
 //   first-blow-half   #1 Bannerman's Pavise: a Challenge lays Blunted on each monster it takes (not one it did not); that monster's next
 //                     swing lands half of what the same swing lands without it, and the stack is spent on it
-//   cast-count-shield #2 Ossuary Helm: a Frost Slam that Chills 3 shields the wearer 9% of max health, one that Chills 6 holds at 15%;
+//   cast-count-shield #2 Ossuary Helm: a Frost Slam that Chills 3 shields the wearer 6% of max health, one that Chills 6 holds at 10%;
 //                     another move's cast nothing
 //   shell-break-ready #3 Grave Guard's Mail: a shell the wearer cast breaking makes Challenge ready; another hero's shell nothing
 //   kill-recast       #4 Charred Sabre: a Flame Strike kill casts Flame Strike again on the nearest monster, no mana and no rune; the
@@ -302,8 +302,8 @@ const cases = {
     };
     const three = play(3, 'frost_slam'), six = play(6, 'frost_slam'), other = play(3, 'power_strike');
     if (!three.cast || three.chilled !== 3 || six.chilled !== 6) return 'CONTROL: Frost Slam chilled ' + three.chilled + ' and ' + six.chilled;
-    if (three.k.shield !== 90) return 'a Frost Slam that Chilled 3: a shield of ' + three.k.shield + ' (want 3% x 3 of 1000)';
-    if (six.k.shield !== 150) return 'a Frost Slam that Chilled 6: a shield of ' + six.k.shield + ' (want the 15% cap, 150)';
+    if (three.k.shield !== 60) return 'a Frost Slam that Chilled 3: a shield of ' + three.k.shield + ' (want 2% x 3 of 1000)';
+    if (six.k.shield !== 100) return 'a Frost Slam that Chilled 6: a shield of ' + six.k.shield + ' (want the 10% cap, 100)';
     if (!other.cast || other.k.shield) return 'another move\'s cast shielded: ' + other.k.shield;
     return null;
   },

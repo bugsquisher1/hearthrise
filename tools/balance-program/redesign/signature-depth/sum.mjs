@@ -49,6 +49,14 @@ const ROWS2 = [
   /* (as written: the 20% line on Steady) */
   ['#23 as written (under 20%)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies'], ['(none)', 'b2-none', 'b2-none']],
 ];
+/* THE SHAPES TRIED on a row that missed its band (b2v-*: a variant row played as a temporary id on a scratch snapshot, taken out before
+   commit, as the designer's lane read the sample's): [label, plain, worn] */
+const VARIANTS = [
+  ['#2 Ossuary Helm, 2% a monster up to 10% (Muster)', 'b2-muster-tank-slam', 'b2v-muster-helm20'],
+  ['#23 Ferry Pennies, under 40%: Chill 6 s within 2 tiles (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-chill6'],
+  ['#23 Ferry Pennies, under 40%: Blunted on each monster next to you (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-blunt'],
+  ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -20% 4 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard'],
+];
 /* (the home ground pinned: the tank four at Hask's Ford's top; printed under the table as the reading of why the tank reads elsewhere) */
 const PINNED = [['#1 Bannerman\'s Pavise on Hask\'s Ford, its home', 'b2-ford-tank', 'b2-ford-pavise', 655]];
 const cellOf = (name, need) => {
@@ -90,6 +98,11 @@ for (const [name, best, other] of ROWS2) {
   const size = B.owed || !B.d ? 'owed' : B.d.se > 3 ? 'se ' + B.d.se.toFixed(1) + ' over 3: more seeds' : B.d.m > 13 ? 'OVER (cut its number)' : B.d.m < 7 ? 'UNDER (raise or reshape)' : 'in band';
   const spread = B.owed || O.owed || !B.d || !O.d ? 'owed' : O.d.m <= B.d.m / 2 ? 'holds' : 'FAILS (big everywhere: reshape)';
   console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), show(B), B.owed ? '' : pct(B.s.xpPerHeroH, B.p.xpPerHeroH), O.g, show(O), size, spread].join(' | ') + ' |');
+}
+console.log('\n| Shape tried | Held delta (se, seeds) | Level XP/h |\n|---|---|---|');
+for (const [name, a, b] of VARIANTS) {
+  const p = cellOf(a), s = cellOf(b), d = p && s ? paired(p, s) : null;
+  console.log('| ' + [name, d ? sgn(d.m) + ' (' + d.se.toFixed(1) + ', ' + d.n + ')' : 'owed', d ? pct(s.xpPerHeroH, p.xpPerHeroH) : ''].join(' | ') + ' |');
 }
 for (const [name, a, b, top] of PINNED) {
   const p = cellOf(a), s = cellOf(b), d = p && s ? paired(p, s) : null;

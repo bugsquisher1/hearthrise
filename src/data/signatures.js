@@ -32,7 +32,7 @@
 // BATCH 2 (15 "Batch 2": the rest of the move Signatures, #1 to #23 less the sample and #8, which waits on Stagger's branch rows; the
 // readings are 15 "Batch 2, measured", each row's number the one that read inside the size bar or the doc's starting value):
 //   #1  Bannerman's Pavise      tank      taunt -> Blunted on each monster taken (its next blow at half)
-//   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 3% x each monster it Chills, at most 15%
+//   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 2% x each monster it Chills, at most 10% (CUT from 3% and 15%: +15.8 read over the band)
 //   #3  Grave Guard's Mail      tank      shield_break (a shell the wearer cast: the shield discipline casts only Shelter's) -> Challenge ready
 //   #4  Charred Sabre           sword     kill (of Flame Strike) -> Flame Strike again on the nearest monster, free
 //   #5  Pikeman's Gauntlets     sword     hit (of Flame Strike) -> Power Strike ready
@@ -97,8 +97,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'taunt', do: 'status', status: 'blunted' }] }),
   ossuary_helm: sig({ id: 'ossuary_helm', n: 2, name: 'Ossuary Helm', slot: 'helmet', move: 'frost_slam',
     home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'krells_hold' },
-    tip: 'Frost Slam: gain a shield of 3% of max health for each monster it Chills (up to 15%)',
-    reacts: [{ on: 'cast', of: 'frost_slam', do: 'shield', pm: 30, capPm: 150 }] }),
+    tip: 'Frost Slam: gain a shield of 2% of max health for each monster it Chills (up to 10%)',
+    reacts: [{ on: 'cast', of: 'frost_slam', do: 'shield', pm: 20, capPm: 100 }] }),
   grave_guards_mail: sig({ id: 'grave_guards_mail', n: 3, name: 'Grave Guard\'s Mail', slot: 'body', move: 'shelter',
     home: { kind: 'monster', id: 'grave_guard' }, best: { seat: 'tank', ground: 'krells_hold' },
     tip: 'Shelter: when a hero\'s shield breaks, Challenge is ready again',

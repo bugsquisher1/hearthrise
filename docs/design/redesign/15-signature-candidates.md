@@ -154,9 +154,9 @@ Best for: Tank
 Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. Measure in batch 2 on the line as built.
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
-Frost Slam: you gain a shield of 3% of your max health for each monster it Chills (up to 15%)
+Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
 Best for: Tank
-Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster. If Frost Slam is merged into the Challenge (Cold Challenge, `23` section 4), this moves with it.
+Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster. If Frost Slam is merged into the Challenge (Cold Challenge, `23` section 4), this moves with it. (Cut 2026-11-26, batch 2: 3% each up to 15% read +15.8 on Muster, over the band.)
 
 **3. Grave Guard's Mail** · Body · Drops from: Krell's Hold, Grave Guard
 Shelter: when a hero's shield breaks, Challenge is ready again

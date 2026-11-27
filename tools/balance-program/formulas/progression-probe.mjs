@@ -19,7 +19,8 @@ const TP = await imp('src/data/temper.js');
 const PX = await imp('src/data/party-class-xp.js');
 const CB = await imp('src/core/combat.js');
 const GT = await imp('src/data/gear-tiers.js');
-const WL = await imp('tools/balance-sim/staged/weapon-line.js');
+const GS = await imp('src/data/gear-steps.js');
+const GSF = await imp('src/core/gear-stats.js');
 const JSON_OUT = process.argv.includes('--json');
 const out = {};
 const LEVELS = [1, 5, 10, 25, 50, 100, 200, 300, 400, 500, 750, 1000, 2000, 5000];
@@ -61,21 +62,25 @@ const hammer = GT.WEAPON_FAMILIES.find((f) => f.key === 'warhammer');
 /* a rung's numbers are the gear formula's (src/data/gear-profiles.js), read off the generated rows */
 const hammerStr = (i) => (GT.GEAR_ITEMS[hammer.ids[i]] || {}).strB || 0;
 const plateBodyDef = (i) => (GT.GEAR_ITEMS[GT.MATERIAL_TIERS[i].id + '_platebody'] || {}).defB || 0;
-const strTop = hammerStr(6);
+/* the last named rung (Wolfram) and its item Level; past it every tier is the same formula (12-targets 8.3 a, 8.8) */
+const topIdx = hammer.ids.length - 1, strTop = hammerStr(topIdx), topRow = GT.GEAR_ITEMS[hammer.ids[topIdx]];
+const wornIL = (L) => GS.tierLevel(Math.floor((L + GS.GEAR_STEPS.wearAhead) / GS.GEAR_STEPS.tierSteps));
 out.vitals = LEVELS.map((L) => {
   const hp = V.maxHpFor(L, 0), hpPlate = V.maxHpFor(L, 6), mana = V.maxManaFor(L, 0);
   const m = BS.formulaStats({ level: L, role: 'regular', floor: Math.max(16, L), tier: 6, fit: 'both' });
   const blow = CB.monsterMaxHit({ atk: m.atk, tier: 6 });
   const skill = skillAt[L];
-  /* a warhammer's largest blow: floor(0.35 x skill + 0.6 x strength + 2) less the monster's defence; gear FROZEN at Dawnsteel, and on the staged line (Dawnsteel x Level / 110) */
+  /* a warhammer's largest blow: floor(0.35 x skill + 0.6 x strength + 2) less the monster's defence; gear FROZEN at the last named tier, and
+     on the FORMULA: the warhammer of the tier the Level wears once that is past the last named one (src/core/gear-stats.js statsOfRow; the staged
+     Dawnsteel line, x Level / 110, retired with 12-targets 8.8) */
   const hitFrozen = Math.max(1, Math.floor(skill * 0.35 + strTop * 0.6 + 2) - CB.defenceReduction(m));
-  const strLine = L >= 110 ? WL.lineWeapon('warhammer', L).strB : strTop;
-  const hitLine = Math.max(1, Math.floor(skill * 0.35 + strLine * 0.6 + 2) - CB.defenceReduction(m));
-  const swingsFrozen = m.hp / (hitFrozen / 2 * BS.STAT_FORMULA.heroHit), swingsLine = m.hp / (hitLine / 2 * BS.STAT_FORMULA.heroHit);
+  const strFormula = wornIL(L) > topRow.iL ? (GSF.statsOfRow(topRow, wornIL(L), GT.GEAR_ITEMS) || {}).strB || 0 : strTop;
+  const hitFormula = Math.max(1, Math.floor(skill * 0.35 + strFormula * 0.6 + 2) - CB.defenceReduction(m));
+  const swingsFrozen = m.hp / (hitFrozen / 2 * BS.STAT_FORMULA.heroHit), swingsFormula = m.hp / (hitFormula / 2 * BS.STAT_FORMULA.heroHit);
   /* the kills an hour the contract needs at this Level, and the seconds a kill may take (a hero alone, +15%) */
   const xpKill = m.xp * PX.SOLO_XP_PM / 1000, needKillsH = contract(L) / xpKill;
-  return { L, hp, hpPlate, mana, monHp: m.hp, monXp: m.xp, monDef: m.def, monBlow: blow, blowShareOfHp: r2(blow / hp), skill, strLine, hitFrozen, hitLine, basicSecAKillFrozen: Math.round(swingsFrozen * 2), basicSecAKillLine: Math.round(swingsLine * 2),
-    contractSecAKill: Math.round(3600 / needKillsH), frozenVsContract: r2(swingsFrozen * 2 / (3600 / needKillsH)), lineVsContract: r2(swingsLine * 2 / (3600 / needKillsH)) };
+  return { L, hp, hpPlate, mana, monHp: m.hp, monXp: m.xp, monDef: m.def, monBlow: blow, blowShareOfHp: r2(blow / hp), skill, strFormula, hitFrozen, hitFormula, basicSecAKillFrozen: Math.round(swingsFrozen * 2), basicSecAKillFormula: Math.round(swingsFormula * 2),
+    contractSecAKill: Math.round(3600 / needKillsH), frozenVsContract: r2(swingsFrozen * 2 / (3600 / needKillsH)), formulaVsContract: r2(swingsFormula * 2 / (3600 / needKillsH)) };
 });
 
 /* 4. A DEATH: the Level XP it takes, the hunted hours that is on the contract, the Levels it takes, the one Blessing's price (lane/level-costs) */

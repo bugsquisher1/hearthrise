@@ -21,7 +21,8 @@
 //   SG-7  Klappa's Club (Tyler 2026-11-03, the tribute to Andy): the club hero's rung between the kit and the Iron Warhammer, reforged at a
 //         fresh bench from the kit's one club (so it is no wage) and what a Level 5 hero can reach; PLAYED: the bench run on the real span,
 //         then its blow and a real Thicket hunt on the settle
-//   SG-8  cloth's damage is a premium, not the hit (designer 2026-11-15, lane/d-mage-110): from tier 2 up, a Mage in its tier's wand,
+//   SG-8  cloth's damage is a premium, not the hit (designer 2026-11-15, lane/d-mage-110): from tier 2 up, every tier of the ladder (the
+//         step tiers past Dawnsteel too, the retired weapon line's WL9), a Mage in its tier's wand,
 //         spellbook and six cloth pieces at that tier's Level (Magic at the Level) hits at most 1.3 times a warhammer at the same Level
 //         (Melee at the Level), the engine's own max hit (playerCombatRolls). At 0.4 of the plate twin's defence it was 1.5 at tier 3 and
 //         1.9 at tier 7 (today 1.19-1.28), and a lone Mage earned 1.4-1.8 times the pace from the Slake to the Pauper Vaults (the board's section)
@@ -131,7 +132,9 @@ export function check() {
   const lad = Object.fromEntries(GEAR_LADDERS.map((l) => [l.key, l.ids]));
   const maxHitOf = (equipment, L) => playerCombatRolls({ def: 0, tier: 1 }, { items: ITEMS, equipment,
     skills: { melee: skillXpForLevel('melee', L), magic: skillXpForLevel('magic', L) }, profile: deriveProfile(ITEMS[equipment.weapon].weaponType) }).maxHit;
-  for (let t = 1; t < 7; t++) {
+  /* every tier of the ladder, the step tiers past Dawnsteel too (the retired weapon line's WL9 catch, 12-targets 8.8: past Dawnsteel a Mage wears
+     its tier's formula wand and cloth, not a line) */
+  for (let t = 1; t < lad['weapon:wand'].length; t++) {
     const wand = lad['weapon:wand'][t], book = lad.spellbook[t], hammer = lad['weapon:warhammer'][t];
     const L = Number((ITEMS[wand] || {}).reqLv);
     const robes = Object.fromEntries(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl) => [sl, lad['cloth:' + sl][t]]));
@@ -243,6 +246,8 @@ function mutate() {
   run('a reforge whose output type no Work-window tab claims', 'SG-6', () => swap('steelgrate', { type: 'trinket' }));
   /* the old cloth row on one piece: the Duskwood Robe Top at 0.4 of the Dawn Platebody's 90 (36, not 10) */
   run('the Duskwood Robe Top back at 0.4 of its plate twin\'s defence', 'SG-8', () => setField('duskweave_body', 'magicStrB', 36));
+  /* past Dawnsteel (the retired weapon line's WL9 mutant "the wand line carries the Mage past the bar", on the ladder's own Wolfram wand) */
+  run('the Rowan Wand past the bar at Wolfram (its damage half again: a Mage past 1.3 times the Wolfram Warhammer)', 'SG-8', () => setField('rowan_wand', 'magicStrB', 130));
   run('the Scholar set back at 0.4 (the Mage 1.5 times the Willow Warhammer at Level 30)', 'SG-8', () => {
     const undo = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl, i) => setField('scholar_' + sl, 'magicStrB', [4, 9, 6, 3, 2, 3][i]));
     return () => undo.reverse().forEach((u) => u());

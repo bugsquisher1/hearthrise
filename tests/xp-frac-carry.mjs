@@ -256,7 +256,6 @@ function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
     ctx: {
       away: true, monsters: MONSTERS, items: ITEMS, bonus, rng,
       playerRolls: (m) => cmb.playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: xpState.skills, bonus, setBonus, profile, charms: undefined, trophies: undefined, monsterId: 'slime' }),
-      monsterRolls: (m) => cmb.monsterCombatRolls(m, { eq, skills: xpState.skills, bonus }),
       weakness: (m, id) => cmb.weaknessInfo(m, eq, undefined, undefined, id),
       botd: { killBonuses: () => ({ xpMult: 1, dropMult: 1, goldMult: 1 }) },
       fx: {

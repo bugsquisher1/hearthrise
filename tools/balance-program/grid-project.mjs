@@ -9,10 +9,13 @@
 // tierRowFor at that floor. Nothing is written anywhere: the answer is a worker what-if (tools/balance-sim/worker.mjs applyWhatIf), so the
 // engine plays it for one cell and the rows are restored after.
 //
-// THE PROJECTED GEAR LINE. "A gear line that adds one band every 20 Levels inside E1." The band's weapon and armor are the staged lines'
-// own formula (tools/balance-sim/staged/weapon-line.js lineWeapon, armor-line.js lineArmor: the Dawnsteel row x reqLv / 110), worn as the
-// Dawnsteel row with its numbers moved to the line at the band's Level, again as a what-if. Whether a band step lands inside E1 is what
-// the grid measures, never what this file assumes. Shields, spellbooks and jewelry stay what the state wears at 185.
+// THE PROJECTED GEAR. "A gear line that adds one band every 20 Levels inside E1." On 8.3 that band is a tier: every 20 item Levels is one
+// tier, worn from its item Level less wearAhead, and a tier past the last named metal is the same formula at its item Level (the designer's
+// 12-targets.md 8.3 a and 8.8: "a ground's gear ceiling is its base tier's formula piece"; the staged lines past Dawnsteel, Dawnsteel x
+// Level / 110, retired with that ruling). So the band's weapon and armor are the top named rung of each family and slot (the Wolfram rows)
+// with every stat the one gear formula's at the band's item Level (src/core/gear-stats.js statsOfRow), again as a what-if. Whether a band
+// step lands inside E1 is what the grid measures, never what this file assumes. Shields, spellbooks and jewelry stay what the state wears
+// at 185.
 //
 // PURE but for what it is handed. Staged here, never in src/ (50-standards 5.2).
 // ════════════════════════════════════════════════════════════════════════
@@ -21,8 +24,9 @@ export const PROJECTED = Object.freeze({ template: 'unmarked_catacombs', from: 1
 
 /** The placeholder's floor a hero of Level L hunts (past PROJECTED.from): the highest floor at or under L, one every 9 Levels. */
 export const projectedFloor = (L) => PROJECTED.from + PROJECTED.floorEvery * Math.floor((Math.max(L, PROJECTED.from) - PROJECTED.from) / PROJECTED.floorEvery);
-/** The projected gear band a hero of Level L wears (one every 20 Levels from 185); `back` bands under it (LOW wears one back). */
-export const projectedBand = (L, back = 0) => PROJECTED.from + PROJECTED.bandEvery * (Math.floor((Math.max(L, PROJECTED.from) - PROJECTED.from) / PROJECTED.bandEvery) - back);
+/** The item Level of the tier a hero of Level L wears past 185 (one tier every `tierSteps` item Levels, worn from it less `wearAhead`:
+    gear-steps.js GEAR_STEPS), `back` tiers under it (LOW wears one back). */
+export const projectedTier = (L, steps, back = 0) => steps.tierSteps * (Math.floor((Math.max(L, PROJECTED.from) + steps.wearAhead) / steps.tierSteps) - back);
 
 /**
  * The placeholder ground at floor F as a worker what-if: { monsters: { id: stat fields } } (its tier rows retired with the tiers,
@@ -48,17 +52,29 @@ export function selfCheck(D) {
   return out;
 }
 
+export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 /**
- * The projected band's worn set for a style: { kit overrides (slot -> Dawnsteel row id), items what-if (row id -> the line's numbers at R) }.
- * L: { WEAPON_LINE_BASE, lineWeapon, LINE_BASE, lineArmor }; style: tools/balance-sim/styles.mjs STYLES row.
+ * The worn set of the formula piece at item Level iL for a style: { set (slot -> the top named rung of its ladder), items (that row id ->
+ * every stat field the formula gives it at iL, zeroing a field it no longer carries, with its item Level and wear) }.
+ * T: { ladder (GEAR_LADDERS key -> ids), ITEMS, statsAt(id, iL) (src/core/gear-stats.js statsOfRow), fields (GEAR_STAT_FIELDS), wearAhead };
+ * style: tools/balance-sim/styles.mjs STYLES row.
  */
-export function lineKit(Ln, style, R) {
-  const family = String(style.weapon).replace(/^weapon:/, '');
-  const wb = Ln.WEAPON_LINE_BASE[family];
-  if (!wb) throw new Error('grid-project: no weapon line for ' + style.weapon);
-  const set = { weapon: wb.id }, items = { [wb.id]: { ...Ln.lineWeapon(family, R), reqLv: R } };
-  const ab = Ln.LINE_BASE[style.line];
-  if (!ab) throw new Error('grid-project: no armor line for ' + style.line);
-  for (const [slot, id] of Object.entries(ab.ids)) { set[slot] = id; items[id] = { defB: Ln.lineArmor(slot, style.line, R), reqLv: R }; }
+export function tierKit(T, style, iL) {
+  const top = (key) => { const ids = (T.ladder[key] || []).filter((id) => id && T.ITEMS[id]); return ids[ids.length - 1] || null; };
+  const at = (id) => {
+    const s = T.statsAt(id, iL);
+    if (!s) throw new Error('grid-project: ' + id + ' has no gear profile');
+    const row = { iL, reqLv: Math.max(1, iL - T.wearAhead) };
+    for (const k of T.fields) if (s[k] || T.ITEMS[id][k]) row[k] = s[k] || 0;
+    return row;
+  };
+  const weapon = top(style.weapon);
+  if (!weapon) throw new Error('grid-project: no weapon ladder for ' + style.weapon);
+  const set = { weapon }, items = { [weapon]: at(weapon) };
+  for (const slot of ARMOR_SLOTS) {
+    const id = top(style.line + ':' + slot);
+    if (!id) throw new Error('grid-project: no ' + style.line + ' ' + slot + ' ladder');
+    set[slot] = id; items[id] = at(id);
+  }
   return { set, items };
 }

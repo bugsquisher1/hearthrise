@@ -302,10 +302,10 @@ export const COMBAT = [
   L('weapon.family-tables', 'weapon-power', 'archetype', 'Weapon accuracy and damage by family (the gear formula\'s profiles)', {
     at: [at('src/data/gear-profiles.js', 'export const GEAR_PROFILES')],
     rows: rows('one profile a weapon family, off-hand, armor weight, cloak and jewel; the family rows of the ladder carry no stat', [home('src/data/gear-profiles.js#GEAR_PROFILES', 'keys'), home('src/data/gear-tiers.js#SHIPPED_FAMILIES', 'count'), home('src/data/gear-tiers.js#SPELLBOOKS', 'count')]),
-    def: 'every piece\'s stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family\'s profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece states its offset (statPlus). Past 88 the staged Dawnsteel line still lives in tools (X-LINE-IN-TOOLS)',
+    def: 'every piece\'s stats = profile x slot share x budget(item Level) (src/core/gear-stats.js gearStats, lane/gear-catalogue-steps): a family\'s profile is its Dawnsteel piece over its share of the offense budget (sword accuracy 1000); a named piece is its tier\'s piece plus its rule (28-named-pieces.md); past the last named tier the same formula (12-targets 8.8: the staged Dawnsteel lines retired)',
     range: 'permille of the slot\'s share, whole; rarity never sizes the base (RARITY_PM all 1000)',
     touches: 'kill speed by gear state; what an upgrade is worth', out: KILL, f: ['C-GEAR-WEAPON'],
-    tests: [['tests/weapon-line.mjs', 'the weapon line\'s pace and safety read']], testReads: ['WEAPON_FAMILIES', 'MATERIAL_TIERS', 'gear-tiers'],
+    tests: [['tests/style-gear.mjs', 'SG-8: the Mage bar on every tier of the ladder']], testReads: ['GEAR_LADDERS', 'gear-tiers'],
     perturb: P('the kits read these tables (grid-kit.mjs): a patch on a row is played', 'gearSlope'),
     flags: [flag('ineffective', 'No formula past tier 7 (Level 88): today\'s gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000', '44 summary item 1, MEASURED there (progression-engine-probe.json)')],
     ev: 'CONFIRMED (read)' }),

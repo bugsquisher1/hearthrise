@@ -508,6 +508,12 @@
         "gzipBytes": 981425,
         "on": "2026-11-27",
         "why": "a cut locked in"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 982096,
+        "on": "2026-11-27",
+        "why": "lane/retire-dawnsteel-lines: the 6 named uniques re-homed as item rows (items.js statsAs twins) and their placeholder icons"
       }
     ]
   }

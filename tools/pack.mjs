@@ -341,7 +341,7 @@ async function ship(id, argv) {
   const packFile = join(F.GROUNDS_DIR(), id, 'pack.js');
   const before = readFileSync(packFile, 'utf8');
   /* an open pack re-ships as it stands; a staged one is opened, or refused when its lines can't be found (never a file with no rows) */
-  if (!/^\s*status: "open",$/m.test(before)) {
+  if (!/^\s*status: (["'])open\1,$/m.test(before)) {
     try { writeFileSync(packFile, S.openedText(before, was || file)); } catch (e) { console.error('pack ship: ' + id + ': ' + (e.message || e)); process.exit(1); }
   }
   let out;
@@ -351,7 +351,7 @@ async function ship(id, argv) {
   } catch (e) { writeFileSync(packFile, before); console.error('pack ship: ' + (e.message || e)); process.exit(1); }
   if (was && existsSync(join(dir, was)) && readFileSync(join(dir, was), 'utf8') === out.sql) { console.log('pack ship: ' + was + ' is current'); return; }
   writeFileSync(join(dir, file), out.sql);
-  writeFileSync(packFile, readFileSync(packFile, 'utf8').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + file + '",'));
+  writeFileSync(packFile, readFileSync(packFile, 'utf8').replace(/^(\s*)sql: (null|"[^"]*"|'[^']*'),$/m, '$1sql: "' + file + '",'));
   registerNew(ROOT, file, 'STAGED, NOT APPLIED (ground pack ' + id + ', tools/pack.mjs ship): the pack\'s own rows, ' + out.added.reduce((s, t) => s + t.rows.length, 0)
     + ' in ' + out.added.length + ' tables, upserted on their keys; additive and commuting (tests/ground-pack.mjs). Order: this file, then the hr-accrue deploy, then the client.');
   console.log('pack ship: wrote ' + file + ' (' + out.sql.split('\n').length + ' lines), opened ' + id + ', and its STAGED sidecar');

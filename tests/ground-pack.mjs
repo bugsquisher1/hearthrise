@@ -5,6 +5,7 @@
 //
 //   node tests/ground-pack.mjs            GP-1..GP-4, seconds
 //   node tests/ground-pack.mjs --fold     + GP-5 and GP-6: every shipped ground planted as a pack, and a real PostgreSQL
+//   node tests/ground-pack.mjs --staged   GP-1..GP-4 and GP-9 alone (each staged pack rehearsed in a scratch copy)
 //   node tests/ground-pack.mjs --mutate   every claim bites a planted defect (no tree edit outlives the run)
 //
 //   GP-1  src/data/grounds/index.js is the written one (tools/pack.mjs index): one import and one row a pack folder, in id order
@@ -19,12 +20,16 @@
 //   GP-7  (--fold) a new ground at a new band takes the formula's numbers from tools/pack.mjs propose --write, in its own file only
 //   GP-8  (--fold) a staged pack with a keyed hall rehearses its ship clean: its file holds the hall's own hr_boss_halls row
 //         (a table a pack may write, GP-4) and the room's hunt, and moves no schema or function body
+//   GP-9  (--fold, --staged) a staged pack's ship, rehearsed in a scratch copy of the tree, carries an hr_item_levels row for each
+//         worn piece, an hr_tally_tiers row for each piece in her slots and an hr_flame_fuel row for each Remains good it brings to
+//         a scale ground (those whole files read the shipped packs only, so the pack's own file is the only carrier)
 //   GP-6  THE ADDITIVE FILE EQUALS THE WHOLE ONE on a real PostgreSQL (the replayed chain, tests/schema-replay.mjs): the
 //         planted packs' files and every shipped, unfolded pack's own file applied in turn (twice: idempotent), then the whole
 //         files with all of them folded: no row of a pack table moves. So a world move that folds the packs later re-states
 //         them, and packs commute. (GP-5 plants the BASE grounds only: an open pack has no base path to compare.)
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, cpSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -120,7 +125,7 @@ function droppedAfter(file) {
 /* a covered generator's whole file name, read as text */
 function outOf(gen) {
   const t = readFileSync(join(ROOT, 'tools', gen), 'utf8');
-  const m = t.match(/OUT_NAME = '([^']+)'/) || t.match(/'((?:\d{4}-\d{2}-\d{2}|\d{4,})-[a-z0-9_-]+-items-catalogue\.generated\.sql)'/);
+  const m = t.match(/OUT_(?:NAME|FILE) = '([^']+)'/) ||t.match(/'((?:\d{4}-\d{2}-\d{2}|\d{4,})-[a-z0-9_-]+-items-catalogue\.generated\.sql)'/);
   if (!m) throw new Error('ground-pack: no whole file name in tools/' + gen);
   return m[1];
 }
@@ -168,6 +173,53 @@ function gp8() {
     ok(!!h && h.rows.some((r) => r[h.cols.indexOf('hunt_id')] === "'" + id + "_hall'"), 'GP-8 ' + id + ' rehearsed leaves its hall\'s room (' + id + '_hall) out of hr_hunt_travel');
   }
   return halls;
+}
+
+/* GP-9 A STAGED PACK'S PIECES SHIP WITH THEIR LEVELS, FUEL AND TALLY BOOK (lane/flame-temper-shipped-packs, 2026-11-27): the item
+   Level catalogue (gen-flame-temper) and the tally tier book (gen-tally-tasks) read the whole view, so a pack shipped after their whole
+   files is in neither unless its own file carries the rows. Each staged pack is rehearsed in a SCRATCH COPY of the tree (the real tree is
+   never written): every worn piece has its hr_item_levels row, every piece in her slots its hr_tally_tiers row, and every Remains good
+   it brings to a scale ground that no shipped pack burns its hr_flame_fuel row. The copy's own ship tool renders it, so a mutant
+   (`plant(tmp)`, --mutate) cuts the copy's tool, never the tree's. */
+function scratchTree() {
+  const tmp = mkdtempSync(join(tmpdir(), 'hr-ship-'));
+  for (const d of ['src', 'tools', 'tests', 'supabase/migrations', 'supabase/migration-notes', 'supabase/functions']) {
+    cpSync(join(ROOT, d), join(tmp, d), { recursive: true, filter: (p) => !/[\\/](vendor|balance-program|node_modules)([\\/]|$)/.test(p.slice(ROOT.length)) });
+  }
+  cpSync(join(ROOT, 'package.json'), join(tmp, 'package.json'));
+  return tmp;
+}
+async function gp9(plant = null, only = null) {
+  const want = childJson(`import { GROUND_PACKS } from './src/data/grounds/index.js'; import { FLAME_FUEL } from './src/data/inner-flame.js';
+    import { TALLY_RULES } from './src/data/tally-tasks.js'; import { DANGER_GROUNDS } from './src/data/danger.js';
+    const fuel = new Set(FLAME_FUEL.map((r) => r.item)), slots = new Set(TALLY_RULES.slotOrder);
+    console.log(JSON.stringify(GROUND_PACKS.filter((p) => p.status === 'staged').map((p) => {
+      const items = Object.entries(p.items || {});
+      return { id: p.id, worn: items.filter(([, it]) => it && it.slot && it.slot !== 'ammo').map(([k]) => k).sort(),
+        tally: items.filter(([, it]) => it && slots.has(it.slot)).map(([k]) => k).sort(),
+        fuel: !Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) ? [] : [...new Set(Object.values(p.monsters || {}).flatMap((m) => (m.drops || []).map((d) => d.id)).filter((x) => fuel.has(x)))].sort() };
+    }).filter((p) => p.worn.length || p.fuel.length)));`);
+  ok(want.some((p) => p.worn.length) && want.some((p) => p.fuel.length), 'GP-9 CONTROL: no staged pack carries a worn piece and a Remains good to ship');
+  /* the fuel 1069 already holds (a shipped pack burns it there): the pack adds no row for it */
+  const served = new Set(rowsOf(readFileSync(join(MIG, outOf('gen-flame-temper.mjs')), 'utf8')).filter((s) => s.table === 'hr_flame_fuel').flatMap((s) => s.rows.map((r) => r[0])));
+  for (const p of want.filter((x) => !only || only.includes(x.id))) {
+    const tmp = scratchTree();
+    try {
+      let s = null;
+      if (plant) plant(tmp);
+      try { s =(await import(pathToFileURL(join(tmp, 'tools', 'pack', 'ship.mjs')).href)).rehearse(p.id, tmp); } catch (e) { ok(false, 'GP-9 a ship rehearsal refuses ' + p.id + ': ' + String(e.message || e).split('\n').slice(0, 3).join(' | ')); continue; }
+      /* a moved frame is the ship's own refusal (a world move, GP-8's claim for a hall), not this one's: named, never red here */
+      if (s.moved.length) console.log('  note: GP-9 ' + p.id + ' ships only with a world move (the frame of ' + s.moved.join(', ') + ' moves)');
+      const has = (table) => new Set((s.added.find((t) => t.table === table) || { rows: [] }).rows.map((r) => r[0]));
+      const lacks = (table, ids) => { const h = has(table), miss = ids.filter((x) => !h.has("'" + x + "'")); ok(!miss.length, 'GP-9 ' + p.id + ' ships no ' + table + ' row for ' + miss.length + ' of its ' + ids.length + ' (' + miss.slice(0, 4).join(', ') + ')'); };
+      lacks('hr_item_levels', p.worn);
+      lacks('hr_tally_tiers', p.tally);
+      lacks('hr_flame_fuel', p.fuel.filter((x) => !served.has("'" + x + "'")));
+      console.log('  GP-9 ' + p.id + ' ships ' + ['hr_item_levels', 'hr_tally_tiers', 'hr_flame_fuel'].map((t) => has(t).size + ' ' + t).join(', ')
+        + ' (worn ' + p.worn.length + ', in her slots ' + p.tally.length + ', Remains ' + p.fuel.length + ')');
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
+  }
+  return want.map((p) => p.id);
 }
 
 /* ── GP-5 / GP-6: the planted grounds ── */
@@ -315,9 +367,11 @@ async function main() {
   gp1(); gp2(); gp3(); gp4();
   if (argv.includes('--mutate')) return mutate();
   if (argv.includes('--loop')) return loop(argv);
+  if (argv.includes('--staged')) { await gp9(); return report(); }
   if (argv.includes('--fold')) {
     await gp7();
     gp8();
+    await gp9();
     /* the BASE grounds (authored in the old files) are planted as packs; an open pack is a pack already, with no base path to
        compare (GP-5) and rows that may name a lower pack's monsters (Muster Barrows' wave is the Ford's Pikemen), so it is not
        re-planted: its own shipped file goes into GP-6 beside the planted ones, folded with them */
@@ -339,7 +393,7 @@ async function main() {
 
 function report() {
   if (fail.length) { for (const f of fail) console.error('✗ ' + f); console.error('ground-pack: ' + fail.length + ' claim(s) red'); process.exit(1); }
-  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6, GP-7, GP-8' : '') + ')');
+  console.log('ground-pack: green (' + packIds().length + ' pack(s); GP-1..GP-4' + (process.argv.includes('--fold') ? ', GP-5, GP-6, GP-7, GP-8, GP-9' : process.argv.includes('--staged') ? ', GP-9' : '') + ')');
 }
 
 /* --mutate: each claim bites. Tree edits are planted packs only, always removed. */
@@ -403,6 +457,17 @@ async function mutate() {
       const moved = await gp6(ships, cut);
       ok(!moved.length, 'GP-6 moved ' + moved.join(', '));
     } finally { unplant(p); }
+  });
+  /* GP-9: the ship tool as it stood before lane/flame-temper-shipped-packs (COVERED without the item Level and tally generators), cut in the
+     scratch copy only: the Roost ships no item Level, tier-book or fuel row */
+  await bites('GP-9 a ship tool that leaves out the item Levels, fuel and tally tier book', async () => {
+    const { writeFileSync } = await import('node:fs');
+    await gp9((tmp) => {
+      const f = join(tmp, 'tools', 'pack', 'ship.mjs'), t = readFileSync(f, 'utf8');
+      const cut = t.replace(", 'gen-flame-temper.mjs', 'gen-tally-tasks.mjs']", ']');
+      if (cut === t) throw new Error('the GP-9 mutant planted nothing');
+      writeFileSync(f, cut);
+    }, ['wyvern_roost']);
   });
   let miss = 0;
   for (const [name, caught] of results) { console.log('  ' + (caught ? 'ok  ' : 'MISS') + ' ' + name); if (!caught) miss++; }

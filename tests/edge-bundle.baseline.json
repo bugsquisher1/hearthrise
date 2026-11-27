@@ -623,6 +623,11 @@
         "bytes": 3912797,
         "on": "2026-11-27",
         "why": "lane/front-seat +2.1 KB (re-raised on the merge with set c6d53610d): the close (12-targets 8.9.1), a combat rule the engine plays on both paths: monster-roles.js reachPick's any-row fallback, reaimOf's contact rule and pinsOf, roles.js rangedPos's pin, the three pins rows in src/data/monster-roles.js, with their comments"
+      },
+      {
+        "bytes": 3913022,
+        "on": "2026-11-27",
+        "why": "lane/designer-bd9: all 16 grounds' re-cut tops in src/data/danger.js, which the engine carries"
       }
     ]
   }

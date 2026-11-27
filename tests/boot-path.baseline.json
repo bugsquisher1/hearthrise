@@ -580,6 +580,12 @@
         "gzipBytes": 984084,
         "on": "2026-11-27",
         "why": "lane/front-seat: monster-roles pins (brute, swarm, warder) and the close rule in the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 984086,
+        "on": "2026-11-27",
+        "why": "lane/designer-bd9: the 16 re-cut band rows in danger.js (game half)"
       }
     ]
   }

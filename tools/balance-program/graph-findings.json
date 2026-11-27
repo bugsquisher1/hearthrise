@@ -1170,10 +1170,6 @@
    "kind": "writers",
    "key": "C-JEWEL-PERKS|P03"
   },
-  "GF-bd51be5d": {
-   "kind": "call",
-   "key": "C-MON-BLOW>C-MON-TOHIT"
-  },
   "GF-bf3a3000": {
    "kind": "carrier",
    "key": "C-HERO-POWER>P06"

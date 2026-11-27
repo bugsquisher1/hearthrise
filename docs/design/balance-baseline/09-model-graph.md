@@ -48,11 +48,11 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 | Quantities on the closed list | 132 |
 | Formulas with typed reads and writes | 108 of 108 |
 | Outcome readers (hand-declared, they stand where E14 stands) | 20 |
-| Reads declared, and how many the code shows (cited file:line) | 254, 98 derived |
+| Reads declared, and how many the code shows (cited file:line) | 254, 96 derived |
 | Writes declared, and how many the code shows | 178, 131 derived |
 | Typed edges (one writes what another reads) | 346 |
 | Edges the formula register declares | 199 |
-| Calls between formula homes, read from the code | 44 |
+| Calls between formula homes, read from the code | 42 |
 | Levers joined, and knobs | 245, 35 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
@@ -355,7 +355,7 @@ A ghost edge is a pair of mechanics that share a quantity or a call with no decl
 | `feeds` | ghost edge: one writes what the other reads, no declared edge | 130 |
 | `writers` | ghost edge: two mechanics write one quantity, no declared edge | 61 |
 | `carrier` | ghost edge: a declared edge with no shared quantity | 46 |
-| `call` | ghost edge: the code calls it, no declared read | 15 |
+| `call` | ghost edge: the code calls it, no declared read | 14 |
 | `lever-reader` | a lever's number is read by a formula the lever does not name | 8 |
 | `sign` | the trace's predicted direction disagrees with the measured one | 8 |
 | `undeclared-move` | a measured movement no lever declared | 75 |
@@ -418,7 +418,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 | 39 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
 | 40 | `GF-d078483b` | feeds | E18 / O-SUPPLIES | 8 | E18 writes supplies.used and O-SUPPLIES reads it. The register holds no edge between them |
 
-252 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
+251 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->
 
 **Six the owners should look at first.** JUDGED, and each is a question, not a verdict.
@@ -450,7 +450,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 - **Rule code outside every formula's home.**
 
 <!-- graph:unhomed -->
-284 top-level bindings in 137 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, armorPm, focusPm, ...).
+284 top-level bindings in 137 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, armorPm, focusPm, ...).
 <!-- /graph:unhomed -->
 
   These are mostly content tables (ground packs, the ability rows, the monster rows) and the plumbing that carries a hero's stats onto a unit. The check does not read them. A number added there is caught by the lever registry's check, not by this one.

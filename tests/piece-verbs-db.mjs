@@ -22,8 +22,14 @@
 //   PV-4 BOTH PATHS: the leader of a four wears a First Rank III piece through hr_piece_wear before the hunt: the read hands it to that hero
 //        alone, the closed and the viewed hunt from one anchor store one world, and that world differs from the same four with the piece
 //        left in the bag (the Trait played); a wear while the hunt is open is refused hunt_open.
+//   PV-5 A SETUP REMEMBERS ITS PIECE, BOTH PATHS (1074-setup-pieces.sql, lane/piece-gear-fixes): the setup in use follows a piece put on, a
+//        setup saved while it is worn keeps it; switched off to a plain setup and back, THE PIECE goes on again, never the plain copy of
+//        its base the bag holds, and the hunt reads its Trait for that hero: the player's own Use then the page's enter (hunt viewed), and
+//        the company's Start switching the ground's setup itself (browser closed). The piece sold, the setup's line says so (gone) and Use
+//        refuses piece_gone by slot, moving nothing.
+//   --case=<name> runs one case; --mutate --mutant=<part of a name> those mutants only.
 //
-// mutant-anchors: supabase/migrations/1072-piece-verbs.sql
+// mutant-anchors: supabase/migrations/1072-piece-verbs.sql supabase/migrations/1074-setup-pieces.sql
 // ci-step: db-replay | Trait piece verbs - the wear, the equip doors that never copy a piece, the store sale, both paths (1072)
 // ci-run: node tools/gen-piece-value.mjs --check
 // ci-run: node tools/mutant-gate.mjs node tools/gen-piece-value.mjs --selftest
@@ -290,10 +296,96 @@ async function bothPaths(boot) {
   return problems;
 }
 
+/* PV-5: a setup remembers its piece (1074-setup-pieces.sql). `door` 'viewed': the player's own Use, then the hunt entered by the page;
+   'closed': the company's Start (hr_carry_on, the ground pointed at the setup) switches the setup itself, nobody watching. */
+const PRESETS = (db, uid) => one(db, 'select public.hr_hunt_presets_view($1::uuid, 0)', [uid]);
+const setupOf = async (db, uid, n) => ((await PRESETS(db, uid)) || []).find((x) => x.preset === n) || null;
+async function setupDoor(boot, which) {
+  const problems = [];
+  const { db } = await boot();
+  const { a, M } = await heroes(db);
+  await flags(db, ['trait_pieces']);
+  const p = await plant(db, a, { base: GEAR.body, slot: 'body', traits: [{ id: 'first_rank', rank: 3 }] });
+  const { runEquip } = await import(pathToFileURL(join(ROOT, 'supabase/functions/hr-accrue/equip.js')).href);
+  const press = (sql, params) => asClient(db, a, sql, params);
+  const tag = 'PV-5 (' + which + ') ';
+  /* 'Bronze' (setup 2) wears the plain other body; 'Rare' (setup 1), saved from it, then puts the piece on: the setup in use follows */
+  let r = await runEquip({ exec: engine(db), user: a, slot: 0, intentId: idem(), equip: { body: OTHER_BODY } });
+  if (r.status !== 200) return [tag + 'CONTROL: the swap to a plain body answered ' + r.status];
+  for (const [n, name] of [[2, 'Bronze'], [1, 'Rare']]) {
+    r = await press('select public.hr_hunt_preset_save(0, $1, $2, $3::uuid)', [n, name, idem()]);
+    if (!r || r.ok !== true) return [tag + 'CONTROL: saving ' + name + ' answered ' + JSON.stringify(r).slice(0, 160)];
+  }
+  if (!(await wear(db, a, 0, p) || {}).ok) return [tag + 'CONTROL: the piece would not go on'];
+  const rare = await setupOf(db, a, 1);
+  if (!rare || !rare.pieces || rare.pieces.body !== p || JSON.stringify(rare.gone) !== '[]') problems.push(tag + 'the setup in use did not follow the piece: ' + JSON.stringify(rare));
+  /* a save over a setup not in use while the piece is on keeps it (Use equipped) */
+  r = await press('select public.hr_hunt_preset_save(0, 3, $1, $2::uuid)', ['Copy', idem()]);
+  const copy = await setupOf(db, a, 3);
+  if (!r || r.ok !== true || !copy || !copy.pieces || copy.pieces.body !== p) problems.push(tag + 'a setup saved wearing the piece reads ' + JSON.stringify(copy));
+  r = await press('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]);
+  /* off: Bronze frees the piece; a plain copy of its base now waits in the bag (the steel body the first swap took off) */
+  r = await press('select public.hr_hunt_preset_apply(0, 2, $1::uuid)', [idem()]);
+  if (!r || r.ok !== true || (await wornOf(db, p)).worn_slot !== null) return [...problems, tag + 'CONTROL: Bronze answered ' + JSON.stringify(r).slice(0, 160)];
+  const bag0 = await bagOf(db, a, GEAR.body);
+  if (bag0 < 1) problems.push(tag + 'CONTROL: no plain copy of the base waits in the bag (' + bag0 + '): the case cannot tell the piece from a copy');
+  /* back to Rare: the player's Use, or the company's Start */
+  if (which === 'viewed') {
+    r = await press('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]);
+    if (!r || r.ok !== true) problems.push(tag + 'Use refused ' + JSON.stringify(r).slice(0, 160));
+    r = await press(`select public.hr_hunt_enter(0, $1, '[]'::jsonb, 1, null, $2::uuid)`, [MUSTER, idem()]);
+  } else {
+    r = await press('select public.hr_hero_plan_set(0, $1, $2::uuid)', [MUSTER, idem()]);
+    if (!r || r.ok !== true) return [...problems, tag + 'CONTROL: the plan answered ' + JSON.stringify(r).slice(0, 160)];
+    r = await press('select public.hr_ground_setup_set(0, $1, 1, $2::uuid)', [MUSTER, idem()]);
+    if (!r || r.ok !== true) return [...problems, tag + 'CONTROL: the ground\'s setup answered ' + JSON.stringify(r).slice(0, 160)];
+    const plan = await press('select public.hr_carry_on_plan(null::int[])', []);
+    r = await press('select public.hr_carry_on(null::int[], $1::bigint, $2::uuid)', [plan && plan.gold, idem()]);
+  }
+  if (!r || r.ok !== true) problems.push(tag + 'the hunt did not open: ' + JSON.stringify(r).slice(0, 200));
+  const at = await wornOf(db, p);
+  if (!at || at.worn_slot !== 0 || at.worn_equip_slot !== 'body' || await slotOf(db, a, 'body') !== GEAR.body) problems.push(tag + 'the setup did not put the piece back on: ' + JSON.stringify(at) + ', the body slot holds ' + await slotOf(db, a, 'body'));
+  if (await bagOf(db, a, GEAR.body) !== bag0) problems.push(tag + 'the setup wore the plain copy of the base from the bag (' + bag0 + ' -> ' + await bagOf(db, a, GEAR.body) + ')');
+  /* the hunt reads the piece's Trait for this hero */
+  const read = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [a]);
+  const me = read && Array.isArray(read.members) ? read.members.find((m) => m.user === a) : null;
+  if (!me || JSON.stringify(me.worn_traits) !== JSON.stringify([{ id: 'first_rank', rank: 3 }])) problems.push(tag + 'the hunt reads ' + JSON.stringify(me && me.worn_traits) + ' for the hero, not the piece\'s Trait');
+  void M;
+  return problems;
+}
+async function setupGone(boot) {
+  const problems = [];
+  const { db } = await boot();
+  const { a } = await heroes(db);
+  await flags(db, ['trait_pieces']);
+  const p = await plant(db, a, { base: GEAR.body, slot: 'body' });
+  const press = (sql, params) => asClient(db, a, sql, params);
+  const { runEquip } = await import(pathToFileURL(join(ROOT, 'supabase/functions/hr-accrue/equip.js')).href);
+  await runEquip({ exec: engine(db), user: a, slot: 0, intentId: idem(), equip: { body: OTHER_BODY } });
+  for (const [n, name] of [[2, 'Bronze'], [1, 'Rare']]) await press('select public.hr_hunt_preset_save(0, $1, $2, $3::uuid)', [n, name, idem()]);
+  await wear(db, a, 0, p);
+  await press('select public.hr_hunt_preset_apply(0, 2, $1::uuid)', [idem()]);
+  const bid = ((await one(db, 'select public.hr_trait_pieces_view($1::uuid, 0)', [a])).pieces.find((x) => x.id === p) || {}).sell;
+  const s = await sell(db, a, 0, p, bid);
+  if (!s || s.ok !== true) return ['PV-5 CONTROL: the sale refused ' + JSON.stringify(s).slice(0, 160)];
+  const line = await setupOf(db, a, 1);
+  if (!line || JSON.stringify(line.gone) !== '["body"]') problems.push('PV-5 the setup line of a sold piece reads ' + JSON.stringify(line));
+  const v0 = Number(await one(db, 'select version from public.player_state where user_id = $1 and slot = 0', [a]));
+  const bag0 = await bagOf(db, a, GEAR.body);
+  const r = await press('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]);
+  if (!r || r.error !== 'piece_gone' || r.equip_slot !== 'body' || r.item !== GEAR.body) problems.push('PV-5 Use of a setup whose piece was sold answered ' + JSON.stringify(r).slice(0, 160));
+  if (Number(await one(db, 'select version from public.player_state where user_id = $1 and slot = 0', [a])) !== v0 || await slotOf(db, a, 'body') !== OTHER_BODY || await bagOf(db, a, GEAR.body) !== bag0) {
+    problems.push('PV-5 a refused Use moved something: the body slot holds ' + await slotOf(db, a, 'body') + ', the bag ' + bag0 + ' -> ' + await bagOf(db, a, GEAR.body));
+  }
+  return problems;
+}
+const setups = async (boot) => [...await setupDoor(boot, 'viewed'), ...(await closeReplays(), await setupDoor(boot, 'closed')), ...(await closeReplays(), await setupGone(boot))];
+
 /* --mutate: a SQL defect planted in a replayed function body (trait-pieces-db's harness) */
 const APPLY = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)';
 const SELL = 'public.hr_piece_sell(integer,uuid,bigint,uuid)';
 const WEAR = 'public.hr_piece_wear(integer,uuid,text,uuid)';
+const PRESET_APPLY = 'public.hr_hunt_preset_apply(integer,integer,uuid)';
 const MUTANTS = [
   { name: 'the unequip credits a worn piece\'s base to the bag', fn: APPLY,
     find: '              if v_was.id is null or v_was.base is distinct from v_cur then', repl: '              if true then', want: /^PV-[12] .*(DUPLICATION|copy)/, test: doors },
@@ -319,12 +411,28 @@ const MUTANTS = [
     find: "if not public.hr_flag_on('trait_pieces') then return jsonb_build_object('ok', false, 'error', 'pieces_dark'); end if;", repl: '', want: /^PV-1/, test: dark },
   { name: 'the section prices nothing', fn: 'public.hr_trait_pieces_view(uuid,integer)',
     find: "'sell', public.hr_piece_store_bid(p.rarity", repl: "'sell', 0 * public.hr_piece_store_bid(p.rarity", want: /^PV-3/, test: sale },
+  /* 1074-setup-pieces.sql */
+  { name: 'a setup asks for its piece\'s base, not the piece', fn: PRESET_APPLY,
+    find: "case when jsonb_typeof(v_p.pieces->s.equip_slot) = 'string' then jsonb_build_object('piece', v_p.pieces->>s.equip_slot)",
+    repl: 'case when false then null', want: /^PV-5 \(viewed\) .*(piece back on|plain copy)/, test: setups },
+  { name: 'a setup whose piece was sold is let through', fn: PRESET_APPLY, find: '  if v_gone.equip_slot is not null then', repl: '  if false then', want: /^PV-5 Use of a setup whose piece was sold/, test: setups },
+  { name: 'the setup in use never follows a piece', fn: 'public.hr_setup_gear_write(uuid,integer)', find: 'filter (where tp.id is not null)', repl: 'filter (where false)',
+    want: /^PV-5 \(viewed\) the setup in use did not follow/, test: setups },
+  { name: 'a piece put on re-writes no setup', fn: 'public.hr_setup_piece_follow()',
+    find: 'if new.worn_slot is not null and new.worn_slot is distinct from old.worn_slot then', repl: 'if false then', want: /^PV-5 \(viewed\) the setup in use did not follow/, test: setups },
+  { name: 'a save forgets the worn pieces', fn: 'public.hr_hunt_preset_save(integer,integer,text,uuid)',
+    find: 'join public.trait_pieces tp on tp.user_id = e.user_id', repl: 'join public.trait_pieces tp on false and tp.user_id = e.user_id', want: /^PV-5 \(viewed\) a setup saved wearing the piece/, test: setups },
+  { name: 'the setup line never says a piece is gone', fn: 'public.hr_hunt_presets_view(uuid,integer)',
+    find: 'where not exists (select 1 from public.trait_pieces tp where tp.id = e.value::uuid and tp.user_id = p_user)', repl: 'where false', want: /^PV-5 the setup line of a sold piece/, test: setups },
 ];
 
 async function main() {
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
-    for (const m of MUTANTS) {
+    /* --mutant=<part of a name>: those mutants only (a lane's own; the gate runs them all) */
+    const pick = (process.argv.find((x) => x.startsWith('--mutant=')) || '').slice(9);
+    const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    for (const m of list) {
       const boot = async () => {
         const b = await bootReplay();
         const def = (await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');
@@ -340,13 +448,15 @@ async function main() {
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got.find((p) => m.want.test(p)) || got[0] || 'every check held').slice(0, 160));
     }
-    console.log(escaped ? 'piece-verbs-db --mutate: ' + escaped + ' ESCAPED' : 'piece-verbs-db --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' caught');
+    console.log(escaped ? 'piece-verbs-db --mutate: ' + escaped + ' ESCAPED' : 'piece-verbs-db --mutate: ' + list.length + '/' + list.length + ' caught');
     process.exitCode = escaped ? 1 : 0;
     return;
   }
   const boot = () => bootReplay();
   const problems = [];
-  for (const c of [dark, doors, sale, bothPaths]) { problems.push(...await c(boot)); await closeReplays(); }
+  /* --case=<name>: one case (dark, doors, sale, bothPaths, setups) */
+  const only = (process.argv.find((x) => x.startsWith('--case=')) || '').slice(7);
+  for (const c of [dark, doors, sale, bothPaths, setups]) { if (only && c.name !== only) continue; problems.push(...await c(boot)); await closeReplays(); }
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'piece-verbs-db: ' + problems.length + ' FAILED' : 'piece-verbs-db: green (dark, the equip doors never copy a piece, the store sale, the worn piece both paths)');
   process.exitCode = problems.length ? 1 : 0;

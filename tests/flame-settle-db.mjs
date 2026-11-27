@@ -15,6 +15,8 @@
 //        every fire under its room; each hero's bag holds exactly what the same hunt on Off holds less what it burned (the gross is the net
 //        plus the burn, never more); each hero's hunt journal names its burn; the read hands each hero the luck its hunt froze as it began,
 //        after its fire moved; on Off nothing burns and the fire only burns down.
+//   FS-5 THE DROPS AT THE FROZEN LUCK, BOTH PATHS: Rare hours planted short, every fire full when its hunt begins: the closed and the viewed
+//        hunt store the same pieces and pity, and the pity differs from the same hunt on an empty fire (the luck reached the roll).
 //   FS-3 THE CUT: the same closed hunt settled in 45-second windows stores the same fires, burns and bags as in 90-second windows.
 //   FS-4 THE BOUNDS, THROUGH THE REAL COMMIT: a claim the edge proposes, tampered (more of an item than the delta carries, an instant past the
 //        hero's span, a seq out of order, a malformed entry), refuses the whole settle with its code and moves no fire; the untampered
@@ -40,16 +42,17 @@ const one = async (db, sql, params) => { const r = await db.query(sql, params); 
 const exec = (db) => async (text, params) => { await db.exec('set role hr_engine'); try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); } };
 
 /* the plan and held step (trait-pieces-db's), the switches, each account's fire and stoke rule, set before anyone enters */
-const fixture = ({ lit = false, keep = 'full' }) => async ({ db, uids, asUser, one: q, idem: id }) => {
+const fixture = ({ lit = false, keep = 'full', start = START_MPTS, flags = [] }) => async ({ db, uids, asUser, one: q, idem: id }) => {
   for (const uid of uids) {
     await db.query('insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held) values ($1, 0, $2, 0, $3) on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held', [uid, MUSTER, HELD]);
     await db.query(`insert into public.company_flame (user_id, height_mpts, stoke) values ($1, $2, jsonb_build_object('keep', $3::text, 'own_first', true, 'buy_per_day', 0, 'cap_hours_pm', 0, 'sell_rest', false))
-                    on conflict (user_id) do update set height_mpts = excluded.height_mpts, stoke = excluded.stoke`, [uid, START_MPTS, keep]);
+                    on conflict (user_id) do update set height_mpts = excluded.height_mpts, stoke = excluded.stoke`, [uid, start, keep]);
   }
   await asUser(uids[0]);
   const r = await q(db, 'select public.hr_hunt_risk_set(0, $1, $2::uuid)', ['steady', id()]);
   if (!r || r.ok !== true) throw new Error('the stance was refused: ' + JSON.stringify(r).slice(0, 200));
   await db.query("update public.hr_flags set enabled = $1 where key in ('inner_flame', 'trait_drops')", [lit]);
+  if (flags.length) await db.query('update public.hr_flags set enabled = true where key = any ($1::text[])', [flags]);
 };
 
 const EVIDENCE = [];
@@ -125,6 +128,10 @@ async function bothPaths(boot, o = {}) {
       const named = a.journal.filter((j) => j.seat === h.seat).reduce((m, j) => { for (const [k, v] of Object.entries(j.burned)) m[k] = (m[k] || 0) + Number(v); return m; }, {});
       if (canon(Object.fromEntries(Object.entries(named).sort())) !== canon(Object.fromEntries(Object.entries(h.burned).map(([k, v]) => [k, Number(v)]).sort()))) problems.push('FS-2 seat ' + h.seat + '\'s journal names ' + canon(named) + ', its hunt burned ' + canon(h.burned));
     }
+    /* every hunt row that names a burn folds into its hour (1047's model lists `flame`), never left as detail */
+    const unfold = (await closed.db.query(`select l.id from public.player_ledger l where l.meta ? 'flame'
+        and coalesce((public.hr_ledger_meta_plan(public.hr_ledger_fold_model(l.kind, l.intent), l.meta)->>'ok')::boolean, false) is not true`)).rows;
+    if (unfold.length || !a.journal.length) problems.push('FS-2 ' + unfold.length + ' of ' + a.journal.length + ' burning hunt rows cannot fold into their hour');
     if (z.hunts.some((h) => Number(h.units) !== 0) || z.journal.length || z.fires.some((f) => !(Number(f.h) < START_MPTS) || !(Number(f.p) > 0))) problems.push('FS-2 Off burned or did not burn down: ' + canon(z).slice(0, 300));
     /* the luck each hunt rolls at is the one it froze as it began, after its fire moved */
     const want = Number(await one(closed.db, 'select public.hr_flame_luck_pm($1)', [START_MPTS]));
@@ -133,6 +140,44 @@ async function bothPaths(boot, o = {}) {
     for (const m of (read && read.members) || []) if (!m.drops || m.drops.luck_pm !== want) { problems.push('FS-2 the read hands luck ' + canon(m.drops) + ', the hunt froze ' + want); break; }
     if (a.hunts.some((h) => h.luck_pm !== want) || a.fires.every((f) => Number(f.h) === START_MPTS) || !(want > 0)) problems.push('FS-2 the frozen luck is not the start fire\'s (' + want + '): ' + canon(a.hunts.map((h) => h.luck_pm)));
   } finally { if (edge) edge.done(); }
+  return problems;
+}
+
+/* FS-5 THE DROPS, BOTH PATHS, AT THE FROZEN LUCK: Rare hours planted short (trait-pieces-db's plant, the pity step planted with them), every
+   fire full when its hunt begins; the closed and the viewed hunt store the same pieces and the same pity, and the pity differs from the
+   same hunt on an empty fire (the roll read the luck: a miss owes the find at the luck it had) */
+const PLANTED = Object.freeze({ rare: 0.005, very_rare: 0.05 });
+async function luckRolls(boot) {
+  const problems = [];
+  const DR = await import('../src/core/drop-rate.js'), DH = await import('../src/data/drop-hours.js'), PARTY = await import('../src/data/party.js');
+  const FL = await import('../src/data/inner-flame.js'), DG = await import('../src/data/danger.js'), { HUNT_GROUNDS } = await import('../src/data/hunt-grounds.js');
+  const { pityStep } = await import('../tools/gen-trait-pieces.mjs');
+  const dh = { ...DH, DROP_HOURS: { ...DH.DROP_HOURS, rarity: { ...DH.DROP_HOURS.rarity,
+    rare: { ...DH.DROP_HOURS.rarity.rare, everyHours: PLANTED.rare }, very_rare: { ...DH.DROP_HOURS.rarity.very_rare, everyHours: PLANTED.very_rare } } } };
+  const step = Object.fromEntries(['rare', 'very_rare'].map((r) => [r, pityStep({ dr: DR, dh, party: PARTY, flame: FL, danger: DG }, HUNT_GROUNDS[MUSTER], r)]));
+  const edge = plant([
+    ['src/data/drop-hours.js', 'rare: Object.freeze({ everyHours: 40, band', 'rare: Object.freeze({ everyHours: 0.005, band'],
+    ['src/data/drop-hours.js', 'very_rare: Object.freeze({ everyHours: 400, band', 'very_rare: Object.freeze({ everyHours: 0.05, band']], ['supabase/functions/hr-accrue']);
+  const run = async (which, fire) => {
+    const { db } = await boot();
+    await db.query('update public.hr_piece_grounds set pity_step_rare = $2, pity_step_very_rare = $3 where hunt_id = $1', [MUSTER, step.rare, step.very_rare]);
+    const r = await door(db, which, { lit: true, edgeRoot: edge.root, start: fire, flags: ['trait_pieces'] });
+    const pieces = (await db.query("select s.seat, p.slot, p.base, p.traits, p.step, p.kill_unit, p.at_ms::text as at from public.trait_pieces p"
+      + " join public.hunt_sessions s on s.user_id = p.user_id and s.slot = p.found_slot and s.hunt_id = $1 order by s.seat, p.at_ms, p.kill_unit", [MUSTER])).rows;
+    const pity = (await db.query("select s.seat, h.rarity, h.misses::text as m from public.hero_pity h"
+      + " join public.hunt_sessions s on s.user_id = h.user_id and s.slot = h.slot and s.hunt_id = $1 order by s.seat, h.rarity", [MUSTER])).rows;
+    return { r, pieces, pity, luck: (await db.query('select luck_pm from public.hunt_flame order by session_id')).rows.map((x) => x.luck_pm) };
+  };
+  try {
+    const full = 18750;   /* the room at Flame Level 1 (FR-1): the most luck a new company's fire gives */
+    const closed = await run('fire', full), viewed = await run('viewed', full), empty = await run('fire', 0);
+    for (const [name, x] of [['browser closed', closed], ['hunt viewed', viewed], ['an empty fire', empty]]) if (Number(x.r.inst.refusals) !== 0) problems.push('FS-5 ' + name + ': ' + x.r.inst.refusals + ' window(s) refused');
+    EVIDENCE.push('FS-5 a full fire froze luck ' + closed.luck.join('/') + '; ' + closed.pieces.length + ' pieces, doors ' + (canon([closed.pieces, closed.pity]) === canon([viewed.pieces, viewed.pity]) ? 'identical' : 'DIFFER') + '; an empty fire ' + empty.pieces.length + ' pieces');
+    if (closed.pieces.length < 2 || closed.luck.some((l) => !(l > 0))) problems.push('FS-5 CONTROL: ' + closed.pieces.length + ' pieces at luck ' + closed.luck.join('/'));
+    if (canon([closed.pieces, closed.pity]) !== canon([viewed.pieces, viewed.pity])) problems.push('FS-5 the doors stored different drops at the frozen luck:\n      closed ' + canon([closed.pieces, closed.pity]).slice(0, 300) + '\n      viewed ' + canon([viewed.pieces, viewed.pity]).slice(0, 300));
+    if (canon(closed.pity) === canon(empty.pity)) problems.push('FS-5 the lit fire\'s luck never reached the roll: the pity equals the empty fire\'s ' + canon(empty.pity).slice(0, 200));
+    if (empty.luck.some((l) => l !== 0)) problems.push('FS-5 an empty fire froze luck ' + empty.luck.join('/'));
+  } finally { edge.done(); }
   return problems;
 }
 
@@ -173,7 +218,7 @@ async function bounds(boot) {
   for (const [want, fn] of [
     ['flame_over', (m) => { m.flame.push([m.flame[m.flame.length - 1][0], 999999, m.flame[0][2], 50000]); return m; }],
     ['flame_when', (m) => { m.flame[0][0] = m.flame[0][0] + 10 * 3600000; return m; }],
-    ['flame_order', (m) => { const s = m.flame[0][1]; m.flame[0][1] = m.flame[1][1]; m.flame[1][1] = s; m.flame[1][0] = m.flame[0][0]; return m; }],
+    ['flame_order', (m) => { m.flame[1][1] = m.flame[0][1]; return m; }],
     ['bad_flame', (m) => { m.flame[0] = [m.flame[0][0], m.flame[0][1], 'Bones!', 1]; return m; }]]) {
     const res = await M.HS.commitHuntSettle(ex, tamper(fn));
     if (!res || res.ok !== false || res.error !== want) problems.push('FS-4 a forged ' + want + ' answered ' + canon(res).slice(0, 160));
@@ -207,8 +252,11 @@ const MUTANTS = [
     find: "if not public.hr_flag_on('inner_flame') then perform public.hr_reject('flame_dark'); end if;", repl: '', want: /^FS-1/, test: dark },
   /* an edge defect: the engine never notes a drop, so nothing burns */
   { name: 'the engine notes no Remains', edits: [['src/core/hunt-rewards.js', 'if (ctx.flameDrops && ctx.flameDrops.fuel.has(ev.id)) ctx.flameDrops.list.push(', 'if (false) ctx.flameDrops.list.push(']], want: /^FS-2/, test: bothPaths },
-  /* ...and an engine that notes every drop as fuel: the server walks only its own fuel, so nothing it does not list burns */
-  { name: 'the edge notes every drop as fuel', edits: [['src/core/hunt-rewards.js', 'if (ctx.flameDrops && ctx.flameDrops.fuel.has(ev.id)) ctx.flameDrops.list.push(', 'if (ctx.flameDrops) ctx.flameDrops.list.push(']], want: /^FS-2/, test: bothPaths },
+  /* the hour fold (1047) does not know the burn, so every hunt row that burned keeps its detail */
+  { name: 'the hour fold does not know the flame', fn: 'public.hr_ledger_fold_model(text,text)',
+    find: '      "flame": {"burned": {"*": "sum"}},\n', repl: '', want: /^FS-2/, test: bothPaths },
+  /* the roller hands every hunt no luck: the lit hunt finds what the dark one finds */
+  { name: 'the roller reads no luck', fn: 'public.hr_trait_drops_of(uuid,integer)', find: "'luck_pm', coalesce(v_l, 0));", repl: "'luck_pm', 0);", want: /^FS-5/, test: luckRolls },
 ];
 
 async function main() {
@@ -240,10 +288,10 @@ async function main() {
   const boot = () => bootReplay();
   /* one case's replays at a time (an unclosed replay is ~300 MB) */
   const problems = [];
-  for (const c of [dark, bothPaths, cut, bounds]) { problems.push(...await c(boot)); await closeReplays(); }
+  for (const c of [dark, bothPaths, luckRolls, cut, bounds]) { problems.push(...await c(boot)); await closeReplays(); }
   for (const e of EVIDENCE) console.log('  ' + e);
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'flame-settle-db: ' + problems.length + ' FAILED' : 'flame-settle-db: green (dark, the default stoke rule both paths, the cut, the claim bounds through the real commit)');
+  console.log(problems.length ? 'flame-settle-db: ' + problems.length + ' FAILED' : 'flame-settle-db: green (dark, the default stoke rule both paths, the drops at the frozen luck both paths, the cut, the claim bounds through the real commit)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

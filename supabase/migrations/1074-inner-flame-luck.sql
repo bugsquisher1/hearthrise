@@ -40,7 +40,7 @@
 --   (hr_flame_net), its one ledger row carrying meta.flame { burned }. Refusals (HR000, counted on the seat like any other):
 --     flame_dark      a claim while inner_flame is off
 --     bad_flame       shape: not an array, an entry not [whole ms, whole seq, item, whole qty >= 1], more than c_claims_max entries
---     flame_order     the seqs are not strictly rising across the whole settle, or an instant falls back as the seq rises
+--     flame_order     a seq used twice across the whole settle (the engine numbers every drop of the window once, in its own order)
 --     flame_when      a drop outside its hero's hunted span [settled_to before, the member's window end]
 --     flame_over      a member claims more of an item than its delta carries (the claim is a subset of the window's own loot)
 --   A claim whose gross is more than the member's journalled kills times the most the ground drops of it in one kill (hr_flame_fuel_cap)
@@ -182,7 +182,7 @@ create or replace function public.hr_flame_settle(p_instance uuid, p_hunt text, 
 returns void language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   c_claims_max constant int := 4000;   -- a fuse on a window's claim list, not a balance figure (a 10-minute window of a four drops ~80)
-  v_m jsonb; v_x jsonb; v_u uuid; v_seq bigint := -1; v_at_prev bigint := -1; v_from bigint; v_to bigint; v_n int;
+  v_m jsonb; v_x jsonb; v_u uuid; v_seq bigint := -1; v_from bigint; v_to bigint;
   v_items jsonb; v_kills bigint; v_sum jsonb; v_ok boolean; v_k text; v_v numeric;
   v_spans jsonb; v_drops jsonb; v_tops jsonb; f public.company_flame%rowtype; v_keep int; v_w jsonb; v_sid text;
   v_out jsonb := '{}'::jsonb; v_burnable jsonb := '{}'::jsonb; v_claims jsonb := '[]'::jsonb;
@@ -223,11 +223,12 @@ begin
                          where coalesce((v_items->>e.key)::numeric, 0) > public.hr_flame_fuel_cap(p_hunt, e.key, v_kills));
     v_burnable := v_burnable || jsonb_build_object(v_m->>'session', v_ok);
   end loop;
-  -- the seqs rise strictly across the whole settle, and no instant falls back as they rise (the engine's one order)
+  -- the seqs are one order across the whole settle, each used once (the engine's: hr_flame_walk walks them in it, and a drop whose instant
+  -- stands before the walk's clock goes on at the clock, so the order alone decides; every instant is already inside its hero's span)
   for v_x in select e.value from jsonb_array_elements(v_claims) e order by (e.value->>0)::bigint loop
-    if (v_x->>0)::bigint <= v_seq or (v_x->>1)::bigint < v_at_prev then
+    if (v_x->>0)::bigint <= v_seq then
       perform public.hr_reject('flame_order', jsonb_build_object('seq', v_x->0, 'at_ms', v_x->1)); end if;
-    v_seq := (v_x->>0)::bigint; v_at_prev := (v_x->>1)::bigint;
+    v_seq := (v_x->>0)::bigint;
   end loop;
   -- (2) each company's fire, walked once over its heroes' spans and drops
   for v_u in select distinct (e.value->>'user')::uuid from jsonb_array_elements(p_members) e where e.value ? 'flame' order by 1 loop

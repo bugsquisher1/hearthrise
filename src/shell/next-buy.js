@@ -39,6 +39,7 @@ import { tallyOf } from '../session/tally-sections.js';
 import { settingsOf, huntOf } from '../session/hunt-sections.js';
 import { trainingOf } from '../session/training-sections.js';
 import { homeOf, chestsOf } from '../session/home-sections.js';
+import { wornPiecesOf } from '../session/piece-sections.js';
 
 /* A room whose rungs do something (the House window offers no purchase for one that does nothing yet). */
 const roomDoes = (room) => (ROOM_PERKS[room] || []).some((m) => Object.values(m || {}).some((v) => v > 0));
@@ -58,7 +59,8 @@ function gearBuy(o) {
   const offers = (o.shop && o.shop.offers ? o.shop.offers : []).filter((x) => x.kind === 'gear' && x.price <= o.purse && ITEMS[x.item] && ITEMS[x.item].slot);
   if (!offers.length) return null;
   const price = new Map(offers.map((x) => [x.item, x.price]));
-  const plan = upgradePlan({ bag: offers.map((x) => ({ id: x.item, qty: 1 })), equipment: o.equipment, skills: o.skills, level: o.level, prefer: o.prefer, chosen: o.chosen });
+  const plan = upgradePlan({ bag: offers.map((x) => ({ id: x.item, qty: 1 })), equipment: o.equipment, skills: o.skills, level: o.level, pieces: o.pieces || null,
+    prefer: o.prefer, chosen: o.chosen });
   const picks = plan.picks.filter((p) => price.has(p.id));
   if (!picks.length) return null;
   /* a bare slot first, then the cheapest, then by id (one answer for one envelope) */
@@ -193,10 +195,11 @@ const SHELF = Object.freeze([roomRows, deedRows, chestRows, bagRows, dummyRows, 
  *   3. none covered: the nearest, the cheapest of them all, its words saying how much more it needs (the server's price less the server's purse)
  * @param {{ purse: number|null, equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, shop: {offers:{item:string,kind:string,price:number}[]}|null,
  *           dummy: object|null, home: object|null, bag: {id:string,qty:number}[]|null, bank: {id:string,qty:number}[]|null,
- *           chests?: object|null, bagGrow?: object|null, refill?: object|null }} o
+ *           chests?: object|null, bagGrow?: object|null, refill?: object|null, pieces?: object|null }} o
  *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought);
  *        `chosen`: the weight picked at Tamsin's and `prefer`: preferredWeight's, as upgradePlan reads them; `chests`: home-sections.js chestsOf;
- *        `bagGrow`: item-sections.js bagExpandOf; `refill`: huntBlockOf, given only after a hunt out of stamina
+ *        `bagGrow`: item-sections.js bagExpandOf; `refill`: huntBlockOf, given only after a hunt out of stamina; `pieces`: the Trait pieces
+ *        worn (piece-sections.js wornPiecesOf), so the Shop never names a plain piece over a Rare the steps keep
  * @returns {{ kind: string, title: string, words: string, icon: string|null, glyph?: string, place: object, short?: number }|null}  `icon` an item's, else `glyph` (data/glyphs.js);
  *        `short`: the gold still needed, on a buy the purse does not cover yet
  */
@@ -224,6 +227,6 @@ export function nextBuyOf(cs, plan) {
   const lv = levelOf(cs), tally = tallyOf(cs), s = settingsOf(cs), tr = trainingOf(cs), h = huntOf(cs);
   return nextBuy({ purse: goldOf(cs), equipment: Object.assign({}, eq, plan && plan.ops ? plan.ops : {}), skills: skillsOf(cs), level: lv ? lv.level : null,
     chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), dummy: tr ? tr.dummy : null,
-    home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs), chests: chestsOf(cs), bagGrow: bagExpandOf(cs),
+    home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs), chests: chestsOf(cs), bagGrow: bagExpandOf(cs), pieces: wornPiecesOf(cs),
     refill: h && h.ended && h.endReason === 'stamina' ? huntBlockOf(cs) : null });
 }

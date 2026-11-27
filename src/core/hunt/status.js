@@ -90,7 +90,35 @@ function strength(row, scale) {
   if (row.healCutPm) n += Math.floor(((row.healCutPm.hero + row.healCutPm.monster) * scale) / 1000);
   if (row.silence) n += 1;
   if (row.parry) n += 1;
+  if (row.castPm) n += row.castPm;
   return n;
+}
+
+/**
+ * SPEND EVERY `once` STACK on `unit` (statuses.js `once`, Blunted: what it does holds for one blow): called once its blow has landed
+ * (damage.js resolveAttacks after a swing and its splash, monster-spells.js after a wind-up's landing), a `status_off` for each status it
+ * no longer carries. A unit with none is left exactly as it was. Draws nothing.
+ */
+export function spendOnce(unit, sc) {
+  const list = stacksOf(unit);
+  if (!list.length || !list.some((s) => rowOf(s).once === true)) return;
+  unit.statuses = list.filter((s) => rowOf(s).once !== true);
+  for (const id of new Set(list.filter((s) => rowOf(s).once === true).map((s) => s.s))) sc.emit(makeEvent('status_off', sc.atMs, { t: unit.id, status: id }));
+}
+
+/**
+ * A NEXT CAST RAISED (statuses.js `castPm` / `castOf`, Kindled): `unit`'s strongest live stack whose row names `move` is spent now, and
+ * its castPm answered (0 with none: a cast of any other move, or a unit that carries none, spends nothing). abilities.js fire reads it.
+ */
+export function spendCastPm(unit, move, sc) {
+  const list = stacksOf(unit);
+  let st = null;
+  for (const s of list) { const r = rowOf(s); if (s.left > 0 && r.castPm > 0 && r.castOf.includes(move) && (!st || r.castPm > rowOf(st).castPm)) st = s; }
+  if (!st) return 0;
+  const spent = st;
+  unit.statuses = list.filter((s) => s !== spent);
+  if (!countOf(unit, spent.s)) sc.emit(makeEvent('status_off', sc.atMs, { t: unit.id, status: spent.s }));
+  return rowOf(spent).castPm;
 }
 
 /**

@@ -22,6 +22,52 @@ import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.j
 import { ELEMENTS, PHYSICAL } from '../data/elements.js';
 import { armourWeights, maxHpFor, maxManaFor } from './vitals.js';
 import { roleWeaponOf, wornRoleKey, WEIGHT_FOR_ROLE } from '../data/hunt-roles.js';
+import { GEAR_STEPS, TRAITS } from '../data/danger.js';
+import { itemLevelOf } from './hunt/danger.js';
+
+/* ── A WORN TRAIT PIECE IS WEIGHED IN THE ENGINE'S OWN STEPS (lane/piece-gear-fixes, 2026-11-27; src/data/gear-steps.js, 12-targets 8) ──
+   A piece's base is a catalogue row like any other, so the numbers below see only the base: a plain piece one tier up beat a Rare and the
+   press stripped its Traits (the freed piece waits on the slot line, its base never comes back to the bag: 1072-piece-verbs.sql). So a slot
+   that wears a piece (the server's `pieces` section: worn by this hero in this slot, the slot holding its base) takes a plain piece only
+   when that piece's GEAR PART beats the worn one's gear part AND its Traits, in thousandths of a step:
+     plain   item Level x the slot's weight (GEAR_STEPS.slotPm; a two-handed weapon carries GEAR_STEPS.twoHand's), the engine's gear part
+             (src/core/hunt/danger.js gearPartPm)
+     piece   its base's gear part + 1000 x each Trait's steps on the cell that suits it best (traitSteps by rank; a trade, its gain:
+             tradeSteps), the piece's Traits held to the gear slice's cap (conditionalStepsMax), as src/core/power-ledger.js clamps them
+   Every candidate must still beat the worn base on the numbers below. A Trait that does not fire on every blow is counted whole: the pick
+   errs toward keeping the Rare, the player's own swap always sticks. A Signature (a rule, never typed as steps: src/data/signatures.js)
+   or a Trait this build does not know is the player's call, never taken off by the press. */
+const slotWeightPm = (slot, it) => (slot === 'weapon' && it && it.twoHanded === true
+  ? GEAR_STEPS.twoHand.reduce((a, s) => a + (GEAR_STEPS.slotPm[s] || 0), 0) : GEAR_STEPS.slotPm[slot] || 0);
+/** A plain piece's gear part in equip slot `slot`, thousandths of a step (0 for a row the catalogue does not hold). */
+export function plainStepsPm(slot, id) {
+  const it = ITEMS[id];
+  return it ? itemLevelOf(it) * slotWeightPm(slot, it) : 0;
+}
+/** A worn piece's worth in equip slot `slot`, thousandths of a step (the header), or null where the steps do not price it. */
+export function pieceStepsPm(slot, piece) {
+  if (!piece || piece.rarity === 'signature' || piece.signature || !ITEMS[piece.base]) return null;
+  let steps = 0;
+  for (const x of Array.isArray(piece.traits) ? piece.traits : []) {
+    const row = x && Object.prototype.hasOwnProperty.call(TRAITS, x.id) ? TRAITS[x.id] : null;
+    if (!row || !Number.isInteger(x.rank) || x.rank < 1 || x.rank > GEAR_STEPS.traitSteps.length) return null;
+    steps += (row.trade === true ? GEAR_STEPS.tradeSteps : GEAR_STEPS.traitSteps)[x.rank - 1];
+  }
+  return plainStepsPm(slot, piece.base) + Math.min(steps, GEAR_STEPS.conditionalStepsMax) * 1000;
+}
+const PIECE_RARITIES = new Set(['rare', 'very_rare', 'signature']);
+/* the pieces input, kept to what the pick reads: { equip slot: { base, rarity, traits, signature } } */
+function piecesInput(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, p] of Object.entries(raw)) {
+    if (!/^[a-z0-9_]{1,32}$/.test(k) || !p || typeof p !== 'object' || typeof p.base !== 'string' || !PIECE_RARITIES.has(p.rarity)) continue;
+    out[k] = { base: p.base, rarity: p.rarity, traits: Array.isArray(p.traits) ? p.traits : [], signature: typeof p.signature === 'string' ? p.signature : null };
+  }
+  return out;
+}
+/* the piece worn in `slot` now: one the input names whose base the slot still holds (the server's own join, hr_worn_traits_of) */
+const pieceIn = (o, slot, cur) => (o.pieces && o.pieces[slot] && cur && o.pieces[slot].base === cur ? o.pieces[slot] : null);
 
 /** A skill or Level requirement against the server's numbers: the hero's Level for gear (`LEVEL_REQ`, Tyler 2026-10-24), else the skill's
     level; null when the server has not sent it (item-lore.js and Next buy read it too). */
@@ -216,6 +262,10 @@ function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;
   if (curIt && unpriced(curIt)) return null;
+  /* a worn Trait piece: only a plain piece of more steps may take its slot (the header); one the steps do not price stays on */
+  const piece = pieceIn(o, slot, cur);
+  const pieceAt = piece ? pieceStepsPm(slot, piece) : null;
+  if (piece && pieceAt === null) return null;
   /* a worn piece off the chosen weight moves to it (weightFits) without beating the worn one on every number */
   const move = offWeight(curIt, o.chosen);
   const fits = [];
@@ -225,6 +275,7 @@ function bestFor(slot, worn, left, o) {
     if (!weightFits(curIt, it, o.chosen)) continue;
     if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;
     if (STYLE_SLOTS.has(slot) && !sameOffhand(id, cur, worn)) continue;
+    if (piece && !(plainStepsPm(slot, id) > pieceAt)) continue;
     fits.push(id);
   }
   /* A tier step in the bag: every piece for this slot is judged with the set bonus out of both sides (the header). */
@@ -271,9 +322,10 @@ export function preferredWeight(chosen, equipment, role) {
 /**
  * WHAT "WEAR UPGRADES" PUTS ON: the pick, no words (the shell's upgrade-plan.js upgradePlan words it; the Start's server half,
  * supabase/functions/hr-accrue/company-wear.js, wears its `ops`).
- * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null }} o
+ * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, pieces?: object|null }} o
  *        all from the server's state (the bag, the worn set, the skills with their xp, the Level, `chosen`: the armor weight the hero picked
- *        at Tamsin's, the only weight a worn piece is moved to, and `prefer`: preferredWeight's, which settles a tie)
+ *        at Tamsin's, the only weight a worn piece is moved to, `prefer`: preferredWeight's, which settles a tie, and `pieces`: the Trait
+ *        pieces this hero wears, { equip slot: { base, rarity, traits, signature } }, weighed in steps: the header above bestFor's helpers)
  * @returns {{ ops: object, picks: {slot:string, id:string, replaces:string|null, before:any, after:any, moved?:boolean, ends?:number}[],
  *             choices: {slot:string, ids:string[], keeps?:string, lost?:any[], gainFrom?:any, gainTo?:any}[] }}  `ops` is the ONE `equip` delta
  */
@@ -284,6 +336,8 @@ export function pickUpgrades(o) {
   /* a weight picked at Tamsin's is the one a tie goes to as well (preferredWeight puts it first) */
   const chosen = o && PREFER.has(o.chosen) ? o.chosen : null;
   const ctx = { skills: (o && o.skills) || null, level: Math.max(1, Math.floor(num(o && o.level)) || 1),
+    /* the Trait pieces this hero wears, weighed in steps (the header above slotWeightPm) */
+    pieces: piecesInput(o && o.pieces),
     chosen, prefer: chosen || (o && PREFER.has(o.prefer) ? o.prefer : null) };
   const ops = {}, picks = [], choices = [];
   /* Empty slots first (the second ring goes beside the first, never over it), then worn ones, by the weight rule (weightFits). */
@@ -312,9 +366,11 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
  * The pick's inputs from the server's own projection of one hero: `read(key)` answers a section of hr_state_of (the edge's envelope, or a
  * CharacterSession's record): the bag, the worn set, the skills with their xp, the Level, the weight chosen at Tamsin's and the role the worn
- * set gives (preferredWeight's tie-break). A section the server did not send reads as nothing, the safe side.
+ * set gives (preferredWeight's tie-break), and the Trait pieces hero `slot` wears (the account's `pieces` section: worn by this hero, in a
+ * slot that holds its base). A section the server did not send reads as nothing, the safe side (no `slot`: no pieces read, so a piece's
+ * slot reads as its plain base: a caller that can name the hero names it).
  */
-export function wearInputOf(read) {
+export function wearInputOf(read, slot) {
   const inv = read('inventory'), eq = read('equipment'), sk = read('skills'), lv = read('level'), tally = read('tally'), set = read('hunt_settings');
   const bag = isObj(inv) ? Object.entries(inv).filter(([id, n]) => ID.test(id) && Number.isSafeInteger(n) && n > 0).map(([id, qty]) => ({ id, qty })) : [];
   const equipment = isObj(eq) ? Object.fromEntries(Object.entries(eq).filter(([s, id]) => /^[a-z0-9_]{1,32}$/.test(s) && typeof id === 'string' && ID.test(id))) : {};
@@ -327,7 +383,21 @@ export function wearInputOf(read) {
   const level = isObj(lv) && Number.isInteger(lv.level) && lv.level >= 1 ? lv.level : null;
   const chosen = isObj(tally) && PREFER.has(tally.weight) ? tally.weight : null;
   const role = isObj(set) && typeof set.role === 'string' ? set.role : null;
-  return { bag, equipment, skills, level, chosen, prefer: preferredWeight(chosen, equipment, role) };
+  return { bag, equipment, skills, level, chosen, prefer: preferredWeight(chosen, equipment, role), pieces: wornPiecesIn(read('pieces'), slot, equipment) };
+}
+
+/** The Trait pieces hero `slot` wears, from the `pieces` section as the server sends it (1071/1072: { pieces: [{ base, rarity, traits,
+    signature, worn: { slot, equip_slot } }] }): { equip slot: { base, rarity, traits, signature } }, only where the slot holds the piece's
+    base (the server's own join). {} for no section (the switch off), no slot, or none worn. Pure. */
+export function wornPiecesIn(section, slot, equipment) {
+  const out = {};
+  if (!Number.isInteger(slot) || !isObj(section) || !Array.isArray(section.pieces)) return out;
+  for (const p of section.pieces) {
+    const w = isObj(p) && isObj(p.worn) ? p.worn : null;
+    if (!w || w.slot !== slot || typeof w.equip_slot !== 'string' || typeof p.base !== 'string' || !equipment || equipment[w.equip_slot] !== p.base) continue;
+    out[w.equip_slot] = { base: p.base, rarity: p.rarity, traits: Array.isArray(p.traits) ? p.traits : [], signature: typeof p.signature === 'string' ? p.signature : null };
+  }
+  return out;
 }
 
 /**

@@ -19,7 +19,9 @@
 //
 // WHERE THE SERVER COMES FROM. HR_PG_BIN (a PostgreSQL bin directory; default: the Windows installer's 17, then
 // Debian's /usr/lib/postgresql/17/bin). A scratch cluster under the OS temp dir (HR_PG_DATA overrides), trust auth on
-// 127.0.0.1 only, port HR_PG_PORT (55417), fsync off: it is a measuring bench, never a store. The chain is built ONCE
+// 127.0.0.1 only, port HR_PG_PORT (55417), fsync off: it is a measuring bench, never a store. max_connections 30, or
+// HR_PG_MAX_CONNECTIONS when the server is first started (tools/beta-load.mjs --shape=lt: three edges' pools, the rest pool and the
+// builders, smoke.yml pg17-lt; an already-running cluster keeps its own). The chain is built ONCE
 // into a template database named by the hash of every byte it applies; each bootPg() clones it (seconds).
 // Never touches production. CI runs it in smoke.yml's pg17 job (.github/actions/postgres-17 installs the binaries, 2026-11-14)
 // for the races PGlite cannot run; the PGlite replay stays the gate for everything else.
@@ -50,6 +52,7 @@ async function replayPieces() {
 
 const PORT = Number(process.env.HR_PG_PORT || 55417);
 const DATA = process.env.HR_PG_DATA || join(tmpdir(), `hr-pg-replay-${PORT}`);
+const MAX_CONNECTIONS = Math.max(30, Math.floor(Number(process.env.HR_PG_MAX_CONNECTIONS) || 30));
 const BIN = [process.env.HR_PG_BIN, 'C:/Program Files/PostgreSQL/17/bin', '/usr/lib/postgresql/17/bin']
   .find((d) => d && existsSync(join(d, process.platform === 'win32' ? 'postgres.exe' : 'postgres')));
 const exe = (n) => join(BIN, process.platform === 'win32' ? n + '.exe' : n);
@@ -90,7 +93,7 @@ export async function ensureServer() {
      pg_stat_statements is preloaded as production preloads it: tools/beta-load.mjs (smoke.yml pg17-load) reads and resets
      it, and without the preload its first reset was a harness fault (release/v0.2.143, run 44811275378). */
   const opts = `-p ${PORT} -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off`
-    + ' -c shared_buffers=256MB -c max_connections=30 -c max_locks_per_transaction=1024 -c track_functions=all'
+    + ` -c shared_buffers=256MB -c max_connections=${MAX_CONNECTIONS} -c max_locks_per_transaction=1024 -c track_functions=all`
     + ' -c shared_preload_libraries=pg_stat_statements'
     + (process.platform === 'win32' ? '' : ` -c unix_socket_directories=${DATA}`);
   spawn(exe('pg_ctl'), ['-D', DATA, '-l', join(DATA, 'server.log'), '-o', opts, 'start'], { detached: true, stdio: 'ignore' }).unref();

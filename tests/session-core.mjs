@@ -244,8 +244,8 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/party-intents.js': { rule: 8 },
   'src/session/preset-intents.js': { rule: 1 },
   'src/session/title-intents.js': { rule: 1 },
-  /* lane/roads-sample (1064): the Talents presses, one askVia each, sharing talent-intents.js press for the rule (lane/wn-sh: saveBuild) */
-  'src/session/talent-intents.js': { rule: 3 },
+  /* lane/roads-sample (1064): the Talents presses, one askVia each, sharing talent-intents.js press for the rule (lane/wn-sh: saveBuild; lane/r-ui-roads-2: setTalentAuto) */
+  'src/session/talent-intents.js': { rule: 4 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
   'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
   'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
@@ -309,6 +309,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/talent-intents.js', 'spendSuggested', 'hr_talent_spend_suggested', ['party']],
   ['src/session/talent-intents.js', 'spendTalent', 'hr_talent_spend', ['mend.r1', null]],
   ['src/session/talent-intents.js', 'saveBuild', 'hr_talent_build_save', ['muster_barrows', { 'mend.r1': true }]],
+  ['src/session/talent-intents.js', 'setTalentAuto', 'hr_talent_auto_set', ['party']],
   ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
   ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],
   ['src/session/party-intents.js', 'disbandParty', 'hr_hunt_party_disband', []],

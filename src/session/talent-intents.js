@@ -6,6 +6,9 @@
 //   spendSuggested(account, cs, plan)  ONE hr_talent_spend_suggested(p_slot, p_plan, p_idem): every point left along the server's
 //                                   suggested order for the worn weapon, never a vow
 //   spendTalent(account, cs, node, pick)  ONE hr_talent_spend(p_slot, p_node, p_pick, p_idem): one point on one node
+//   setTalentAuto(account, cs, plan)  ONE hr_talent_auto_set(p_slot, p_plan, p_idem) (1069-talent-standing-rule.sql): the standing rule
+//                                   "Spend as suggested", a plan word ('party' | 'solo') or null (off); turning it on spends every point
+//                                   left now. A SETTING the server holds (player_state.talent_auto), projected as the section's `auto`
 //   saveBuild(account, cs, hunt, nodes)   ONE hr_talent_build_save(p_slot, p_hunt, p_nodes, p_idem): a saved build (a plan, past the
 //                                   hero's Level allowed) for one ground, checked whole by the server; nodes null deletes it. A pasted
 //                                   share code lands here (src/session/plan-share.js): it spends nothing
@@ -45,6 +48,12 @@ async function press(cs, send) {
 export function spendSuggested(account, cs, plan) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !PLANS.has(plan)) return Promise.resolve({ ok: false, error: 'bad_intent' });
   return askVia(cs, 'talent_suggested', () => press(cs, () => account.server.rpc('hr_talent_spend_suggested', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
+}
+
+/** The standing rule: "Spend as suggested" for plan `plan` as each Level comes, or null to turn it off. */
+export function setTalentAuto(account, cs, plan) {
+  if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !(plan === null || PLANS.has(plan))) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'talent_auto', () => press(cs, () => account.server.rpc('hr_talent_auto_set', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
 }
 
 /** One point on node `node` (with option `pick` at a crossroads, else null). */

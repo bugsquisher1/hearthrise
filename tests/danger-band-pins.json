@@ -46,7 +46,7 @@
   "catacomb_bone_wing": {
    "refStep": 500,
    "floorStep": 405,
-   "topStep": 550,
+   "topStep": 545,
    "refKillsHead": 140,
    "coinPm": 4200,
    "print": "add23be43d8ea656",
@@ -64,9 +64,9 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 470,
+   "refStep": 480,
    "floorStep": 440,
-   "topStep": 500,
+   "topStep": 485,
    "refKillsHead": 140,
    "refHeld": 475,
    "coinPm": 3300,
@@ -109,6 +109,7 @@
    "floorStep": 0,
    "topStep": 145,
    "refKillsHead": 125,
+   "refHeld": 105,
    "coinPm": 38800,
    "print": "3679e691ce8eac7a",
    "verdict": "OPEN",
@@ -168,8 +169,7 @@
   "the_slake": {
    "refStep": 100,
    "floorStep": 45,
-   "topStep": 135,
-   "refKillsHead": 125,
+   "topStep": 130,
    "coinPm": 4900,
    "print": "fd5f34ef46e65df6",
    "verdict": "OPEN",
@@ -188,7 +188,7 @@
   "pyre_field": {
    "refStep": 50,
    "floorStep": 0,
-   "topStep": 105,
+   "topStep": 100,
    "refKillsHead": 140,
    "coinPm": 2900,
    "print": "13fb7306dd123d43",
@@ -228,7 +228,7 @@
    "refStep": 80,
    "floorStep": 0,
    "topStep": 125,
-   "refKillsHead": 135,
+   "refKillsHead": 140,
    "coinPm": 18300,
    "print": "42a2065f09f31687",
    "verdict": "OPEN",
@@ -247,7 +247,7 @@
   "carters_rest": {
    "refStep": 60,
    "floorStep": 0,
-   "topStep": 75,
+   "topStep": 70,
    "refKillsHead": 145,
    "refHeld": 55,
    "coinPm": 2100,
@@ -268,7 +268,7 @@
   "ox_road": {
    "refStep": 100,
    "floorStep": 0,
-   "topStep": 170,
+   "topStep": 165,
    "refKillsHead": 125,
    "refHeld": 95,
    "coinPm": 2400,
@@ -287,7 +287,7 @@
    ]
   },
   "millrace_sewer": {
-   "refStep": 70,
+   "refStep": 60,
    "floorStep": 0,
    "topStep": 110,
    "refHeld": 65,
@@ -309,7 +309,7 @@
   "wyvern_roost": {
    "refStep": 110,
    "floorStep": 0,
-   "topStep": 195,
+   "topStep": 190,
    "refKillsHead": 140,
    "refHeld": 105,
    "coinPm": 2100,

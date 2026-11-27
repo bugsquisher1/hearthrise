@@ -3,26 +3,26 @@ V1 on wyvern_roost (4 seeds x 10 h, held step read from hour 4; step 0 = the gro
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady       194.5 +- 2.8     -0.3  63.7  93.9   10.7    0.8     0.8     60.7      0     0  0 (0/0/0)                       6  {"hold":1912,"climb":480,"fall":33}
+base:steady       191.9 +- 1.3     -1.6  87.5  98.8    3.6    0.3     0.7     60.7      0     0  0 (0/0/0)                       6  {"hold":1840,"climb":570,"fall":13}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady           1x  sd 0.01  n 4  window 6 h  seeds 0.99 1 1.01 1.02
+  base:steady        1.49x  sd 0.01  n 4  window 6 h  seeds 1.48 1.48 1.5 1.49
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L150  coin 18097 +- 174  income 24080 +- 464  store 12279  kit share 0.51 (meal 159, drink 4379, charge 3664, shot 4077)  loot by band: common 603, uncommon 343, scarce 0, other 5036  n 4
+  base:steady       L150  coin 18207 +- 119  income 27865 +- 155  store 12152  kit share 0.44 (meal 123, drink 4332, charge 3645, shot 4053)  loot by band: common 923, uncommon 524, scarce 0, other 8211  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
 the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
-  base:steady       hammer 0.755  bow 0.16  mage 0.001  healer 0.084
+  base:steady       hammer 0.756  bow 0.158  mage 0.001  healer 0.084
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 48.37 land 59.68% hit 95.21 (5087.75/h) | bow dps 47.47 land 85.93% hit 53.25 (1925.5/h) | mage dps 73.1 land 81.08% hit 25.08 (24.25/h) | healer dps 34.69 land 85.82% hit 50.12 (1075.75/h)
-                    wyvern_fledgling(swarm) 248.7/h 31.1 s 1437 | ledge_wyvern(shooter) 89.5/h 34.2 s 1224 | crag_wyvern(caster) 69.3/h 27.7 s 683 | bull_wyvern(brute) 59.8/h 39.1 s 1992 | brood_wyvern(brute) 9.9/h 17.3 s 833
-                    broke off by: fall:wyvern_fledgling@0 22, fall:bull_wyvern@0 6, fall:brood_wyvern@0 4, fall:ledge_wyvern@2 1
+  base:steady       hammer dps 48.26 land 59.7% hit 94.51 (5074.25/h) | bow dps 47.18 land 85.82% hit 52.28 (1921.25/h) | mage dps 73.2 land 81.8% hit 23.32 (23/h) | healer dps 34.52 land 86.33% hit 49.87 (1072.75/h)
+                    wyvern_fledgling(swarm) 250.7/h 30.7 s 1409 | ledge_wyvern(shooter) 90.2/h 33.8 s 1194 | crag_wyvern(caster) 69.9/h 27.3 s 668 | bull_wyvern(brute) 60.2/h 38.8 s 1965 | brood_wyvern(brute) 10/h 16.9 s 818
+                    broke off by: fall:wyvern_fledgling@0 11, fall:bull_wyvern@0 2
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 144 (depth 12)  free 77  spell 915  food 9  taken 25.39 pm/s
+  base:steady       abs 159.3 (depth 20)  free 77  spell 916  food 7  taken 25.09 pm/s
 
-wall 58 s
+wall 47 s

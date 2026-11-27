@@ -87,13 +87,13 @@
    "xpPerHeroH": 538253,
    "gold": {
     "coinPerHeroH": {
-     "mean": 17007,
-     "sd": 793,
+     "mean": 17004,
+     "sd": 792,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 19220,
-     "sd": 896,
+     "mean": 19204,
+     "sd": 894,
      "n": 4
     },
     "storePerHeroH": {
@@ -102,23 +102,23 @@
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 628,
+     "mean": 617,
      "sd": 18,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 243,
-     "sd": 12,
+     "mean": 238,
+     "sd": 8,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 1244,
-     "sd": 92,
+     "mean": 1239,
+     "sd": 88,
      "n": 4
     },
     "otherPerHeroH": {
-     "mean": 98,
-     "sd": 23,
+     "mean": 105,
+     "sd": 29,
      "n": 4
     }
    },
@@ -256,7 +256,7 @@
    }
   }
  },
- "wallS": 47,
+ "wallS": 42,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

@@ -7,15 +7,22 @@
 //   reach   on the Danger scale a brute takes the nearest front-row hero, a shooter the farthest back-row hero, a stalker the weakest, and
 //           a swarm spreads over the heroes the fewest are on, the front first; a hero outside the pack's area is never taken; with no
 //           hero in its row a shooter aims as it always did (the farthest); off the scale every role aims as before (the caller's pick).
+//           THE CLOSE (12-targets 8.9.1, the front seat): with nobody in the front row a brute takes the hero nearest it and a swarm spreads
+//           over every hero, never the puller by default.
 //   range   a role's range plays only on the scale and only on a row with none of its own (its own wins).
 //   splash  on the scale a caster's blow also lands on a hero beside its target, never on one farther off; off the scale only on its
 //           target.
-//   redive  unheld, a role turns back to its reach; a Challenge holds a stalker half its hold, a brute all of it.
+//   redive  unheld, a role turns back to its reach; a Challenge holds a stalker half its hold, a brute all of it. With nobody in the front
+//           row a brute keeps a hero it stands beside and runs to the nearest from one it does not; a shooter with no back row keeps its target.
+//   close   held in melee: on the scale a ranged hero a brute stands beside, on it, walks to no spot (it fights where it was caught); off
+//           the scale it walks clear as it always did.
 //   blow    on the scale a stalker's largest blow is its role's maxHitPm share; off the scale the row's whole.
 //   play    THE ONE ENGINE (CLAUDE.md section 6): two Melee heroes on the scale, the puller set to the back row and the other to the front
 //           (row SETTINGS, through the settle's boundary): brutes turn off the puller onto the front hero (the re-aim), which the puller
 //           takes without the role; the hunt plays the same, digit for digit, in one window and in 10 s windows with the world through JSON
-//           at every cut; with no stance the role changes nothing.
+//           at every cut; with no stance the role changes nothing. THE CLOSE in the hunt: a frontless pair (a Ranger pulls, a Mage behind)
+//           against brutes, the Mage takes blows (none with no role) and the pinned pair walks under four fifths of the tiles, the same
+//           in one window and in 10 s windows.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -59,6 +66,8 @@ const CASES = {
       if (!(Number.isInteger(r.range) && (r.range === 0 || (r.range >= B.min && r.range <= B.max)))) bad.push('role ' + id + ' range ' + r.range + ' is not 0 or ' + B.min + '..' + B.max);
       if (r.splash !== undefined && !(Number.isInteger(r.splash.r) && r.splash.r >= 1 && Number.isInteger(r.splash.pm) && r.splash.pm > 0 && r.splash.pm <= 1000)) bad.push('role ' + id + ' splash is not { r >= 1, pm 1..1000 }');
       if (!/^Targets: \S/.test(r.targets || '') || !/^Countered by: \S/.test(r.answer || '')) bad.push('role ' + id + ' labels are not "Targets: ..." and "Countered by: ..."');
+      /* the close (12-targets 8.9.1): `pins` is true or absent, and only on a role that fights beside its target (a shooter cannot hold) */
+      if (r.pins !== undefined && !(r.pins === true && r.range === 0)) bad.push('role ' + id + ' pins is not true on a role with range 0');
     }
     for (const [id, m] of Object.entries(M.MONSTERS)) if (m && m.role !== undefined && !Object.prototype.hasOwnProperty.call(ROLES, m.role)) bad.push('monster ' + id + ' names no role row: ' + m.role);
     if (bad.length) return bad.join('; ');
@@ -102,8 +111,21 @@ const CASES = {
     const got = [];
     for (const m of units.slice(4)) { m.target = M.shooters.aimOf(inst, m, 99); got.push(m.target); }
     if (JSON.stringify(got) !== '[4,1,4,1]') return 'a swarm of four aimed ' + JSON.stringify(got) + ', not spread over the front row [4,1,4,1]';
+    /* THE CLOSE (12-targets 8.9.1): with nobody in the front row (the tank set to the back) a brute takes the hero nearest it, of any row,
+       never the caller's pick (the puller); the mage at (15, 4) is nearest (14, 3) */
+    const frontless = () => { const u = trio(M); u[0].row = 'back'; u[1].x = 15; u[1].y = 4; u[1].fx = 15; u[1].fy = 4; return u; };
+    if (aim('muster_knight', frontless(), true) !== 2) return 'with no front row a brute took ' + aim('muster_knight', frontless(), true) + ', not the hero nearest it (the mage)';
+    /* ...and a swarm spreads over every hero: each aimed in turn, the hero the fewest are on, then the nearest: 2, 1 (the tie to the lower id), 3, 2 */
+    {
+      const sw = frontless().concat([mon(M, 10, 0, 14, 3, { kind: 'barrow_pikeman' }), mon(M, 11, 0, 14, 4, { kind: 'barrow_pikeman' }),
+        mon(M, 12, 0, 15, 3, { kind: 'barrow_pikeman' }), mon(M, 13, 0, 16, 3, { kind: 'barrow_pikeman' })]);
+      const ws = onScale(M, world(M, sw)), is = instOf(M, ws), got2 = [];
+      for (const m of sw.slice(3)) { m.target = M.shooters.aimOf(is, m, 99); got2.push(m.target); }
+      if (JSON.stringify(got2) !== '[2,1,3,2]') return 'with no front row a swarm of four aimed ' + JSON.stringify(got2) + ', not spread over every hero [2,1,3,2]';
+    }
     /* off the scale every role aims as before: a melee row at the caller's pick, a shooter at the farthest */
     for (const k of ['muster_knight', 'cairn_wight', 'barrow_pikeman']) if (aim(k, trio(M), false) !== 99) return 'off the scale a ' + k + ' took ' + aim(k, trio(M), false);
+    if (aim('muster_knight', frontless(), false) !== 99) return 'off the scale a brute with no front row took ' + aim('muster_knight', frontless(), false) + ', not the caller\'s pick';
     if (aim('hasks_lookout', trio(M), false) !== 3) return 'off the scale the Lookout took ' + aim('hasks_lookout', trio(M), false);
     return null;
   },
@@ -129,6 +151,18 @@ const CASES = {
     if (one('muster_knight', 1) !== null) return 'a brute on a front hero turned to ' + one('muster_knight', 1) + ', a nearer front one';
     if (one('barrow_pikeman', 3) !== null) return 'a swarm turned from whom it was given';
     if (one('cairn_wight', 1, { scale: false }) !== null) return 'off the scale a stalker turned';
+    /* THE CLOSE (12-targets 8.9.1): nobody in the front row (the tank set to the back, a ranger at (13, 3)). A brute beside the hero it is on
+       keeps it, though the ranger is nearer; one that is not beside its target runs to the hero nearest it; a shooter with no back row keeps
+       its target (the farthest is no reason to turn) */
+    const close = (kind, target, x, y, rows) => {
+      const u = trio(M).concat([hero(M, 4, 13, 3, { role: 'ranger', maxHp: 40, hp: 40 })]);
+      if (rows === 'front') for (const h of u) h.row = 'front'; else u[0].row = 'back';
+      const m = mon(M, 10, 0, x, y, { kind, target });
+      return M.roles2.reaimOf(instOf(M, onScale(M, world(M, u.concat([m])))), m);
+    };
+    if (close('muster_knight', 1, 12, 3) !== null) return 'with no front row a brute beside its target turned to ' + close('muster_knight', 1, 12, 3);
+    if (close('muster_knight', 3, 14, 3) !== 4) return 'with no front row a brute not beside its target turned to ' + close('muster_knight', 3, 14, 3) + ', not the hero nearest it';
+    if (close('hasks_lookout', 1, 14, 3, 'front') !== null) return 'with no back row a shooter turned to ' + close('hasks_lookout', 1, 14, 3, 'front');
     /* in the fight's own target hook: an engaged stalker on the tank turns to the weakest at the next sub-step, held it stays */
     const hook = (hold) => {
       const m = mon(M, 10, 0, 14, 3, { kind: 'cairn_wight', target: 1, holdMs: hold });
@@ -139,6 +173,25 @@ const CASES = {
     };
     if (hook(0) !== 2) return 'the fight\'s target hook left an unheld stalker on ' + hook(0) + ', not the weakest';
     if (hook(5000) !== 1) return 'the fight\'s target hook turned a held stalker to ' + hook(5000);
+    return null;
+  },
+  /* THE CLOSE, HELD IN MELEE (12-targets 8.9.1; roles.js rangedPos): a ranger (chase on, distance 4) with a brute beside it, on it, in the
+     fight. On the scale it fights where it was caught: no goal, no spot. Off the scale it walks to a spot clear of the brute, as it always did */
+  close(M) {
+    const caught = (scale, kind = 'muster_knight') => {
+      const r = hero(M, 2, 15, 4, { role: 'ranger', chase: true, dist: 4, target: 10 });
+      const w = world(M, [r, mon(M, 10, 0, 14, 3, { kind, target: 2 })], { phase: 'fight', leader: 2 });
+      w.packs[0].aggro = true;
+      if (scale) onScale(M, w);
+      M.roles.positionHeroes(instOf(M, w), subStep(0));
+      return { goal: r.goal, spot: r.spot };
+    };
+    const off = caught(false), on = caught(true);
+    if (!off.goal) return 'CONTROL: off the scale a ranger beside the brute on it walked nowhere (' + JSON.stringify(off) + ')';
+    if (on.goal || on.spot) return 'on the scale a ranger held in melee by a brute walked off (' + JSON.stringify(on) + ')';
+    /* the swarm pins as the brute does; a stalker dives and breaks off, so a ranger it reaches walks clear of it as before */
+    if (caught(true, 'barrow_pikeman').goal) return 'on the scale a ranger held in melee by a swarm walked off';
+    if (!caught(true, 'cairn_wight').goal) return 'on the scale a ranger beside a stalker on it stood (a stalker does not pin)';
     return null;
   },
   range(M) {
@@ -199,25 +252,27 @@ const CASES = {
   },
   play(M) {
     const SPAN = 6 * 60000;
-    const run = (plan, role, cuts) => withRole(M, 'rat', role, () => withRole(M, 'slime', role, () => {
+    /* seats: each member's role and row (the default: two Melee heroes, the puller set to the back row, the other to the front) */
+    const run = (plan, role, cuts, seats = [{ row: 'back' }, { row: 'front' }]) => withRole(M, 'rat', role, () => withRole(M, 'slime', role, () => {
       const ground = groundRow(), grid = gridOf(M);
       const ms = [member(M, 'a', { seat: 0, maxHp: 60, hp: 60, maxHit: 12 }), member(M, 'b', { seat: 1, maxHp: 30, hp: 30, maxHit: 12 })];
       for (const m of ms) m.hero = { ...m.hero, ...(plan || {}) };
-      ms[0].hero.settings = { row: 'back' }; ms[1].hero.settings = { row: 'front' };
+      ms.forEach((m, i) => { const st = seats[i]; if (st.role) m.hero = { ...m.hero, role: st.role, range: 7 }; m.hero.settings = st.row ? { row: st.row } : null; });
       const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('roles', 3, d, i), monsters: M.MONSTERS, ground, grid };
       const edges = [T0, ...cuts, T0 + SPAN];
       let w = null, next = T0;
-      const events = [], unit = {};
+      const events = [], track = [], unit = {};
       for (let i = 1; i < edges.length; i++) {
         w = w ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))) : null;
         const r = M.cs.simulateHuntInstance({ world: w, nextSwingAtMs: next, members: ms }, { ...ctx, toMs: edges[i] });
-        w = r.world; next = r.nextSwingAtMs; events.push(...r.events);
+        w = r.world; next = r.nextSwingAtMs; events.push(...r.events); track.push(...r.track);
         for (const m of ms) if (Number.isInteger(r.members[m.key].unitIdEver)) unit[m.key] = r.members[m.key].unitIdEver;
         if (!w) break;
       }
       const heroIds = new Set(Object.values(unit));
       const hits = (who) => events.filter((e) => e.type === 'dmg' && e.t === who && !heroIds.has(e.u)).length;
-      return { key: JSON.stringify(events), a: hits(unit.a), b: hits(unit.b) };
+      const steps = track.filter((t) => heroIds.has(t.u)).length;
+      return { key: JSON.stringify(events), a: hits(unit.a), b: hits(unit.b), steps };
     }));
     const plan = { risk: 'steady', danger: 0 };
     const tens = Array.from({ length: SPAN / 10000 - 1 }, (_, i) => T0 + (i + 1) * 10000);
@@ -227,6 +282,15 @@ const CASES = {
     if (!(share(roled) > share(plain) + 0.2)) return 'brutes drew the front-row hero ' + share(roled).toFixed(2) + ' of the blows, without the role ' + share(plain).toFixed(2);
     if (run(plan, 'brute', tens).key !== roled.key) return 'the hunt moved with 10 s windows: a viewed hunt and a closed one differ';
     if (run(null, 'brute', []).key !== run(null, undefined, []).key) return 'with no stance a role changed the hunt';
+    /* THE CLOSE, BOTH PATHS (12-targets 8.9.1): a frontless pair (a Ranger pulls, a Mage behind it) against brutes. With no front row the
+       brutes run to the hero nearest them, so the Mage takes blows (none with no role: every monster on the puller), and the pair, pinned
+       where it is caught, walks under four fifths of the tiles; the same hunt in one window and in 10 s windows */
+    const pair = [{ role: 'ranger' }, { role: 'mage' }];
+    const fl = run(plan, 'brute', [], pair), flPlain = run(plan, undefined, [], pair);
+    if (flPlain.b !== 0 || !(flPlain.a > 0)) return 'CONTROL: with no role the frontless pair\'s Mage took ' + flPlain.b + ' blows, the puller ' + flPlain.a;
+    if (!(fl.b > 0)) return 'with no front row the brutes never reached the Mage behind the puller (the pack took the puller alone)';
+    if (!(fl.steps * 5 < flPlain.steps * 4)) return 'the frontless pair walked ' + fl.steps + ' tiles with the brutes on it, ' + flPlain.steps + ' with no role (a pinned hero walks off)';
+    if (run(plan, 'brute', tens, pair).key !== fl.key) return 'the close moved with 10 s windows: a viewed hunt and a closed one differ';
     return null;
   },
 };
@@ -245,7 +309,15 @@ const MUTANTS = [
   { name: 'a Challenge\'s hold is ignored', case: 'redive', edits: [['src/core/hunt/monster-roles.js', " || role.reach === 'spread' || held(role, m, inst)) return null;", " || role.reach === 'spread') return null;"]] },
   { name: 'a stalker is held the whole hold', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '1000']] },
   { name: 'every role breaks a hold early', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '(Number.isInteger(role.heldPm) ? role.heldPm : 1000)', '(Number.isInteger(role.heldPm) ? role.heldPm : 500)']] },
-  { name: 'a brute leaves a front hero for a nearer one', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  if (keep) return rowOf(cur) === keep ? null : pick;', '  if (keep) return pick;']] },
+  { name: 'a brute leaves a front hero for a nearer one', case: 'redive', edits: [['src/core/hunt/monster-roles.js', "  if (keep) return rowOf(cur) === keep ? null : rowOf(p) === keep || (keep === 'front' && cheb(m, cur) > 1) ? pick : null;", '  if (keep) return pick;']] },
+  { name: 'with no front row the pack takes the puller', case: 'reach', edits: [['src/core/hunt/monster-roles.js', '  const pick = best || any;', '  const pick = best;']] },
+  { name: 'with no front row a brute leaves the hero it is beside', case: 'redive', edits: [['src/core/hunt/monster-roles.js', "(keep === 'front' && cheb(m, cur) > 1)", "keep === 'front'"]] },
+  { name: 'with no back row a shooter turns to the farthest', case: 'redive', edits: [['src/core/hunt/monster-roles.js', "(keep === 'front' && cheb(m, cur) > 1)", 'cheb(m, cur) > 1']] },
+  { name: 'a ranged hero held in melee walks clear on the scale', case: 'close', edits: [['src/core/hunt/roles.js', '  if (heldInMelee(h, mons, (m) => pinsOf(inst, m))) { clearGoal(h); h.spot = null; return; }\n', '']] },
+  { name: 'the close holds a ranged hero off the scale', case: 'close', edits: [['src/core/hunt/monster-roles.js', 'const r = roleOf(inst, m); return !!r && r.pins === true;', 'return true;']] },
+  { name: 'a hunt plays no pin', case: 'play', edits: [['src/core/hunt/roles.js', '  if (heldInMelee(h, mons, (m) => pinsOf(inst, m))) { clearGoal(h); h.spot = null; return; }\n', '']] },
+  { name: 'a hunt\'s brutes with no front row take the puller alone', case: 'play', edits: [['src/core/hunt/monster-roles.js', '  const pick = best || any;', '  const pick = best;']] },
+  { name: 'every role pins (a stalker too)', case: 'close', edits: [['src/core/hunt/monster-roles.js', 'return !!r && r.pins === true;', 'return !!r;']] },
   { name: 'a stalker thrashes on ties', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  return p.maxHp < cur.maxHp ? pick : null;', '  return pick;']] },
   { name: 'a role gives no range', case: 'range', edits: [['src/core/hunt/shooters.js', ' || roleRange(inst, m) : 0;', ' : 0;']] },
   { name: 'a role range beats the row\'s own', case: 'range', edits: [['src/core/hunt/shooters.js', 'monsterRangeOf((inst.monsters || MONSTERS)[m.kind]) || roleRange(inst, m)', 'roleRange(inst, m) || monsterRangeOf((inst.monsters || MONSTERS)[m.kind])']] },
@@ -255,6 +327,7 @@ const MUTANTS = [
   { name: 'the blow share plays off the scale', case: 'blow', edits: [['src/core/hunt/monster-roles.js', '  const role = roleOf(inst, m);\n  return role && Number.isInteger(role.maxHitPm) ?', '  const role = MONSTER_ROLES[(MONSTERS[m.kind] || {}).role];\n  return role && Number.isInteger(role.maxHitPm) ?']] },
   { name: 'the splash is the whole blow', case: 'splash', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((roleMaxHit(inst, u, monsterMaxHit(blowRow)) * sp.pm) / 1000))', 'monsterMaxHit(blowRow) * 3']] },
   { name: 'a sample row loses its role', case: 'data', edits: [['src/data/grounds/muster_barrows/pack.js', "      role: 'stalker',\n", '']] },
+  { name: 'a shooter pins', case: 'data', edits: [['src/data/monster-roles.js', "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5,", "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, pins: true,"]] },
   { name: 'a role row names no reach', case: 'data', edits: [['src/data/monster-roles.js', "reach: 'weakest', range: 0,", "reach: 'random', range: 0,"]] },
 ];
 

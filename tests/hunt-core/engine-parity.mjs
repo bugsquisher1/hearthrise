@@ -229,6 +229,13 @@ const SEED = '-4611686018427387904';
    field longer and world-state.js SHAPE moves. Personal loot is off here (no scenario hands personalLoot), so nothing reads the mark. Proof:
    this tree with the base's src/core/hunt/world-state.js laid back alone (its MODULES without took-part.js) holds all five pins (exit 0,
    11 mutants caught): drops.js `share`, the rewards' took-part walk, combat-sim's loot streams and the l:<unit> seed domain move no byte. */
+/* RE-PINNED 2026-11-27 (lane/front-seat, 12-targets 8.9.1: THE CLOSE, A COMBAT RULE MEANT TO MOVE A HUNT), muster-steps-4's TIMELINE and
+   TALLY only, from settle 3 (every world hash and the kills, 171, held); the four tier scenarios hold. Cause: on the Danger scale a ranged
+   hero a pinning monster (src/data/monster-roles.js `pins`: a brute, a swarm, a warder) stands beside and is on fights where it was caught
+   (src/core/hunt/roles.js rangedPos `pinned`), so the four's ranger and mage stand where they once walked off. Proof, laying the set's files
+   back into this tree one by one: the set's src/core/hunt/roles.js, src/core/hunt/monster-roles.js and src/data/monster-roles.js hold all
+   five pins (exit 0, 11 mutants caught); with only the set's roles.js back (this lane's reach, a row with no hero in it taking every row,
+   monster-roles.js reachPick, kept) all five pins hold (exit 0): the pin alone moves muster-steps-4. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

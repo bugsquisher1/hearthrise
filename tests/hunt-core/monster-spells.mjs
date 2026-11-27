@@ -673,7 +673,7 @@ const mutants = [
   { name: 'Silenced stops a windup already started', case: 'silenced-starts-nothing', edits: [[S, '    if (u.cast) {\n      u.cast.left = Math.max(0, u.cast.left - sc.dtMs);', "    if (u.cast && hasEffect(u, 'silence')) { drop(u, sc, 'reset'); continue; }\n    if (u.cast) {\n      u.cast.left = Math.max(0, u.cast.left - sc.dtMs);"]] },
   { name: 'a Chill that outlasts its 4 s', case: 'chill-slows', edits: [['src/data/statuses.js', 'durationMs: 4000, maxStacks: 1, slowPm: 300', 'durationMs: 40000, maxStacks: 1, slowPm: 300']] },
   { name: 'a ranged hero holds on a mark', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '      if (marked) stepOff(inst, h, mons, marked);\n', '']] },
-  { name: 'a ranged hero held in melee steps off anyway', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;\n', '']] },
+  { name: 'a ranged hero held in melee steps off anyway', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', '  if (heldInMelee(h, mons)) return false;\n', '']] },
   { name: 'the strike lands on every hero whatever the mark', case: 'ranged-off-melee-holds', edits: [[S, "isEnemy(u, h) && h.alive && covers(s, h.x, h.y)", "isEnemy(u, h) && h.alive"]] },
   { name: 'Melee steps off too', case: 'ranged-off-melee-holds', edits: [['src/core/hunt/roles.js', "    if (row.tank) tankPos(inst, h, mons);\n    else if (row.melee) meleePos(inst, h, mons);\n    else {", '    if (false) tankPos(inst, h, mons);\n    else if (false) meleePos(inst, h, mons);\n    else {']] },
   { name: 'a spot may stand on a mark', case: 'spots-avoid-marks', edits: [['src/core/hunt/roles.js', ' && !(marked && marked(x, y));', ';']] },

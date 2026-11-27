@@ -148,7 +148,7 @@ insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level, pity_step_ra
   ('mosslight_glade', 0, 20, 0, 0),
   ('muster_barrows', 1, 60, 224919, 22492),
   ('pyre_field', 2, 80, 192788, 19279),
-  ('the_slake', 1, 40, 215923, 21593),
+  ('the_slake', 1, 40, 224919, 22492),
   ('wickstead', 0, 0, 0, 0);
 insert into public.hr_piece_depths (hunt_id, depth, step_from) values
   ('hasks_ford', 1, 0), ('hasks_ford', 2, 539), ('hasks_ford', 3, 545), ('hasks_ford', 4, 551), ('hasks_ford', 5, 558),
@@ -165,12 +165,12 @@ insert into public.hr_piece_depths (hunt_id, depth, step_from) values
   ('muster_barrows', 16, 654), ('muster_barrows', 17, 662), ('muster_barrows', 18, 670), ('muster_barrows', 19, 678), ('muster_barrows', 20, 686),
   ('pyre_field', 1, 0), ('pyre_field', 2, 3), ('pyre_field', 3, 9), ('pyre_field', 4, 15), ('pyre_field', 5, 20),
   ('pyre_field', 6, 26), ('pyre_field', 7, 32), ('pyre_field', 8, 37), ('pyre_field', 9, 43), ('pyre_field', 10, 48),
-  ('pyre_field', 11, 54), ('pyre_field', 12, 59), ('pyre_field', 13, 65), ('pyre_field', 14, 70), ('pyre_field', 15, 76),
-  ('pyre_field', 16, 81), ('pyre_field', 17, 87), ('pyre_field', 18, 92), ('pyre_field', 19, 97), ('pyre_field', 20, 103),
+  ('pyre_field', 11, 54), ('pyre_field', 12, 59), ('pyre_field', 13, 63), ('pyre_field', 14, 68), ('pyre_field', 15, 73),
+  ('pyre_field', 16, 78), ('pyre_field', 17, 83), ('pyre_field', 18, 88), ('pyre_field', 19, 93), ('pyre_field', 20, 98),
   ('the_slake', 1, 0), ('the_slake', 2, 48), ('the_slake', 3, 54), ('the_slake', 4, 60), ('the_slake', 5, 66),
   ('the_slake', 6, 72), ('the_slake', 7, 78), ('the_slake', 8, 83), ('the_slake', 9, 89), ('the_slake', 10, 95),
-  ('the_slake', 11, 101), ('the_slake', 12, 104), ('the_slake', 13, 108), ('the_slake', 14, 112), ('the_slake', 15, 115),
-  ('the_slake', 16, 119), ('the_slake', 17, 123), ('the_slake', 18, 126), ('the_slake', 19, 130), ('the_slake', 20, 134);
+  ('the_slake', 11, 101), ('the_slake', 12, 104), ('the_slake', 13, 107), ('the_slake', 14, 110), ('the_slake', 15, 113),
+  ('the_slake', 16, 116), ('the_slake', 17, 120), ('the_slake', 18, 123), ('the_slake', 19, 126), ('the_slake', 20, 129);
 insert into public.hr_piece_bases (hunt_id, slot, item_id) values
   ('hasks_ford', 'belt', 'boarhide_belt'), ('hasks_ford', 'belt', 'scholar_belt'), ('hasks_ford', 'belt', 'steel_belt'),
   ('hasks_ford', 'body', 'boarhide_body'), ('hasks_ford', 'body', 'scholar_body'), ('hasks_ford', 'body', 'steel_platebody'),
@@ -295,18 +295,18 @@ begin
   ('muster_barrows', 613, 11, 1), ('muster_barrows', 622, 12, 1), ('muster_barrows', 630, 13, 1), ('muster_barrows', 638, 14, 1),
   ('muster_barrows', 646, 15, 1), ('muster_barrows', 654, 16, 1), ('muster_barrows', 662, 17, 1), ('muster_barrows', 670, 18, 1),
   ('muster_barrows', 678, 19, 1), ('muster_barrows', 686, 20, 1), ('pyre_field', 0, 1, 1), ('pyre_field', 50, 10, 2),
-  ('pyre_field', 105, 20, 2), ('pyre_field', 106, 20, 2), ('pyre_field', 3, 2, 1), ('pyre_field', 9, 3, 1),
+  ('pyre_field', 100, 20, 2), ('pyre_field', 101, 20, 2), ('pyre_field', 3, 2, 1), ('pyre_field', 9, 3, 1),
   ('pyre_field', 15, 4, 1), ('pyre_field', 20, 5, 1), ('pyre_field', 26, 6, 1), ('pyre_field', 32, 7, 1),
   ('pyre_field', 37, 8, 2), ('pyre_field', 43, 9, 2), ('pyre_field', 48, 10, 2), ('pyre_field', 54, 11, 2),
-  ('pyre_field', 59, 12, 2), ('pyre_field', 65, 13, 2), ('pyre_field', 70, 14, 2), ('pyre_field', 76, 15, 2),
-  ('pyre_field', 81, 16, 2), ('pyre_field', 87, 17, 2), ('pyre_field', 92, 18, 2), ('pyre_field', 97, 19, 2),
-  ('pyre_field', 103, 20, 2), ('the_slake', 0, 1, 1), ('the_slake', 45, 1, 1), ('the_slake', 100, 10, 1),
-  ('the_slake', 135, 20, 1), ('the_slake', 136, 20, 1), ('the_slake', 48, 2, 1), ('the_slake', 54, 3, 1),
+  ('pyre_field', 59, 12, 2), ('pyre_field', 63, 13, 2), ('pyre_field', 68, 14, 2), ('pyre_field', 73, 15, 2),
+  ('pyre_field', 78, 16, 2), ('pyre_field', 83, 17, 2), ('pyre_field', 88, 18, 2), ('pyre_field', 93, 19, 2),
+  ('pyre_field', 98, 20, 2), ('the_slake', 0, 1, 1), ('the_slake', 45, 1, 1), ('the_slake', 100, 10, 1),
+  ('the_slake', 130, 20, 1), ('the_slake', 131, 20, 1), ('the_slake', 48, 2, 1), ('the_slake', 54, 3, 1),
   ('the_slake', 60, 4, 1), ('the_slake', 66, 5, 1), ('the_slake', 72, 6, 1), ('the_slake', 78, 7, 1),
   ('the_slake', 83, 8, 1), ('the_slake', 89, 9, 1), ('the_slake', 95, 10, 1), ('the_slake', 101, 11, 1),
-  ('the_slake', 104, 12, 1), ('the_slake', 108, 13, 1), ('the_slake', 112, 14, 1), ('the_slake', 115, 15, 1),
-  ('the_slake', 119, 16, 1), ('the_slake', 123, 17, 1), ('the_slake', 126, 18, 1), ('the_slake', 130, 19, 1),
-  ('the_slake', 134, 20, 1)) p(hunt, step, depth, top) loop
+  ('the_slake', 104, 12, 1), ('the_slake', 107, 13, 1), ('the_slake', 110, 14, 1), ('the_slake', 113, 15, 1),
+  ('the_slake', 116, 16, 1), ('the_slake', 120, 17, 1), ('the_slake', 123, 18, 1), ('the_slake', 126, 19, 1),
+  ('the_slake', 129, 20, 1)) p(hunt, step, depth, top) loop
     if public.hr_piece_depth_of(v_r.hunt, v_r.step) is distinct from v_r.depth then
       raise exception 'VERIFY(c): % step % reads depth % in SQL, % in the engine', v_r.hunt, v_r.step, public.hr_piece_depth_of(v_r.hunt, v_r.step), v_r.depth; end if;
     if public.hr_piece_top_rank(v_r.hunt, v_r.depth) is distinct from v_r.top then

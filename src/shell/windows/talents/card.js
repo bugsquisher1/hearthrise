@@ -62,7 +62,7 @@ const row = (root, k, label, value, on = true) => {
 
 /**
  * Patch the card. `v`: { tl (the section), sel (node id | null), route (talent-route routeTo | null), states, fork (the next suggested
- * node id | null), pending, msg, plan (./road-plan.js planOf: the server's saved build for the hero's hunt), suggest (the plan word a
+ * node id | null), pending, msg, plan (./road-plan.js roadPlanOf: the server's saved build for the hero's hunt), suggest (the plan word a
  * choice on a planned route takes its suggested option for) }.
  */
 export function patchCard(root, ctx, v) {

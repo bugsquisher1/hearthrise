@@ -35,7 +35,7 @@ const NONE = Object.freeze(new Set());
  * planned (its stones the hero does not hold), step (the next one a point buys, or null) }. One read per section and ground.
  */
 const MEMO = new WeakMap();
-export function planOf(cs, tl) {
+export function roadPlanOf(cs, tl) {
   const ground = planGroundOf(cs);
   const hit = tl && MEMO.get(tl);
   if (hit && hit.ground === ground) return hit;
@@ -104,14 +104,14 @@ export function patchPlanPick(root, tl, plan, sel, pending, suggestPlan, takeOn)
 export function actPlan(ctx, sc, action, el, repaint, tlOf, suggestPlan) {
   const cs = ctx.character;
   if (action === 'rd-plan' && sc.sel) {
-    const tl = tlOf(), plan = planOf(cs, tl), pick = el.getAttribute('data-pick');
+    const tl = tlOf(), plan = roadPlanOf(cs, tl), pick = el.getAttribute('data-pick');
     const p = planFor(tl, plan, sc.sel, pick || null, suggestPlan);
     if (!p.nodes || p.why) return true;
     runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes), t('talents.planning'), () => t('talents.plan_saved'), cs);
     return true;
   }
   if (action === 'rd-plan-clear') {
-    const plan = planOf(cs, tlOf());
+    const plan = roadPlanOf(cs, tlOf());
     if (!plan.ground || !plan.draft) return true;
     runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, null), t('talents.planning'), () => t('talents.plan_cleared'), cs);
     return true;
@@ -130,12 +130,12 @@ export function actPlan(ctx, sc, action, el, repaint, tlOf, suggestPlan) {
 async function payPlan(ctx, tlOf) {
   const cs = ctx.character;
   const first = tlOf();
-  const most = first ? planOf(cs, first).left : 0;
+  const most = first ? roadPlanOf(cs, first).left : 0;
   let spent = 0;
   while (spent < most) {
     const tl = tlOf();
     if (!tl || !(tl.left > 0)) break;
-    const step = planOf(cs, tl).step;
+    const step = roadPlanOf(cs, tl).step;
     if (!step) break;
     const r = await spendTalent(ctx.account, cs, step.id, step.pick);
     if (!r.ok) return spent ? { ...r, spent } : r;

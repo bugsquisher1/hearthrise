@@ -34,7 +34,7 @@ import { t } from '../../../render/player-text.js';
 import { mapHtml, mapOf, paintMap, bindGestures, nodeAt, countryAt } from './map.js';
 import { cardHtml, patchCard } from './card.js';
 import { fitScale, tierOf, scaleOf, toMap, clampCam, zoomAbout, stepScale, tierIn, TIERS } from './camera.js';
-import { planOf, actPlan } from './road-plan.js';
+import { roadPlanOf, actPlan } from './road-plan.js';
 import { findTalents, FILTERS, stoneToward } from './find.js';
 import { keyBelongsToField } from '../../../utils/dom.js';
 
@@ -120,7 +120,7 @@ export function patchBody(body, ctx) {
   const root = body.querySelector('.rdw');
   const tl = talentsOf(cs, roleKeyOf(cs), PLAN);
   const memo = memoOf(sc, tl);
-  const plan = planOf(cs, tl);
+  const plan = roadPlanOf(cs, tl);
   const L = roadsLayout();
   const phone = phoneOf(ctx);
   /* the band: the server's points and vow slots */

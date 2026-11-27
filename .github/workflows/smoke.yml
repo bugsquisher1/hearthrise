@@ -5413,7 +5413,7 @@ jobs:
           node tests/plan-share.mjs
           node tools/mutant-gate.mjs node tests/plan-share.mjs --mutate
       # tests/recruit-company.mjs
-      - name: The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested, both doors (1038, 1069)
+      - name: The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested or on the saved plan, both doors (1038, 1069, 1073)
         if: ${{ !cancelled() }}
         run: |
           node tests/recruit-company.mjs

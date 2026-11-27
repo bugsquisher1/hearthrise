@@ -78,6 +78,11 @@ export const AWAY_TEXT = Object.freeze({
   card_stamina: 'Stamina {time}',
   card_summary: 'Hunt summary',
   card_ok: 'OK',
+  /* THE INNER FLAME ON THE RETURN (21 section 1.5, lane/f1-inner-flame): {n} the Remains the hunt burned on the company's fire, {pct} the
+     Rare chance it rolled at, the server's own (flame-sections.js flameHuntOf). One of the three, by what the server says happened. */
+  card_flame: 'Flame: burned {n} Remains · Rare chance +{pct}%',
+  card_flame_burned: 'Flame: burned {n} Remains',
+  card_flame_luck: 'Flame: Rare chance +{pct}%',
   /* Under the Gold figure, which is what the purse kept (QA audit 2026-11-18 A6): {looted} the coins, {paid} the store's supplies. */
   card_gold_both: '{looted} in coins, {paid} on supplies',
   card_gold_looted: '{looted} in coins',

@@ -841,6 +841,8 @@
     "node tools/mutant-gate.mjs node tests/button-system.mjs --selftest": "client-guards",
     "node tests/client-boot-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate": "client-guards",
+    "node tests/flame-client.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/flame-client.mjs --mutate": "client-guards",
     "node tools/gen-gold-estimate.mjs --check": "client-guards",
     "node tools/mutant-gate.mjs node tools/gen-gold-estimate.mjs --selftest": "client-guards",
     "node tests/gold-estimate.mjs": "client-guards",

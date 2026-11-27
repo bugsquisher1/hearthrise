@@ -3,13 +3,13 @@ V1 on meadowbrook_thicket (4 seeds x 10 h, held step read from hour 4; step 0 = 
 levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
 held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
 cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
-base:steady         1.3 +- 0.3        0   100   100    5.3    2.4       0     74.1      0     0  0 (0/0/0)                       6  {"hold":2726,"fall":93,"climb":145}
+base:steady         4.2 +- 1.7      0.7  96.8   100    6.7    1.4       0     62.9      0     0  0 (0/0/0)                       6  {"hold":2245,"climb":214,"fall":52}
 
 pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
-  base:steady        0.57x  sd 0  n 4  window 6 h  seeds 0.57 0.57 0.57 0.58
+  base:steady        0.49x  sd 0  n 4  window 6 h  seeds 0.49 0.49 0.49 0.49
 
 gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
-  base:steady       L5  coin 12034 +- 68  income 12259 +- 71  store 2969  kit share 0.24 (meal 104, drink 2241, charge 625, shot 0)  loot by band: common 103, uncommon 15, scarce 106, other 0  n 4
+  base:steady       L5  coin 10307 +- 79  income 10507 +- 72  store 2764  kit share 0.26 (meal 68, drink 2081, charge 615, shot 0)  loot by band: common 87, uncommon 13, scarce 100, other 0  n 4
 
 power moves (paired seeds): the held step at the changed power minus at base
 
@@ -17,12 +17,12 @@ the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), 
   base:steady       hammer 1  bow 0  mage 0  healer 0
 
 the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
-  base:steady       hammer dps 6.57 land 79.8% hit 7.47 (6562/h) | bow dps 5.69 land null% hit null (0/h) | mage dps 5.52 land null% hit null (0/h) | healer dps 3.34 land null% hit null (0/h)
-                    gray_whelp(swarm) 179.5/h 23.1 s 112 | gray_wolf(stalker) 191.4/h 24 s 51 | briarcoat_wolf(brute) 83.8/h 33.2 s 156 | dire_gray(brute) 35.9/h 32.2 s 149 | grayjaw(brute) 11.9/h 12 s 56
-                    broke off by: fall:gray_whelp@0 43, fall:briarcoat_wolf@0 27, fall:gray_wolf@0 15, fall:dire_gray@0 8
+  base:steady       hammer dps 3.59 land 74.95% hit 7.1 (6461.75/h) | bow dps 5.18 land null% hit null (0/h) | mage dps 5.81 land null% hit null (0/h) | healer dps 3.58 land null% hit null (0/h)
+                    gray_whelp(swarm) 153.8/h 25.6 s 126 | gray_wolf(stalker) 164/h 25.2 s 55 | briarcoat_wolf(brute) 71.7/h 36.1 s 165 | dire_gray(brute) 30.7/h 30.7 s 165 | grayjaw(brute) 10.2/h 11.9 s 54
+                    broke off by: fall:gray_whelp@0 22, fall:briarcoat_wolf@0 19, fall:dire_gray@0 6, fall:gray_wolf@0 5
 
 held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
 that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
-  base:steady       abs 1.3 (depth 1)  free 64  spell 860  food 76  taken 17.92 pm/s
+  base:steady       abs 1.3 (depth 1)  free 63  spell 883  food 54  taken 16.76 pm/s
 
 wall 54 s

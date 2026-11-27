@@ -88,36 +88,35 @@
    "floorStep": 0,
    "topStep": 110,
    "refKillsHead": 135,
-   "refHeld": 55,
    "coinPm": 114400,
-   "print": "08fe459d7851b08c",
-   "verdict": "OPEN",
+   "print": "fc1c09eab1dc8185",
+   "verdict": "REVIEW",
    "levels": {
     "entry": 1,
     "top": 4,
     "mid": 3
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/c-targets/mill_cellar.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-ref.json",
     "tools/balance-program/redesign/grounds/mill_cellar-top.json",
     "tools/balance-program/redesign/grounds/mill_cellar-floor.json"
    ]
   },
   "meadowbrook_thicket": {
-   "refStep": 100,
+   "refStep": 110,
    "floorStep": 0,
    "topStep": 145,
    "refKillsHead": 125,
-   "coinPm": 38400,
-   "print": "e76b954dcab4871f",
+   "coinPm": 38800,
+   "print": "3679e691ce8eac7a",
    "verdict": "OPEN",
    "levels": {
     "entry": 5,
     "top": 15,
     "mid": 10
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
@@ -227,20 +226,19 @@
    ]
   },
   "wickstead": {
-   "refStep": 60,
+   "refStep": 80,
    "floorStep": 0,
-   "topStep": 130,
-   "refKillsHead": 140,
-   "refHeld": 65,
-   "coinPm": 17700,
-   "print": "24a4c200bd7b31d9",
+   "topStep": 125,
+   "refKillsHead": 135,
+   "coinPm": 18300,
+   "print": "42a2065f09f31687",
    "verdict": "OPEN",
    "levels": {
     "entry": 8,
     "top": 18,
     "mid": 13
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/wickstead-ref.json",
     "tools/balance-program/redesign/grounds/wickstead-top.json",
@@ -287,18 +285,19 @@
    ]
   },
   "millrace_sewer": {
-   "refStep": 20,
+   "refStep": 70,
    "floorStep": 0,
    "topStep": 110,
-   "coinPm": 6200,
-   "print": "0f68cb1f7eec4853",
+   "refHeld": 65,
+   "coinPm": 8200,
+   "print": "674310ffaedb19f8",
    "verdict": "OPEN",
    "levels": {
     "entry": 5,
     "top": 19,
     "mid": 12
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/millrace_sewer-ref.json",
     "tools/balance-program/redesign/grounds/millrace_sewer-top.json",

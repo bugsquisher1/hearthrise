@@ -380,11 +380,11 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, aim: 17, evasion: 8, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, aim: 14, evasion: 12, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 9, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, aim: 21, evasion: 8, def: 0, xp: 22, gp: [1, 2],']] },
+    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, aim: 15, evasion: 7, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, aim: 15, evasion: 7, def: 0, xp: 14, gp: [1, 1], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, aim: 13, evasion: 11, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, aim: 13, evasion: 11, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 9, atk: 3, aim: 19, evasion: 7, def: 0, xp: 22, gp: [1, 2],', 'hp: 160, atk: 3, aim: 19, evasion: 7, def: 0, xp: 22, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 21, evasion: 12, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 21, evasion: 11, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, aim: 17, evasion: 9, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, aim: 17, evasion: 9, def: 0, xp: 43, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
@@ -393,8 +393,8 @@ const mutants = [
   { name: 'Defense turns no blow aside: the top of the band reads like its floor', case: 'glade-harder',
     edits: [['src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base + (Number(playerDefense) || 0)));', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base));']] },
   /* (the aim doubles with the blow: on the to-hit ratio an attack alone no longer lands surer) */
-  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 20 -> 40): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 20, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 40, evasion: 15, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
+  { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 7 -> 14, aim 15 -> 30): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, aim: 15, evasion: 11, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, aim: 30, evasion: 11, def: 1, xp: 145, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

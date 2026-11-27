@@ -105,14 +105,14 @@ insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_m
   ('coppercap_warrens', 80, 1062, 4416),
   ('hasks_ford', 590, 1426, 6607),
   ('krells_hold', 60, 1062, 5857),
-  ('meadowbrook_thicket', 100, 1062, 38842),
+  ('meadowbrook_thicket', 110, 1062, 36416),
   ('mill_cellar', 60, 1062, 138612),
-  ('millrace_sewer', 20, 1062, 9628),
+  ('millrace_sewer', 70, 1062, 8758),
   ('mosslight_glade', 50, 1062, 10658),
   ('muster_barrows', 630, 1426, 4814),
   ('pyre_field', 80, 1062, 4048),
   ('the_slake', 120, 1062, 5586),
-  ('wickstead', 60, 1062, 29228);
+  ('wickstead', 80, 1062, 25631);
 
 -- ── §2b THE PAY'S SQL TWINS (internal) ──────────────────────────────────────
 create or replace function public.hr_danger_hours_for(p_level int)

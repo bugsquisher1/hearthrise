@@ -6,8 +6,8 @@
   70
  ],
  "seeds": 4,
- "hours": 4,
- "settleFromH": 1,
+ "hours": 10,
+ "settleFromH": 4,
  "levers": {
   "DANGER": {
    "powerStep": 0.0035,
@@ -39,7 +39,8 @@
    "bold": {
     "fallPm": 80,
     "cleanPm": 300,
-    "afterDeath": "steady"
+    "afterDeath": "steady",
+    "breakOff": false
    }
   }
  },
@@ -52,67 +53,67 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 0.7,
-    "sd": 0.01,
+    "mean": 0.69,
+    "sd": 0,
     "n": 4,
     "perSeed": [
      0.69,
-     0.71,
-     0.7,
+     0.69,
+     0.69,
      0.69
     ],
-    "fromH": 1,
-    "windowH": 3
+    "fromH": 4,
+    "windowH": 6
    },
    "held": {
-    "mean": 3.4,
-    "sd": 1.9,
-    "se": 1,
+    "mean": 4.2,
+    "sd": 0.9,
+    "se": 0.4,
     "perSeed": [
-     1,
      5,
+     3,
      5,
-     3
+     4
     ]
    },
-   "drift": -0.8,
+   "drift": 0.7,
    "within10": 100,
    "within20": 100,
-   "changesPerH": 3.3,
-   "fallsPerH": 0.4,
+   "changesPerH": 4.1,
+   "fallsPerH": 0.6,
    "reachH": 0,
-   "pullsPerH": 82,
-   "killsPerH": 570,
-   "xpPerHeroH": 5182,
+   "pullsPerH": 81.9,
+   "killsPerH": 569,
+   "xpPerHeroH": 5121,
    "gold": {
     "coinPerHeroH": {
-     "mean": 8945,
-     "sd": 113,
+     "mean": 9584,
+     "sd": 42,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 9219,
-     "sd": 120,
+     "mean": 9924,
+     "sd": 45,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 3379,
-     "sd": 3,
+     "mean": 3398,
+     "sd": 8,
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 254,
-     "sd": 13,
+     "mean": 313,
+     "sd": 9,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 8,
+     "mean": 9,
      "sd": 1,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 13,
-     "sd": 1,
+     "mean": 18,
+     "sd": 4,
      "n": 4
     },
     "otherPerHeroH": {
@@ -123,33 +124,33 @@
    },
    "kit": {
     "meal": 84,
-    "drink": 2589,
-    "charge": 706,
+    "drink": 2605,
+    "charge": 709,
     "shot": 0
    },
    "kitIds": {
     "salted_shrimp": 14,
-    "thin_turnip_juice": 287.7,
+    "thin_turnip_juice": 289.4,
     "plain_fire_rune": 142.6,
-    "plain_ice_rune": 117.8,
-    "plain_poison_rune": 67.9,
+    "plain_ice_rune": 117.9,
+    "plain_poison_rune": 67.6,
     "plain_earth_rune": 72,
-    "plain_water_rune": 305.7
+    "plain_water_rune": 308.7
    },
    "deaths": 0,
    "wipes": 0,
    "seedsWithADeath": 0,
-   "huntedH": 4,
-   "fourH": 3,
+   "huntedH": 10,
+   "fourH": 6,
    "firstDeathH": [],
    "nearWipes": 0,
    "nearWithDeath": 0,
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 1254,
-    "climb": 47,
-    "fall": 6
+    "hold": 3110,
+    "climb": 141,
+    "fall": 22
    },
    "takenShare": [
     {
@@ -170,20 +171,21 @@
     }
    ],
    "causes": {
-    "fall:rat@0": 6
+    "fall:rat@0": 17,
+    "fall:slime@0": 5
    },
    "seats": [
     {
      "style": "hammer",
-     "dps": 3.08,
-     "landedPct": 70.53,
-     "dmgPerSwing": 5.8,
-     "swingsPerH": 7476.5,
-     "takenPerH": 43359.25
+     "dps": 3.14,
+     "landedPct": 70.58,
+     "dmgPerSwing": 5.84,
+     "swingsPerH": 7478.5,
+     "takenPerH": 43689
     },
     {
      "style": "bow",
-     "dps": 3.91,
+     "dps": 3.92,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -191,7 +193,7 @@
     },
     {
      "style": "mage",
-     "dps": 5.21,
+     "dps": 5.22,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -199,7 +201,7 @@
     },
     {
      "style": "healer",
-     "dps": 2.63,
+     "dps": 2.62,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -209,36 +211,36 @@
    "kinds": {
     "rat": {
      "role": "swarm",
-     "killsPerH": 407.4,
+     "killsPerH": 406.6,
      "ttkS": 22.2,
-     "takenPerKill": 78
+     "takenPerKill": 79
     },
     "slime": {
      "role": "brute",
-     "killsPerH": 81.1,
+     "killsPerH": 81.3,
      "ttkS": 27.2,
      "takenPerKill": 94
     },
     "hive_wasp": {
      "role": "stalker",
-     "killsPerH": 81.1,
+     "killsPerH": 81.2,
      "ttkS": 34.2,
-     "takenPerKill": 47
+     "takenPerKill": 48
     }
    },
    "abs": {
-    "level": 0.1,
-    "depth": 1
+    "level": 0.3,
+    "depth": 2
    },
    "sustain": {
-    "freePm": 60,
-    "spellPm": 859,
-    "foodPm": 81,
-    "takenPmS": 20.07
+    "freePm": 58,
+    "spellPm": 861,
+    "foodPm": 80,
+    "takenPmS": 20.23
    }
   }
  },
- "wallS": 14,
+ "wallS": 50,
  "candidate": "C0",
  "moves": {
   "levels:careful": null,

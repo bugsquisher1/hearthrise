@@ -83,7 +83,8 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
   /* the re-cut Muster (floor 565, its arriving four held 587.4 at depth 4): a floor 115 steps back reads that four 7 deep, past ARRIVE_MAX */
   ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600,', 'refStep: 630, floorStep: 450, topStep: 700, coinPm: 7600,']]],
-  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55,', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135,']]],
+  /* the Sewer's reference four holds 65 on its 70 (lane/refhero-recut: the Mill Cellar's four now holds its own refStep, so it carries none) */
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200,', 'refStep: 70, floorStep: 0, topStep: 110, coinPm: 8200,']]],
   /* (lane/scale-grounds-2) 27 K-6: the strong company leaves in its own base, so the Glade's top (Level 31 in iron) falls under the Warrens' floor */
   ['tests/bands.mjs', 'the strong company never wears the tier ahead (the handover)', [['src/data/bands.js', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 0 });']]],
   /* (lane/monster-roles-ford-wings) a middle at the pay's grain, not its hold's: after the scale-grounds re-cut the Flooded Wing holds on its

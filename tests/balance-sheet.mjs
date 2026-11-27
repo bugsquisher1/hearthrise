@@ -12,7 +12,7 @@
 // THE TO-HIT RATIO (src/data/to-hit.js; balance program 21-combat.md B2, Tyler 2026-11-20 ruled 21-1 and 21-2; build row L15):
 //   ratio-holds       a same-Level regular on a full ground lands 70% on the career hero and the career hero 85% on it, within a point,
 //                     at every Level 10 to 1,000; no role on any ground reaches a rail (TO_HIT.min / max) on the reference hero
-//   defense-worth     +10 Defense cuts a same-Level regular's landed blows by 12-16% at Level 10 and 3-6.5% at 105, falling smoothly
+//   defense-worth     +10 Defense cuts a same-Level regular's landed blows by 15-21% at Level 10 (12-targets 8.9) and 3-6.5% at 105, falling smoothly
 //                     to Level 400 (the 11-18 "definitely NOT intended" Defense, fixed stats against stats)
 //   every-row-rated   every monster row the engine can meet carries both ratings (aim, evasion), each at least 1
 //   ref-hero-generated  to-hit.js REF_HERO is tools/gen-ref-hero.mjs's, row for row
@@ -116,7 +116,10 @@ const CASES = {
       return 1 - now / was;
     };
     const at10 = cut(10), at105 = cut(105);
-    if (!(at10 >= 0.12 && at10 <= 0.16)) bad.push('+10 Defense at Level 10 cuts ' + (at10 * 100).toFixed(1) + '% of the landed blows, the ruling 14%');
+    /* RE-RULED ON THE CLOCK'S HERO (the designer, lane/designer-recut-calls 2026-11-27, 12-targets 8.9 item 3): 14% was the old line's reading
+       (Defense 11 at Level 10). The clock's reference hero holds Defense 4 there, so ten points are 42% more of a rating of 24 and cut about 18%.
+       The rule kept is Tyler's (11-18): never a doubling, falling smoothly with Level. 15-21% holds a REF_HERO regeneration a point or two off */
+    if (!(at10 >= 0.15 && at10 <= 0.21)) bad.push('+10 Defense at Level 10 cuts ' + (at10 * 100).toFixed(1) + '% of the landed blows, the ruling 15-21% (12-targets 8.9)');
     if (!(at105 >= 0.03 && at105 <= 0.065)) bad.push('+10 Defense at Level 105 cuts ' + (at105 * 100).toFixed(1) + '%, the ruling 3-5%');
     let was = Infinity;
     for (let L = 10; L <= 400; L += 5) { const c = cut(L); if (c > was + 0.002) { bad.push('+10 Defense is worth more at Level ' + L + ' (' + (c * 100).toFixed(1) + '%) than at ' + (L - 5)); break; } was = c; }

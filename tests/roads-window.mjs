@@ -599,7 +599,7 @@ const MUTANTS = [
     from: "if (isObj(tl) && tl.live === true && Object.prototype.hasOwnProperty.call(tl, 'plan_hunt')) {", to: 'if (false) {', want: /RW-13/ },
   { name: 'Spend on plan stays on while its answer is out', file: 'src/shell/windows/talents/road-plan.js', from: "prop(pay, 'disabled', !!off || pending);", to: "prop(pay, 'disabled', !!off);", want: /RW-13/ },
   { name: 'the plan\'s next stone owned before the answer', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),',
-    to: "if (sc.memo && plan.step) sc.memo.states[plan.step.id] = 'owned'; runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),", want: /RW-13/ },
+    to: '{ const tl = tlOf(); if (tl && plan.step) { tl.nodes[plan.step.id] = plan.step.pick || true; sc.memo = null; } } runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),', want: /RW-13/ },
   { name: 'Spend on plan on with no point left', file: 'src/shell/windows/talents/road-plan.js', from: "const off = !tl || !(tl.left > 0) ? words('no_points') : !plan.step ? t('talents.plan_waiting') : '';",
     to: "const off = !tl ? words('no_points') : !plan.step ? t('talents.plan_waiting') : '';", want: /RW-13/ },
   { name: 'Find talent ignores the options\' names', file: 'src/shell/windows/talents/find.js', from: "if (PICK_KINDS.includes(n.kind) && n.kind !== 'crossing') for (const o of optionsOf(n))", to: 'if (false) for (const o of optionsOf(n))', want: /RW-14/ },

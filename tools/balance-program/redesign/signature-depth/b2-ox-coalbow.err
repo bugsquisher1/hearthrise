@@ -9,3 +9,5 @@ V1: 12 seed jobs (1 cells x 12 seeds x 8 h) on 2 workers; ox_road, Levels 120 / 
 [8/12] base:steady#7 49 s, 204 s elapsed
 [9/12] base:steady#8 48 s, 250 s elapsed
 [10/12] base:steady#9 48 s, 252 s elapsed
+[11/12] base:steady#10 50 s, 299 s elapsed
+[12/12] base:steady#11 50 s, 302 s elapsed

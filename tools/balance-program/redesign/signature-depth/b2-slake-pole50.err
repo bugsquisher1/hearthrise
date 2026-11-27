@@ -1,0 +1,7 @@
+V1: 12 seed jobs (1 cells x 12 seeds x 8 h) on 1 workers; the_slake, Levels 57 / 60 / 70
+[1/12] base:steady#0 65 s, 65 s elapsed
+[2/12] base:steady#1 59 s, 124 s elapsed
+[3/12] base:steady#2 62 s, 186 s elapsed
+[4/12] base:steady#3 59 s, 245 s elapsed
+[5/12] base:steady#4 59 s, 304 s elapsed
+[6/12] base:steady#5 72 s, 376 s elapsed

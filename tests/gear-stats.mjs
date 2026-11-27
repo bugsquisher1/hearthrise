@@ -13,8 +13,8 @@
 //         and any other ground reads the catalogue itself.
 //   GSF-5 ONE VIEW FOR EVERY READER, AND ONLY ON THE SCALE: the edge settle, the start point's frozen peers and the browser's live view all
 //         fight through combat-sim.js fightItems on the instance's own ground (so the three agree to the bit), which hands the scale view
-//         to a fight whose plan names a stance (an input row's hero or a frozen peer's) and the catalogue as written to every other, a tier
-//         hunt on a scale ground included (lane/scale-early-grounds 2026-11-23: a tier fixture's planted row never reached a cached view).
+//         to a fight whose plan names a stance (an input row's hero or a frozen peer's) and the catalogue as written to every other, one on a
+//         scale ground included (lane/scale-early-grounds 2026-11-23: a fixture's planted row never reached a cached view).
 //   GSF-7 EVERY PIECE HAS AN ITEM LEVEL (the formula master's phase A, 27-formula-overhaul.md 2.3): every gear row carries a whole `iL`, 0 or over
 //         (tier 0, item Level 0, is the starting kit: gear-steps.js; the Mill Cellar's and the Thicket's base, lane/scale-early-grounds).
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
@@ -63,9 +63,9 @@ const MODULES = ['src/data/items.js', 'src/data/gear-tiers.js', 'src/data/wave3-
   'src/data/boss-calls.js', 'src/data/library2-items.js', 'src/data/shields.js', 'src/data/fists.js', 'src/data/special-attributes.js'];
 /* the three readers that build a hunt's members (GSF-5): each must hand memberSide the fight's view (fightItems) of the instance's own ground */
 const READERS = [
-  ['supabase/functions/hr-accrue/accrue-hunt.js', 'const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale),'],
-  ['supabase/functions/hr-accrue/hunt-settle.js', 'const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members, play.level === null ? null : { level: play.level });'],
-  ['src/hunt-view/live-engine.js', 'fight = fightItems(items, where.ground, live.members, scaleOf(live));'],
+  ['supabase/functions/hr-accrue/accrue-hunt.js', 'const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members),'],
+  ['supabase/functions/hr-accrue/hunt-settle.js', 'const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members);'],
+  ['src/hunt-view/live-engine.js', 'fight = fightItems(items, where.ground, live.members);'],
   ['src/hunt-view/live-engine.js', '{ items: fight }'],
   ['src/hunt-view/live-engine.js', 'items: s.items,'],
 ];
@@ -131,11 +131,11 @@ export function check(o) {
     const stance = { risk: 'steady', danger: 0 };
     const cases = [['a lead naming a stance', [{ key: 'b', hero: {} }, { key: 'a', hero: stance }], scaled],
       ['a frozen peer naming a stance', [{ key: 'a', frozen: { hero: stance } }], scaled],
-      ['a tier fight (no stance)', [{ key: 'a', hero: {} }, { key: 'b', frozen: { hero: {} } }], o.items]];
+      ['a fight naming no stance', [{ key: 'a', hero: {} }, { key: 'b', frozen: { hero: {} } }], o.items]];
     for (const [what, ms, want] of cases) {
-      if (o.fightItems(o.items, ground, ms, null) !== want) out.push('GSF-5 on ' + scaleGround + ' ' + what + ' fights ' + (want === scaled ? 'the catalogue as written' : 'the scale view'));
+      if (o.fightItems(o.items, ground, ms) !== want) out.push('GSF-5 on ' + scaleGround + ' ' + what + ' fights ' + (want === scaled ? 'the catalogue as written' : 'the scale view'));
     }
-    if (o.fightItems(o.items, { id: 'no_such_ground' }, cases[0][1], null) !== o.items) out.push('GSF-5 a stance off the scale reads a view, not the catalogue');
+    if (o.fightItems(o.items, { id: 'no_such_ground' }, cases[0][1]) !== o.items) out.push('GSF-5 a stance off the scale reads a view, not the catalogue');
   }
   /* GSF-7 */
   for (const [id, it] of Object.entries(o.items)) if (o.GS.isGearRow(it) && !(Number.isInteger(it.iL) && it.iL >= 0)) out.push('GSF-7 ' + id + ' carries no item Level');
@@ -301,12 +301,12 @@ const MUTANTS = [
     return v;
   }; }],
   ['GSF-4', 'the scale view drops the item Level', (o) => { const f = o.scaleItems; o.scaleItems = (items, g) => { const v = f(items, g); if (v === items) return v; const w = {}; for (const [k, it] of Object.entries(v)) { const { iL, ...r } = it; void iL; w[k] = r; } return w; }; }],
-  ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale)', 'items: inp.items || {}'); }],
+  ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: fightItems(inp.items || {}, inp.ground, inp.members)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: fight }', '{ items }'); }],
   ['GSF-5', 'the browser\'s swings read another view than its heroes', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('items: s.items,', 'items,'); }],
-  ['GSF-5', 'a tier fight on a scale ground reads the scale view (a planted row never reaches it)', (o) => { o.fightItems = (items, g) => GS.scaleItems(items, g); }],
+  ['GSF-5', 'a fight naming no stance on a scale ground reads the scale view (a planted row never reaches it)', (o) => { o.fightItems = (items, g) => GS.scaleItems(items, g); }],
   ['GSF-5', 'a fight on the scale reads the catalogue', (o) => { o.fightItems = (items) => items; }],
-  ['GSF-5', 'a frozen peer\'s stance is never read', (o) => { const f = o.fightItems; o.fightItems = (items, g, ms, sc) => f(items, g, ms.filter((m) => !m.frozen), sc); }],
+  ['GSF-5', 'a frozen peer\'s stance is never read', (o) => { const f = o.fightItems; o.fightItems = (items, g, ms) => f(items, g, ms.filter((m) => !m.frozen)); }],
   ['GSF-7', 'a piece with no item Level', (o) => { const { iL, ...r } = o.items.rune_sword; void iL; o.items = { ...o.items, rune_sword: r }; }],
   ['GSF-7', 'a piece under item Level 0', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, iL: -20 } }; }],
   ['GSF-6', 'a rung steps down', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, atkB: 1 } }; }],

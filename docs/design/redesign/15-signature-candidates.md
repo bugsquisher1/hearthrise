@@ -298,9 +298,9 @@ The lucky four holds 692.7 of Muster's 700, so the ground's top may hold this re
 ## Shield
 
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
-Challenge: the first blow from each monster you taunt lands at half damage
+Challenge: monsters it taunts lose a quarter of their armor for 6 s
 Best for: Tank
-Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. (Dropped 2026-11-26, batch 2: the reference tank holds its pulls without a Challenge, about 9 casts and 13 monsters taunted an hour on Muster, so the rule had no moment to pay on: -0.2 (2.9) on Muster, +0.5 on its home, where the tank four sits at the top. A Challenge Signature needs a moment the tank meets. Its piece, Blunted, went to #4 and #23.)
+Note: The tank calls them off the back row and opens their guard for the party. Works with every Challenge branch (none of them touches armor). (Batch 3, 2026-11-27: a new rule on the same piece and home. The first-blow rule was dropped in batch 2 at 0.8 pace steps. On this set the played tank casts its Challenge about 270 times an hour, so the taunt is a moment it meets every pull. The Shield Priest vow already heals on a taunt and Taunting Guard shields on one, so this rule takes neither.)
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
 Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
@@ -399,15 +399,15 @@ Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cas
 Best for: Healer
 Note: A healer that adds damage. With Lasting Circle it starts on the first tick.
 
-**19. Passing Bell** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
-Spring Tide: also restores 20% mana to every hero it heals (once a minute)
+**19. Lock-Keeper's Chain** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
+A hero near fall-back: Spring Tide is ready again (once every 30 s)
 Best for: Healer
-Note: Refills the casters. Ebb Tide casts more often but doesn't refill more.
+Note: The big heal comes back when it's needed. Works with every Spring Tide branch, best with Turning Tide. (Batch 3, 2026-11-27: the mana rule was cut in batch 2 and the name changed, since the Tower's Gold lock already holds the Passing-Bell Hammer.)
 
 **20. Greened Bracers** · Gloves · Drops from: The Slake, Greened Pikeman
-Green Sickness: restores 2 mana to you for each monster it hits
+Green Sickness: your next Greater Mend heals 30% more
 Best for: Healer
-Note: Offense that pays for heals. Weaker with Single Dose, which hits one monster.
+Note: Offense that pays for heals. Spent on the next Greater Mend, kept 30 s. (Batch 3, 2026-11-27: the mana rule was cut in batch 2. Steeped is Kindled's key, a hero's next cast raised.)
 
 **21. Drover's Hat** · Helmet · Drops from: Ox Road, Drover
 Shields you cast return 25% of the damage they absorb to the attacker
@@ -431,19 +431,19 @@ Best for: Mage, Ranger, Melee (sword)
 Note: Ice then fire. Makes a party want both.
 
 **25. The Cold Candle** · Necklace · Drops from: Keeper Dunn
-Ice rune spells: 30% chance to use no rune
+Ice rune spells: every third one uses no rune
 Best for: Mage, Tank
-Note: Fewer runes to buy for a frost build. Sized with the market.
+Note: Fewer runes to buy for a frost build. Sized with the market. (Batch 3, 2026-11-27: "a 30% chance" is every third, so no dice are drawn and the bill is the same on every seed. On the Security list, `13` N-14.)
 
 **26. Thrower's Ring** · Ring · Drops from: Carter's Rest, Slate Thrower
-Earth rune shields: when one breaks, its wearer is healed for 30% of the shield
+When a shield you cast breaks, its wearer heals 6% of max health
 Best for: Tank, Healer, Mage
-Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8.
+Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8. (Batch 3, 2026-11-27: "30% of the shield" became 6% of max health, about the same on a Protective Ward. The engine keeps a shell's points left, not its size, and keeping the size would be a new stored field on every hero.)
 
 **27. Riverstone Earrings** · Earrings · Drops from: Hask's Ford, Banded Pikeman
-Water rune heals: also restore mana to the target equal to 10% of the healing
+Water rune heals: the hero healed gets mana equal to 10% of the healing
 Best for: Healer
-Note: Keeps the Mage and the healer going on long hunts.
+Note: Keeps the Mage and the healer going on long hunts. A coin piece: fewer drinks, sized with the market.
 
 **28. Vault Leech Ring** · Ring · Drops from: Unmarked Catacombs, Vault Leech
 Poison rune spells: when a monster with their Sickness dies, the Sickness moves to the nearest monster
@@ -467,19 +467,19 @@ Note: Updraft is cut, so Brand (4 mana back on a kill, Sword only when live) is 
 ## Procs
 
 **31. The Cellar Key** · Necklace · Drops from: Carter's Rest, The Landlord
-On kill: 20% chance to heal the party for 3% health
+Every fifth monster that dies heals your party for 3% of max health
 Best for: Healer, any
-Note: Best on grounds with big pulls.
+Note: Best on grounds with big pulls. (Batch 3, 2026-11-27: "on kill, a 20% chance" became every fifth death, anyone's blow. A healer kills little, and a count draws no dice.)
 
 **32. Ledger Ring** · Ring · Drops from: Hask's Ford, Ledger Wight
 On crit: your next spell costs no mana (10s cooldown)
 Best for: Mage
-Note: Wants crit on the rest of the kit. Only weapon hits crit today.
+Note: Wants crit on the rest of the kit. Only weapon hits crit today. (Batch 4: a spell that costs no mana is a new engine piece, with #37 and #44.)
 
 **33. Teamster's Mitts** · Gloves · Drops from: Ox Road, Dead Teamster
-On kill: restore 4 mana
+On kill: restore 2% of your max mana
 Best for: Melee
-Note: Fewer drinks on big pulls.
+Note: Fewer drinks on big pulls. A coin piece, sized with the market. (Batch 3, 2026-11-27: 4 mana became a share of the pool, so it means the same at every Level.)
 
 ## Auras
 

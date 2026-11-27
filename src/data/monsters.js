@@ -874,7 +874,7 @@ export const MONSTERS = {
     weaponWeak: 'ranged', weaponResist: [],
     role: 'swarm',
     hp: 33, atk: 13, aim: 44, evasion: 12, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
-    drops: [{ id: 'bone_chips', everyHours: 0.0361, ch: 0.413, band: 'common' }, { id: 'crow_quill', everyHours: 0.2253, ch: 0.0662, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.753, ch: 0.0085, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.753, ch: 0.0085, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.753, ch: 0.0085, band: 'scarce' }, { id: 'iron_sword', everyHours: 1.753, ch: 0.0085, band: 'scarce' },
+    drops: [{ id: 'bone_chips', everyHours: 0.0348, ch: 0.428, band: 'common' }, { id: 'crow_quill', everyHours: 0.2173, ch: 0.0686, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.69, ch: 0.00882, band: 'scarce' }, { id: 'iron_sword', everyHours: 1.69, ch: 0.00882, band: 'scarce' },
       { id: 'iron_belt', everyHours: 15.55, ch: 0.000959, band: 'rare' }, { id: 'studded_belt', everyHours: 15.55, ch: 0.000959, band: 'rare' }, { id: 'adept_belt', everyHours: 15.55, ch: 0.000959, band: 'rare' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */

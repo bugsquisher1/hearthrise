@@ -119,12 +119,11 @@ export const BAG_TEXT = Object.freeze({
   key_clear: 'Esc to deselect',
   key_sell: 'Delete to sell',
   key_lock: 'L to lock',
-  /* A press out to the server (src/shell/windows/inventory/actions.js): the line under the bag until its envelope lands. */
+  /* a press out to the server (inventory/actions.js) */
   equipping: 'Equipping…',
   taking_off: 'Taking it off…',
   selling: 'Selling…',
-  /* A Trait piece (src/shell/windows/inventory/doll.js, 1072-piece-verbs.sql): the strip of free pieces under the bag, its Sell at the
-     server's price (asked once, then sent), and the two rules that hold Sell off, said on the button. */
+  /* a Trait piece (inventory/doll.js): the strip, its Sell, the rules that hold Sell off */
   piece_strip: 'Rares',
   piece_sell_ask: 'Sell for {gold}?',
   piece_sold: 'Sold for {gold}',

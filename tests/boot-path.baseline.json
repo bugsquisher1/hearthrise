@@ -496,6 +496,12 @@
         "gzipBytes": 991880,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 992208,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1127: the Trait piece words moved into the text table (bag.js, item.js rows read by piece-words, inventory actions and doll: text-home TH-1), +0.2 KB; the merged base already read 968.8 (lane/one-town-work's band 0 rows, not raised there)"
       }
     ]
   }

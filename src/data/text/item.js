@@ -12,7 +12,7 @@ export const ITEM_TEXT = Object.freeze({
   rarity_rare: 'Rare',
   rarity_very_rare: 'Very Rare',
   rarity_signature: 'Signature',
-  /* A Trait piece's facts (src/shell/piece-words.js): where it was found, and the drop moment's alert ({standing} is a rarity_ row). */
+  /* a Trait piece's facts (piece-words.js) */
   piece_item_level: 'Item Level {level}',
   piece_found_depth: '{ground}, depth {depth}',
   piece_found_for: '{standing} for {hero}: {name}',

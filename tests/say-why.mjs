@@ -311,6 +311,11 @@ export const REASONS = Object.freeze({
     { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
     { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
+  'src/shell/windows/time-rule-pane.js': [
+    /* a bought block of town work (1071-work-blocks.sql): the quote line's words live in the text home (work.block_day_ending, block_used, block_quote_short) */
+    { cond: '!can || !!sc.wblockConfirm', words: "q.why === 'day_ending' ? t('work.block_day_ending') : t('work.block_used', { max: whole(q.perDay) })", where: 'the work block quote line: not enough of today left, all of today\'s blocks bought, or how much more gold (work.block_quote_short); off while its own confirmation is open' },
+    { cond: '!can || !!sc.wblockConfirm', words: "t(purse !== null && purse < q.price ? 'work.block_quote_short' : 'work.block_quote'", where: 'the work block quote line: how much more gold the next block needs' },
+  ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },
   ],

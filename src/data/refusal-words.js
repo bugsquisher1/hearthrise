@@ -357,6 +357,11 @@ export const REFUSAL_WORDS = Object.freeze({
   stamina_full: 'Stamina full',
   block_limit: 'All blocks bought today · Resets 00:00 UTC',
   stamina_ahead: 'Stamina full',
+  /* Bought town work (1071-work-blocks.sql): a work block is today's, sold only while today can still use it whole. */
+  day_ending: 'Not enough of today left · Resets 00:00 UTC',
+  /* The block rule's one offer (1071 hr_time_offer_answer): already answered, or not offered on this server yet. */
+  offer_answered: 'Already answered',
+  offer_closed: 'Not offered yet',
   /* Town work (1059-company-trades.sql hr_apply): the hero's town work for the day is used up (Tyler 2026-11-22 CR-Q3 b). */
   work_cap: 'No town work left today · Resets 00:00 UTC',
   already_blessed: 'Already blessed',

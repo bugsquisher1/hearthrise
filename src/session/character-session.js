@@ -48,6 +48,7 @@ import { frameTopic, reconnectDelay } from './frame-channel.js';
 import { refusalOf, settleRefusalOf } from './refusal.js';
 import { afterRefusal } from './quoted-ask.js';
 import { catchUpLink, newIdem } from './catch-up.js';
+import { envelopeOf } from './time-intents.js';
 import { pageAway } from './page-away.js';
 import { askBody, slimFloor, confirmedAnswer, takeSlim } from './hunt-ask.js';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js';
@@ -389,10 +390,11 @@ export class CharacterSession {
   /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's section price, never one of the client's own); the server
      refuses `quote_changed` rather than charge another sum, and any refusal re-reads the hero first (_settled): the next press is at its price. ── */
 
-  /** Buy the next block of bought time (`hunt`: 2 h of stamina) at the server's quoted price (1058-hunting-blocks.sql hr_time_buy). */
+  /** Buy the next block of bought time (`hunt`: 2 h of stamina; `work`: 2 h more town work today) at the server's quoted price
+      (hr_time_buy, 1058 / 1071-work-blocks.sql). Its answer carries the hero as the purchase left it (`envelope`, rule 11). */
   async buyTime(kind, quotedPrice) {
-    if (this._closed || kind !== 'hunt' || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('time_buy', () => this._server.rpc('hr_time_buy', { p_kind: kind, p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
+    if (this._closed || (kind !== 'hunt' && kind !== 'work') || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
+    return this._ask('time_buy', async () => envelopeOf(await this._server.rpc('hr_time_buy', { p_kind: kind, p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })), true);
   }
 
   /** Buy one blessing tier at the server's quoted price (0 under the free level). */

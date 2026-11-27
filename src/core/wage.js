@@ -23,9 +23,9 @@
 // in exact integers (BigInt here, numeric in hr_time_block_price), from the kind's row (src/data/time-blocks.js). At the starting
 // values a hunting block is 2 h at 2.0 hours of wage an hour: the day's first costs 4 hours of wage, about twice what its 2 h pay.
 //
-// THE WORK-BLOCK HOOK (lane R12, FB-10): blockPriceOf prices ANY row of the same shape, so bought town work is one row, not new code.
-// 04's starting row for it is { blockMin: 120, priceHourPm: 500, growthNum: 3, growthDen: 2, perDay: 4 }: 1.0, 1.5, 2.25 and 3.375
-// hours of wage for the day's four. It joins TIME_BLOCKS only with its own verb (time-blocks.js SOLD_KINDS says why).
+// BOUGHT TOWN WORK (lane B1, 1071-work-blocks.sql): blockPriceOf prices ANY row of the same shape, so bought town work is one row,
+// TIME_BLOCKS.work { blockMin: 120, priceHourPm: 500, growthNum: 3, growthDen: 2, perDay: 4 }: 1.0, 1.5, 2.25 and 3.375 hours of
+// wage for the day's four (04's starting row), sold by its own branch of hr_time_buy (time-blocks.js SOLD_KINDS).
 //
 // THE OTHER PER-HERO COSTS (lane/level-costs, 2026-11-22; Tyler: "per-hero costs read the wage at the hero's LEVEL"), the same unit:
 //   the Blessing   ceil(hoursPm / 1000 x wage(L)), 0 under its free Level            (src/data/blessings.js BLESSING; blessingPrice)

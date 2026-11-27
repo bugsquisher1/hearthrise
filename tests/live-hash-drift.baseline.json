@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3394,
+  "replay_ms": 2941,
   "counts": {
-    "tracked_names": 1149,
-    "entries": 973
+    "tracked_names": 1157,
+    "entries": 981
   },
   "functions": [
     {
@@ -19176,22 +19176,77 @@
       "agree": true
     },
     {
+      "sig": "hr_time_auto_buy(p_user uuid, p_slot integer, p_kind text)",
+      "name": "hr_time_auto_buy",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "2a2c0bd313d7419a1d3149e37e2ddcde",
+        "norm_len": 6122,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_auto_set(p_kind text, p_slot integer, p_up_to integer, p_max_price bigint, p_idem uuid)",
+      "name": "hr_time_auto_set",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "156cd45f608baa99efe8c125ec81e5b7",
+        "norm_len": 3049,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_auto_sweep(p_limit integer)",
+      "name": "hr_time_auto_sweep",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7088732d3260a62caed90b7ff8694c7a",
+        "norm_len": 2286,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
       "sig": "hr_time_block_price(p_kind text, p_level integer, p_n integer)",
       "name": "hr_time_block_price",
       "tracked_by": [
         "restate"
       ],
       "touched_by": [
-        "1058-hunting-blocks-catalogue.generated.sql"
+        "1058-hunting-blocks-catalogue.generated.sql",
+        "1072-work-blocks-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "c9a127ea0d09a2069be2ba347225b3fc",
-        "norm_len": 1064,
+        "md5": "320b1da6d6088768cd870118a123ee56",
+        "norm_len": 1061,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql, 1072-work-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-work-blocks-catalogue.generated.sql."
     },
     {
       "sig": "hr_time_blocks_view(p_user uuid, p_slot integer)",
@@ -19200,52 +19255,129 @@
         "restate"
       ],
       "touched_by": [
-        "1058-hunting-blocks.sql"
+        "1058-hunting-blocks.sql",
+        "1071-work-blocks.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "da1c4ab8b1333b62b84eebf8b9b5fd8d",
-        "norm_len": 642,
+        "md5": "c03a7bdf206bd48d9a8e579225eef34a",
+        "norm_len": 886,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql, 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_bought(p_user uuid, p_slot integer, p_kind text)",
+      "name": "hr_time_bought",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "171014def31eed8f6200e712304e9dac",
+        "norm_len": 722,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
     },
     {
       "sig": "hr_time_buy(p_kind text, p_slot integer, p_price bigint, p_idem uuid)",
       "name": "hr_time_buy",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1058-hunting-blocks.sql"
+        "1058-hunting-blocks.sql",
+        "1071-work-blocks.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "fc553cb2a7cbaf8a4af2debd9824b427",
-        "norm_len": 4146,
+        "md5": "f6e01bd35e2257cf224edb500f3ac326",
+        "norm_len": 4976,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql, 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_offer_answer(p_slot integer, p_up_to integer, p_idem uuid)",
+      "name": "hr_time_offer_answer",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "b3814cb2a3ec21cdf9cacf06b9acc7fa",
+        "norm_len": 3710,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_offer_of(p_user uuid)",
+      "name": "hr_time_offer_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "7cc658f7dbbc26430971a9f52e45a1c1",
+        "norm_len": 1409,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
     },
     {
       "sig": "hr_time_quote(p_user uuid, p_slot integer, p_kind text)",
       "name": "hr_time_quote",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1058-hunting-blocks.sql"
+        "1058-hunting-blocks.sql",
+        "1071-work-blocks.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "8e6b8f36709e53190962cdfe7d1bf6f4",
-        "norm_len": 1910,
+        "md5": "909891039882b961019a1f346027c5cb",
+        "norm_len": 2732,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks.sql, 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
+      "sig": "hr_time_rule_write(p_user uuid, p_slot integer, p_kind text, p_up_to integer, p_max_price bigint, p_why text)",
+      "name": "hr_time_rule_write",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "ab7ba74df6aecf01efe53628dab8d6b2",
+        "norm_len": 1546,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
     },
     {
       "sig": "hr_title_buy(p_slot integer, p_title text, p_price bigint, p_idem uuid)",
@@ -21842,16 +21974,17 @@
         "restate"
       ],
       "touched_by": [
-        "1058-hunting-blocks-catalogue.generated.sql"
+        "1058-hunting-blocks-catalogue.generated.sql",
+        "1072-work-blocks-catalogue.generated.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "8ca3be337415db71bdb00c2476010db4",
-        "norm_len": 732,
+        "md5": "b862f69befeb55b3affe4e7a8a69b793",
+        "norm_len": 729,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1058-hunting-blocks-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1058-hunting-blocks-catalogue.generated.sql, 1072-work-blocks-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1072-work-blocks-catalogue.generated.sql."
     },
     {
       "sig": "hr_wallet_credit(p_uid uuid, p_slot integer, p_gems bigint, p_key text, p_expires_at timestamp with time zone)",
@@ -22101,6 +22234,24 @@
       "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
     },
     {
+      "sig": "hr_work_block_quote(p_user uuid, p_slot integer)",
+      "name": "hr_work_block_quote",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1071-work-blocks.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "bf9693a56b275cc99c34c625f1152489",
+        "norm_len": 2581,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+    },
+    {
       "sig": "hr_work_day_view(p_user uuid, p_slot integer)",
       "name": "hr_work_day_view",
       "tracked_by": [
@@ -22122,19 +22273,21 @@
       "sig": "hr_work_extra_ms(p_user uuid, p_slot integer)",
       "name": "hr_work_extra_ms",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1059-company-trades.sql"
+        "1059-company-trades.sql",
+        "1071-work-blocks.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "2a1672f0cc1825d5abefd13e8ed356a8",
-        "norm_len": 938,
+        "md5": "818fe492c094c757e46a3946359470cd",
+        "norm_len": 693,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1059-company-trades.sql."
+      "why": "STAGED for the v0.2.144 release by 1059-company-trades.sql, 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
     },
     {
       "sig": "hr_work_fold(p_day date, p_used bigint, p_from timestamp with time zone, p_to timestamp with time zone, p_base bigint, p_extra bigint, p_today date)",

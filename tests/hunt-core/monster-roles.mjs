@@ -20,7 +20,9 @@
 //   play    THE ONE ENGINE (CLAUDE.md section 6): two Melee heroes on the scale, the puller set to the back row and the other to the front
 //           (row SETTINGS, through the settle's boundary): brutes turn off the puller onto the front hero (the re-aim), which the puller
 //           takes without the role; the hunt plays the same, digit for digit, in one window and in 10 s windows with the world through JSON
-//           at every cut; with no stance the role changes nothing.
+//           at every cut; with no stance the role changes nothing. THE CLOSE in the hunt: a frontless pair (a Ranger pulls, a Mage behind)
+//           against brutes, the Mage takes blows (none with no role) and the pinned pair walks under four fifths of the tiles, the same
+//           in one window and in 10 s windows.
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -248,25 +250,27 @@ const CASES = {
   },
   play(M) {
     const SPAN = 6 * 60000;
-    const run = (plan, role, cuts) => withRole(M, 'rat', role, () => withRole(M, 'slime', role, () => {
+    /* seats: each member's role and row (the default: two Melee heroes, the puller set to the back row, the other to the front) */
+    const run = (plan, role, cuts, seats = [{ row: 'back' }, { row: 'front' }]) => withRole(M, 'rat', role, () => withRole(M, 'slime', role, () => {
       const ground = groundRow(), grid = gridOf(M);
       const ms = [member(M, 'a', { seat: 0, maxHp: 60, hp: 60, maxHit: 12 }), member(M, 'b', { seat: 1, maxHp: 30, hp: 30, maxHit: 12 })];
       for (const m of ms) m.hero = { ...m.hero, ...(plan || {}) };
-      ms[0].hero.settings = { row: 'back' }; ms[1].hero.settings = { row: 'front' };
+      ms.forEach((m, i) => { const st = seats[i]; if (st.role) m.hero = { ...m.hero, role: st.role, range: 7 }; m.hero.settings = st.row ? { row: st.row } : null; });
       const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('roles', 3, d, i), monsters: M.MONSTERS, ground, grid };
       const edges = [T0, ...cuts, T0 + SPAN];
       let w = null, next = T0;
-      const events = [], unit = {};
+      const events = [], track = [], unit = {};
       for (let i = 1; i < edges.length; i++) {
         w = w ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))) : null;
         const r = M.cs.simulateHuntInstance({ world: w, nextSwingAtMs: next, members: ms }, { ...ctx, toMs: edges[i] });
-        w = r.world; next = r.nextSwingAtMs; events.push(...r.events);
+        w = r.world; next = r.nextSwingAtMs; events.push(...r.events); track.push(...r.track);
         for (const m of ms) if (Number.isInteger(r.members[m.key].unitIdEver)) unit[m.key] = r.members[m.key].unitIdEver;
         if (!w) break;
       }
       const heroIds = new Set(Object.values(unit));
       const hits = (who) => events.filter((e) => e.type === 'dmg' && e.t === who && !heroIds.has(e.u)).length;
-      return { key: JSON.stringify(events), a: hits(unit.a), b: hits(unit.b) };
+      const steps = track.filter((t) => heroIds.has(t.u)).length;
+      return { key: JSON.stringify(events), a: hits(unit.a), b: hits(unit.b), steps };
     }));
     const plan = { risk: 'steady', danger: 0 };
     const tens = Array.from({ length: SPAN / 10000 - 1 }, (_, i) => T0 + (i + 1) * 10000);
@@ -276,6 +280,15 @@ const CASES = {
     if (!(share(roled) > share(plain) + 0.2)) return 'brutes drew the front-row hero ' + share(roled).toFixed(2) + ' of the blows, without the role ' + share(plain).toFixed(2);
     if (run(plan, 'brute', tens).key !== roled.key) return 'the hunt moved with 10 s windows: a viewed hunt and a closed one differ';
     if (run(null, 'brute', []).key !== run(null, undefined, []).key) return 'with no stance a role changed the hunt';
+    /* THE CLOSE, BOTH PATHS (12-targets 8.9.1): a frontless pair (a Ranger pulls, a Mage behind it) against brutes. With no front row the
+       brutes run to the hero nearest them, so the Mage takes blows (none with no role: every monster on the puller), and the pair, pinned
+       where it is caught, walks under four fifths of the tiles; the same hunt in one window and in 10 s windows */
+    const pair = [{ role: 'ranger' }, { role: 'mage' }];
+    const fl = run(plan, 'brute', [], pair), flPlain = run(plan, undefined, [], pair);
+    if (flPlain.b !== 0 || !(flPlain.a > 0)) return 'CONTROL: with no role the frontless pair\'s Mage took ' + flPlain.b + ' blows, the puller ' + flPlain.a;
+    if (!(fl.b > 0)) return 'with no front row the brutes never reached the Mage behind the puller (the pack took the puller alone)';
+    if (!(fl.steps * 5 < flPlain.steps * 4)) return 'the frontless pair walked ' + fl.steps + ' tiles with the brutes on it, ' + flPlain.steps + ' with no role (a pinned hero walks off)';
+    if (run(plan, 'brute', tens, pair).key !== fl.key) return 'the close moved with 10 s windows: a viewed hunt and a closed one differ';
     return null;
   },
 };
@@ -300,6 +313,8 @@ const MUTANTS = [
   { name: 'with no back row a shooter turns to the farthest', case: 'redive', edits: [['src/core/hunt/monster-roles.js', "(keep === 'front' && cheb(m, cur) > 1)", 'cheb(m, cur) > 1']] },
   { name: 'a ranged hero held in melee walks clear on the scale', case: 'close', edits: [['src/core/hunt/roles.js', '  if (heldInMelee(h, mons, (m) => pinsOf(inst, m))) { clearGoal(h); h.spot = null; return; }\n', '']] },
   { name: 'the close holds a ranged hero off the scale', case: 'close', edits: [['src/core/hunt/monster-roles.js', 'const r = roleOf(inst, m); return !!r && r.pins === true;', 'return true;']] },
+  { name: 'a hunt plays no pin', case: 'play', edits: [['src/core/hunt/roles.js', '  if (heldInMelee(h, mons, (m) => pinsOf(inst, m))) { clearGoal(h); h.spot = null; return; }\n', '']] },
+  { name: 'a hunt\'s brutes with no front row take the puller alone', case: 'play', edits: [['src/core/hunt/monster-roles.js', '  const pick = best || any;', '  const pick = best;']] },
   { name: 'every role pins (a stalker too)', case: 'close', edits: [['src/core/hunt/monster-roles.js', 'return !!r && r.pins === true;', 'return !!r;']] },
   { name: 'a stalker thrashes on ties', case: 'redive', edits: [['src/core/hunt/monster-roles.js', '  return p.maxHp < cur.maxHp ? pick : null;', '  return pick;']] },
   { name: 'a role gives no range', case: 'range', edits: [['src/core/hunt/shooters.js', ' || roleRange(inst, m) : 0;', ' : 0;']] },

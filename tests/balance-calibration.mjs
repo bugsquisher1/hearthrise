@@ -20,6 +20,8 @@
 //   BC-6  the SKILL LINES (skill-lines.mjs: the skills a career gives a hero at its Level, which a played cell plays when it names none) sit on
 //         the recorded heroes: each recorded hero's main skill within LINE_PTS levels of its line at its Level ('alone' for a hero alone, 'party'
 //         for a party's seat). The old harness hero (every skill at its Level) reads a Level 72 party hero's main skill 72 against 56-59.
+//         The lines are the ones measured on the curve the recordings were made on (the geometric careers, frozen, for every recording before
+//         the Level clock; the live clock careers for a recording made on it): two curves never meet in one comparison.
 //   BC-7  a shift declared here that covers Krell's Hold and is dated on or after the balance guard's real Krell four (tools/balance-program
 //         model.mjs REAL_KRELL_FOUR.read) is restated on that four too (REAL_KRELL_FOUR_SHIFTS, the same `why`, measured on K1's own cell):
 //         otherwise K1 compares the harness on today's engine with a hunt another engine paid, and a formula change reads as the harness
@@ -43,7 +45,7 @@
 import { readFileSync } from 'node:fs';
 import { run, FIXTURE } from '../tools/balance-sim/calibrate.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
-import { loadLines, skillsAt, AS_MEASURED } from '../tools/balance-sim/skill-lines.mjs';
+import { loadLines, skillsAt, AS_MEASURED, madeOn } from '../tools/balance-sim/skill-lines.mjs';
 import { FLAME_SKILL_CURVE } from '../src/data/core-model.js';
 import { charLevelFromXp, skillLevelFromXp } from '../src/core/xp.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -67,7 +69,13 @@ const SEAT_SHARE_PTS = 10;
 const TAKEN_MIN = 10000;
 /* BC-6: a recorded hero's main skill against its skill line, in levels (set from the measure below the header) */
 const LINE_PTS = 6;
+/* THE LINES ON THE CURVE THE RECORDINGS WERE MADE ON (lane/refhero-recut, 2026-11-27): the live snapshot (skill-lines.json) is the careers on
+   the Level clock now (12-targets 8.5 item 2), and every recorded hero earned its skills on the geometric curve, so BC-6 reads the careers
+   measured on that curve (skill-lines-geometric.json, frozen) against them. A recording made on the clock reads the live lines; until one
+   exists the clock's lines have no recorded hero to sit on (the playtest's) */
 const SKILL_LINES = loadLines();
+const GEOMETRIC_LINES = loadLines(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'balance-sim', 'skill-lines-geometric.json'));
+export const linesFor = (fx) => (fx.skillCurve === 'time' ? SKILL_LINES : GEOMETRIC_LINES);
 const HOURS = 2, SEEDS = 2;
 
 /* DECLARED SHIFTS: [{ after: 'YYYY-MM-DD' (hunts recorded on or before it), grounds?: [ground id] (only hunts on these; every ground when
@@ -142,10 +150,22 @@ export const DECLARED_SHIFTS = Object.freeze([
   Object.freeze({ after: '2026-11-26', grounds: Object.freeze(['krells_hold']), why: 'the tier rows retired: a recorded Deadly four plays the ground as built (lane/retire-tier-chain)',
     mult: Object.freeze({ killsPerH: 0.376, levelXpPerH: 0.313, coinPerH: 0.389, dealtPerH: 0.335, takenPerH: 0.061, healedPerH: 0, storePerH: 0.072 }),
     seatPts: Object.freeze([21.6, -0.9, -0.7, -20.0]) }),
+  /* (7) EVERY BAND RE-CUT ON THE CLOCK'S REF_HERO (lane/refhero-recut, 2026-11-27; 12-targets 8.5 item 2): the formula rows' aim and evasion re-derived
+     from the careers on the Level clock (the Warrens' recorded lone hero plays its hand rows) and Krell's band 60 -> 20. MEASURED by
+     calibration-shift.mjs (2 h x 2 seeds, origin/set/v0.2.144 at 414ccd436 against the lane, sim over sim, geometric mean within each ground) */
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['coppercap_warrens']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1.024, levelXpPerH: 1.018, coinPerH: 1.018, dealtPerH: 1.028, takenPerH: 0.79, healedPerH: 0.697, storePerH: 0.882 }) }),
+  /* Krell's two fours split on this change (taken x0.866 and x0.935, store x0.866 and x0.989): the ground's mean shift (x0.900) put the second
+     at x1.15 of its record, past 15%, on a hunt whose own shift is x0.935. So each is declared as its own hunt (`hunts`), as measured */
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['krells_hold']), hunts: Object.freeze(['krells_hold:deadly:4:1']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 1, coinPerH: 0.9963, dealtPerH: 1, takenPerH: 0.8663, healedPerH: 1, storePerH: 0.8655 }) }),
+  Object.freeze({ after: '2026-11-27', grounds: Object.freeze(['krells_hold']), hunts: Object.freeze(['krells_hold:deadly:4:2']), why: 'every band re-cut on the clock\'s REF_HERO (12-targets 8.5 item 2)',
+    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 1.0006, coinPerH: 1.0097, dealtPerH: 1.0006, takenPerH: 0.9353, healedPerH: 1, storePerH: 0.9894 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);
-const shiftsOn = (s) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)));
+/* a shift names its grounds, and may name its hunts (lane/refhero-recut: two fours of one ground that one change moved apart) */
+const shiftsOn = (s) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)) && (!d.hunts || d.hunts.includes(s.id)));
 const shiftOf = (s, key) => shiftsOn(s).reduce((m, d) => m * (d.mult && Number.isFinite(d.mult[key]) ? d.mult[key] : 1), 1);
 /* the points a seat's recorded share moves by, summed over the declared shifts (BC-5) */
 const seatPtsOf = (s, i) => (s ? shiftsOn(s).reduce((t, d) => t + ((d.seatPts && d.seatPts[i]) || 0), 0) : 0);
@@ -240,7 +260,8 @@ async function check(fx, runner, plant = {}) {
   const exact = await run({ ...base, use: plant.use || null });
   for (const f of judge(exact, TOL, byId)) fails.push('BC-3 ' + f);
   for (const f of seatShareFails(exact, byId)) fails.push('BC-5 ' + f);
-  const sl = lineFails(fx, plant.lines || SKILL_LINES);
+  const sl = lineFails(fx, plant.lines || linesFor(fx));
+  if (!plant.lines && madeOn(linesFor(fx)) !== madeOn(fx)) fails.push('BC-6 the recordings were made on the ' + madeOn(fx) + ' curve and are read against lines made on the ' + madeOn(linesFor(fx)));
   for (const f of sl.fails) fails.push('BC-6 ' + f);
   for (const f of krellShiftFails(DECLARED_SHIFTS, plant.krellShifts || REAL_KRELL_FOUR_SHIFTS)) fails.push('BC-7 ' + f);
   lines.push('skill lines against the recorded heroes (BC-6, within ' + LINE_PTS + ' levels)', ...sl.rows);

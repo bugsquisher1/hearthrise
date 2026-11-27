@@ -53,67 +53,67 @@
    "start": 0,
    "seedsRead": 4,
    "payX": {
-    "mean": 0.57,
+    "mean": 0.49,
     "sd": 0,
     "n": 4,
     "perSeed": [
-     0.57,
-     0.57,
-     0.57,
-     0.58
+     0.49,
+     0.49,
+     0.49,
+     0.49
     ],
     "fromH": 4,
     "windowH": 6
    },
    "held": {
-    "mean": 1.3,
-    "sd": 0.3,
-    "se": 0.2,
+    "mean": 4.2,
+    "sd": 1.7,
+    "se": 0.9,
     "perSeed": [
-     1,
-     1,
+     6,
+     4,
      2,
-     1
+     4
     ]
    },
-   "drift": 0,
-   "within10": 100,
+   "drift": 0.7,
+   "within10": 96.8,
    "within20": 100,
-   "changesPerH": 5.3,
-   "fallsPerH": 2.4,
+   "changesPerH": 6.7,
+   "fallsPerH": 1.4,
    "reachH": 0,
-   "pullsPerH": 74.1,
-   "killsPerH": 503,
-   "xpPerHeroH": 8542,
+   "pullsPerH": 62.9,
+   "killsPerH": 431,
+   "xpPerHeroH": 7317,
    "gold": {
     "coinPerHeroH": {
-     "mean": 12034,
-     "sd": 68,
+     "mean": 10307,
+     "sd": 79,
      "n": 4
     },
     "incomePerHeroH": {
-     "mean": 12259,
-     "sd": 71,
+     "mean": 10507,
+     "sd": 72,
      "n": 4
     },
     "storePerHeroH": {
-     "mean": 2969,
-     "sd": 7,
+     "mean": 2764,
+     "sd": 6,
      "n": 4
     },
     "commonPerHeroH": {
-     "mean": 103,
-     "sd": 3,
+     "mean": 87,
+     "sd": 2,
      "n": 4
     },
     "uncommonPerHeroH": {
-     "mean": 15,
+     "mean": 13,
      "sd": 1,
      "n": 4
     },
     "scarcePerHeroH": {
-     "mean": 106,
-     "sd": 7,
+     "mean": 100,
+     "sd": 10,
      "n": 4
     },
     "otherPerHeroH": {
@@ -123,19 +123,19 @@
     }
    },
    "kit": {
-    "meal": 104,
-    "drink": 2241,
-    "charge": 625,
+    "meal": 68,
+    "drink": 2081,
+    "charge": 615,
     "shot": 0
    },
    "kitIds": {
-    "salted_shrimp": 17.3,
-    "thin_turnip_juice": 249,
-    "plain_fire_rune": 113.6,
-    "plain_ice_rune": 111.7,
-    "plain_poison_rune": 55.4,
-    "plain_water_rune": 275.4,
-    "plain_earth_rune": 68.8
+    "salted_shrimp": 11.4,
+    "thin_turnip_juice": 231.2,
+    "plain_fire_rune": 110.7,
+    "plain_ice_rune": 114.7,
+    "plain_poison_rune": 54.2,
+    "plain_earth_rune": 68.7,
+    "plain_water_rune": 267
    },
    "deaths": 0,
    "wipes": 0,
@@ -148,9 +148,9 @@
    "nearWarned": 0,
    "nearFellAfter": 0,
    "whys": {
-    "hold": 2726,
-    "fall": 93,
-    "climb": 145
+    "hold": 2245,
+    "climb": 214,
+    "fall": 52
    },
    "takenShare": [
     {
@@ -171,23 +171,23 @@
     }
    ],
    "causes": {
-    "fall:gray_wolf@0": 15,
-    "fall:dire_gray@0": 8,
-    "fall:briarcoat_wolf@0": 27,
-    "fall:gray_whelp@0": 43
+    "fall:gray_whelp@0": 22,
+    "fall:briarcoat_wolf@0": 19,
+    "fall:gray_wolf@0": 5,
+    "fall:dire_gray@0": 6
    },
    "seats": [
     {
      "style": "hammer",
-     "dps": 6.57,
-     "landedPct": 79.8,
-     "dmgPerSwing": 7.47,
-     "swingsPerH": 6562,
-     "takenPerH": 49019.75
+     "dps": 3.59,
+     "landedPct": 74.95,
+     "dmgPerSwing": 7.1,
+     "swingsPerH": 6461.75,
+     "takenPerH": 45868
     },
     {
      "style": "bow",
-     "dps": 5.69,
+     "dps": 5.18,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -195,7 +195,7 @@
     },
     {
      "style": "mage",
-     "dps": 5.52,
+     "dps": 5.81,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -203,7 +203,7 @@
     },
     {
      "style": "healer",
-     "dps": 3.34,
+     "dps": 3.58,
      "landedPct": null,
      "dmgPerSwing": null,
      "swingsPerH": 0,
@@ -213,33 +213,33 @@
    "kinds": {
     "gray_whelp": {
      "role": "swarm",
-     "killsPerH": 179.5,
-     "ttkS": 23.1,
-     "takenPerKill": 112
+     "killsPerH": 153.8,
+     "ttkS": 25.6,
+     "takenPerKill": 126
     },
     "gray_wolf": {
      "role": "stalker",
-     "killsPerH": 191.4,
-     "ttkS": 24,
-     "takenPerKill": 51
+     "killsPerH": 164,
+     "ttkS": 25.2,
+     "takenPerKill": 55
     },
     "briarcoat_wolf": {
      "role": "brute",
-     "killsPerH": 83.8,
-     "ttkS": 33.2,
-     "takenPerKill": 156
+     "killsPerH": 71.7,
+     "ttkS": 36.1,
+     "takenPerKill": 165
     },
     "dire_gray": {
      "role": "brute",
-     "killsPerH": 35.9,
-     "ttkS": 32.2,
-     "takenPerKill": 149
+     "killsPerH": 30.7,
+     "ttkS": 30.7,
+     "takenPerKill": 165
     },
     "grayjaw": {
      "role": "brute",
-     "killsPerH": 11.9,
-     "ttkS": 12,
-     "takenPerKill": 56
+     "killsPerH": 10.2,
+     "ttkS": 11.9,
+     "takenPerKill": 54
     }
    },
    "abs": {
@@ -247,10 +247,10 @@
     "depth": 1
    },
    "sustain": {
-    "freePm": 64,
-    "spellPm": 860,
-    "foodPm": 76,
-    "takenPmS": 17.92
+    "freePm": 63,
+    "spellPm": 883,
+    "foodPm": 54,
+    "takenPmS": 16.76
    }
   }
  },

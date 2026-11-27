@@ -3,18 +3,19 @@
  "_generated_by": "node tools/new-ground.mjs <ground> --write",
  "grounds": {
   "muster_barrows": {
-   "refStep": 630,
-   "floorStep": 565,
-   "topStep": 700,
-   "coinPm": 7600,
-   "print": "f8355e114ecabfd7",
+   "refStep": 610,
+   "floorStep": 525,
+   "topStep": 690,
+   "refHeld": 605,
+   "coinPm": 7700,
+   "print": "06453719f7056c77",
    "verdict": "OPEN",
    "levels": {
     "entry": 55,
     "top": 75,
     "mid": 60
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/muster_barrows-ref.json",
     "tools/balance-program/redesign/grounds/muster_barrows-top.json",
@@ -23,19 +24,19 @@
   },
   "hasks_ford": {
    "refStep": 590,
-   "floorStep": 545,
-   "topStep": 655,
-   "refKillsHead": 135,
-   "refHeld": 605,
+   "floorStep": 535,
+   "topStep": 645,
+   "refKillsHead": 130,
+   "refHeld": 595,
    "coinPm": 6600,
-   "print": "975134b951eccea8",
+   "print": "385e265606cb6549",
    "verdict": "OPEN",
    "levels": {
     "entry": 45,
     "top": 60,
     "mid": 52
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
     "tools/balance-program/redesign/grounds/hasks_ford-top.json",
@@ -43,20 +44,19 @@
    ]
   },
   "catacomb_bone_wing": {
-   "refStep": 590,
-   "floorStep": 510,
-   "topStep": 605,
-   "refKillsHead": 125,
-   "refHeld": 585,
-   "coinPm": 5500,
-   "print": "25574ef6dcbd84ef",
+   "refStep": 500,
+   "floorStep": 405,
+   "topStep": 550,
+   "refKillsHead": 140,
+   "coinPm": 4200,
+   "print": "add23be43d8ea656",
    "verdict": "OPEN",
    "levels": {
     "entry": 165,
     "top": 185,
     "mid": 175
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_bone_wing-top.json",
@@ -64,19 +64,20 @@
    ]
   },
   "catacomb_flooded_wing": {
-   "refStep": 510,
-   "floorStep": 460,
-   "topStep": 525,
-   "refKillsHead": 145,
-   "coinPm": 3500,
-   "print": "1cb50454048f9ba8",
+   "refStep": 470,
+   "floorStep": 440,
+   "topStep": 500,
+   "refKillsHead": 140,
+   "refHeld": 475,
+   "coinPm": 3300,
+   "print": "ceebfb7f4f490a5b",
    "verdict": "OPEN",
    "levels": {
     "entry": 150,
     "top": 170,
     "mid": 160
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-ref.json",
     "tools/balance-program/redesign/grounds/catacomb_flooded_wing-top.json",
@@ -88,36 +89,35 @@
    "floorStep": 0,
    "topStep": 110,
    "refKillsHead": 135,
-   "refHeld": 55,
    "coinPm": 114400,
-   "print": "08fe459d7851b08c",
-   "verdict": "OPEN",
+   "print": "fc1c09eab1dc8185",
+   "verdict": "REVIEW",
    "levels": {
     "entry": 1,
     "top": 4,
     "mid": 3
    },
-   "measured": "2026-11-23",
+   "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/c-targets/mill_cellar.json",
+    "tools/balance-program/redesign/grounds/mill_cellar-ref.json",
     "tools/balance-program/redesign/grounds/mill_cellar-top.json",
     "tools/balance-program/redesign/grounds/mill_cellar-floor.json"
    ]
   },
   "meadowbrook_thicket": {
-   "refStep": 100,
+   "refStep": 110,
    "floorStep": 0,
    "topStep": 145,
    "refKillsHead": 125,
-   "coinPm": 38400,
-   "print": "e76b954dcab4871f",
+   "coinPm": 38800,
+   "print": "3679e691ce8eac7a",
    "verdict": "OPEN",
    "levels": {
     "entry": 5,
     "top": 15,
     "mid": 10
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-ref.json",
     "tools/balance-program/redesign/grounds/meadowbrook_thicket-top.json",
@@ -127,18 +127,18 @@
   "mosslight_glade": {
    "refStep": 50,
    "floorStep": 0,
-   "topStep": 125,
-   "refKillsHead": 140,
+   "topStep": 120,
+   "refKillsHead": 135,
    "refHeld": 55,
    "coinPm": 7800,
-   "print": "3fa511657a51b655",
+   "print": "65d34538fc59981b",
    "verdict": "OPEN",
    "levels": {
     "entry": 16,
     "top": 31,
     "mid": 23
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
     "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
@@ -147,18 +147,18 @@
   },
   "coppercap_warrens": {
    "refStep": 80,
-   "floorStep": 25,
-   "topStep": 135,
-   "refKillsHead": 125,
+   "floorStep": 30,
+   "topStep": 125,
+   "refHeld": 75,
    "coinPm": 3900,
-   "print": "b54333e1d6fb3ff1",
+   "print": "f1f434304c6ceaf6",
    "verdict": "OPEN",
    "levels": {
     "entry": 32,
     "top": 50,
     "mid": 41
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/coppercap_warrens-ref.json",
     "tools/balance-program/redesign/grounds/coppercap_warrens-top.json",
@@ -166,19 +166,19 @@
    ]
   },
   "the_slake": {
-   "refStep": 120,
-   "floorStep": 65,
-   "topStep": 140,
-   "refHeld": 115,
-   "coinPm": 5300,
-   "print": "500ea8d1c38b2c11",
+   "refStep": 100,
+   "floorStep": 45,
+   "topStep": 135,
+   "refKillsHead": 125,
+   "coinPm": 4900,
+   "print": "fd5f34ef46e65df6",
    "verdict": "OPEN",
    "levels": {
     "entry": 50,
     "top": 65,
     "mid": 57
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/the_slake-ref.json",
     "tools/balance-program/redesign/grounds/the_slake-top.json",
@@ -186,20 +186,19 @@
    ]
   },
   "pyre_field": {
-   "refStep": 80,
-   "floorStep": 10,
-   "topStep": 120,
+   "refStep": 50,
+   "floorStep": 0,
+   "topStep": 105,
    "refKillsHead": 140,
-   "refHeld": 75,
-   "coinPm": 3000,
-   "print": "68c067fb73f1b94b",
+   "coinPm": 2900,
+   "print": "13fb7306dd123d43",
    "verdict": "OPEN",
    "levels": {
     "entry": 70,
     "top": 90,
     "mid": 80
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/pyre_field-ref.json",
     "tools/balance-program/redesign/grounds/pyre_field-top.json",
@@ -207,19 +206,18 @@
    ]
   },
   "krells_hold": {
-   "refStep": 60,
-   "floorStep": 15,
-   "topStep": 125,
-   "refHeld": 65,
-   "coinPm": 3600,
-   "print": "27c2e33c1d38652c",
+   "refStep": 20,
+   "floorStep": 0,
+   "topStep": 120,
+   "coinPm": 4000,
+   "print": "693ccf7e0438cc65",
    "verdict": "REVIEW",
    "levels": {
     "entry": 85,
     "top": 110,
     "mid": 97
    },
-   "measured": "2026-11-24",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/krells_hold-ref.json",
     "tools/balance-program/redesign/grounds/krells_hold-top.json",
@@ -227,20 +225,19 @@
    ]
   },
   "wickstead": {
-   "refStep": 60,
+   "refStep": 80,
    "floorStep": 0,
-   "topStep": 130,
-   "refKillsHead": 140,
-   "refHeld": 65,
-   "coinPm": 17700,
-   "print": "24a4c200bd7b31d9",
+   "topStep": 125,
+   "refKillsHead": 135,
+   "coinPm": 18300,
+   "print": "42a2065f09f31687",
    "verdict": "OPEN",
    "levels": {
     "entry": 8,
     "top": 18,
     "mid": 13
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/wickstead-ref.json",
     "tools/balance-program/redesign/grounds/wickstead-top.json",
@@ -248,19 +245,20 @@
    ]
   },
   "carters_rest": {
-   "refStep": 90,
-   "floorStep": 5,
-   "topStep": 110,
-   "refKillsHead": 160,
-   "coinPm": 1800,
-   "print": "99947026dd123d0f",
+   "refStep": 60,
+   "floorStep": 0,
+   "topStep": 75,
+   "refKillsHead": 145,
+   "refHeld": 55,
+   "coinPm": 2100,
+   "print": "ddcaabb95b97356c",
    "verdict": "OPEN",
    "levels": {
     "entry": 110,
     "top": 125,
     "mid": 117
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/carters_rest-ref.json",
     "tools/balance-program/redesign/grounds/carters_rest-top.json",
@@ -268,18 +266,18 @@
    ]
   },
   "ox_road": {
-   "refStep": 160,
-   "floorStep": 70,
-   "topStep": 240,
-   "coinPm": 4800,
-   "print": "57e70ea7700daed6",
+   "refStep": 90,
+   "floorStep": 0,
+   "topStep": 175,
+   "coinPm": 2500,
+   "print": "53b7c6cceb02ceea",
    "verdict": "OPEN",
    "levels": {
     "entry": 112,
     "top": 130,
     "mid": 120
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/ox_road-ref.json",
     "tools/balance-program/redesign/grounds/ox_road-top.json",
@@ -287,18 +285,19 @@
    ]
   },
   "millrace_sewer": {
-   "refStep": 20,
+   "refStep": 70,
    "floorStep": 0,
    "topStep": 110,
-   "coinPm": 6200,
-   "print": "0f68cb1f7eec4853",
+   "refHeld": 65,
+   "coinPm": 8200,
+   "print": "674310ffaedb19f8",
    "verdict": "OPEN",
    "levels": {
     "entry": 5,
     "top": 19,
     "mid": 12
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/millrace_sewer-ref.json",
     "tools/balance-program/redesign/grounds/millrace_sewer-top.json",
@@ -306,19 +305,20 @@
    ]
   },
   "wyvern_roost": {
-   "refStep": 190,
-   "floorStep": 70,
-   "topStep": 235,
-   "refHeld": 185,
-   "coinPm": 3700,
-   "print": "fd373fa332c37429",
+   "refStep": 110,
+   "floorStep": 0,
+   "topStep": 195,
+   "refKillsHead": 140,
+   "refHeld": 105,
+   "coinPm": 2100,
+   "print": "b06db014dee685df",
    "verdict": "OPEN",
    "levels": {
     "entry": 128,
     "top": 150,
     "mid": 140
    },
-   "measured": "2026-11-26",
+   "measured": "2026-11-27",
    "evidence": [
     "tools/balance-program/redesign/grounds/wyvern_roost-ref.json",
     "tools/balance-program/redesign/grounds/wyvern_roost-top.json",

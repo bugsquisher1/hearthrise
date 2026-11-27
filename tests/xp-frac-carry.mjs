@@ -130,15 +130,19 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    its blows: n 2518 -> 2410, 49dbd79c -> 189fbb92, kills 184 -> 156. The slime hunt at the start-kit hero holds (n 4478, 1f6b022c, 687 kills).
    Proof it is ONLY the curve: --measure-draws on a copy of this tree with the base's src/core/xp.js, src/data/core-model.js,
    src/core/hunt/amount.js, src/core/bands.js and src/data/bands.js laid back reads 2518 / 49dbd79c again. */
-const PRE_CHANGE_DRAWS = { n: 4478, hash: '1f6b022c', kills: 687,
-  items: '{"lamp_jelly":180,"slime_gel":385,"sticky_core":75}' };   // re-measured lane S1 (instance engine; n = events)
+/* RE-MEASURED lane/refhero-recut (2026-11-27, 12-targets 8.5 item 2): the Slime's row is the formula's on the clock's REF_HERO (gen-ground-stats
+   --write: aim 14 -> 13, evasion 12 -> 11), so which blows land moved: n 4478 -> 4498, 1f6b022c -> 885aab90, kills 687 -> 692; the levelling run
+   2410 -> 2427, 189fbb92 -> 9473b4b0. Proof it is ONLY that line: --measure-draws on a copy of this tree with the Slime's 14 / 12 put back reads
+   4478 / 1f6b022c and 2410 / 189fbb92 again. */
+const PRE_CHANGE_DRAWS = { n: 4498, hash: '885aab90', kills: 692,
+  items: '{"lamp_jelly":182,"slime_gel":390,"sticky_core":76}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2410, hash: '189fbb92' };   // re-measured the skill clock 2026-11-23 (was 2518, 49dbd79c; above)   // re-measured the hunt report's blow readings 2026-11-22 (was fa2c33c2; above)   // re-measured the to-hit ratio 2026-11-20 (was 2374, a848df5e; above)   // re-measured XP a kill x0.88 2026-11-19 (was e8f2bfca; above)   // re-measured monsters a little harder 2026-11-19 (was 2108297a; above)   // re-measured solo +15% 2026-11-12 (was 935dd946; above)   // re-measured one difficulty 2026-11-10 (was a20e1e5f; above)   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2427, hash: '9473b4b0' };   // re-measured the clock's REF_HERO 2026-11-27 (was 2410, 189fbb92), the skill clock 2026-11-23 (was 2518, 49dbd79c; above)   // re-measured the hunt report's blow readings 2026-11-22 (was fa2c33c2; above)   // re-measured the to-hit ratio 2026-11-20 (was 2374, a848df5e; above)   // re-measured XP a kill x0.88 2026-11-19 (was e8f2bfca; above)   // re-measured monsters a little harder 2026-11-19 (was 2108297a; above)   // re-measured solo +15% 2026-11-12 (was 935dd946; above)   // re-measured one difficulty 2026-11-10 (was a20e1e5f; above)   // re-measured the formula's Slime row 2026-11-07 (was 9aabde49; above)   // re-measured loot bands phase C (no rare_drop events from the Slime)   // re-measured v0.2.29 loot loop (+4 rare_drop events; minus them the old 2374 / 9aabde49)   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',

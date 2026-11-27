@@ -40,7 +40,8 @@
 //         the floor cut two tiers back (arriving depth 9) and on a reading whose middle is the anchor refStep (8). Nothing here caps a
 //         company: these read measured holds, they never hold a step back (Tyler 2026-11-23)
 //   BD-10 THE SUPPLY GATES KEEP THEIR LEVEL (the designer's ruling 29 section 7 item 10): every tier of core-model.js SUPPLY_GATES is the
-//         Level the reference four's measured old career (tools/balance-sim/skill-lines.json 'party', as measured) first reached the old gate
+//         Level the reference four's measured old career (tools/balance-sim/skill-lines-geometric.json 'party', as measured, frozen when the
+//         live lines moved onto the Level clock) first reached the old gate
 //         (1 / 15 / 30 / 45 / 60 / 75 / 88): Melee on the hammer, Ranged on the bow, Magic on the mage; a rune's item gate and its spell
 //         version read that row, and the store prices it at the made-at Level, never the gate
 // ════════════════════════════════════════════════════════════════════════
@@ -82,13 +83,15 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'the reading\'s middle is the pay anchor, not the reference hold', [['src/core/bands.js', 'm = g ? refHeldOf(groundId) : null;', 'm = g ? g.refStep : null;']]],
   ['tests/bands.mjs', 'refHeldOf ignores the row\'s refHeld', [['src/core/bands.js', 'return g.refHeld === undefined ? g.refStep : g.refHeld;', 'return g.refStep;']]],
   /* the re-cut Muster (floor 565, its arriving four held 587.4 at depth 4): a floor 115 steps back reads that four 7 deep, past ARRIVE_MAX */
-  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600,', 'refStep: 630, floorStep: 450, topStep: 700, coinPm: 7600,']]],
-  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55,', 'refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135,']]],
+  ['tests/bands.mjs', 'Muster\'s floor cut two tiers back', [['src/data/danger.js', 'refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700,', 'refStep: 610, floorStep: 450, topStep: 690, refHeld: 605, coinPm: 7700,']]],
+  /* the Sewer's reference four holds 65 on its 70 (lane/refhero-recut: the Mill Cellar's four now holds its own refStep, so it carries none) */
+  ['tests/bands.mjs', 'a formula ground with no measured hold', [['src/data/danger.js', 'refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200,', 'refStep: 70, floorStep: 0, topStep: 110, coinPm: 8200,']]],
   /* (lane/scale-grounds-2) 27 K-6: the strong company leaves in its own base, so the Glade's top (Level 31 in iron) falls under the Warrens' floor */
   ['tests/bands.mjs', 'the strong company never wears the tier ahead (the handover)', [['src/data/bands.js', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 0 });']]],
   /* (lane/monster-roles-ford-wings) a middle at the pay's grain, not its hold's: after the scale-grounds re-cut the Flooded Wing holds on its
-     anchor (507.8 to 510), so the plant drops the Bone Wing's refHeld (585 for a hold of 586.5) and its middle falls back to refStep 590 */
-  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 605, refKillsHead: 125, refHeld: 585, coinPm: 5500,', 'topStep: 605, refKillsHead: 125, coinPm: 5500,']]],
+     anchor (507.8 to 510), so the plant drops the Bone Wing's refHeld (585 for a hold of 586.5) and its middle falls back to refStep 590;
+     (lane/refhero-recut) on the clock's REF_HERO the Bone Wing holds its refStep and the Flooded Wing carries one again (475 for a hold of 474) */
+  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300,', 'topStep: 500, refKillsHead: 140, coinPm: 3300,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
   ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel']]],
   /* lane/scale-early-grounds: the strong four wears what its top Level can wear, at the Level its hunt still plays */
@@ -274,7 +277,10 @@ for (const [id, pin] of Object.entries(PINS)) {
 
 /* BD-10 */
 {
-  const OLD = [1, 15, 30, 45, 60, 75, 88], snap = SL.loadLines();
+  /* the OLD careers (tools/balance-sim/skill-lines-geometric.json, frozen): the live snapshot is re-measured on the Level clock (lane/refhero-recut,
+     12-targets 8.5 item 2), and the gates keep the Levels those careers gave them, so they read the measurement they were derived from */
+  const OLD = [1, 15, 30, 45, 60, 75, 88], snap = SL.loadLines(join(ROOT, 'tools', 'balance-sim', 'skill-lines-geometric.json'));
+  ok(!!snap && SL.madeOn(snap) === 'geometric' && SL.madeOn(SL.loadLines()) === 'time', 'BD-10 the gates\' provenance is not the frozen geometric careers beside a live snapshot on the clock');
   const firstAt = (style, k, n) => { for (let L = 1; L <= 1000; L++) if (SL.skillsAt(snap, 'party', style, L, SL.AS_MEASURED)[k] >= n) return L; return null; };
   for (const [k, style] of [['melee', 'hammer'], ['ranged', 'bow'], ['magic', 'mage']]) {
     CM.SUPPLY_GATES[k].forEach((g, i) => ok(g === firstAt(style, k, OLD[i]), 'BD-10 ' + k + ' tier ' + (i + 1) + ' gates at ' + g + ', the ' + style + ' career reached ' + OLD[i] + ' at Level ' + firstAt(style, k, OLD[i])));

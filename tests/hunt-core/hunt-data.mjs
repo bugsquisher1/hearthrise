@@ -39,14 +39,31 @@ const cases = {
      monster, bosses included, can hit for more than 35% of a hero's max HP at the floor of any hunt it
      appears in (combat.js: "bosses <= ~35%"). The blow is pull-cycle.js biggestBlowOn (every pocket, for
      every party size since 2026-11-08), the HP vitals.js maxHpFor at band[0], no armour. Read as
-     a WHOLE percent, the precision the ruling was given in (the Warrens' 162 of 460 is its 35%). */
+     a WHOLE percent, the precision the ruling was given in (the Warrens' 162 of 460 is its 35%).
+     A HAND ROW IS READ ONLY WHERE IT PLAYS (lane/refhero-recut, 2026-11-27): on a ground whose DANGER_GROUNDS row names `monsters:
+     'formula'`, every monster with a role swings the row src/core/hunt/monster-formula.js derives for it, whose top blow is held by
+     MONSTER_FORMULA.blowCap of the reference hero's health after its armor (tests/hunt-core/monster-formula.mjs `derive`), and its hand
+     row's atk is never swung there (the Bone Wall's 594 on the Flooded Wing read 36% of a Level 150 hero and played nowhere on it). So a
+     hunt all of whose grounds are on the formula, every monster it meets derived on each, is the formula's to hold; any other hunt (the
+     descent, a keyed hall, a ground with its switch off) is read here as before. */
   'blow-share': (M) => {
     /* HALL_MAX_PCT: a hero over 40% HP never falls to one of a hall boss's blows, written cap or not */
     const MAX_PCT = 35, HALL_MAX_PCT = 60;
+    const MF = M.hunt['monster-formula'];
+    const formulaHunt = (h) => {
+      const grounds = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => g.hunt === h.id);
+      if (!grounds.length) return false;
+      const ids = new Set(h.spawns.map((s) => s.monster));
+      for (const g of grounds) for (const id of M.grounds.monstersOn(g)) ids.add(id);
+      return grounds.every((g) => MF.formulaOn(g.id) && [...ids].every((id) => MF.formulaRow(M.MONSTERS[id], g.id) !== null));
+    };
     const out = [];
+    let read = 0;
     for (const h of Object.values(M.HUNTS)) {
       /* A called room's blow is the warned exam (src/data/boss-calls.js), not a hunt's floor: its Level-ready bands are tests/boss-call.mjs's table. */
       if (h.called === true) continue;
+      if (formulaHunt(h)) continue;
+      read += 1;
       /* A KEYED HALL MAY PASS 35% ONLY IN WRITING (designer 2026-11-14, lane/d-hold-pass): its hunt row's `blowCap` { pct, why } names
          the cap and the reason, the hall is held to that cap, and no cap passes HALL_MAX_PCT. A hall with no written cap is held to 35%
          like any ground. The ground the key drops on is read here like any other. */
@@ -64,6 +81,8 @@ const cases = {
       const pct = Math.round((100 * b.hit) / hp);
       if (pct > max) out.push(h.id + ': ' + b.monster + ' hits ' + b.hit + ' = ' + pct + '% of the floor hero\'s ' + hp + ' HP (max ' + max + '%)');
     }
+    /* CONTROL: hand rows still play somewhere (the descent, a keyed hall), so the rule above read something */
+    if (!read) out.push('no hunt plays a hand row, so the blow-share rule read nothing');
     /* every hero meets the King (Tyler 2026-11-08): the monsters a hunt can meet on the Sewer include its hall's boss */
     const sewerGrounds = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
     if (!sewerGrounds.some((g) => M.grounds.monstersOn(g).has('rat_king'))) out.push('the Sewer\'s monsters leave out the Rat King');
@@ -115,12 +134,21 @@ const mutants = [
     edits: [['src/data/hunt-tuning.js', '  stepMs: 100,', '  stepMs: 300,']] },
   { name: 'the biggest blow leaves the spells out again (the audit\'s Wickstead 21 against a Smoke Pot of 52)', case: 'blow-counts-spells',
     edits: [['src/core/hunt/pull-cycle.js', '    const hit = Math.max(swing, spell);', '    const hit = swing;']] },
-  { name: 'the Rat King hits for 108 again (Andy\'s death)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 612, atk: 6, aim: 34, evasion: 29, def: 8,', 'hp: 612, atk: 20, aim: 34, evasion: 28, def: 8,']] },
+  /* the Sewer and the Warrens play the formula (lane/refhero-recut): each hand-row mutant turns its ground's switch off too, so the row it
+     plants is the one that swings, and the formula's own skip is planted away on the Flooded Wing below */
+  { name: 'the Rat King hits for 108 again (Andy\'s death), on the Sewer with its formula switch off', case: 'blow-share',
+    edits: [['src/data/monsters.js', 'hp: 612, atk: 6, aim:', 'hp: 612, atk: 20, aim:'],
+      ['src/data/danger.js', "entryLevel: 5, refLevel: 12, monsters: 'formula' })", 'entryLevel: 5, refLevel: 12 })']] },
+  { name: 'the Flooded Wing leaves the formula: the Bone Wall\'s hand row (594, 36% of a Level 150 hero) swings there and is read', case: 'blow-share',
+    edits: [['src/data/danger.js', "entryLevel: 150, refLevel: 160, monsters: 'formula' })", 'entryLevel: 150, refLevel: 160 })']] },
+  { name: 'a formula ground with a monster that names no role is read as the formula\'s (the Bone Wall plays its hand row there)', case: 'blow-share',
+    edits: [['src/core/hunt/monster-formula.js', "  if (!g || !row || typeof row.role !== 'string' || !own(MONSTER_ROLES, row.role)) return null;",
+      "  if (!g || !row || typeof row.role !== 'string' || !own(MONSTER_ROLES, row.role)) return null;\n  if (row.name === 'Bone Wall' && groundId === 'catacomb_flooded_wing') return null;"]] },
   { name: 'a walked ground\'s pockets are not read (the boss who holds a room is missed)', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '(pk.pack || pk.spawns).concat(pk.spawns)', '[]']] },
   { name: 'Chief Coppercap swings 54 again (63% of the Warrens floor)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 1206, atk: 30, aim: 47, evasion: 43, def: 17,', 'hp: 1206, atk: 69, aim: 47, evasion: 40, def: 17,']] },
+    edits: [['src/data/monsters.js', 'hp: 1206, atk: 30, aim:', 'hp: 1206, atk: 69, aim:'],
+      ['src/data/danger.js', "entryLevel: 32, refLevel: 41, monsters: 'formula' })", 'entryLevel: 32, refLevel: 41 })']] },
   { name: 'the King\'s hall is left off the monsters a hunt meets', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
   /* the hall's written cap (designer 2026-11-14): held to it, never skipped, never past 60 */

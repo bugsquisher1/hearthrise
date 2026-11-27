@@ -1249,8 +1249,10 @@ async function nodeRules(M) {
     // FOUR, NOT TWO (lane/b-one-difficulty, 2026-11-09): with one pack for every group a pair meets each pack at its row's HP and
     // kills every wolf between steps at every Level from 5 to 12 and density 4 to 12 (0 steps past a kill); four Melee heroes at 8
     // run 2 past one (three at 8 to 10 run 1), as main's pair ran 3 on the scaled packs.
+    // AT 9 (lane/refhero-recut, 2026-11-27): on the Thicket re-cut on the clock's REF_HERO the four at 8 killed every wolf between steps (88
+    // corpses, 0 past a kill); at 9 and 10 two steps run past one, at 6 one, at 7 none.
     const mis = ['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'].map((r, i) => {
-      const mi = LIVE_H.memberOf(LM, 'abcd'[i], i, r, 8);
+      const mi = LIVE_H.memberOf(LM, 'abcd'[i], i, r, 9);
       mi.huntId = 'meadowbrook_thicket'; mi.hero = Object.assign({}, mi.hero, { density: 8 });
       return mi;
     });

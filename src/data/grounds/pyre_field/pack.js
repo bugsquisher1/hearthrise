@@ -124,7 +124,7 @@ export default definePack({
         { id: 'rune_boots', everyHours: 1.51, ch: 0.00987, band: 'scarce' }, { id: 'wyvernhide_boots', everyHours: 1.51, ch: 0.00987, band: 'scarce' }, { id: 'sorcerer_boots', everyHours: 1.51, ch: 0.00987, band: 'scarce' },
         { id: 'rune_sword', everyHours: 1.51, ch: 0.00987, band: 'scarce' }],
       /* (his Rare Runebound Shield, 0.08%, left for the Lurchers' hourly row: one home on a ground, lane/d-drop-homes 2026-11-18) */
-      hp: 103, atk: 53, aim: 103, evasion: 31, def: 3, xp: 720, gp: [15, 46], formula: true },
+      hp: 103, atk: 53, aim: 76, evasion: 29, def: 3, xp: 720, gp: [15, 46], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       role: 'brute',
@@ -137,7 +137,7 @@ export default definePack({
         { id: 'rune_platelegs', everyHours: 1.724, ch: 0.0249, band: 'scarce' }, { id: 'wyvernhide_pants', everyHours: 1.724, ch: 0.0249, band: 'scarce' }, { id: 'sorcerer_pants', everyHours: 1.724, ch: 0.0249, band: 'scarce' },
         { id: 'rune_warhammer', everyHours: 1.724, ch: 0.0249, band: 'scarce' },
         { id: 'rune_belt', everyHours: 26.3, ch: 0.00163, band: 'rare' }, { id: 'wyvernhide_belt', everyHours: 26.3, ch: 0.00163, band: 'rare' }, { id: 'sorcerer_belt', everyHours: 26.3, ch: 0.00163, band: 'rare' }],
-      hp: 162, atk: 52, aim: 91, evasion: 47, def: 18, xp: 1274, gp: [24, 71], formula: true },
+      hp: 162, atk: 52, aim: 67, evasion: 44, def: 18, xp: 1274, gp: [24, 71], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       role: 'stalker',
@@ -149,7 +149,7 @@ export default definePack({
         { id: 'rune_helm', everyHours: 1, ch: 0.0429, band: 'scarce' }, { id: 'wyvernhide_helmet', everyHours: 1, ch: 0.0429, band: 'scarce' }, { id: 'sorcerer_helmet', everyHours: 1, ch: 0.0429, band: 'scarce' },
         { id: 'runebound_shield', everyHours: 1, ch: 0.0429, band: 'scarce' },
         { id: 'rune_gauntlets', everyHours: 12.82, ch: 0.00334, band: 'rare' }, { id: 'wyvernhide_gloves', everyHours: 12.82, ch: 0.00334, band: 'rare' }, { id: 'sorcerer_gloves', everyHours: 12.82, ch: 0.00334, band: 'rare' }],
-      hp: 99, atk: 70, aim: 142, evasion: 31, def: 3, xp: 840, gp: [15, 43], formula: true },
+      hp: 99, atk: 70, aim: 106, evasion: 29, def: 3, xp: 840, gp: [15, 43], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       role: 'caster',
@@ -160,7 +160,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', everyHours: 0.222, ch: 0.257, band: 'common' }, { id: 'wraith_veil', everyHours: 0.333, ch: 0.172, band: 'common' }, { id: 'shroud_pin', everyHours: 0.833, ch: 0.0686, band: 'uncommon' },
         { id: 'yew_staff', everyHours: 2.38, ch: 0.024, band: 'scarce' },
         { id: 'yew_wand', everyHours: 35, ch: 0.00163, band: 'rare' }, { id: 'yew_spellbook', everyHours: 35, ch: 0.00163, band: 'rare' }],
-      hp: 139, atk: 67, aim: 123, evasion: 35, def: 6, xp: 1004, gp: [20, 62], formula: true },
+      hp: 139, atk: 67, aim: 91, evasion: 33, def: 6, xp: 1004, gp: [20, 62], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       role: 'brute',
@@ -172,7 +172,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', everyHours: 0.444, ch: 0.257, band: 'common' }, { id: 'warrant_seal', everyHours: 1.33, ch: 0.0859, band: 'uncommon' },
         { id: 'rune_platebody', everyHours: 4.6, ch: 0.0248, band: 'scarce' }, { id: 'wyvernhide_body', everyHours: 4.6, ch: 0.0248, band: 'scarce' }, { id: 'sorcerer_body', everyHours: 4.6, ch: 0.0248, band: 'scarce' },
         { id: 'yew_bow', everyHours: 4.6, ch: 0.0248, band: 'scarce' }],
-      hp: 233, atk: 70, aim: 127, evasion: 54, def: 26, xp: 1976, gp: [34, 103], formula: true },
+      hp: 233, atk: 70, aim: 95, evasion: 51, def: 26, xp: 1976, gp: [34, 103], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority

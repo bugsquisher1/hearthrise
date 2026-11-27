@@ -197,7 +197,8 @@ export const DANGER_GROUNDS = Object.freeze({
        catacomb_flooded_wing    LOW 165: 367.4 (361)             MID 175: 438.9 BIS 185: 503.7   floor 370 -> 350, top 510 -> 505, BIS died once
      Every fresh four now reads depth 2 (its lowest seed at depth 1 to 2); the MID four depth 11 to 16.
      Krell's Hold and Pyre Field died on Steady in their old rows (2026-11-22); on the monster formula neither does, in any of their band and
-     C-target cells (lane/scale-grounds-2, grounds/ and grounds/c-targets/), and Pyre Field drops its one base, rune. */
+     C-target cells (lane/scale-grounds-2, grounds/ and grounds/c-targets/), and Pyre Field drops its one base, rune.
+     Every band re-cut on the clock's REF_HERO (lane/refhero-recut, 12-targets 8.5 item 2; tests/danger-band-pins.json). */
   /* muster_barrows ON THE FORMULA (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md): its four rows carry roles, and on the formula the
      Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way.
      EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the Ford's four rows and the
@@ -231,38 +232,38 @@ export const DANGER_GROUNDS = Object.freeze({
      as played), 6 seeds x 10 h, no Steady death: Bone 420 / 520 / 580, coinPm 4000 (LOW 437.6, MID 519.1, BIS 582.1); Flooded 440 / 480 / 515,
      coinPm 3300 (451.1, 481.5, 517.4). The reference hour pays 1.00 and 1.01 of wage(175) and 0.97x and 1.04x the hours. A whole kit one
      tier back at 175 moves 16.2 and 9.3 steps, 2 depths each (C-2) */
-  muster_barrows: ground({ refStep: 630, floorStep: 565, topStep: 700, coinPm: 7600, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
-  hasks_ford: ground({ refStep: 590, floorStep: 545, topStep: 655, refKillsHead: 135, refHeld: 605, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
-  catacomb_bone_wing: ground({ refStep: 590, floorStep: 510, topStep: 605, refKillsHead: 125, refHeld: 585, coinPm: 5500, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
+  muster_barrows: ground({ refStep: 610, floorStep: 525, topStep: 690, refHeld: 605, coinPm: 7700, formulaStep: 590, gearLevel: tierLevel(3), ladderTier: 4, traits: traitPool('muster_barrows'), entryLevel: 55, refLevel: 60, monsters: 'formula' }),
+  hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 645, refKillsHead: 130, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),
+  catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 550, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),
   /* THE FIRST GROUNDS ON THE FORMULA (lane/scale-early-grounds; 27 stage 6): roles on their rows, bands by new-ground.mjs --hold-level, drops
      in hours, one base a ground. formulaStep 70 is the chosen anchor (a first hunt opens at step 0, its floor); coinPm is measured (the old rows'
      coin sat at 0.08 of the wage); evidence tools/balance-program/redesign/grounds. The Thicket re-cut on 29 7.5's own kit once iron took
      item Level 20 (lane/scale-grounds-2): its strong four in tier 0 holds 170, where it held the old top 190 in iron. */
-  meadowbrook_thicket: ground({ refStep: 100, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
+  meadowbrook_thicket: ground({ refStep: 110, floorStep: 0, topStep: 145, refKillsHead: 125, coinPm: 38800, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, pieces: Object.freeze(['grayjaws_ruff']), traits: traitPool('meadowbrook_thicket'), entryLevel: 5, refLevel: 10, monsters: 'formula' }),
   /* THE LAST BRONZE GROUNDS (lane/scale-grounds-sweep step 2; 12-targets 8.3): Wickstead (8-18) and the Sewer (5-19) inside tier 0, so every
      cell wears bronze (29 7.5); formulaStep 70 as on the first grounds, the band, kill rate and coin level measured (new-ground.mjs --hold-level) */
-  wickstead: ground({ refStep: 60, floorStep: 0, topStep: 130, refKillsHead: 140, refHeld: 65, coinPm: 17700, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
-  millrace_sewer: ground({ refStep: 20, floorStep: 0, topStep: 110, coinPm: 6200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
-  mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, refHeld: 55, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
+  wickstead: ground({ refStep: 80, floorStep: 0, topStep: 125, refKillsHead: 135, coinPm: 18300, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('wickstead'), entryLevel: 8, refLevel: 13, monsters: 'formula' }),
+  millrace_sewer: ground({ refStep: 70, floorStep: 0, topStep: 110, refHeld: 65, coinPm: 8200, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('millrace_sewer'), entryLevel: 5, refLevel: 12, monsters: 'formula' }),
+  mill_cellar: ground({ refStep: 60, floorStep: 0, topStep: 110, refKillsHead: 135, coinPm: 114400, formulaStep: 70, gearLevel: tierLevel(0), ladderTier: 1, traits: traitPool('mill_cellar'), entryLevel: 1, refLevel: 3, monsters: 'formula' }),
   /* THE SECOND PAIR (lane/scale-grounds-2; 27 stage 6): the Glade on iron (item Level 20, ladder tier 2), the Warrens on steel (40, ladder
      tier 3, beside the Ford's mithril), each the highest tier at or under its refLevel, so the reference reads the band's middle (CONFLICTS
      2026-11-23). formulaStep 70 as on the first grounds; the band, coin level and kill rate are measured (tools/new-ground.mjs --hold-level,
      the C-target cells in grounds/c-targets). The Glade's fresh four holds step 8, so its floor is the scale's first step */
-  mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 125, refKillsHead: 140, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
-  coppercap_warrens: ground({ refStep: 80, floorStep: 25, topStep: 135, refKillsHead: 125, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
+  mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),
+  coppercap_warrens: ground({ refStep: 80, floorStep: 30, topStep: 125, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
   /* THE THIRD BATCH (lane/scale-grounds-2): the Slake on mithril (40, beside the Ford), the Pyre Field on rune (60, beside Muster), Krell's
      Hold on ember (80). The same anchor and the same measuring as the second pair */
-  the_slake: ground({ refStep: 120, floorStep: 65, topStep: 140, refHeld: 115, coinPm: 5300, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
-  pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
-  krells_hold: ground({ refStep: 60, floorStep: 15, topStep: 125, refHeld: 65, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
+  the_slake: ground({ refStep: 100, floorStep: 45, topStep: 135, refKillsHead: 125, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
+  pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 105, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
+  krells_hold: ground({ refStep: 20, floorStep: 0, topStep: 120, coinPm: 4000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
   /* THE MORROW HILLS ON THE SCALE (lane/scale-grounds-sweep step 3; 12-targets 8.3): Carter's Rest on Emberforged (100), the Ox Road on Dawnsteel
      (120, its reference its middle), Wyvern Roost on Cobalt (140, Levels 128-150), each the highest tier at or under its refLevel; the same anchor
      and the same measuring as the third batch (new-ground.mjs --hold-level); their own bodies carry roles (each pack's header words) */
-  carters_rest: ground({ refStep: 90, floorStep: 5, topStep: 110, refKillsHead: 160, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
-  ox_road: ground({ refStep: 160, floorStep: 70, topStep: 240, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
-  wyvern_roost: ground({ refStep: 190, floorStep: 70, topStep: 235, refHeld: 185, coinPm: 3700, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
+  carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 75, refKillsHead: 145, refHeld: 55, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),
+  ox_road: ground({ refStep: 90, floorStep: 0, topStep: 175, coinPm: 2500, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),
+  wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 195, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),
   /* the Flooded Wing opens first (12-targets 8.4): Levels 150-170, reference 160, cut by new-ground.mjs on Cobalt / Wolfram kits (lane/scale-grounds-sweep) */
-  catacomb_flooded_wing: ground({ refStep: 510, floorStep: 460, topStep: 525, refKillsHead: 145, coinPm: 3500, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),
+  catacomb_flooded_wing: ground({ refStep: 470, floorStep: 440, topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),
 });
 
 /* The depths a ground's band is cut into (12-targets.md 3.1). */
@@ -285,15 +286,16 @@ export const BAND_RULE = Object.freeze({ floorUnder: 10, floorTo: 5, refTo: 10, 
 /**
  * THE ITEM LEVELS A SCALE GROUND'S DROPS CARRY (lane/r10-more-grounds; 12-targets.md 3.3 and 8: the ground fixes the base, so every piece
  * it drops is its `gearLevel`, at every depth). src/data/items.js writes each answer on its row as `iL`, the number the power step reads
- * (src/core/hunt/danger.js itemLevelOf; a piece with none still reads its reqLv). Two kinds of ground:
- *   ladderTier   the gear-tiers.js ladder tier its monsters drop (`ladder` is that ladder's rows: GEAR_ITEMS, SLOT_ITEMS, SHIELD_ITEMS)
- *   named        'catacomb': the 24 named pieces of catacomb-armor.js (`named`: the item rows carrying `catacombTier`), its own drop rows
- * and beside either, `pieces` (lane/scale-early-grounds): the ground's own one-off pieces off the ladder (a den mother's trophy cape), which
+ * (src/core/hunt/danger.js itemLevelOf; a piece with none still reads its reqLv). A ground's `ladderTier` stamps the gear-tiers.js ladder
+ * tier its monsters drop (`ladder` is that ladder's rows: GEAR_ITEMS, SLOT_ITEMS, SHIELD_ITEMS); a step tier's base carries its own item
+ * Level (base-drops.js, the wings' Wolfram). The 24 Hearth Chest pieces were the wings' `named` set, stamped 160 on their key tiers' bodies;
+ * the wings drop their tier's base alone now (12-targets 8.6.1, lane/refhero-recut), so those pieces keep their own step's item Level.
+ * Beside it, `pieces` (lane/scale-early-grounds): the ground's own one-off pieces off the ladder (a den mother's trophy cape), which
  * drop at its base like everything else it drops (`items` resolves them; a piece that is no gear item throws).
  * Two grounds that would give one piece two item Levels throw: one base, one number. tests/hunt-core/danger.mjs holds every gear drop of
  * every scale ground to its ground's gearLevel.
  */
-export function scaleItemLevels(ladder, named, items) {
+export function scaleItemLevels(ladder, items) {
   const out = {};
   const put = (id, iL, g) => {
     if (out[id] !== undefined && out[id] !== iL) throw new Error('src/data/danger.js: ' + id + ' drops at item Level ' + out[id] + ' and ' + iL + ' (' + g + ')');
@@ -301,7 +303,6 @@ export function scaleItemLevels(ladder, named, items) {
   };
   for (const [g, row] of Object.entries(DANGER_GROUNDS)) {
     if (Number.isInteger(row.ladderTier)) for (const [id, it] of Object.entries(ladder || {})) if (it && it.slot && it.tier === row.ladderTier && it.type !== 'ammo') put(id, row.gearLevel, g);
-    if (row.named === 'catacomb') for (const id of Object.keys(named || {})) put(id, row.gearLevel, g);
     for (const id of row.pieces || []) {
       if (!items || !items[id] || !items[id].slot) throw new Error('src/data/danger.js: ' + g + ' names the piece ' + id + ', which is no gear item');
       put(id, row.gearLevel, g);

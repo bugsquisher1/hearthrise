@@ -8,7 +8,7 @@
 -- found piece against, so none is typed twice: hr_piece_rules (one row), hr_piece_traits (40), hr_piece_fixed (1), hr_piece_grounds (11),
 -- hr_piece_depths (100), hr_piece_bases (125), hr_piece_signatures (19), rewritten whole; hr_piece_depth_of(hunt, step) and
 -- hr_piece_top_rank(hunt, depth), internal (no client grant), the twins of drop-rate.js depthOf and trait-roll.js rankRoll's ceiling, pinned
--- at 119 points (§3). A staged ground (the Catacombs' wings) is judged by the generator and left out until it opens.
+-- at 117 points (§3). A staged ground (the Catacombs' wings) is judged by the generator and left out until it opens.
 -- ORDER: 1071 in its name, before 1071-trait-pieces.sql (its reader). Idempotent: the tables are made if missing and their rows
 -- rewritten whole, the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; two internal functions revoked from every
@@ -140,7 +140,7 @@ delete from public.hr_piece_depths;
 delete from public.hr_piece_grounds;
 insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level, pity_step_rare, pity_step_very_rare) values
   ('coppercap_warrens', 0, 40, 0, 0),
-  ('hasks_ford', 1, 40, 199928, 19993),
+  ('hasks_ford', 1, 40, 207618, 20762),
   ('krells_hold', 2, 80, 224919, 22492),
   ('meadowbrook_thicket', 0, 0, 0, 0),
   ('mill_cellar', 0, 0, 0, 0),
@@ -148,29 +148,29 @@ insert into public.hr_piece_grounds (hunt_id, max_rank, gear_level, pity_step_ra
   ('mosslight_glade', 0, 20, 0, 0),
   ('muster_barrows', 1, 60, 224919, 22492),
   ('pyre_field', 2, 80, 192788, 19279),
-  ('the_slake', 1, 40, 224919, 22492),
+  ('the_slake', 1, 40, 215923, 21593),
   ('wickstead', 0, 0, 0, 0);
 insert into public.hr_piece_depths (hunt_id, depth, step_from) values
-  ('hasks_ford', 1, 0), ('hasks_ford', 2, 549), ('hasks_ford', 3, 555), ('hasks_ford', 4, 561), ('hasks_ford', 5, 568),
-  ('hasks_ford', 6, 574), ('hasks_ford', 7, 580), ('hasks_ford', 8, 587), ('hasks_ford', 9, 593), ('hasks_ford', 10, 600),
-  ('hasks_ford', 11, 606), ('hasks_ford', 12, 611), ('hasks_ford', 13, 616), ('hasks_ford', 14, 622), ('hasks_ford', 15, 627),
-  ('hasks_ford', 16, 632), ('hasks_ford', 17, 637), ('hasks_ford', 18, 642), ('hasks_ford', 19, 648), ('hasks_ford', 20, 653),
-  ('krells_hold', 1, 0), ('krells_hold', 2, 18), ('krells_hold', 3, 23), ('krells_hold', 4, 29), ('krells_hold', 5, 34),
-  ('krells_hold', 6, 39), ('krells_hold', 7, 45), ('krells_hold', 8, 50), ('krells_hold', 9, 55), ('krells_hold', 10, 61),
-  ('krells_hold', 11, 66), ('krells_hold', 12, 72), ('krells_hold', 13, 78), ('krells_hold', 14, 85), ('krells_hold', 15, 91),
-  ('krells_hold', 16, 97), ('krells_hold', 17, 104), ('krells_hold', 18, 110), ('krells_hold', 19, 116), ('krells_hold', 20, 122),
-  ('muster_barrows', 1, 0), ('muster_barrows', 2, 569), ('muster_barrows', 3, 577), ('muster_barrows', 4, 585), ('muster_barrows', 5, 592),
-  ('muster_barrows', 6, 600), ('muster_barrows', 7, 607), ('muster_barrows', 8, 615), ('muster_barrows', 9, 623), ('muster_barrows', 10, 630),
-  ('muster_barrows', 11, 637), ('muster_barrows', 12, 644), ('muster_barrows', 13, 650), ('muster_barrows', 14, 657), ('muster_barrows', 15, 664),
-  ('muster_barrows', 16, 670), ('muster_barrows', 17, 677), ('muster_barrows', 18, 684), ('muster_barrows', 19, 690), ('muster_barrows', 20, 697),
-  ('pyre_field', 1, 0), ('pyre_field', 2, 14), ('pyre_field', 3, 21), ('pyre_field', 4, 29), ('pyre_field', 5, 36),
-  ('pyre_field', 6, 43), ('pyre_field', 7, 51), ('pyre_field', 8, 58), ('pyre_field', 9, 65), ('pyre_field', 10, 73),
-  ('pyre_field', 11, 78), ('pyre_field', 12, 83), ('pyre_field', 13, 87), ('pyre_field', 14, 92), ('pyre_field', 15, 96),
-  ('pyre_field', 16, 101), ('pyre_field', 17, 105), ('pyre_field', 18, 109), ('pyre_field', 19, 114), ('pyre_field', 20, 118),
-  ('the_slake', 1, 0), ('the_slake', 2, 68), ('the_slake', 3, 73), ('the_slake', 4, 79), ('the_slake', 5, 84),
-  ('the_slake', 6, 89), ('the_slake', 7, 95), ('the_slake', 8, 100), ('the_slake', 9, 105), ('the_slake', 10, 111),
-  ('the_slake', 11, 116), ('the_slake', 12, 118), ('the_slake', 13, 121), ('the_slake', 14, 124), ('the_slake', 15, 126),
-  ('the_slake', 16, 129), ('the_slake', 17, 131), ('the_slake', 18, 134), ('the_slake', 19, 137), ('the_slake', 20, 139);
+  ('hasks_ford', 1, 0), ('hasks_ford', 2, 539), ('hasks_ford', 3, 545), ('hasks_ford', 4, 551), ('hasks_ford', 5, 558),
+  ('hasks_ford', 6, 564), ('hasks_ford', 7, 570), ('hasks_ford', 8, 577), ('hasks_ford', 9, 583), ('hasks_ford', 10, 590),
+  ('hasks_ford', 11, 596), ('hasks_ford', 12, 601), ('hasks_ford', 13, 606), ('hasks_ford', 14, 612), ('hasks_ford', 15, 617),
+  ('hasks_ford', 16, 622), ('hasks_ford', 17, 627), ('hasks_ford', 18, 632), ('hasks_ford', 19, 638), ('hasks_ford', 20, 643),
+  ('krells_hold', 1, 0), ('krells_hold', 2, 2), ('krells_hold', 3, 4), ('krells_hold', 4, 6), ('krells_hold', 5, 8),
+  ('krells_hold', 6, 10), ('krells_hold', 7, 12), ('krells_hold', 8, 14), ('krells_hold', 9, 16), ('krells_hold', 10, 19),
+  ('krells_hold', 11, 21), ('krells_hold', 12, 32), ('krells_hold', 13, 42), ('krells_hold', 14, 53), ('krells_hold', 15, 63),
+  ('krells_hold', 16, 73), ('krells_hold', 17, 84), ('krells_hold', 18, 94), ('krells_hold', 19, 105), ('krells_hold', 20, 115),
+  ('muster_barrows', 1, 0), ('muster_barrows', 2, 530), ('muster_barrows', 3, 540), ('muster_barrows', 4, 549), ('muster_barrows', 5, 558),
+  ('muster_barrows', 6, 568), ('muster_barrows', 7, 577), ('muster_barrows', 8, 587), ('muster_barrows', 9, 596), ('muster_barrows', 10, 605),
+  ('muster_barrows', 11, 613), ('muster_barrows', 12, 622), ('muster_barrows', 13, 630), ('muster_barrows', 14, 638), ('muster_barrows', 15, 646),
+  ('muster_barrows', 16, 654), ('muster_barrows', 17, 662), ('muster_barrows', 18, 670), ('muster_barrows', 19, 678), ('muster_barrows', 20, 686),
+  ('pyre_field', 1, 0), ('pyre_field', 2, 3), ('pyre_field', 3, 9), ('pyre_field', 4, 15), ('pyre_field', 5, 20),
+  ('pyre_field', 6, 26), ('pyre_field', 7, 32), ('pyre_field', 8, 37), ('pyre_field', 9, 43), ('pyre_field', 10, 48),
+  ('pyre_field', 11, 54), ('pyre_field', 12, 59), ('pyre_field', 13, 65), ('pyre_field', 14, 70), ('pyre_field', 15, 76),
+  ('pyre_field', 16, 81), ('pyre_field', 17, 87), ('pyre_field', 18, 92), ('pyre_field', 19, 97), ('pyre_field', 20, 103),
+  ('the_slake', 1, 0), ('the_slake', 2, 48), ('the_slake', 3, 54), ('the_slake', 4, 60), ('the_slake', 5, 66),
+  ('the_slake', 6, 72), ('the_slake', 7, 78), ('the_slake', 8, 83), ('the_slake', 9, 89), ('the_slake', 10, 95),
+  ('the_slake', 11, 101), ('the_slake', 12, 104), ('the_slake', 13, 108), ('the_slake', 14, 112), ('the_slake', 15, 115),
+  ('the_slake', 16, 119), ('the_slake', 17, 123), ('the_slake', 18, 126), ('the_slake', 19, 130), ('the_slake', 20, 134);
 insert into public.hr_piece_bases (hunt_id, slot, item_id) values
   ('hasks_ford', 'belt', 'boarhide_belt'), ('hasks_ford', 'belt', 'scholar_belt'), ('hasks_ford', 'belt', 'steel_belt'),
   ('hasks_ford', 'body', 'boarhide_body'), ('hasks_ford', 'body', 'scholar_body'), ('hasks_ford', 'body', 'steel_platebody'),
@@ -277,40 +277,40 @@ begin
                  or has_function_privilege(g.r, 'public.hr_piece_top_rank(text,integer)', 'execute')) then
     raise exception 'VERIFY(b): a client role reads the Trait catalogue'; end if;
   for v_r in select * from (values
-    ('hasks_ford', 0, 1, 1), ('hasks_ford', 545, 1, 1), ('hasks_ford', 590, 8, 1), ('hasks_ford', 655, 20, 1),
-  ('hasks_ford', 656, 20, 1), ('hasks_ford', 549, 2, 1), ('hasks_ford', 555, 3, 1), ('hasks_ford', 561, 4, 1),
-  ('hasks_ford', 568, 5, 1), ('hasks_ford', 574, 6, 1), ('hasks_ford', 580, 7, 1), ('hasks_ford', 587, 8, 1),
-  ('hasks_ford', 593, 9, 1), ('hasks_ford', 600, 10, 1), ('hasks_ford', 606, 11, 1), ('hasks_ford', 611, 12, 1),
-  ('hasks_ford', 616, 13, 1), ('hasks_ford', 622, 14, 1), ('hasks_ford', 627, 15, 1), ('hasks_ford', 632, 16, 1),
-  ('hasks_ford', 637, 17, 1), ('hasks_ford', 642, 18, 1), ('hasks_ford', 648, 19, 1), ('hasks_ford', 653, 20, 1),
-  ('krells_hold', 0, 1, 1), ('krells_hold', 15, 1, 1), ('krells_hold', 60, 9, 2), ('krells_hold', 125, 20, 2),
-  ('krells_hold', 126, 20, 2), ('krells_hold', 18, 2, 1), ('krells_hold', 23, 3, 1), ('krells_hold', 29, 4, 1),
-  ('krells_hold', 34, 5, 1), ('krells_hold', 39, 6, 1), ('krells_hold', 45, 7, 1), ('krells_hold', 50, 8, 2),
-  ('krells_hold', 55, 9, 2), ('krells_hold', 61, 10, 2), ('krells_hold', 66, 11, 2), ('krells_hold', 72, 12, 2),
-  ('krells_hold', 78, 13, 2), ('krells_hold', 85, 14, 2), ('krells_hold', 91, 15, 2), ('krells_hold', 97, 16, 2),
-  ('krells_hold', 104, 17, 2), ('krells_hold', 110, 18, 2), ('krells_hold', 116, 19, 2), ('krells_hold', 122, 20, 2),
-  ('muster_barrows', 0, 1, 1), ('muster_barrows', 565, 1, 1), ('muster_barrows', 630, 10, 1), ('muster_barrows', 700, 20, 1),
-  ('muster_barrows', 701, 20, 1), ('muster_barrows', 569, 2, 1), ('muster_barrows', 577, 3, 1), ('muster_barrows', 585, 4, 1),
-  ('muster_barrows', 592, 5, 1), ('muster_barrows', 600, 6, 1), ('muster_barrows', 607, 7, 1), ('muster_barrows', 615, 8, 1),
-  ('muster_barrows', 623, 9, 1), ('muster_barrows', 637, 11, 1), ('muster_barrows', 644, 12, 1), ('muster_barrows', 650, 13, 1),
-  ('muster_barrows', 657, 14, 1), ('muster_barrows', 664, 15, 1), ('muster_barrows', 670, 16, 1), ('muster_barrows', 677, 17, 1),
-  ('muster_barrows', 684, 18, 1), ('muster_barrows', 690, 19, 1), ('muster_barrows', 697, 20, 1), ('pyre_field', 0, 1, 1),
-  ('pyre_field', 10, 1, 1), ('pyre_field', 80, 11, 2), ('pyre_field', 120, 20, 2), ('pyre_field', 121, 20, 2),
-  ('pyre_field', 14, 2, 1), ('pyre_field', 21, 3, 1), ('pyre_field', 29, 4, 1), ('pyre_field', 36, 5, 1),
-  ('pyre_field', 43, 6, 1), ('pyre_field', 51, 7, 1), ('pyre_field', 58, 8, 2), ('pyre_field', 65, 9, 2),
-  ('pyre_field', 73, 10, 2), ('pyre_field', 78, 11, 2), ('pyre_field', 83, 12, 2), ('pyre_field', 87, 13, 2),
-  ('pyre_field', 92, 14, 2), ('pyre_field', 96, 15, 2), ('pyre_field', 101, 16, 2), ('pyre_field', 105, 17, 2),
-  ('pyre_field', 109, 18, 2), ('pyre_field', 114, 19, 2), ('pyre_field', 118, 20, 2), ('the_slake', 0, 1, 1),
-  ('the_slake', 65, 1, 1), ('the_slake', 120, 12, 1), ('the_slake', 140, 20, 1), ('the_slake', 141, 20, 1),
-  ('the_slake', 68, 2, 1), ('the_slake', 73, 3, 1), ('the_slake', 79, 4, 1), ('the_slake', 84, 5, 1),
-  ('the_slake', 89, 6, 1), ('the_slake', 95, 7, 1), ('the_slake', 100, 8, 1), ('the_slake', 105, 9, 1),
-  ('the_slake', 111, 10, 1), ('the_slake', 116, 11, 1), ('the_slake', 118, 12, 1), ('the_slake', 121, 13, 1),
-  ('the_slake', 124, 14, 1), ('the_slake', 126, 15, 1), ('the_slake', 129, 16, 1), ('the_slake', 131, 17, 1),
-  ('the_slake', 134, 18, 1), ('the_slake', 137, 19, 1), ('the_slake', 139, 20, 1)) p(hunt, step, depth, top) loop
+    ('hasks_ford', 0, 1, 1), ('hasks_ford', 535, 1, 1), ('hasks_ford', 590, 10, 1), ('hasks_ford', 645, 20, 1),
+  ('hasks_ford', 646, 20, 1), ('hasks_ford', 539, 2, 1), ('hasks_ford', 545, 3, 1), ('hasks_ford', 551, 4, 1),
+  ('hasks_ford', 558, 5, 1), ('hasks_ford', 564, 6, 1), ('hasks_ford', 570, 7, 1), ('hasks_ford', 577, 8, 1),
+  ('hasks_ford', 583, 9, 1), ('hasks_ford', 596, 11, 1), ('hasks_ford', 601, 12, 1), ('hasks_ford', 606, 13, 1),
+  ('hasks_ford', 612, 14, 1), ('hasks_ford', 617, 15, 1), ('hasks_ford', 622, 16, 1), ('hasks_ford', 627, 17, 1),
+  ('hasks_ford', 632, 18, 1), ('hasks_ford', 638, 19, 1), ('hasks_ford', 643, 20, 1), ('krells_hold', 0, 1, 1),
+  ('krells_hold', 20, 10, 2), ('krells_hold', 120, 20, 2), ('krells_hold', 121, 20, 2), ('krells_hold', 2, 2, 1),
+  ('krells_hold', 4, 3, 1), ('krells_hold', 6, 4, 1), ('krells_hold', 8, 5, 1), ('krells_hold', 10, 6, 1),
+  ('krells_hold', 12, 7, 1), ('krells_hold', 14, 8, 2), ('krells_hold', 16, 9, 2), ('krells_hold', 19, 10, 2),
+  ('krells_hold', 21, 11, 2), ('krells_hold', 32, 12, 2), ('krells_hold', 42, 13, 2), ('krells_hold', 53, 14, 2),
+  ('krells_hold', 63, 15, 2), ('krells_hold', 73, 16, 2), ('krells_hold', 84, 17, 2), ('krells_hold', 94, 18, 2),
+  ('krells_hold', 105, 19, 2), ('krells_hold', 115, 20, 2), ('muster_barrows', 0, 1, 1), ('muster_barrows', 525, 1, 1),
+  ('muster_barrows', 610, 10, 1), ('muster_barrows', 690, 20, 1), ('muster_barrows', 691, 20, 1), ('muster_barrows', 530, 2, 1),
+  ('muster_barrows', 540, 3, 1), ('muster_barrows', 549, 4, 1), ('muster_barrows', 558, 5, 1), ('muster_barrows', 568, 6, 1),
+  ('muster_barrows', 577, 7, 1), ('muster_barrows', 587, 8, 1), ('muster_barrows', 596, 9, 1), ('muster_barrows', 605, 10, 1),
+  ('muster_barrows', 613, 11, 1), ('muster_barrows', 622, 12, 1), ('muster_barrows', 630, 13, 1), ('muster_barrows', 638, 14, 1),
+  ('muster_barrows', 646, 15, 1), ('muster_barrows', 654, 16, 1), ('muster_barrows', 662, 17, 1), ('muster_barrows', 670, 18, 1),
+  ('muster_barrows', 678, 19, 1), ('muster_barrows', 686, 20, 1), ('pyre_field', 0, 1, 1), ('pyre_field', 50, 10, 2),
+  ('pyre_field', 105, 20, 2), ('pyre_field', 106, 20, 2), ('pyre_field', 3, 2, 1), ('pyre_field', 9, 3, 1),
+  ('pyre_field', 15, 4, 1), ('pyre_field', 20, 5, 1), ('pyre_field', 26, 6, 1), ('pyre_field', 32, 7, 1),
+  ('pyre_field', 37, 8, 2), ('pyre_field', 43, 9, 2), ('pyre_field', 48, 10, 2), ('pyre_field', 54, 11, 2),
+  ('pyre_field', 59, 12, 2), ('pyre_field', 65, 13, 2), ('pyre_field', 70, 14, 2), ('pyre_field', 76, 15, 2),
+  ('pyre_field', 81, 16, 2), ('pyre_field', 87, 17, 2), ('pyre_field', 92, 18, 2), ('pyre_field', 97, 19, 2),
+  ('pyre_field', 103, 20, 2), ('the_slake', 0, 1, 1), ('the_slake', 45, 1, 1), ('the_slake', 100, 10, 1),
+  ('the_slake', 135, 20, 1), ('the_slake', 136, 20, 1), ('the_slake', 48, 2, 1), ('the_slake', 54, 3, 1),
+  ('the_slake', 60, 4, 1), ('the_slake', 66, 5, 1), ('the_slake', 72, 6, 1), ('the_slake', 78, 7, 1),
+  ('the_slake', 83, 8, 1), ('the_slake', 89, 9, 1), ('the_slake', 95, 10, 1), ('the_slake', 101, 11, 1),
+  ('the_slake', 104, 12, 1), ('the_slake', 108, 13, 1), ('the_slake', 112, 14, 1), ('the_slake', 115, 15, 1),
+  ('the_slake', 119, 16, 1), ('the_slake', 123, 17, 1), ('the_slake', 126, 18, 1), ('the_slake', 130, 19, 1),
+  ('the_slake', 134, 20, 1)) p(hunt, step, depth, top) loop
     if public.hr_piece_depth_of(v_r.hunt, v_r.step) is distinct from v_r.depth then
       raise exception 'VERIFY(c): % step % reads depth % in SQL, % in the engine', v_r.hunt, v_r.step, public.hr_piece_depth_of(v_r.hunt, v_r.step), v_r.depth; end if;
     if public.hr_piece_top_rank(v_r.hunt, v_r.depth) is distinct from v_r.top then
       raise exception 'VERIFY(c): % depth % opens rank % in SQL, % in the engine', v_r.hunt, v_r.depth, public.hr_piece_top_rank(v_r.hunt, v_r.depth), v_r.top; end if;
   end loop;
-  raise notice 'gen-trait-pieces: % Traits, % ground(s), % bases, the twins pinned at % points; all green', 40, 11, 125, 119;
+  raise notice 'gen-trait-pieces: % Traits, % ground(s), % bases, the twins pinned at % points; all green', 40, 11, 125, 117;
 end $mig$;

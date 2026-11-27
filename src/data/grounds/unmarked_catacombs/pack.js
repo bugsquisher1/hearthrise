@@ -84,7 +84,7 @@ export default definePack({
       /* THE SWARM (src/data/monster-roles.js; the Danger scale only, so the wings: src/data/catacomb-wings.js) */
       role: 'swarm',
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
-      hp: 238, atk: 154, aim: 152, evasion: 44, def: 7, xp: 2641, gp: [35, 105], formula: true },
+      hp: 238, atk: 154, aim: 149, evasion: 53, def: 7, xp: 2641, gp: [35, 105], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
@@ -94,7 +94,7 @@ export default definePack({
       /* THE STALKER (monster-roles.js; the wings): it goes for the hero with the least health */
       role: 'stalker',
       drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
-      hp: 227, atk: 202, aim: 208, evasion: 44, def: 7, xp: 3045, gp: [33, 100], formula: true },
+      hp: 227, atk: 202, aim: 205, evasion: 54, def: 7, xp: 3045, gp: [33, 100], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
       /* the heavy: a stretch of the ossuary, skulls and long bones the Keepers set in lime to make room, that pulled itself off the wall. A
@@ -105,7 +105,7 @@ export default definePack({
       role: 'brute',
       spells: ['bone_slide'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
-      hp: 371, atk: 150, aim: 131, evasion: 66, def: 42, xp: 4604, gp: [55, 163], formula: true },
+      hp: 371, atk: 150, aim: 130, evasion: 82, def: 42, xp: 4604, gp: [55, 163], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
@@ -115,7 +115,7 @@ export default definePack({
       role: 'caster',
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
-      hp: 315, atk: 191, aim: 175, evasion: 49, def: 14, xp: 3578, gp: [46, 139], formula: true },
+      hp: 315, atk: 191, aim: 176, evasion: 61, def: 14, xp: 3578, gp: [46, 139], formula: true },
     keeper_dunn: {
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
@@ -126,7 +126,7 @@ export default definePack({
       role: 'caster',
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
-      hp: 518, atk: 196, aim: 177, evasion: 74, def: 58, xp: 6843, gp: [76, 229], formula: true },
+      hp: 518, atk: 196, aim: 179, evasion: 94, def: 58, xp: 6843, gp: [76, 229], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },

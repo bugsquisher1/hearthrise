@@ -1463,11 +1463,13 @@ const ENGINE_ARMS = {
       return one;
     };
     const roles = ['ranger', 'healer'];
+    /* the Ward at under 99% (lane/refhero-recut, 2026-11-27): the spiders' aim re-derived on the clock's REF_HERO lands less on a Level 20
+       Ranger, who still takes blows (it casts Mend) but never falls under 90% in ten minutes, so the old line cast no Ward at all */
     const party = both('party', () => [
       memberIn(M, 'a', { role: 'ranger', seat: 0, level: 20, partyRoles: roles, bag: { bronze_arrows: { loaded: 1, left: 1 } }, equipment: { ammo: 'bronze_arrows' },
         bar: [slot('mend', [])] }),
       memberIn(M, 'b', { role: 'healer', seat: 1, level: 20, partyRoles: roles, bag: runes(),
-        bar: [slot('protective_ward', [{ metric: 'ally_hp_pct', op: 'lt', value: 90, subject: 'ranger' }]), slot('green_sickness', [])] }),
+        bar: [slot('protective_ward', [{ metric: 'ally_hp_pct', op: 'lt', value: 99, subject: 'ranger' }]), slot('green_sickness', [])] }),
     ]);
     const ev = evs(party), ranger = unitOf(party, 'a'), healer = unitOf(party, 'b');
     const casts = (list, ab) => list.filter((e) => e.type === 'cast' && e.ability === ab);

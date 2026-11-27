@@ -1229,6 +1229,10 @@ async function shellGuard() {
        only while the company's fire is lit), built by hunt-settle.js flameDropsOf into the note the engine fills; never hr_state_of,
        never a client field. */
     'flameDrops',
+    /* PERSONAL LOOT (1076-personal-loot.sql): the instance's own loot rule, the read's `instance.personal_loot` (hunt_instances.personal_loot,
+       frozen by the server's trigger when the hunt began), handed over by hunt-settle.js proposeHuntSettle only when true; never
+       hr_state_of, never a client field. */
+    'personalLoot',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

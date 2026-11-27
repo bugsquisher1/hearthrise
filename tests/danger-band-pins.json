@@ -25,8 +25,8 @@
   "hasks_ford": {
    "refStep": 590,
    "floorStep": 535,
-   "topStep": 645,
-   "refKillsHead": 130,
+   "topStep": 640,
+   "refKillsHead": 135,
    "refHeld": 595,
    "coinPm": 6600,
    "print": "385e265606cb6549",
@@ -125,12 +125,12 @@
    ]
   },
   "mosslight_glade": {
-   "refStep": 50,
+   "refStep": 60,
    "floorStep": 0,
-   "topStep": 120,
-   "refKillsHead": 135,
+   "topStep": 115,
+   "refKillsHead": 140,
    "refHeld": 55,
-   "coinPm": 7800,
+   "coinPm": 7900,
    "print": "65d34538fc59981b",
    "verdict": "OPEN",
    "levels": {
@@ -206,12 +206,12 @@
    ]
   },
   "krells_hold": {
-   "refStep": 20,
+   "refStep": 40,
    "floorStep": 0,
-   "topStep": 120,
-   "coinPm": 4000,
+   "topStep": 115,
+   "coinPm": 3100,
    "print": "693ccf7e0438cc65",
-   "verdict": "REVIEW",
+   "verdict": "OPEN",
    "levels": {
     "entry": 85,
     "top": 110,
@@ -266,10 +266,12 @@
    ]
   },
   "ox_road": {
-   "refStep": 90,
+   "refStep": 100,
    "floorStep": 0,
-   "topStep": 175,
-   "coinPm": 2500,
+   "topStep": 170,
+   "refKillsHead": 125,
+   "refHeld": 95,
+   "coinPm": 2400,
    "print": "53b7c6cceb02ceea",
    "verdict": "OPEN",
    "levels": {

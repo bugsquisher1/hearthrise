@@ -75,10 +75,10 @@ export default definePack({
       role: 'swarm',
       /* the swarm: the men who drove the ore wagons. They died with the road shut and they still walk beside their teams. Undead, no
          override. The wagons' axes, and now and then a bow. */
-      drops: [{ id: 'bones', everyHours: 0.0348, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.058, ch: 0.3, band: 'common' }, { id: 'wagon_pin', everyHours: 0.2174, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'bones', everyHours: 0.0348, ch: 0.48, band: 'common' }, { id: 'grave_dust', everyHours: 0.058, ch: 0.288, band: 'common' }, { id: 'wagon_pin', everyHours: 0.2174, ch: 0.0768, band: 'uncommon' },
         /* 0.02 to 0.0163 (lane/c-tohit-ratio, 2026-11-20): on the to-hit ratio the ground's reference group kills Teamsters faster, a Hatchets every 0.65 h a hero, under the Scarce band's 0.75;
            0.0163 to 0.0128 (lane/c-spell-rule, 2026-11-21): every cast a share of the blow, its lone tank kills faster again (0.67 h a hero) */
-        { id: 'dawn_hatchets', everyHours: 1.36, ch: 0.0128, band: 'scarce' }, { id: 'duskwood_bow', everyHours: 17.75, ch: 0.00098, band: 'rare' }],
+        { id: 'dawn_hatchets', everyHours: 1.36, ch: 0.0123, band: 'scarce' }, { id: 'duskwood_bow', everyHours: 17.75, ch: 0.000941, band: 'rare' }],
       hp: 163, atk: 109, aim: 110, evasion: 42, def: 5, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
@@ -86,8 +86,8 @@ export default definePack({
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
          it splashes the tiles around where it lands (Hot Coal, `spells`). Human, no override. Gault's caster pieces: the wand and the codex. */
       spells: ['hot_coal'],
-      drops: [{ id: 'bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'coal', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'runners_tin', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
-        { id: 'duskwood_wand', everyHours: 1.56, ch: 0.0285, band: 'scarce' }, { id: 'duskwood_codex', everyHours: 17.36, ch: 0.00256, band: 'rare' }], // the wand 0.026 -> 0.0285 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Runners met: 1.60 h)
+      drops: [{ id: 'bones', everyHours: 0.0889, ch: 0.48, band: 'common' }, { id: 'coal', everyHours: 0.0889, ch: 0.48, band: 'common' }, { id: 'runners_tin', everyHours: 0.5556, ch: 0.0768, band: 'uncommon' },
+        { id: 'duskwood_wand', everyHours: 1.56, ch: 0.0274, band: 'scarce' }, { id: 'duskwood_codex', everyHours: 17.36, ch: 0.00246, band: 'rare' }], // the wand 0.026 -> 0.0285 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Runners met: 1.60 h)
       hp: 157, atk: 144, aim: 152, evasion: 43, def: 5, xp: 1648, gp: [23, 69], formula: true },
     yoke_ox: {
       name: 'Yoke Ox', icon: '🐂', tier: 6, level: 119, cls: 'undead', family: 'Undead', speed: 2400,
@@ -95,9 +95,9 @@ export default definePack({
       /* the heavy: a dead ox still in its yoke, dragging a wagon. It puts its head down and runs straight through whoever it's facing and
          everyone lined up behind them (Trample, a marked line, `spells`). Undead, no override. What's in its wagon: the warhammer, and now and then a crossbow. */
       spells: ['trample'],
-      drops: [{ id: 'big_bones', everyHours: 0.0889, ch: 0.5, band: 'common' }, { id: 'grave_dust', everyHours: 0.08892, ch: 0.5, band: 'common' }, { id: 'ox_shoe', everyHours: 0.5556, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'big_bones', everyHours: 0.0889, ch: 0.48, band: 'common' }, { id: 'grave_dust', everyHours: 0.08892, ch: 0.48, band: 'common' }, { id: 'ox_shoe', everyHours: 0.5556, ch: 0.0768, band: 'uncommon' },
         /* 0.038 to 0.0326 (lane/c-spell-rule, 2026-11-21): the spell rule's faster lone tank read a Warhammer every 0.73 h a hero, under the band's 0.75 */
-        { id: 'dawn_warhammer', everyHours: 1.363, ch: 0.0326, band: 'scarce' }, { id: 'duskwood_crossbow', everyHours: 17.36, ch: 0.00256, band: 'rare' }],
+        { id: 'dawn_warhammer', everyHours: 1.363, ch: 0.0313, band: 'scarce' }, { id: 'duskwood_crossbow', everyHours: 17.36, ch: 0.00246, band: 'rare' }],
       hp: 257, atk: 107, aim: 97, evasion: 66, def: 29, xp: 2499, gp: [38, 113], formula: true },
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
@@ -105,19 +105,19 @@ export default definePack({
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
          back up a bit healthier (Goad, a mend, `spells`). Kill him first, or kill the ox first. Human, no override. The staff off his wagon. */
       spells: ['goad'],
-      drops: [{ id: 'bones', everyHours: 0.1333, ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', everyHours: 0.333, ch: 0.2, band: 'common' }, { id: 'drovers_goad', everyHours: 0.833, ch: 0.08, band: 'uncommon' },
+      drops: [{ id: 'bones', everyHours: 0.1333, ch: 0.48, band: 'common' }, { id: 'dawnstone_ore', everyHours: 0.333, ch: 0.192, band: 'common' }, { id: 'drovers_goad', everyHours: 0.833, ch: 0.0768, band: 'uncommon' },
         /* 0.045 to 0.0416 (lane/c-tohit-ratio, 2026-11-20): a Staff every 0.74 h a hero on the to-hit ratio, under the Scarce band's 0.75;
            0.0416 to 0.0328 (lane/c-spell-rule, 2026-11-21): 0.67 h a hero under the spell rule */
-        { id: 'duskwood_staff', everyHours: 2.03, ch: 0.0328, band: 'scarce' }],
+        { id: 'duskwood_staff', everyHours: 2.03, ch: 0.0315, band: 'scarce' }],
       hp: 218, atk: 136, aim: 131, evasion: 49, def: 10, xp: 1940, gp: [32, 96], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
       role: 'brute',
       /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
          thing on the road. Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', everyHours: 1.333, ch: 0.3, band: 'common' }, { id: 'waybill', everyHours: 4, ch: 0.1, band: 'uncommon' },
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', everyHours: 1.333, ch: 0.288, band: 'common' }, { id: 'waybill', everyHours: 4, ch: 0.096, band: 'uncommon' },
         /* 0.0056 to 0.0049 (lane/c-spell-rule, 2026-11-21): a Sword every 9.92 h a hero under the spell rule, under the Rare band's 10 */
-        { id: 'dawn_sword', everyHours: 81.6, ch: 0.0049, band: 'rare' }],
+        { id: 'dawn_sword', everyHours: 81.6, ch: 0.00471, band: 'rare' }],
       hp: 360, atk: 140, aim: 135, evasion: 75, def: 40, xp: 3732, gp: [53, 159], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },

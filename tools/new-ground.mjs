@@ -129,6 +129,6 @@ if (next === null) die('the ' + G + ' row in src/data/danger.js is not on one li
 writeFileSync(DJS, next);
 const PINS = join(ROOT, 'tests', 'danger-band-pins.json');
 const pins = existsSync(PINS) ? readJson(PINS) : { _why: '', grounds: {} };
-pins.grounds[G] = { ...band, print, verdict: cut.verdict, levels, measured: new Date().toISOString().slice(0, 10), evidence: arg('ref') ? [arg('ref'), arg('top-report'), arg('floor')] : ['tools/balance-program/redesign/grounds/' + G + '-{floor,top,ref}.json'] };
+pins.grounds[G] = { ...band, print, verdict: cut.verdict, levels, measured: new Date().toISOString().slice(0, 10), evidence: arg('ref') ? [arg('ref'), arg('top-report'), arg('floor')] : ['ref', 'top', 'floor'].map((c) => 'tools/balance-program/redesign/grounds/' + G + '-' + c + '.json') };
 writeFileSync(PINS, JSON.stringify(pins, null, 1) + '\n');
 console.log('\nwrote the band to src/data/danger.js and the pin to tests/danger-band-pins.json. Review the diff; the server catalogue: node tools/gen-danger.mjs');

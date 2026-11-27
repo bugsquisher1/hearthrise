@@ -97,10 +97,14 @@ export const MONSTER_ROLES = Object.freeze({
   stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',
     armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),
   /* its shield or its heal is its own spell row (monster-spells.js `mend`); the role says only whom it fights. On a formula ground its heal is
-     the formula's (`mend`) */
+     the formula's (`mend`).
+     MEND 1.2 -> 0.6 s (the designer, lane/designer-recut-calls 2026-11-27, 12-targets 8.9 item 2): Krell's Hold stands up to three Pyre Priests
+     in a pull, so at 1.2 s each undid 15% of the company's damage and a Grave Guard took 69 s to drop. Its reference four killed 93 a head
+     an hour against the pay's 120 and earned 0.73x the hours table. At 0.6 s it kills 114 and earns 0.96x (MEASURED, held-four, 3 seeds x 2 h).
+     A mend slows a kill and still says "kill him first". It never sets a ground's pace a quarter under the table */
   warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
     armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
-    mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
+    mend: Object.freeze({ seconds: 0.6, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });
 
 /* THE SPELL A ROLE CASTS ON A FORMULA GROUND when its monster's row names none (src/core/hunt/monster-formula.js roleStats): its wind-up is

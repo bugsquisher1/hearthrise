@@ -206,12 +206,12 @@
    ]
   },
   "krells_hold": {
-   "refStep": 20,
+   "refStep": 40,
    "floorStep": 0,
-   "topStep": 120,
-   "coinPm": 4000,
+   "topStep": 115,
+   "coinPm": 3100,
    "print": "693ccf7e0438cc65",
-   "verdict": "REVIEW",
+   "verdict": "OPEN",
    "levels": {
     "entry": 85,
     "top": 110,
@@ -219,9 +219,7 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/krells_hold-ref.json",
-    "tools/balance-program/redesign/grounds/krells_hold-top.json",
-    "tools/balance-program/redesign/grounds/krells_hold-floor.json"
+    "tools/balance-program/redesign/grounds/krells_hold-{floor,top,ref}.json"
    ]
   },
   "wickstead": {
@@ -266,10 +264,12 @@
    ]
   },
   "ox_road": {
-   "refStep": 90,
+   "refStep": 100,
    "floorStep": 0,
-   "topStep": 175,
-   "coinPm": 2500,
+   "topStep": 170,
+   "refKillsHead": 125,
+   "refHeld": 95,
+   "coinPm": 2400,
    "print": "53b7c6cceb02ceea",
    "verdict": "OPEN",
    "levels": {
@@ -279,9 +279,7 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/ox_road-ref.json",
-    "tools/balance-program/redesign/grounds/ox_road-top.json",
-    "tools/balance-program/redesign/grounds/ox_road-floor.json"
+    "tools/balance-program/redesign/grounds/ox_road-{floor,top,ref}.json"
    ]
   },
   "millrace_sewer": {

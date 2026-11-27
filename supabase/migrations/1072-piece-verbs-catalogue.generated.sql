@@ -11,7 +11,7 @@
 -- ORDER: 1072 in its name, before 1072-piece-verbs.sql (its reader). Idempotent: the tables are made if missing and their rows rewritten
 -- whole, the function restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
 -- EXPLOIT SURFACE: none added. Catalogue tables, RLS on, no policy, no grant to any client role; one internal function revoked from every
--- client role. No value moves here. ON THE PRE-EA SECURITY LIST as the price of S-23 (a sale that mints gold).
+-- client role. No value moves here. ON THE PRE-EA SECURITY LIST as the price of S-26 (a sale that mints gold).
 -- REVERSIBLE: drop the function and the two tables (after 1072-piece-verbs.sql's readers are gone).
 -- ════════════════════════════════════════════════════════════════════════
 

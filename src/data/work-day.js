@@ -3,8 +3,9 @@
 //   CR-Q1 a and CR-Q3 b; 09-crafting.md sections 2.6 and 5.3; 02-architecture.md package 5).
 //
 // Tyler 2026-11-22: "Trade Levels are owned by the company, not by each hero" (CR-Q1 a). "Each hero's town work has a
-// daily cap, longer with Premium" (CR-Q3 b). More town work is bought in 2 h blocks, x1.5 each, at most 4 a day: that
-// buy is a later slice; this one builds the cap and leaves the hook (src/core/work-day.js workCapMs `extraMs`).
+// daily cap, longer with Premium" (CR-Q3 b). More town work is bought in 2 h blocks, x1.5 each, at most 4 a day: the row is
+// src/data/time-blocks.js TIME_BLOCKS.work, sold by hr_time_buy and bought by a hero's standing rule (1071-work-blocks.sql),
+// and the cap counts it (src/core/work-day.js `extraMs`).
 //
 // TRADES     a skill is a company trade when its catalogue category is one of TRADE_CATS (src/data/skills.js `cat`):
 //            Woodcutting, Mining, Fishing, Farming, Cooking, Crafting, Smithing and Runecrafting today. One XP total for
@@ -19,6 +20,7 @@
 //
 // PURE ESM. Data only (the rule is src/core/work-day.js).
 // ════════════════════════════════════════════════════════════════════════
+import { TIME_BLOCKS } from './time-blocks.js';
 
 export const WORK_DAY = Object.freeze({
   /* LEVER (09 `workDay`): minutes of town work a hero may do each UTC day. */
@@ -33,10 +35,6 @@ export const TRADE_CATS = Object.freeze(['gather', 'artisan']);
 /* The pointer kinds that are town work (player_state.active_kind): a gathering job and a bench run. */
 export const WORK_KINDS = Object.freeze(['gather', 'artisan']);
 
-/* The ruled shape of a bought work block (Tyler 2026-11-22: 2 h, x1.5, at most 4 a day). Its price and verb are a later
-   slice; the cap already counts what the ledger says was bought (src/core/work-day.js `extraMs`). */
-export const WORK_BLOCK_RULED = Object.freeze({ blockMin: 120, perDay: 4 });
-
 /** Every problem with the table (the shipped one by default), as strings. Empty = valid. */
 export function validate(day = WORK_DAY, cats = TRADE_CATS, kinds = WORK_KINDS) {
   const out = [];
@@ -47,7 +45,9 @@ export function validate(day = WORK_DAY, cats = TRADE_CATS, kinds = WORK_KINDS) 
   /* 09 section 5.3: Premium's extra never more than a quarter of the free day */
   if (day.premiumExtraMin * 4 > day.freeMin) out.push('premiumExtraMin is more than a quarter of freeMin');
   /* the longest day (Premium and every block) stays under 24 h: src/core/work-day.js crosses at most one midnight a stop */
-  const longest = day.freeMin + day.premiumExtraMin + WORK_BLOCK_RULED.blockMin * WORK_BLOCK_RULED.perDay;
+  /* a bought work block (src/data/time-blocks.js TIME_BLOCKS.work: Tyler's 2 h, at most 4 a day) */
+  const W = TIME_BLOCKS.work;
+  const longest = day.freeMin + day.premiumExtraMin + W.blockMin * W.perDay;
   if (!(longest < 1440)) out.push('the longest work day (' + longest + ' min) is not under 24 h');
   if (!cats.length || cats.some((c) => !/^[a-z]{1,16}$/.test(c))) out.push('a trade category is not a lower-case word');
   if (cats.includes('combat')) out.push('combat skills are each hero\'s own, never a company trade');

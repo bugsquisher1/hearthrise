@@ -50,6 +50,24 @@
         "gzipBytes": 205956,
         "on": "2026-11-27",
         "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 205959,
+        "on": "2026-11-27",
+        "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206436,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206438,
+        "on": "2026-11-27",
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
       }
     ],
     "town": [
@@ -382,6 +400,24 @@
         "gzipBytes": 977017,
         "on": "2026-11-27",
         "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 979471,
+        "on": "2026-11-27",
+        "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 980049,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 980148,
+        "on": "2026-11-27",
+        "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
       }
     ]
   }

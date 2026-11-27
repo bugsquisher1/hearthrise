@@ -293,7 +293,8 @@ const ARMS = {
     if (!stale || stale.error !== 'quote_changed' || !stale.time_blocks || stale.time_blocks.hunt.price !== want2 || (await snap()) !== s1) {
       p.push('the first price pressed again answered ' + JSON.stringify(stale).slice(0, 240) + ', want quote_changed carrying ' + want2);
     }
-    const kind = await press(db, want2, idem(), 'work');
+    /* `work` has its own row and branch since 1071-work-blocks.sql (tests/work-blocks.mjs): a kind with neither is still refused */
+    const kind = await press(db, want2, idem(), 'rest');
     if (!kind || kind.error !== 'bad_kind') p.push('a kind with no row answered ' + JSON.stringify(kind).slice(0, 160));
     const anon = await as(db, UID, 'select public.hr_time_buy($1, 0, $2::bigint, $3::uuid) as r', ['hunt', want2, idem()], 'anon');
     if (!anon || !anon.thrown || !/permission denied/.test(anon.thrown)) p.push('anon reached hr_time_buy: ' + JSON.stringify(anon).slice(0, 160));

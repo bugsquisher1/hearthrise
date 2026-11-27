@@ -74,6 +74,8 @@
 /* each find: the icon, the name, the count quiet under it, so a half-width cell keeps the whole name */
 .hsum-loot .hsum-item { display: grid; grid-template-columns: max(32px, var(--icon-1)) minmax(0, 1fr); gap: 0 10px; align-content: center; padding: 3px 0; }
 .hsum-loot .hsum-ico { grid-row: 1 / span 2; }
+/* a long name wraps rather than losing its end (visual read 2026-11-26: "Studded Leather C..."; a Signature's name is the find) */
+.hsum-loot .hsum-name b { white-space: normal; line-height: 1.2; }
 .hsum-loot .hsum-n { grid-column: 2; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as a list between the numbers and the foot, each row one step with its
    count and value, its one press at the right; the first open step's press is the card's gold plate; a done row stays, ticked in green. */

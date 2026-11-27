@@ -2,7 +2,7 @@
 -- supabase/migrations/1072-piece-verbs.sql — A TRAIT PIECE IS WORN, TAKEN OFF AND SOLD AS ITSELF: THE WEAR VERB, THE STORE SALE, AND THE
 --   EQUIP PATH THAT NEVER TURNS A WORN PIECE INTO A PLAIN ITEM (lane/t1b-piece-verbs, backend-architect, 2026-11-26; 12-targets.md 8.6,
 --   20-v030-the-roads.md 1.2 "Trait pieces are kept, carried over or sold to the store", 13-market.md 3.2 V for a piece, 13-security-list.md
---   S-23, N-12, N-13; the price is 1072-piece-verbs-catalogue.generated.sql).
+--   S-26, N-12, N-13; the price is 1072-piece-verbs-catalogue.generated.sql).
 -- RESTATEMENT-DEBT-ACK: hr_apply's chain is one deep (1059-company-trades.sql); this file adds ONE anchored edit, the equip loop's body, because a 162 KB restatement would collide with every lane that reads hr_apply while the piece class must close here.
 --
 -- STATUS: supabase/migration-notes/1072-piece-verbs.sql.json (STAGED until the Coordinator applies it).
@@ -59,7 +59,7 @@
 --   and pieces (auth.uid(); hr_apply's identity seam). The gold figure only refuses, it never sets the price. The sale MINTS gold, bounded
 --   by the server's price, one piece a call, the day fuse, hr_apply's per-call clamp and its daily inflow budget; the piece it pays for is
 --   deleted in the same transaction, so a piece sells once. The equip path's edit removes a mint (the bag credit of a worn piece's base).
---   ON THE PRE-EA SECURITY LIST (13-security-list.md S-23).
+--   ON THE PRE-EA SECURITY LIST (13-security-list.md S-26).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- Off the settle path. An equip op reads one more row (the unique worn index). A wear or a sale: the hero lock, two to four indexed rows and

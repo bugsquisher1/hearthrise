@@ -72,8 +72,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/reference-company.js#HEROES', why: 'the reference company is four heroes by definition (04 section 1): a shape, as REF_HEROES' },
   { at: 'src/core/borrow-blow.js#referenceBlow', why: 'a memo bound (4096 discipline and Level blows kept): a cache size, no outcome reads it; the blow itself is combat.js playerCombatRolls on the gear and reference-hero rows' },
   /* rulings (Tyler's numbers, not dials: validate refuses a move) */
-  { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)' },
-  { at: 'src/data/work-day.js#WORK_BLOCK_RULED', why: 'Tyler\'s ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice' },
+  { at: 'src/data/time-blocks.js#RULED', why: 'Tyler\'s ruled block rules of 2026-11-22 (2 h blocks, x1.5; 2 hunting and 4 town-work blocks a day): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the prices are the levers (econ.hunt-block, econ.work-block)' },
   { at: 'src/core/gold-estimate.js#roundAbout', why: 'display rounding of the Hunts window\'s gold estimate to two significant figures (a power of ten): no fight, purse or clock reads it' },
   { at: 'src/core/trades.js#UH', why: 'a unit: micro-hours in an hour (the catalogue counts work in them)' },
   { at: 'src/core/trades.js#HOUR_MS', why: 'a unit: ms in an hour' },

@@ -1101,8 +1101,10 @@
 
 /* ── Share plan (src/shell/windows/plan-share.js): this hero's code to copy, a pasted code read into the plan editor ── */
 .hps { display: flex; flex-direction: column; gap: 6px; }
-.hps-code, .hps-paste { box-sizing: border-box; width: 100%; min-height: 72px; resize: vertical; padding: 8px; color: var(--ink); font-family: var(--f-ui);
-  font-size: var(--t-micro); line-height: 1.35; word-break: break-all; }
+/* a code is one line of text, so its box is as tall as the code it holds (field-sizing; rows="2" where a browser has none), never a web
+   form's resizable well (visual read 2026-11-26: a one-line code sat in a 72 px box with a grip) */
+.hps-code, .hps-paste { box-sizing: border-box; width: 100%; min-height: 2.5em; max-height: 10em; field-sizing: content; resize: none; padding: 8px;
+  color: var(--ink); font-family: var(--f-ui); font-size: var(--t-micro); line-height: 1.35; word-break: break-all; }
 .hps-code[hidden] { display: none; }
 .hps-code { color: var(--ink-2); }
 .hps-paste:focus, .hps-code:focus { outline: 2px solid var(--gold); outline-offset: -1px; }
@@ -1114,7 +1116,7 @@
 .hps-foot { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 0; background: var(--bg-1); }
 .hps-foot .hs-note, .hps-foot .hh-intent-msg { margin: 0; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hps-code, .hps-paste { min-height: 56px; }
+  .hps-code, .hps-paste { min-height: var(--tap); }
 }
 
 /* ── The Farm (src/shell/windows/farm.js): a row of soil plots, each the town's tilled soil in a plank bed at ×2

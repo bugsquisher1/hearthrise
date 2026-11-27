@@ -17,14 +17,23 @@
 //                 (one standing log row from Level 5), and the two doors leave the same build
 //   RCO-SETTING   Talents lit, as the signed-in client (role authenticated): "Spend as suggested" off answers the hero's envelope with auto
 //                 null and a Level gained banks its point; on spends it at once; the same key answers its receipt and spends nothing
+//   RCO-PLAN      Talents lit, each door (1073-talents-plan-server.sql): the Club leader holds a saved plan for the Sewer that leaves its
+//                 suggested road (Mend's stones); one XP under Level 6 it hunts, and the settle that lands the Level pays the PLAN's next
+//                 stones in map order (src/core/talent-route.js nextPlanStep pressed, the twin), not the road's; one standing row names
+//                 plan_hunt and plan_n; the section's plan_hunt is the Sewer; the two doors leave the same build. CONTROL: the road's
+//                 own build differs
+//   RCO-PRESS     Talents lit, as the signed-in client: Spend on plan (hr_talent_spend_plan) for a recruit with banked points pays them
+//                 in ONE press, exactly the twin's steps, one 'plan' row and no 'spend' row, the envelope answering; another ground is
+//                 plan_changed, the same key its receipt, no point left no_points; past Level 30 the press takes the plan's vow; a
+//                 second recruit with the setting on rises past 30 and the standing rule pays its plan but walks past the same vow
 //
 //   node tests/recruit-company.mjs              the guard
 //   node tests/recruit-company.mjs --arm=hunt   one arm
 //   node tests/recruit-company.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
-// mutant-anchors: supabase/migrations/1038-start-kits.sql supabase/migrations/1069-talent-standing-rule.sql
+// mutant-anchors: supabase/migrations/1038-start-kits.sql supabase/migrations/1069-talent-standing-rule.sql supabase/migrations/1073-talents-plan-server.sql
 //   (each mutant is planted in a live body read from the booted chain with pg_get_functiondef and restored after its arm)
-// ci-step: db-replay | The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested, both doors (1038, 1069)
+// ci-step: db-replay | The recruited company's first party hunt - the bow shoots and Talent points are spent as suggested or on the saved plan, both doors (1038, 1069, 1073)
 // ci-run: node tests/recruit-company.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/recruit-company.mjs --mutate
 //
@@ -34,6 +43,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
+import { nextPlanStep } from '../src/core/talent-route.js';
+import { spend, spendSuggested, pointsAt, pointsSpent, normalize } from '../src/core/talents.js';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q, makeExec } = H;
@@ -261,7 +272,138 @@ async function settingArm(db) {
   });
 }
 
-const ARMS = { hunt: huntArm, spent: spentArm, standing: standingArm, setting: settingArm };
+/* THE SERVER'S PLAN ORDER, its JS twin (1073 hr_talent_plan_steps): each point to the first planned node in map order the spend's own
+   check takes (src/core/talent-route.js nextPlanStep pressed until the points run out). `road` (a discipline) then walks the suggested
+   road with what is left, as the standing rule does. Below Level 30 no vow passes the check, so the twin needs no vow rule. */
+function twinPlan(nodes, draft, level, road) {
+  let b = normalize(nodes), n = 0;
+  for (let step; pointsSpent(b) < pointsAt(level) && (step = nextPlanStep(b, draft, level)); n++) b = spend(b, step.id, step.pick);
+  return { nodes: road ? spendSuggested(b, road, 'party', level) : b, plan: n };
+}
+/* a plan off every job's suggested start: the Great Hearth's Mend road, its two choices and its open road to 2 */
+const MEND = Object.freeze({ 'mend.r1': true, 'mend.r2': true, 'mend.r3': true, 'mend.x1': 'steady_mend', 'mend.w1': true, 'mend.r4': true,
+  'mend.r5': true, 'mend.x2': 'deep_mend', 'mend.w2': true, 'mend.open': 2 });
+/* a plan to Shield's first crossroads and the vow beside it */
+const VOW = Object.freeze({ 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'vow.hold_fast': true });
+
+/* ── RCO-PLAN: the Level a hunt lands pays the saved plan first, both doors (1073) ─────────────────────── */
+async function planArm(db, M) {
+  const bad = [];
+  const got = {};
+  for (const door of ['closed', 'viewed']) {
+    const tag = `RCO-PLAN the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
+    const r = await H.inTx(db, async () => {
+      await rewind(db);
+      await lit(db, true);
+      const uid = uidOf(door === 'closed' ? 7 : 8);
+      const c = await company(db, uid, door === 'closed' ? 'Planguard Ana' : 'Planguard Eda');
+      if (c.err) return c;
+      const own = (await build(db, uid, 0)).nodes;
+      const draft = { ...own, ...MEND };
+      const saved = await as(db, uid, 'select public.hr_talent_build_save(0, $1, $2::jsonb, $3::uuid)', [SEWER, JSON.stringify(draft), idem()]);
+      if (!saved || saved.ok !== true) return { err: 'the plan\'s save answered ' + JSON.stringify(saved && { ok: saved.ok, error: saved.error }) };
+      await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level(6) - 1 where user_id = $1 and slot = 0', [uid]);
+      const pre = { level: await levelOf(db, uid, 0), build: await build(db, uid, 0) };
+      const h = await partyHunt(db, uid, c.heroes.map((x) => x.slot));
+      if (h.err) return h;
+      const p = await play(db, M, uid, h, door, 0);
+      if (p.err) return p;
+      const L = await levelOf(db, uid, 0);
+      const e = await as(db, uid, 'select public.hr_load($1)', [0]);
+      return { pre, own, draft, level: L, build: await build(db, uid, 0), disc: await discOf(db, uid, 0), planHunt: e && e.talents ? e.talents.plan_hunt : undefined,
+        log: await q(db, "select n, level, meta from public.hero_talent_log where user_id = $1 and slot = 0 and verb = 'suggested' and meta->>'standing' = 'true' and (meta->>'from_level')::int = 5", [uid]) };
+    });
+    if (r.err) { bad.push(`${tag} ${r.err}`); continue; }
+    if (r.pre.level !== 5 || r.pre.build.spent !== 4) { bad.push(`${tag} CONTROL: before the hunt the leader is Level ${r.pre.level} with ${r.pre.build.spent} spent`); continue; }
+    if (!(r.level >= 6)) { bad.push(`${tag} CONTROL: ${SPAN / 60000} minutes on the Sewer left the leader at Level ${r.level}`); continue; }
+    got[door] = r;
+    const want = twinPlan(r.own, r.draft, r.level, r.disc);
+    if (sameJson(want.nodes, spendSuggested(r.own, r.disc, 'party', r.level))) bad.push(`${tag} CONTROL: the plan and the road leave one build at Level ${r.level}, so this arm proves nothing`);
+    if (!sameJson(r.build.nodes, want.nodes)) bad.push(`${tag} the Level ${r.level} settle left ${JSON.stringify(r.build.nodes)}; the plan's order makes ${JSON.stringify(want.nodes)}`);
+    if (r.planHunt !== SEWER) bad.push(`${tag} the section names plan_hunt ${JSON.stringify(r.planHunt)}, not the Sewer`);
+    if (!r.log.some((x) => x.meta.plan_hunt === SEWER && Number(x.meta.plan_n) === want.plan && x.n === pointsAt(r.level) - 4)) {
+      bad.push(`${tag} the settle's spend is not journalled as the plan's (${want.plan} of its stones): ${JSON.stringify(r.log)}`);
+    }
+  }
+  if (got.closed && got.viewed && got.closed.level === got.viewed.level && !sameJson(got.closed.build.nodes, got.viewed.build.nodes)) {
+    bad.push(`RCO-PLAN the two doors disagree at Level ${got.closed.level}: ${JSON.stringify(got.closed.build.nodes)} vs ${JSON.stringify(got.viewed.build.nodes)}`);
+  }
+  return bad;
+}
+
+/* ── RCO-PRESS: Spend on plan, one press, as the signed-in client (1073) ─────────────────────────────── */
+async function pressArm(db) {
+  return H.inTx(db, async () => {
+    await rewind(db);
+    const bad = [];
+    const T = 'RCO-PRESS';
+    await lit(db, true);
+    const uid = uidOf(9);
+    const c = await company(db, uid, 'Pressguard Ana');
+    if (c.err) return [`${T} ${c.err}`];
+    const [a, b] = [c.heroes[0].slot, c.heroes[1].slot];
+    const plan = (slot, nodes) => asClient(db, uid, 'select public.hr_talent_build_save($1, $2, $3::jsonb, $4::uuid)', [slot, SEWER, JSON.stringify(nodes), idem()]);
+    const pay = (slot, hunt, key = idem()) => asClient(db, uid, 'select public.hr_talent_spend_plan($1, $2, $3::uuid)', [slot, hunt, key]);
+    /* hero a: the setting off, so Level 12's points bank; its plan for the Sewer, the ground its plan sends it to */
+    const off = await asClient(db, uid, 'select public.hr_talent_auto_set($1, null, $2::uuid)', [a, idem()]);
+    const ground = await asClient(db, uid, 'select public.hr_hero_plan_set($1, $2, $3::uuid)', [a, SEWER, idem()]);
+    if (!off || off.ok !== true || !ground || ground.ok !== true) return [`${T} the setting or the plan's ground answered ${JSON.stringify([off && off.error, ground && ground.error])}`];
+    await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level(12) where user_id = $1 and slot = $2', [uid, a]);
+    const own = (await build(db, uid, a)).nodes;
+    const draft = { ...own, ...MEND };
+    const saved = await plan(a, draft);
+    if (!saved || saved.ok !== true) return [`${T} the plan's save answered ${JSON.stringify(saved && saved.error)}`];
+    const all = await points(db, 12);
+    const banked = all - (await build(db, uid, a)).spent;
+    if (!(banked >= 2)) return [`${T} CONTROL: ${banked} points banked at Level 12`];
+    const other = await pay(a, 'muster_barrows');
+    if (!other || other.error !== 'plan_changed' || other.plan_hunt !== SEWER || (await build(db, uid, a)).spent !== all - banked) {
+      bad.push(`${T} a press for another ground answered ${JSON.stringify(other)}`);
+    }
+    const key = idem();
+    const v = await pay(a, SEWER, key);
+    const want = twinPlan(own, draft, 12, null);
+    const after = await build(db, uid, a);
+    if (!v || v.ok !== true || v.spent !== banked || want.plan !== banked || !sameJson(after.nodes, want.nodes)
+        || !v.envelope || !v.envelope.talents || v.envelope.talents.spent !== all) {
+      bad.push(`${T} one press answered ${JSON.stringify(v && { ok: v.ok, error: v.error, spent: v.spent, env: v.envelope && v.envelope.talents && v.envelope.talents.spent })}`
+        + ` and left ${JSON.stringify(after.nodes)}; the twin's ${want.plan} steps make ${JSON.stringify(want.nodes)}`);
+    }
+    const rows = await q(db, "select verb, n, node from public.hero_talent_log where user_id = $1 and slot = $2 and verb in ('plan', 'spend') order by id", [uid, a]);
+    if (rows.length !== 1 || rows[0].verb !== 'plan' || rows[0].n !== banked || rows[0].node !== SEWER) bad.push(`${T} the press journalled ${JSON.stringify(rows)}`);
+    const again = await pay(a, SEWER, key);
+    if (!again || again.ok !== true || 'envelope' in again || again.spent !== banked
+        || Number(await one(db, "select count(*)::int from public.hero_talent_log where user_id = $1 and slot = $2 and verb = 'plan'", [uid, a])) !== 1) {
+      bad.push(`${T} the same key answered ${JSON.stringify(again && { ok: again.ok, spent: again.spent, envelope: 'envelope' in again })}`);
+    }
+    const none = await pay(a, SEWER);
+    if (!none || none.error !== 'no_points') bad.push(`${T} a press with no point left answered ${JSON.stringify(none)}`);
+    /* past Level 30 the player's own press takes the plan's vow */
+    await plan(a, { ...draft, ...VOW });
+    await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level(40) where user_id = $1 and slot = $2', [uid, a]);
+    const vow = await pay(a, SEWER);
+    if (!vow || vow.ok !== true || (await build(db, uid, a)).nodes['vow.hold_fast'] !== true) {
+      bad.push(`${T} the press at Level 40 left the plan's vow: ${JSON.stringify(vow && { ok: vow.ok, error: vow.error, spent: vow.spent })}`);
+    }
+    /* hero b: the setting on; past Level 30 the standing rule pays the same plan but walks past its vow */
+    await asClient(db, uid, 'select public.hr_hero_plan_set($1, $2, $3::uuid)', [b, SEWER, idem()]);
+    const ownB = (await build(db, uid, b)).nodes;
+    const savedB = await plan(b, { ...ownB, ...VOW });
+    if (!savedB || savedB.ok !== true) return [...bad, `${T} the second plan's save answered ${JSON.stringify(savedB && savedB.error)}`];
+    await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level(31) where user_id = $1 and slot = $2', [uid, b]);
+    const bb = await build(db, uid, b);
+    const owed = Object.keys(VOW).filter((k) => k !== 'vow.hold_fast' && !Object.prototype.hasOwnProperty.call(ownB, k)).length;
+    const row = await q(db, "select n, meta from public.hero_talent_log where user_id = $1 and slot = $2 and verb = 'suggested' and meta->>'standing' = 'true' and (meta->>'from_level')::int = 5", [uid, b]);
+    if (bb.nodes['vow.hold_fast'] || bb.spent !== await points(db, 31) || !VOW_ROAD.every((k) => Object.prototype.hasOwnProperty.call(bb.nodes, k))
+        || !row.some((x) => x.meta.plan_hunt === SEWER && Number(x.meta.plan_n) === owed)) {
+      bad.push(`${T} the standing rule at Level 31 left ${JSON.stringify({ vow: bb.nodes['vow.hold_fast'] || null, spent: bb.spent, row })} (the plan's ${owed} stones, never its vow)`);
+    }
+    return bad;
+  });
+}
+const VOW_ROAD = Object.keys(VOW).filter((k) => k !== 'vow.hold_fast');
+
+const ARMS = { hunt: huntArm, spent: spentArm, standing: standingArm, setting: settingArm, plan: planArm, press: pressArm };
 
 /* ── THE MUTANTS: each planted in the booted chain's live body, restored after its arm ─────────────────────── */
 const MUTANTS = [
@@ -278,6 +420,20 @@ const MUTANTS = [
     fn: 'public.hr_talent_auto_set(integer,text,uuid)', find: '  update public.player_state set talent_auto = p_plan where', replace: '  update public.player_state set talent_auto = talent_auto where' },
   { name: 'the setting answers no envelope', arm: 'setting', want: /^RCO-SETTING (off|on) answered/,
     fn: 'public.hr_talent_auto_set(integer,text,uuid)', find: "  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));", replace: '  return v_r;' },
+  /* 1073-talents-plan-server.sql */
+  { name: 'the standing rule skips the saved plan (the road only)', arm: 'plan', want: /^RCO-PLAN the (browser closed|hunt viewed): the Level \d+ settle left/,
+    fn: 'public.hr_talent_standing()', find: '    select p.n_spent, p.hunt into v_pn, v_ph from public.hr_talent_plan_walk(new.user_id, new.slot, false) p;', replace: '    v_pn := 0;' },
+  { name: 'the standing rule takes the plan\'s vow', arm: 'press', want: /^RCO-PRESS the standing rule at Level 31/,
+    fn: 'public.hr_talent_standing()', find: 'public.hr_talent_plan_walk(new.user_id, new.slot, false) p;', replace: 'public.hr_talent_plan_walk(new.user_id, new.slot, true) p;' },
+  { name: 'the plan pays a choice with no pick (was the client\'s, roads-window)', arm: 'press', want: /^RCO-PRESS one press answered/,
+    fn: 'public.hr_talent_plan_steps(jsonb,jsonb,integer,boolean)', find: "                   then v_want[v_i] #>> '{}' end;", replace: '                   then null end;' },
+  { name: 'the plan walked out of map order', arm: 'press', want: /^RCO-PRESS one press answered/,
+    fn: 'public.hr_talent_plan_steps(jsonb,jsonb,integer,boolean)', find: 'array_agg(x.id order by x.seq), array_agg(x.kind order by x.seq), array_agg(d.value order by x.seq)',
+    replace: 'array_agg(x.id order by x.id), array_agg(x.kind order by x.id), array_agg(d.value order by x.id)' },
+  { name: 'Spend on plan answers no envelope', arm: 'press', want: /^RCO-PRESS one press answered/,
+    fn: 'public.hr_talent_spend_plan(integer,text,uuid)', find: "  return v_r || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));", replace: '  return v_r;' },
+  { name: 'Spend on plan pays whatever ground it is told', arm: 'press', want: /^RCO-PRESS a press for another ground/,
+    fn: 'public.hr_talent_spend_plan(integer,text,uuid)', find: '  if v_ground is distinct from p_hunt then', replace: '  if false then' },
 ];
 
 async function runArm(db, M, name) {
@@ -316,7 +472,7 @@ async function main() {
   }
   for (const p of bad) console.log('FAIL  ' + p);
   console.log(bad.length ? `recruit-company: ${bad.length} FAILED`
-    : 'recruit-company: green (the bow recruit shoots its first party hunt both ways; recruits arrive spent on their own roads; a Level a hunt lands spends its point both ways; the setting answers its envelope)');
+    : 'recruit-company: green (the bow recruit shoots its first party hunt both ways; recruits arrive spent on their own roads; a Level a hunt lands spends its point both ways; the setting answers its envelope; a saved plan pays first both ways; Spend on plan is one press)');
   process.exit(bad.length ? 1 : 0);
 }
 

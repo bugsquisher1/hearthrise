@@ -571,7 +571,9 @@ async function selftest(workers) {
   /* G1 (re-aimed, C-7): a lone hero out-earns the mixed four's head */
   plant('a lone hero runs away: 1.3x the four\'s head', (c) => firstClean(c, 'G1'), (J, r) => { const [g, style] = r.at.split(' '); J.rows['scale-lone:' + g + ':' + style].levelXpPerH = 1.3 * J.rows['scale-four:' + g].levelXpPerH; });
   plant('one way runs away alone: the bow x2 Level XP', (c) => firstClean(c, 'G2'), (J, r) => { J.rows['way:' + pointOf(r.at) + ':bow'].levelXpPerH *= 2; });
-  plant('a gold-for-power offer far too cheap: a training item at 1 gold', (c) => firstClean(c, 'G12', (r) => /item 12 h/.test(r.at) && Number.isFinite(r.value)), (J) => { J.data.training = { ...J.data.training, gear: { ...J.data.training.gear, gold: { ...J.data.training.gear.gold, 12: 1 } } }; });
+  plant('a gold-for-power offer far too cheap: a training item at 1 gold', (c) => firstClean(c, 'G12', (r) => /item 12 h/.test(r.at) && Number.isFinite(r.value)), (J) => { J.data.training = { ...J.data.training, gear: { ...J.data.training.gear, gold: { ...J.data.training.gear.gold, 12: 1 } } }; },
+    /* one price for every point (TRAINING_GEAR.gold[12]), so the plant reds every point's item row (lane/tp-im-steps re-aimed it off Tempering's per-tier rung) */
+    { also: (c) => c.find((l) => l.id === 'G12').rows.filter((r) => /item 12 h/.test(r.at) && Number.isFinite(r.value) && r.status !== 'RED').map((r) => 'G12 ' + r.at) });
   /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
   plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
   plant('the Own four hunts 14 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 14 } : p)); });

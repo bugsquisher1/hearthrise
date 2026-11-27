@@ -5,9 +5,9 @@
 // sentences (Tyler 2026-11-14): "Ground: Muster Barrows", "Code damaged". The plan lines' values are the return card's own words
 // (src/data/text/away.js line_*), and the stance's the Hunts window's (hunts.stance_*), so one choice reads the same everywhere.
 //
-// THE WHAT'S NEW CARD (src/app/whats-new.js, rows in src/data/whats-new.js) is the one place here written as sentences, in Tyler's
-// plain voice (no semicolons, em dashes or colon-joined clauses; American spelling). PLACEHOLDER COPY: the designer owns the final words
-// (lane PN, docs/design/redesign/20-v030-the-roads.md band 6).
+// THE WHAT'S NEW CARD (src/app/whats-new.js, rows in src/data/whats-new.js): its fresh line and its lead are the one place here written
+// as sentences, in Tyler's plain voice (no semicolons, em dashes or colon-joined clauses; American spelling). Its feature lines are
+// labels: the glossary word the game uses, then what it means to the player (designer, lane/designer-text-1126, 2026-11-26).
 // ════════════════════════════════════════════════════════════════════════
 
 export const SHARE_TEXT = Object.freeze({
@@ -49,11 +49,15 @@ export const SHARE_TEXT = Object.freeze({
   err_unknown_talent: 'Unknown talent',
   err_bad_build: 'Talents not connected',
 
-  /* THE WHAT'S NEW CARD (placeholder copy for the designer, lane PN) */
+  /* THE WHAT'S NEW CARD: the fresh line (a returning account only), the lead, then one label a feature */
   news_head: 'What\'s new in {version}',
   news_got_it: 'Got it',
-  news_030_roads: 'The Roads are here. Every Level gives you a talent point, and every weapon has its own country to walk.',
-  news_030_risk: 'Pick a Risk before you head out. Careful and Steady pull back before anyone dies. Bold pays more and can cost you.',
-  news_030_share: 'Found a plan that works? Share plan in the Menu gives you a code a friend can paste.',
   news_030_fresh: 'Everyone starts fresh in this version. Your old heroes did not carry over, so make a new one and jump back in.',
+  news_030_lead: 'The Roads are open. Every weapon has its own country of talents now, and every hunting ground runs twenty steps deep. Your party climbs as deep as it can hold.',
+  news_030_talents: 'Talents · 1 point every Level from Level 2',
+  news_030_depth: 'Depth · Every ground runs from Depth 1 to 20',
+  news_030_risk: 'Risk · Careful, Steady or Bold · Only Bold can die',
+  news_030_recruits: 'Recruits · 3 more heroes join at Level 5',
+  news_030_day: 'Hunting day · 10 hours, plus blocks from the Shop',
+  news_030_share: 'Share plan · Send your whole plan as a code',
 });

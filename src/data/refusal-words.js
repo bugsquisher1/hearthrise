@@ -202,6 +202,13 @@ export const REFUSAL_WORDS = Object.freeze({
   feature_off: 'Not open yet',
   /* The Talents (1064-roads-sample.sql): the verbs' switch, and hr_talent_spend_problem's codes (src/core/talents.js spendProblem). */
   talents_closed: 'Not open yet',
+  /* The Trait pieces (1072-piece-verbs.sql: hr_piece_wear, hr_piece_sell, hr_apply's piece op). quote_changed is the sale's own line. */
+  pieces_dark: 'Not open yet',
+  piece_worn: 'Worn by a hero, take it off first',
+  piece_escrowed: 'Listed for sale',
+  not_sellable: 'The store does not buy this',
+  sell_day_cap: 'No more sales to the store today',
+  equip_slot_needed: 'Pick a slot',
   owned: 'Already taken',
   not_reachable: 'Requires the node before it',
   no_points: 'No points',
@@ -209,6 +216,10 @@ export const REFUSAL_WORDS = Object.freeze({
   vow_slots: 'No free vow slot',
   needs_crossroads: 'Requires a crossroads in both countries',
   borrow_max: 'Borrowed moves full',
+  /* Spend on plan (1073-talents-plan-server.sql hr_talent_spend_plan) */
+  no_plan: 'No plan for this hunt',
+  plan_changed: 'Plan changed',
+  plan_done: 'Plan done',
   join_locked: 'Requires a Lord Krell kill',
   already_joined: 'Already on a side',
   same_faction: 'Already on that side',

@@ -29,7 +29,7 @@ import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { whole, gold } from '../../../render/format.js';
 import { closeFloatMenu } from '../float-menu.js';
 import { stateOf } from './state.js';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast } from './doll.js';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast, pieceStripHtml, patchPieceStrip } from './doll.js';
 import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js';
 import { advancedHtml, patchAdvanced } from './advanced.js';
 import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js';
@@ -45,6 +45,7 @@ export function renderInventory(ctx) {
     + '<div class="hw-inv-side"><div class="hw-inv-scroll"><div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
     /* under the bag, about the bag: the armor worn, what it is worth, Advanced view */
     + '<div class="hw-inv-under">' + weightsHtml() + '<small class="hw-value"></small><label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label></div>'
+    + pieceStripHtml()
     + '<p class="hw-why hw-over"></p>'
     + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div>'
     /* THE FOOT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines): the bag's spaces, the gold and Dispatch loot on one line
@@ -183,6 +184,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   patchGrid(root, st, ctx);
   patchFoot(root, st);
   patchSlotLine(root, st, ctx);
+  patchPieceStrip(root, st, ctx);
   patchTools(root, st, ctx);
   patchAdvanced(root, st, ctx);
   cls(root, 'is-pending', st.sc.pending);

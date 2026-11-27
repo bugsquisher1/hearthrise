@@ -110,7 +110,7 @@ insert into public.hr_danger_grounds (hunt_id, ref_step, share_pm_max, coin_pm_m
   ('millrace_sewer', 60, 1062, 9439),
   ('mosslight_glade', 60, 1062, 10016),
   ('muster_barrows', 610, 1426, 5256),
-  ('pyre_field', 50, 1062, 4378),
+  ('pyre_field', 50, 1062, 4217),
   ('the_slake', 100, 1062, 5998),
   ('wickstead', 80, 1062, 25631);
 

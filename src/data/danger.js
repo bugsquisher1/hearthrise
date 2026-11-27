@@ -253,8 +253,8 @@ export const DANGER_GROUNDS = Object.freeze({
   coppercap_warrens: ground({ refStep: 80, floorStep: 30, topStep: 125, refHeld: 75, coinPm: 3900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('coppercap_warrens'), entryLevel: 32, refLevel: 41, monsters: 'formula' }),
   /* THE THIRD BATCH (lane/scale-grounds-2): the Slake on mithril (40, beside the Ford), the Pyre Field on rune (60, beside Muster), Krell's
      Hold on ember (80). The same anchor and the same measuring as the second pair */
-  the_slake: ground({ refStep: 100, floorStep: 45, topStep: 135, refKillsHead: 125, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
-  pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 105, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
+  the_slake: ground({ refStep: 100, floorStep: 45, topStep: 130, coinPm: 4900, formulaStep: 70, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('the_slake'), entryLevel: 50, refLevel: 57, monsters: 'formula' }),
+  pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 100, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),
   krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 115, coinPm: 3100, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),
   /* THE MORROW HILLS ON THE SCALE (lane/scale-grounds-sweep step 3; 12-targets 8.3): Carter's Rest on Emberforged (100), the Ox Road on Dawnsteel
      (120, its reference its middle), Wyvern Roost on Cobalt (140, Levels 128-150), each the highest tier at or under its refLevel; the same anchor

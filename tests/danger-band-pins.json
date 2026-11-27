@@ -169,8 +169,7 @@
   "the_slake": {
    "refStep": 100,
    "floorStep": 45,
-   "topStep": 135,
-   "refKillsHead": 125,
+   "topStep": 130,
    "coinPm": 4900,
    "print": "fd5f34ef46e65df6",
    "verdict": "OPEN",
@@ -189,7 +188,7 @@
   "pyre_field": {
    "refStep": 50,
    "floorStep": 0,
-   "topStep": 105,
+   "topStep": 100,
    "refKillsHead": 140,
    "coinPm": 2900,
    "print": "13fb7306dd123d43",

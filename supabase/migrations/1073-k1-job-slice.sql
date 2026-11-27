@@ -68,8 +68,8 @@
 --      bad_slot · bad_idem · intent_mismatch · rate_limited · no_character · no_job · not_due · ok { result, envelope }.
 -- §5 THE SWEEP hr_trade_jobs_sweep(p_limit, p_user) -> { seen, settled, busy, errors }, cron 'hr-trade-jobs' every minute: every open
 --    job whose ends_at has passed is collected exactly as hr_trade_job_end(false) would (hr_trade_job_close at its true end), so a job
---    with the browser closed lands the same goods as one watched to its end. Never waits on a lock (try-lock the hero, its row and the
---    depot; a busy hero is next minute's). p_user (null = every account) keeps the self-check to its own probe. The same cron runs
+--    with the browser closed lands the same goods as one watched to its end. Never waits on a lock (try-lock the hero, its row, the
+--    depot and the purse, which the fee refund credits; a busy hero is next minute's). p_user (null = every account) keeps the self-check to its own probe. The same cron runs
 --    hr_trade_jobs_prune(p_limit): settled rows older than 30 days go (the ledger is the history), never an open one.
 -- §5b THE STANDING WORK RULE BUYS FOR A RUNNING JOB (09 4.11 row 7, lane/one-town-work): hr_time_auto_buy and hr_time_auto_sweep
 --    (1071-work-blocks.sql) RESTATED, pinned to 1071's images: a hero is working for the rule when its pointer is town work OR its open
@@ -536,6 +536,10 @@ begin
       perform 1 from public.player_state where user_id = c.user_id and slot = c.slot for update skip locked;
       if not found then v_busy := v_busy + 1; continue; end if;
       if not pg_try_advisory_xact_lock(hashtextextended('hr:depot:' || c.user_id::text, 0)) then v_busy := v_busy + 1; continue; end if;
+      -- the purse too, never waited on: a job the day's cap ended credits its unattempted sets' fee back (hr_apply), and a party settle
+      -- holding this account's purse would otherwise make the sweep wait on it while it holds the hero (ONE-TOWN-WORK)
+      perform 1 from public.account_wallet w where w.user_id = c.user_id for update skip locked;
+      if not found and exists (select 1 from public.account_wallet w where w.user_id = c.user_id) then v_busy := v_busy + 1; continue; end if;
       v := public.hr_trade_job_close(c.user_id, c.slot, now(), false);
       if coalesce(v->>'ok', '') = 'true' then v_done := v_done + 1; end if;
     exception when others then
@@ -840,7 +844,8 @@ begin
                        unnest(array['public.hr_trade_work_stop(uuid,integer,timestamp with time zone)', 'public.hr_trade_level_of(uuid,text)',
                                     'public.hr_trade_band_open(uuid,integer)', 'public.hr_trade_job_quote(uuid,integer,text,integer)',
                                     'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer,uuid)', 'public.hr_trade_jobs_prune(integer)',
-                                    'public.hr_trade_jobs_view(uuid,integer)']) f(s)
+                                    'public.hr_trade_jobs_view(uuid,integer)', 'public.hr_trade_job_wants_block(uuid,integer)',
+                                    'public.hr_time_auto_buy(uuid,integer,text)', 'public.hr_time_auto_sweep(integer)']) f(s)
               where has_function_privilege(g.r, f.s, 'execute')) then
     raise exception 'VERIFY(a): a client role reaches an internal job function'; end if;
   if has_function_privilege('anon', 'public.hr_trade_job_start(integer,text,integer,bigint,uuid)', 'execute')

@@ -159,9 +159,9 @@ Best for: Tank
 Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster. If Frost Slam is merged into the Challenge (Cold Challenge, `23` section 4), this moves with it. (Cut 2026-11-26, batch 2: 3% each up to 15% read +15.8 on Muster, over the band.)
 
 **3. Grave Guard's Mail** · Body · Drops from: Krell's Hold, Grave Guard
-Shelter: when a hero's shield breaks, Challenge is ready again
+Shelter: when a hero's shield breaks, that hero takes 30% less damage for 8 s
 Best for: Tank
-Note: Works with every Challenge branch. Measure in batch 2 on the line as built.
+Note: Works with every Shelter branch. (Reshaped 2026-11-26, batch 2: a readied Challenge read -1.9, since the reference tank casts its Challenge about 9 times an hour.)
 
 ## Sword
 
@@ -463,12 +463,12 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
 | Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
 | Blunted (a monster's next blow) | #1 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
-| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #17, #46 | Different sources add. The Lab sets one cap for the total. The same party Trait counts once |
+| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |
 | Healing done | Healing Traits, #45, healing branches | Add |
 | Mana back | #19, #20, #27, #33, #34, Lasting Ward, Arcane Barrier's refund | Add |
-| Free casts and cooldown resets | #3, #4, #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
+| Free casts and cooldown resets | #4, #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
 
 ## New engine pieces needed
 

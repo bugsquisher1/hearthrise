@@ -55,7 +55,16 @@ const VARIANTS = [
   ['#2 Ossuary Helm, 2% a monster up to 10% (Muster)', 'b2-muster-tank-slam', 'b2v-muster-helm20'],
   ['#23 Ferry Pennies, under 40%: Chill 6 s within 2 tiles (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-chill6'],
   ['#23 Ferry Pennies, under 40%: Blunted on each monster next to you (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-blunt'],
+  ['#23 Ferry Pennies, under 40%: Blunted within 2 tiles (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-blunt2'],
+  ['#23 Ferry Pennies, under 40%: Chill 3 s and Blunted, next to you (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-both'],
+  ['#23 Ferry Pennies, under half: Blunted on each monster next to you (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-blunt50'],
+  ['#23 Ferry Pennies, under 45%: Blunted on each monster next to you (Muster)', 'b2-muster-tank', 'b2v-muster-pennies-blunt45'],
   ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -20% 4 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard'],
+  ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -30% 6 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard30'],
+  ['#3 Grave Guard\'s Mail, a shell it cast breaks: Guarded -30% 8 s on that hero (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-guard30x8'],
+  ['#3 Grave Guard\'s Mail, a shell it cast breaks: Shelter 10 s sooner (Muster)', 'b2-muster-tank-shelter', 'b2v-muster-mail-reset'],
+  ['#4 Charred Sabre, any Flame Strike hit: cast again on the nearest at no cost (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-hit'],
+  ['#4 Charred Sabre, a Flame Strike cast: Blunted on every monster next to you (Pyre)', 'b2-pyre-sword', 'b2v-pyre-sabre-blunt'],
 ];
 /* (the home ground pinned: the tank four at Hask's Ford's top; printed under the table as the reading of why the tank reads elsewhere) */
 const PINNED = [['#1 Bannerman\'s Pavise on Hask\'s Ford, its home', 'b2-ford-tank', 'b2-ford-pavise', 655]];

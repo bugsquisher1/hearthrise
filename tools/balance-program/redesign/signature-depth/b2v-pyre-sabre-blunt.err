@@ -1,0 +1,8 @@
+V1: 12 seed jobs (1 cells x 12 seeds x 8 h) on 1 workers; pyre_field, Levels 80 / 83 / 70
+[1/12] base:steady#0 123 s, 134 s elapsed
+[2/12] base:steady#1 122 s, 256 s elapsed
+[3/12] base:steady#2 114 s, 370 s elapsed
+[4/12] base:steady#3 110 s, 480 s elapsed
+[5/12] base:steady#4 81 s, 561 s elapsed
+[6/12] base:steady#5 74 s, 635 s elapsed
+[7/12] base:steady#6 74 s, 709 s elapsed

@@ -20,7 +20,8 @@
 //                     swing lands half of what the same swing lands without it, and the stack is spent on it
 //   cast-count-shield #2 Ossuary Helm: a Frost Slam that Chills 3 shields the wearer 6% of max health, one that Chills 6 holds at 10%;
 //                     another move's cast nothing
-//   shell-break-ready #3 Grave Guard's Mail: a shell the wearer cast breaking makes Challenge ready; another hero's shell nothing
+//   shell-break-guard #3 Grave Guard's Mail (reshaped): a shell the wearer cast breaking Guards that shell's hero -30% for 8 s (the wearer
+//                     untouched); another hero's shell, or a shell that held, nothing
 //   kill-recast       #4 Charred Sabre: a Flame Strike kill casts Flame Strike again on the nearest monster, no mana and no rune; the
 //                     free cast's own kill casts nothing more
 //   ready-power       #5 Pikeman's Gauntlets: a Flame Strike hit makes Power Strike ready; another move's hit nothing
@@ -307,20 +308,22 @@ const cases = {
     if (!other.cast || other.k.shield) return 'another move\'s cast shielded: ' + other.k.shield;
     return null;
   },
-  'shell-break-ready': (M) => {
+  'shell-break-guard': (M) => {
     const k = H(M, 1, 12, 3, 'tank'), o = H(M, 2, 13, 3, 'mage', { hp: 200, maxHp: 200 }), q = H(M, 3, 14, 4, 'healer'), m = E(M, 10, 0, 13, 4, 2);
     const inst = fight(M, [k, o, q, m]);
     wear(M, k, 'grave_guards_mail');
     const sc = sc2(M, 43, 1000);
-    k.cds = { challenge: 9000 };
     o.shield = 30; o.shieldBy = 3;
     blowAt(M, inst, sc, m, o, 50); M.RX.drainReactions(inst, sc);
-    if (k.cds.challenge !== 9000) return 'another hero\'s shell breaking readied the Challenge';
+    if (stacksOf(o, 'guarded').length) return 'another hero\'s shell breaking Guarded its hero';
     o.shield = 30; o.shieldBy = 1;
     blowAt(M, inst, sc, m, o, 10); M.RX.drainReactions(inst, sc);
-    if (k.cds.challenge !== 9000) return 'a shell that held readied the Challenge';
+    if (stacksOf(o, 'guarded').length) return 'a shell that held Guarded its hero';
     blowAt(M, inst, sc, m, o, 50); M.RX.drainReactions(inst, sc);
-    if (k.cds.challenge !== 1000) return 'the wearer\'s shell breaking left the Challenge at ' + k.cds.challenge + ' (want now, 1000)';
+    const g = stacksOf(o, 'guarded');
+    if (g.length !== 1 || g[0].left !== 8000 || M.SE.effectPm(o, 'takenPm') !== -300 || stacksOf(k, 'guarded').length) {
+      return 'the wearer\'s shell breaking on a hero: ' + JSON.stringify(o.statuses) + ' takenPm ' + M.SE.effectPm(o, 'takenPm') + ' (want that hero Guarded -30% for 8 s, not the wearer)';
+    }
     return null;
   },
   'kill-recast': (M) => {
@@ -631,7 +634,8 @@ const mutants = [
   { name: 'a cast queues no moment', case: 'cast-count-shield', edits: [[AB, "  if (tally) queueOn(inst, u, 'cast', { t: pick.target, ability: row.id, n: tally.n.size, dmg: tally.dmg });\n", '']] },
   { name: 'a shield ignores its cap', case: 'cast-count-shield', edits: [[RX, 'row.capPm ? Math.min(n, Math.floor((int(u.maxHp) * row.capPm) / 1000)) : n', 'n']] },
   { name: 'a cast counts one monster', case: 'cast-count-shield', edits: [[RX, 'const k = ctx.n === undefined ? 1 : int(ctx.n);', 'const k = 1;']] },
-  { name: 'Grave Guard\'s Mail readies its own Shelter', case: 'shell-break-ready', edits: [[SG, "{ on: 'shield_break', do: 'ready', move: 'challenge' }", "{ on: 'shield_break', do: 'ready', move: 'shelter' }"]] },
+  { name: 'Grave Guard\'s Mail guards at its row\'s own strength', case: 'shell-break-guard', edits: [[SG, "status: 'guarded', pw: 3000, ms: 8000 }", "status: 'guarded', ms: 8000 }"]] },
+  { name: 'a broken shell queues nothing', case: 'shell-break-guard', edits: [[DM, "  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });\n", '']] },
   { name: 'a cast again waits on its cooldown', case: 'kill-recast', edits: [[AB, "gate === 'cooldown' ? !!(react && react.again) : false", 'false']] },
   { name: 'a cast again spends its rune', case: 'kill-recast', edits: [[AB, 'lines: react && react.again ? [] : s.lines', 'lines: s.lines']] },
   { name: 'the Gauntlets ready Flame Strike', case: 'ready-power', edits: [[SG, "do: 'ready', move: 'power_strike' }", "do: 'ready', move: 'flame_strike' }"]] },

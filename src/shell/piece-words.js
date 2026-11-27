@@ -17,23 +17,25 @@ import { huntName } from '../session/party-sections.js';
 import { huntOf } from '../session/hunt-sections.js';
 import { piecesOf, foundNowOf } from '../session/piece-sections.js';
 import { whole } from '../render/format.js';
+import { t } from '../render/player-text.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V']);
-const STANDING = Object.freeze({ rare: 'Rare', very_rare: 'Very Rare', signature: 'Signature' });
+/* the rarities a piece stands as, each read as its item.rarity_ row */
+const STANDING = Object.freeze(['rare', 'very_rare', 'signature']);
 /* the section's finds a frame carries (an unviewed hero's) are news while they are this fresh on the server's clock; older ones are the
    return card's line (away.js) */
 export const PIECE_NEWS_MS = 10 * 60 * 1000;
 
 export const pieceName = (p) => (p && p.signature && own(SIGNATURES, p.signature) ? SIGNATURES[p.signature].name : itemName(p ? p.base : ''));
-export const standingWord = (p) => (p && own(STANDING, p.rarity) ? STANDING[p.rarity] : '');
+export const standingWord = (p) => (p && STANDING.includes(p.rarity) ? t('item.rarity_' + p.rarity) : '');
 export function traitWords(p) {
-  return (p && p.traits ? p.traits : []).map((t) => (nameOf(t.id) || t.id) + (ROMAN[t.rank] ? ' ' + ROMAN[t.rank] : '')).join(' · ');
+  return (p && p.traits ? p.traits : []).map((tr) => (nameOf(tr.id) || tr.id) + (ROMAN[tr.rank] ? ' ' + ROMAN[tr.rank] : '')).join(' · ');
 }
 export function foundWords(p) {
   if (!p) return '';
-  const where = p.ground ? huntName(p.ground) + (Number.isInteger(p.depth) ? ', depth ' + whole(p.depth) : '') : '';
-  return [Number.isInteger(p.il) ? 'Item Level ' + whole(p.il) : '', where].filter(Boolean).join(' · ');
+  const where = !p.ground ? '' : Number.isInteger(p.depth) ? t('item.piece_found_depth', { ground: huntName(p.ground), depth: whole(p.depth) }) : huntName(p.ground);
+  return [Number.isInteger(p.il) ? t('item.piece_item_level', { level: whole(p.il) }) : '', where].filter(Boolean).join(' · ');
 }
 
 /** The drop moment's alerts for this hero: [{ id, kind: 'rare', session, item, piece, text, hero, place, at }]. */
@@ -47,6 +49,6 @@ export function pieceNewsOf(cs, told, who, nowMs) {
   const all = new Map([...foundNowOf(cs), ...fresh].map((p) => [p.id, p]));
   return [...all.values()].filter((p) => !told('piece:' + p.id)).map((p) => ({
     id: 'piece:' + p.id, kind: 'rare', session: p.session, item: p.base, piece: p,
-    text: standingWord(p) + ' for ' + who + ': ' + pieceName(p) + (traitWords(p) ? ' · ' + traitWords(p) : ''),
+    text: t('item.piece_found_for', { standing: standingWord(p), hero: who, name: pieceName(p) }) + (traitWords(p) ? ' · ' + traitWords(p) : ''),
     hero: who, place: p.ground ? huntName(p.ground) : '', at: p.atMs }));
 }

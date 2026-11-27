@@ -4,6 +4,18 @@
 //
 //   node tests/boss-call-window.mjs            the rules
 //   node tests/boss-call-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/boss-call-window.mjs --mutate --shard=K/N   every Nth mutant from the Kth (smoke.yml's in-page-51, -52, -53)
+//
+// THREE SHARDS (lane/ci-reds-1127): the 48 mutants each play the whole rule set, 55-68 s a mutant on a runner, so --mutate alone ran
+// 44-55 min of in-page-23's 66 and the Roads window behind it was cancelled (45939361593). A shard is 16 mutants, about 18 min.
+// ci-step: in-page-23 | Call out window (play.html)
+// ci-run: node tests/boss-call-window.mjs
+// ci-step: in-page-51 | Call out window, mutants shard 1 of 3 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=1/3
+// ci-step: in-page-52 | Call out window, mutants shard 2 of 3 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=2/3
+// ci-step: in-page-53 | Call out window, mutants shard 3 of 3 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=3/3
 //
 // mutant-anchors: src/shell/windows/boss-call-pane.js src/session/boss-quote.js src/hunt-view/summary-model.js src/hunt-view/boss-loss.js src/shell/widgets/boss-bar.js src/shell/windows/hunts.js src/data/boss-calls.js
 //
@@ -550,7 +562,13 @@ async function main() {
     let escaped = 0;
     /* --mutant=<part of a name>: those alone (a lane proves its own); the plain --mutate runs every one */
     const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
-    const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    const picked = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    /* --shard=K/N: every Nth mutant from the Kth, as tests/tally-window.mjs does (N shards hold every mutant once). Malformed: exit 2. */
+    const sh = process.argv.find((a) => a.startsWith('--shard'));
+    const sm = sh && /^--shard=(\d+)\/(\d+)$/.exec(sh);
+    if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.error('  HARNESS: bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(2); }
+    const list = sm ? picked.filter((_, i) => i % +sm[2] === +sm[1] - 1) : picked;
+    if (sm) console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + list.length + ' of ' + picked.length + ' mutants');
     for (const m of list) {
       const src = (await readFile(join(ROOT, m.file), 'utf8'));
       if (src.split(m.from).length !== 2) throw new Error('anchor: ' + m.name);

@@ -22,7 +22,7 @@
 //                     another move's cast nothing
 //   shell-break-guard #3 Grave Guard's Mail (reshaped): a shell the wearer cast breaking Guards that shell's hero -30% for 8 s (the wearer
 //                     untouched); another hero's shell, or a shell that held, nothing
-//   cast-blunt-target #4 Charred Sabre (reshaped): a Flame Strike cast Blunts its target (its next blow at half), not the monsters beside it;
+//   cast-blunt-target #4 Charred Saber (reshaped): a Flame Strike cast Blunts its target (its next blow at half), not the monsters beside it;
 //                     another move's cast nothing
 //   ready-power       #5 Pikeman's Gauntlets: a Flame Strike hit makes Power Strike ready; another move's hit nothing
 //   cast-poison       #7 Floodwater Hatchets: a Rend lays Poison ticking 20% of the whole cast's damage over 6 s, a fixed tick
@@ -542,7 +542,7 @@ const cases = {
     const P = await loadPlay(M.root);
     const four = ['tank', 'ranger', 'mage', 'healer'];
     const SIG = ['cairn_belt', 'lurchers_collar', 'the_wood_book', 'brewers_apron'];
-    /* batch 2's on the same four: the Sabre's Blunted on a Flame Strike's target, the Longbow's cuts, the Wand's bursts, the Hat's reflected blows */
+    /* batch 2's on the same four: the Saber's Blunted on a Flame Strike's target, the Longbow's cuts, the Wand's bursts, the Hat's reflected blows */
     const SIG2 = ['charred_sabre', 'provosts_longbow', 'hall_fire_wand', 'drovers_hat'];
     const go = (sig, windowMs) => {
       const seen = { boon: 0, bleed: 0, blunted: 0, reflect: 0, burst: 0 };
@@ -554,7 +554,7 @@ const cases = {
         bar: () => [{ action: { type: 'ability', id: 'circle_of_renewal' }, conditions: [], join: 'and' },
           /* (and wards the hurt: the reference bar casts no Protective Ward, which Drover's Hat reads) */
           { action: { type: 'ability', id: 'protective_ward' }, conditions: [{ op: 'lt', value: 95, metric: 'ally_hp_pct', subject: 'lowest' }], join: 'and' },
-          /* (and the tank strikes with Flame Strike, which the Charred Sabre reads) */
+          /* (and the tank strikes with Flame Strike, which the Charred Saber reads) */
           { action: { type: 'ability', id: 'flame_strike' }, conditions: [], join: 'and' },
           /* (and the mage opens on Fireball, whose kills the Hall Fire Wand reads: on the reference bar a Fireball kill in 15 minutes was
              luck, and the Hat cut to 25% (lane/designer-sig-metric) played a hunt with none) */
@@ -644,7 +644,7 @@ const mutants = [
   { name: 'a cast counts one monster', case: 'cast-count-shield', edits: [[RX, 'const k = ctx.n === undefined ? 1 : int(ctx.n);', 'const k = 1;']] },
   { name: 'Grave Guard\'s Mail guards at its row\'s own strength', case: 'shell-break-guard', edits: [[SG, "status: 'guarded', pw: 3000, ms: 8000 }", "status: 'guarded', ms: 8000 }"]] },
   { name: 'a broken shell queues nothing', case: 'shell-break-guard', edits: [[DM, "  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });\n", '']] },
-  { name: 'the Sabre Blunts every monster beside the wearer', case: 'cast-blunt-target', edits: [[SG, "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted' }", "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted', r: 1 }"]] },
+  { name: 'the Saber Blunts every monster beside the wearer', case: 'cast-blunt-target', edits: [[SG, "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted' }", "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted', r: 1 }"]] },
   { name: 'the Gauntlets ready Flame Strike', case: 'ready-power', edits: [[SG, "do: 'ready', move: 'power_strike' }", "do: 'ready', move: 'flame_strike' }"]] },
   { name: 'a cast tallies no damage', case: 'cast-poison', edits: [[AB, '    if (tally) tally.dmg += r.dmg;\n', '']] },
   { name: 'the Hatchets read each hit, not the cast', case: 'cast-poison', edits: [[SG, "{ on: 'cast', of: 'rend',", "{ on: 'hit', of: 'rend',"]] },

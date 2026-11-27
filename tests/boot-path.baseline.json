@@ -80,6 +80,12 @@
         "gzipBytes": 206701,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207102,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
       }
     ],
     "town": [
@@ -448,6 +454,12 @@
         "gzipBytes": 983681,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 984320,
+        "on": "2026-11-27",
+        "why": "lane/roads-polish: the block offer's width and the coach ring rule (shell.css, launcher-coach.js, hud-room.js), the Signature tip's Effect line (item-lore.js, item-tip.js), the Roads key and plan labels (text/talents.js)"
       }
     ]
   }

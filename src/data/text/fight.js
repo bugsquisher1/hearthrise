@@ -11,4 +11,8 @@ export const FIGHT_TEXT = Object.freeze({
   piece_bodyguard: 'Bodyguard',
   /* src/core/hunt/reactions.js carry: what a killing blow had past the HP it took, landed on the nearest monster */
   piece_carry: 'Overkill',
+  /* src/core/hunt/reactions.js burst: a share of a fallen monster's health on every monster beside it (Hall Fire Wand) */
+  piece_burst: 'Explosion',
+  /* src/core/hunt/reactions.js reflect: a share of what a ward took, back on its attacker (Drover's Hat) */
+  piece_reflect: 'Reflect',
 });

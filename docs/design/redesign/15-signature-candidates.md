@@ -106,6 +106,78 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 - Emboldened is +10% dealt for 4 s, already capped at 20 by its own step. A short timed boon is small next to a Trait that holds all hunt, and its size reads in the held delta like any other.
 - `19-power-ledger.md` row 6 now reads "by measured size (15)" instead of "through the gear slice cap".
 
+## Batch 2, measured (systems, lane/signatures-batch-2, 2026-11-26)
+
+**How it plays:** the batch's Signatures work in the fight engine for a hero that wears one. Players still see none (`SIGNATURE_RULES.live` false). Each is reaction rows on the pieces the sample built, plus these, each general (`src/core/hunt/reactions.js`, `react-queue.js`, `src/data/statuses.js`):
+
+| Piece | What it is | First used by | Later rows that can reuse it |
+|---|---|---|---|
+| A cast's own moment | a hero's cast landed: the HP its hits took and the monsters its status landed on | #2 (a shield for each monster Chilled), #7 (Poison of the whole cast) | any rule read once a cast, not once a hit |
+| A shell's blow | a monster's blow a shell the hero cast took: what it took and from whom | #21 (half back on the attacker) | |
+| A status's reach, a fixed tick | a status on every monster within `r` of the hero, or a tick of `pm` of the moment's damage | #23 (Blunted round the wearer), #7 and #12 (Poison) | #42 (Chill on the pull, with a pull-start moment) |
+| A burst | pm of the fallen's max health on every monster within `r` of it, exact, never chaining | #13 | |
+| A boon's strength | a boon at `pw` permille of its row (Guarded at -15% and -30%, its row -10%) | #3, #17 | #38 |
+| Blunted, Kindled | a monster's next blow cut (spent on it); a hero's next cast of named moves raised (spent on it) | #4 and #23 (Blunted), #16 (Kindled) | |
+
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with a mutant: 25 cases, 47 mutants caught) and on the real settle (both paths: 10-minute and 100-second windows play one hunt). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is COMPUTED only.
+
+MEASURED on `lane/signatures-batch-2` snapshots 319850652 to e72bc4412 (the hunt engine of `set/v0.2.144` be079455d plus this lane's pieces; the set merged since moved no hunt file and engine-parity held across both merges with no re-pin, and the three pieces taken out after, cast again, a status patch and a taunt's list, no row played), `tools/balance-program/redesign/signature-depth/batch2.sh` and `sum.mjs --batch 2`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, held from hour 4), paired against the same four with none on the same seeds. A reshaped row's shapes were played as temporary ids on a scratch copy of the tree and taken out (the reports `b2v-*`). A move the played bars never cast (Frost Slam, Shelter) is on the tank's bar in both arms.
+
+| Signature (seat) | The rule now | Best cell | Plain held | Held delta (se), 12 seeds | Level XP/h | Second ground | Its delta (se) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| #1 Bannerman's Pavise (tank) | **Dropped** | Muster Barrows | 676.2 | -0.2 (2.9) | +0.1% | Hask's Ford, its home (pinned) | +0.5 (0.4) | No moment: the tank taunts about 13 monsters an hour |
+| #2 Ossuary Helm (tank, Frost Slam on the bar) | **Cut:** 2% of max health a monster it Chills, up to 10% | Muster Barrows | 678.7 | +10.8 (1.6) | +3.5% | the tank's others pinned or unsettled | | **In band** (as written +15.8 (2.1)) |
+| #3 Grave Guard's Mail (tank, Shelter on the bar) | **Reshaped:** a shell you cast breaks, that hero takes 30% less for 8 s | Muster Barrows | 682.0 | +9.3 (1.6) | +2.9% | the tank's others pinned or unsettled | | **In band** (Challenge ready -1.9 (2.3)) |
+| #4 Charred Sabre (sword) | **Reshaped:** Flame Strike's target's next blow lands at half | Pyre Field | 73.3 | +7.4 (2.2) | +3.2% | Muster Barrows | +4.0 (3.6) | **In band**, spread within its se (a free recast on a kill +1.5 (2.0)) |
+| #5 Pikeman's Gauntlets (sword) | as built | Pyre Field | 73.3 | +0.2 (1.9) | +0.5% | Muster Barrows | -5.2 (3.6) | Under (damage) |
+| #7 Floodwater Hatchets (axes) | as built | Flooded Wing | 505.9 | +3.1 (3.1) | +0.5% | | | Under (damage; 60% of the cast -0.6 (2.7)) |
+| #9 Lurcher's Collar (bow) | re-written | Muster Barrows | 623.9 | -1.2 (2.3) | +2.5% | | | Under (damage) |
+| #10 Coal Runner's Bow (bow) | reshaped off the Roads | Ox Road | 166.7 | -3.8 (1.9) | -0.6% | | | Under (damage) |
+| #11 Provost's Longbow (bow) | as built | Pyre Field | 77.0 | -0.1 (2.1) | +1.4% | | | Under (damage) |
+| #12 Wyvern Barb Crossbow (crossbow) | reshaped off the Roads | Wyvern Roost | 190.9 | +4.3 (1.8) | +1.0% | Pyre Field | +0.1 (1.4) | Under (damage) |
+| #13 Hall Fire Wand (mage) | as built | Krell's Hold | 67.0 | -0.9 (2.1) | +2.1% | Muster Barrows | -0.1 (2.4) | Under (damage) |
+| #15 Catacomb Shroud (mage) | as built | Bone Wing | 588.2 | +0.5 (1.8) | +0.5% | Krell's Hold | -4.3 (2.7) | Under |
+| #16 Lamplighter's Robe (mage) | as built | Pyre Field (the mage takes 12% of the blows) | 77.0 | -1.7 (2.5) | +0.5% | Muster Barrows (0.1%) | +1.4 (2.7) | Under (damage) |
+| #17 Bargeman's Pole (healer) | **Reshaped and cut:** a Greater Mend on a target under half, -15% taken 4 s | Muster Barrows | 623.9 | +10.5 (2.4) | +2.7% | The Slake (at -20%) | +3.0 (2.3) | **In band**, spread holds |
+| #21 Drover's Hat (healer) | as built | Ox Road | 166.7 | +0.5 (1.9) | +8.8% | Muster Barrows | -5.3 (1.1) | Under (damage) |
+| #23 Ferry Pennies (tank) | **Reshaped:** a Mend under 45%, every monster next to you has its next blow at half | Muster Barrows | 676.2 | +12.3 (2.3) | +3.7% | the tank's others pinned or unsettled | | **In band** (Chill under 20% +0.3 (0.7)) |
+
+Every shape tried on a row that missed (`sum.mjs --batch 2`, the shapes table):
+
+| Shape tried | Held delta (se), 12 seeds | Level XP/h |
+|---|---|---|
+| #2 Ossuary Helm as written, 3% a monster up to 15% (Muster) | +15.8 (2.1) | +4.5% |
+| #2 Ossuary Helm as written (Krell's Hold, where the tank four never falls back) | -6.3 (7.5) | -18.0% |
+| #2 Ossuary Helm, 2% a monster up to 10% (Muster) | +10.8 (1.6) | +3.5% |
+| #3 Grave Guard's Mail as written, Challenge ready (Muster) | -1.9 (2.3) | -0.8% |
+| #3 a shell it cast breaks: that hero Guarded -20% 4 s / -30% 6 s / -30% 8 s (Muster) | +4.3 (1.5) / +7.0 (1.5) / +9.3 (1.6) | +1.2% / +2.3% / +2.9% |
+| #3 a shell it cast breaks: Shelter 10 s sooner (Muster) | -1.3 (1.8) | -0.2% |
+| #4 Charred Sabre as written, a Flame Strike kill: cast again at no cost (Pyre) | +1.5 (2.0) | -0.1% |
+| #4 any Flame Strike hit: cast again at no cost (Pyre) | +2.6 (1.7) | +4.1% |
+| #4 a Flame Strike cast: Blunted on every monster next to you / on a kill / on its target (Pyre) | +24.3 (2.2) / +0.5 (2.2) / +7.4 (2.2) | +10.1% / +0.5% / +3.2% |
+| #7 Floodwater Hatchets, Poison 60% of the cast (Flooded Wing) | -0.6 (2.7) | -0.1% |
+| #17 Bargeman's Pole, under half, -20% 4 s (Muster / the Slake) | +14.6 (2.7) / +3.0 (2.3) | +3.9% / +0.7% |
+| #17 under half, -15% 4 s / under 40%, -20% 4 s (Muster) | +10.5 (2.4) / +7.3 (2.5) | +2.7% / +2.0% |
+| #23 Ferry Pennies as written, under 20%: Chill 3 s / under 40%: Chill 3 s / Chill 6 s within 2 tiles (Muster) | +0.3 (0.7) / +2.0 (2.0) / +5.3 (2.1) | 0.0% / +0.5% / +1.4% |
+| #23 under 40%: Blunted next to you / within 2 tiles / Chill and Blunted (Muster) | +6.6 (1.8) / +5.8 (2.6) / +5.5 (1.6) | +1.8% / +1.7% / +1.6% |
+| #23 Blunted next to you, under half / under 45% (Muster) | +16.3 (1.4) / +12.3 (2.3) | +5.8% / +3.7% |
+
+**Where a Signature can show at all (read before the 12 seeds, 2 seeds a cell).**
+
+- The tank four sits at the top of Hask's Ford (654.5 of 655 at Level 52, 643.5 at 45), Pyre Field (116.8 of 120) and the Bone Wing (602.9 of 605), and on Krell's Hold it never falls back (it takes 99.7% of the blows, 0 falls an hour, so its held step is a climb still running: the Helm's 12 seeds read -54 to +38). Muster Barrows is the tank's one ground with room over the plain four. A tank Signature buys no held step on the others, so its spread bar holds by construction (COMPUTED from the pin read, not played per row).
+- Steady falls back at 25% health. A rule that waits for a hero under 30% or 20% seldom meets one (Ferry Pennies under 20% met its Mend about once an hour: +0.3). On Bold the Slake's four sits at its top (140 of 140), so Bold is no cell either. The low-health lines were raised to where Steady meets them.
+- The reference tank holds its pulls without the Challenge: about 9 casts and 13 monsters taunted an hour on Muster. A rule on the taunt has no moment, and one that readies the Challenge gives back a move nobody needed.
+- The mage takes 0.1% of the blows on Muster and 12% on Pyre Field, so a rule on its barrier breaking reads only where it is hit.
+
+**What the readings say.**
+
+- **A rule that keeps a hero alive reads; a rule that adds damage does not.** Every shield, Guarded or Blunted read in band or over. Every rule that only adds damage read near 0 or below with Level XP up 1 to 9% (the Hat's reflected blows +0.5 held, XP +8.8%). The held step is the front's health over a pull, and a faster kill of a pull already held buys little of it (the sample's Blade read the same). Held to 10 +- 3, the pool would turn defensive. The damage rows are kept dark as built, their readings here, and the metric is the designer's call (CONFLICTS 2026-11-26, options there). A row was reshaped only where its own move has a defensive form that reads (the Sabre's Flame Strike).
+- **Mana does not bind on the held step.** The healer on the Slake given 30% of its max mana on every heal it lands (a probe row, 6 seeds, paired against the plain four's first 6 seeds) read -0.7 (se 2.2) held while its four's drink bill fell from 2,587 to 679 coin a hero-hour (`b2p-slake-mana`). Batch 2 writes no mana Signature: #19 Passing Bell and #20 Greened Bracers wait for a cell where mana binds, or for a size bar that reads coin.
+- **Two cells sit over the se bar** (the Hatchets' Flooded Wing at 3.1, the Gauntlets' Muster at 3.6): both rows read under on every cell they were played on, so more seeds would not change a verdict. The in-band rows all read at se 2.4 or under. The adopted shapes replay from the tree by their real ids (`batch2.sh`, the `b2v-*` steps).
+- **Repetition, audited.** Blunted carries two rows (#4 on a Flame Strike's target, #23 round a Mend under 45%), Guarded two (#3 on a broken shell's hero, #17 on a Greater Mend's low target), Poison two (#7 on Rend, #12 on Raking Shot). Different seats, moves and moments, one status each. The designer judges whether the pool reads as variety.
+- **The luck ceiling (V10).** The kit sampler is still owed (04 section 10). COMPUTED bound only: Traits picked for the ground added 12 to 14 own steps (12-targets 8.2, the Muster reading pinned at its top), a Signature at most 13 here, together at most 27 own steps against the gear slice's 20 power steps at about 1.42 own steps a power step (about 28). Inside, but the Trait reading and the Signature readings are on different fours. No row turns on before the sampler reads them together.
+- **Rows that changed here** (the designer keeps, re-words or re-shapes each): #2 Ossuary Helm cut to 2% a monster up to 10%; #3 Grave Guard's Mail, #4 Charred Sabre, #17 Bargeman's Pole and #23 Ferry Pennies reshaped; #9 Lurcher's Collar re-written; #10 Coal Runner's Bow and #12 Wyvern Barb Crossbow reshaped off the Roads' options before any reading; #1 Bannerman's Pavise dropped.
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
@@ -133,24 +205,24 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
 Challenge: the first blow from each monster you taunt lands at half damage
 Best for: Tank
-Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. Measure in batch 2 on the line as built.
+Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. (Dropped 2026-11-26, batch 2: the reference tank holds its pulls without a Challenge, about 9 casts and 13 monsters taunted an hour on Muster, so the rule had no moment to pay on: -0.2 (2.9) on Muster, +0.5 on its home, where the tank four sits at the top. A Challenge Signature needs a moment the tank meets. Its piece, Blunted, went to #4 and #23.)
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
-Frost Slam: you gain a shield of 3% of your max health for each monster it Chills (up to 15%)
+Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
 Best for: Tank
-Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster. If Frost Slam is merged into the Challenge (Cold Challenge, `23` section 4), this moves with it.
+Note: Party only, like Frost Slam. Weaker with Pinning Frost, which hits one monster. If Frost Slam is merged into the Challenge (Cold Challenge, `23` section 4), this moves with it. (Cut 2026-11-26, batch 2: 3% each up to 15% read +15.8 on Muster, over the band.)
 
 **3. Grave Guard's Mail** · Body · Drops from: Krell's Hold, Grave Guard
-Shelter: when a hero's shield breaks, Challenge is ready again
+Shelter: when a hero's shield breaks, that hero takes 30% less damage for 8 s
 Best for: Tank
-Note: Works with every Challenge branch. Measure in batch 2 on the line as built.
+Note: Works with every Shelter branch. (Reshaped 2026-11-26, batch 2: a readied Challenge read -1.9, since the reference tank casts its Challenge about 9 times an hour.)
 
 ## Sword
 
 **4. Charred Sabre** · Weapon (sword) · Drops from: Pyre Field, Charred Pikeman
-Flame Strike on a kill: casts again on the nearest monster at no cost
+Flame Strike: its target's next blow lands at half damage
 Best for: Melee, sword. Also Tank.
-Note: Strong on packs of weak monsters. The free cast can't trigger another one.
+Note: The burned monster flinches. (Reshaped 2026-11-26, batch 2: a free Flame Strike on a kill read +1.5 and on every hit +2.6 on Pyre Field. A sword's damage buys no held depth.)
 
 **5. Pikeman's Gauntlets** · Gloves · Drops from: Muster Barrows, Barrow Pikeman
 Flame Strike: Power Strike is ready again
@@ -179,14 +251,14 @@ Note: Earth rune shield, so #26 works with it. Stagger replaces Quarry Blow in w
 ## Ranged
 
 **9. Lurcher's Collar** · Necklace · Drops from: Pyre Field, Lurcher
-Hunter's Mark: when the target dies, the mark moves to the nearest monster with its time left
+Hunter's Mark: your hits on the marked target add a Bleed stack (once every 4 s)
 Best for: Ranger
-Note: Never wastes a mark on a kill. The Mark now goes on the bow's own target, so this keeps it on what the bow shoots next.
+Note: Built for a long fight. The stacks build while the Mark's target lives, so a boss or a brute bleeds and a fast pack barely does. Shares the 5-stack Bleed cap with an axe user. (Re-written 2026-11-26, batch 2: the moved Mark read 0 on five shapes.)
 
 **10. Coal Runner's Bow** · Weapon (bow) · Drops from: Ox Road, Coal Runner
-Flame Volley: leaves the ground burning for 4s (10% of its damage a second)
+Flame Volley kills: Flame Volley is ready again (10 s cooldown)
 Best for: Ranger
-Note: Best when the tank holds the pack in one place. Needs a burning ground effect (new).
+Note: Best on big pulls of weak monsters. (Reshaped 2026-11-26, batch 2: the burning ground is now the Roads' Burning Volley option, so the Signature repeated a branch.)
 
 **11. Provost's Longbow** · Weapon (bow) · Drops from: Pyre Field, Provost
 Precision Shot: takes 1s off Flame Volley's and Raking Shot's cooldowns
@@ -194,9 +266,9 @@ Best for: Ranger
 Note: More area shots in a long pull.
 
 **12. Wyvern Barb Crossbow** · Weapon (crossbow) · Drops from: Wyvern Roost, Crag Wyvern
-Raking Shot: applies 1 Bleed stack to every monster hit
+Raking Shot: also Poisons every monster hit (20% of its damage over 6 s)
 Best for: Ranger
-Note: A bleed build for the bow. Shares the 5-stack Bleed cap with an axe user.
+Note: A poison build for the crossbow. (Reshaped 2026-11-26, batch 2: a Bleed stack on every monster hit is now the Roads' Bleeding Rake option.)
 
 ## Destruction
 
@@ -223,9 +295,9 @@ Note: The opposite of Charged Barrier, which wants the shield to hold.
 ## Restoration
 
 **17. Bargeman's Pole** · Weapon (staff) · Drops from: The Slake, Bargeman
-Greater Mend on a target below 30% health: also gives 20% damage reduction for 4s
+Greater Mend on a target below half health: also gives 15% damage reduction for 4s
 Best for: Healer
-Note: For saves, not top-ups. Best on Bold. Best with Deep Mending, still useful with the others. Re-measure after Greater Mend's re-size (20% less healing).
+Note: For saves, not top-ups. Best with Deep Mending, still useful with the others. (Reshaped 2026-11-26, batch 2: Steady falls back at 25%, so a target under 30% seldom met the heal, and on Bold the Slake's four sits at its top. Under half at -20% read +14.6 on Muster, cut to -15%.)
 
 **18. Brewer's Apron** · Body · Drops from: Carter's Rest, Troll Brewer
 Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cast)
@@ -252,9 +324,9 @@ Note: Puts the ward on the tank and it hits back.
 ## Every weapon
 
 **23. Ferry Pennies** · Earrings · Drops from: Hask's Ford, Fordsunk
-Mend below 20% health: also Chills every monster next to you for 3s
+Mend below 45% health: the next blow of every monster next to you lands at half
 Best for: Any
-Note: A last-second escape for any hero. Best with Second Wind.
+Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, batch 2: Chill under 20% read +0.3 (0.7), its Mend under the line about once an hour since Steady falls back at 25%, and Chill under 40% +2.0.)
 
 ## Runes
 
@@ -439,17 +511,18 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Monster takes more damage | Sickness (Green Sickness, Single Dose) | One Sickness on a monster. The stronger one replaces the weaker |
 | Hunter's Mark | All Hunter's Mark branches | Its own key. Adds to Sickness, as today. One Mark per monster |
 | Fire damage taken | Burning Volley | Its own key. Fire damage only |
-| Chill | Frost Slam, Hoarfrost, Chilling Lance, the support's Cold Palm, #23, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
+| Chill | Frost Slam, Hoarfrost, Chilling Lance, the support's Cold Palm, #42 | One Chill on a monster. A new one restarts the time and keeps the stronger slow |
 | Silenced (can't start a spell) | #15, the support's Cold Palm | One at a time. Restarts the time |
 | Ends a wind-up | Stagger (wave 3) | Its own key. A wind-up ends once |
-| Bleed | Rend, Gash (wave 3), #12 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
-| Poisoned | Poison (#7) and Sickness | What Traits #30 and #40 read |
-| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #1, #17, #46 | Different sources add. The Lab sets one cap for the total. The same party Trait counts once |
+| Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
+| Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
+| Blunted (a monster's next blow) | #4, #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |
 | Healing done | Healing Traits, #45, healing branches | Add |
 | Mana back | #19, #20, #27, #33, #34, Lasting Ward, Arcane Barrier's refund | Add |
-| Free casts and cooldown resets | #3, #4, #5, #6, #11, #14, #32 | A free cast or reset can't set off another one |
+| Free casts and cooldown resets | #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
 
 ## New engine pieces needed
 

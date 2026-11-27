@@ -98,6 +98,12 @@
         "gzipBytes": 207097,
         "on": "2026-11-27",
         "why": "lane/piece-gear-fixes: Wear upgrades weighs a piece's Traits (upgrade-pick.js pieceStepsPm) and other open heroes read pieces from the account copy (piece-sections, item-sections)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 207102,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
       }
     ],
     "town": [
@@ -484,6 +490,12 @@
         "gzipBytes": 989560,
         "on": "2026-11-27",
         "why": "lane/piece-gear-fixes: Wear upgrades weighs a piece's Traits (upgrade-pick.js pieceStepsPm) and other open heroes read pieces from the account copy (piece-sections, item-sections)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 991880,
+        "on": "2026-11-27",
+        "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
       }
     ]
   }

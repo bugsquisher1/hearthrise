@@ -1,0 +1,28 @@
+
+V1 on the_slake (6 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       112.5 +- 4        2.6  87.3  99.2      8    0.4     0.8     61.7      0     0  0 (0/0/0)                       4  {"hold":2452,"climb":486,"fall":17}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.95x  sd 0.01  n 6  window 4 h  seeds 0.94 0.94 0.96 0.95 0.94 0.97
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L57  coin 15556 +- 223  income 16482 +- 261  store 3861  kit share 0.23 (meal 378, drink 679, charge 1138, shot 1665)  loot by band: common 225, uncommon 127, scarce 574, other 0  n 6
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.623  bow 0.223  mage 0.063  healer 0.091
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 17.83 land 63.52% hit 33.55 (5236.83/h) | bow dps 20.79 land 87.02% hit 29.88 (2105.67/h) | mage dps 23.12 land 99.92% hit 68.85 (257.5/h) | healer dps 10.73 land 99.9% hit 99.79 (258.67/h)
+                    greened_pikeman(swarm) 224.1/h 24.1 s 368 | bargeman(brute) 122.5/h 33.6 s 1146 | mudlark(stalker) 111/h 45.6 s 331 | color_sergeant(brute) 30.5/h 43.7 s 739
+                    broke off by: fall:bargeman@0 5, fall:bargeman@1 5, fall:mudlark@1 3, fall:greened_pikeman@0 3, fall:color_sergeant@0 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 43.6 (depth 10)  free 122  spell 834  food 44  taken 25.8 pm/s
+
+wall 343 s

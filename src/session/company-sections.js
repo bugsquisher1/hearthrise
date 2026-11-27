@@ -5,8 +5,12 @@
 //                       this hero's plan ground (planHunt, when set after its last hunt), the own hero it joins once both are free (joins),
 //                       whether its party's leader is pinned (leadPinned), and how many heroes the company holds; null when the server sent none
 //
+//   planGroundOf(cs)    the ground this hero's plan is for: the plan's ground, else the one its next Start repeats (the hunt it hunted
+//                       last); null for none. The ground a saved Roads build is kept for (share codes, the Roads map's Plan route)
+//
 // A read of the envelope only: nothing here is a gate the server trusts, and a missing section reads as unknown (null), never a default.
 // ════════════════════════════════════════════════════════════════════════
+import { huntOf } from './hunt-sections.js';
 
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -32,4 +36,12 @@ export function companyPlanOf(cs) {
     leadPinned: c.lead_pinned === true,
     heroes: Number.isSafeInteger(c.heroes) && c.heroes >= 0 ? c.heroes : 0,
   };
+}
+
+/** The ground this hero's plan is for (`co`: the companyPlanOf reading, read here when not given): the plan's ground, else the one its
+    next Start repeats (the hunt it hunted last); null for none. */
+export function planGroundOf(cs, co = companyPlanOf(cs)) {
+  if (co && co.planHunt) return co.planHunt;
+  const h = huntOf(cs);
+  return h && h.huntId && ITEM.test(h.huntId) ? h.huntId : null;
 }

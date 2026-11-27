@@ -187,6 +187,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_talent_spend: 'one Talent point on one Roads node, a node id and an option id or none; the server checks path, pick, points and slots against its catalogue (talent-intents.js spendTalent)',
   hr_talent_spend_suggested: 'every Talent point left on the server\'s suggested road for the worn weapon, a plan word; never a vow (talent-intents.js spendSuggested)',
   hr_talent_build_save: 'a saved build (a plan, past the Level allowed) for one ground: a ground id and node ids with their picks, checked whole against the server catalogue; spends nothing. A pasted share code lands here (talent-intents.js saveBuild, plan-share.js)',
+  /* 1069-talent-standing-rule.sql: the standing rule, a setting */
+  hr_talent_auto_set: 'the hero\'s "Spend as suggested" setting, a plan word or null (off); on spends every point left along the server\'s suggested road, never a vow (talent-intents.js setTalentAuto)',
   hr_farm_tend: 'harvest every ready plot, plant it again and water the field in one press at the farm_tend bill’s gold; the server plans, compares and refuses quote_changed (farm-tend.js tendField)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */

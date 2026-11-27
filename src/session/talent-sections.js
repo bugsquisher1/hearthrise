@@ -30,6 +30,7 @@ export function talentsSectionOf(sec) {
   if (!isObj(sec) || sec.live !== true) return null;
   const nodes = normalize(sec.nodes);
   const level = Number.isInteger(sec.level) ? sec.level : 1;
+  /** @type {Record<string, object>} */
   const builds = {};
   if (isObj(sec.builds)) for (const [h, b] of Object.entries(sec.builds)) if (HUNT.test(h) && isObj(b)) builds[h] = normalize(b);
   return {

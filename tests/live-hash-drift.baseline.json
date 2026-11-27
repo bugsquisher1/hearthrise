@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3710,
+  "replay_ms": 3260,
   "counts": {
-    "tracked_names": 1180,
-    "entries": 991
+    "tracked_names": 1186,
+    "entries": 997
   },
   "functions": [
     {
@@ -6362,6 +6362,24 @@
       "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
+      "sig": "hr_flame_fuel_cap(p_hunt text, p_item text, p_kills bigint)",
+      "name": "hr_flame_fuel_cap",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-inner-flame-luck.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "cc368cf3d3c4f8ca14a937aaefd7d8f6",
+        "norm_len": 467,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+    },
+    {
       "sig": "hr_flame_level_of(p_points bigint)",
       "name": "hr_flame_level_of",
       "tracked_by": [
@@ -6401,6 +6419,24 @@
       "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
     },
     {
+      "sig": "hr_flame_net(p_m jsonb)",
+      "name": "hr_flame_net",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-inner-flame-luck.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "f450d247f4dce1a2ed31e6f3c6e00bc1",
+        "norm_len": 1238,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+    },
+    {
       "sig": "hr_flame_room_mpts(p_fl integer)",
       "name": "hr_flame_room_mpts",
       "tracked_by": [
@@ -6418,6 +6454,42 @@
       },
       "agree": false,
       "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+    },
+    {
+      "sig": "hr_flame_session_freeze()",
+      "name": "hr_flame_session_freeze",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-inner-flame-luck.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d0015b31a76b516d4482d9a755035bbc",
+        "norm_len": 807,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+    },
+    {
+      "sig": "hr_flame_settle(p_instance uuid, p_hunt text, p_members jsonb)",
+      "name": "hr_flame_settle",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-inner-flame-luck.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c9a6378b730fc0738367ca74a9aa257d",
+        "norm_len": 7146,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
     },
     {
       "sig": "hr_flame_stoke_clamp(p_rule jsonb)",
@@ -6460,19 +6532,39 @@
       "sig": "hr_flame_temper_settle()",
       "name": "hr_flame_temper_settle",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper.sql"
+        "1063-flame-temper.sql",
+        "1074-inner-flame-luck.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "af88172007d37ed8f3f73b5c0b0b633e",
-        "norm_len": 1419,
+        "md5": "40cf4eae24bc4914586505bb98641a96",
+        "norm_len": 1013,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+    },
+    {
+      "sig": "hr_flame_top_of(p_user uuid)",
+      "name": "hr_flame_top_of",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1074-inner-flame-luck.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "4c7b53eb62bb05e5120df5a7de39a509",
+        "norm_len": 457,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
     },
     {
       "sig": "hr_flame_top_rank_pm(p_luck integer)",
@@ -6500,16 +6592,35 @@
         "restate"
       ],
       "touched_by": [
-        "1063-flame-temper.sql"
+        "1063-flame-temper.sql",
+        "1074-inner-flame-luck.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "42f43f6be9352bd9772e694924bab1fe",
-        "norm_len": 977,
+        "md5": "0ef0e1b47ec280b796d90eb472de890e",
+        "norm_len": 1543,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+    },
+    {
+      "sig": "hr_flame_walk(p_height bigint, p_points bigint, p_carry bigint, p_spans jsonb, p_drops jsonb, p_keep_pm integer, p_tops jsonb)",
+      "name": "hr_flame_walk",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1069-gear-phase-b-flame-temper-catalogue.generated.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "c171d3c28da1468a6ad2476f39fff49a",
+        "norm_len": 3835,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1069-gear-phase-b-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-gear-phase-b-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_flame_worth_mpts(p_count bigint, p_band integer, p_top integer)",
@@ -8631,6 +8742,7 @@
       "touched_by": [
         "1056-danger-scale.sql",
         "1071-trait-pieces.sql",
+        "1074-inner-flame-luck.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-16-hunt-density-bounds.sql",
         "2026-12-11-hunt-deploy-no-forfeit.sql",
@@ -8649,12 +8761,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "5dd68890caa1dd3b67adde1797319e89",
-        "norm_len": 20947,
+        "md5": "e8dbd4d51b25092d1218708399c778ec",
+        "norm_len": 21470,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql, 1071-trait-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1071-trait-pieces.sql."
+      "why": "STAGED for the v0.2.144 release by 1056-danger-scale.sql, 1071-trait-pieces.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-inner-flame-luck.sql."
     },
     {
       "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
@@ -9354,6 +9466,7 @@
         "1053-lever-gates.sql",
         "1056-danger-scale.sql",
         "1071-trait-pieces.sql",
+        "1074-inner-flame-luck.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-01-party-leader-density.sql",
         "2026-11-16-hunt-density-bounds.sql",
@@ -9376,12 +9489,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "2a278f9c142130809241edea19196358",
-        "norm_len": 8130,
+        "md5": "05592f262c64353ec26fc689fef54706",
+        "norm_len": 8536,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql, 1056-danger-scale.sql, 1071-trait-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1071-trait-pieces.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql, 1056-danger-scale.sql, 1071-trait-pieces.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-inner-flame-luck.sql."
     },
     {
       "sig": "hr_hunt_instance_solo()",
@@ -12196,12 +12309,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "fd143d205bc29db30409f6535142b8db",
-        "norm_len": 1946,
+        "md5": "8268fca6a114f04ec13f93d513cdc757",
+        "norm_len": 2109,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1047-hourly-journal.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body (absent on production), replay is the staged body from 1047-hourly-journal.sql."
+      "why": "STAGED for the v0.2.144 release by 1047-hourly-journal.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1047-hourly-journal.sql."
     },
     {
       "sig": "hr_ledger_hours_fold(p_limit integer, p_only uuid, p_from timestamp with time zone, p_now timestamp with time zone)",
@@ -21782,16 +21895,17 @@
         "restate"
       ],
       "touched_by": [
-        "1071-trait-pieces.sql"
+        "1071-trait-pieces.sql",
+        "1074-inner-flame-luck.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "64f0a23f0c69723503879d6eac082d26",
-        "norm_len": 1098,
+        "md5": "26a19904d71f5b4199bdd6f203a24520",
+        "norm_len": 1391,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-trait-pieces.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-trait-pieces.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-trait-pieces.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
     },
     {
       "sig": "hr_trait_pieces_land(p_hunt text, p_user uuid, p_slot integer, p_session uuid, p_instance uuid, p_traits jsonb, p_meta jsonb, p_from timestamp with time zone, p_to timestamp with time zone)",

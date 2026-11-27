@@ -36,6 +36,8 @@
 //         b  Level 200 is a big deal: 120 to 240 days (1,200 to 2,400 hunted hours)
 //         c  it levels off: no Level takes LEVEL_HOURS.ceiling or more, and Level 2,000 takes under 1.25x Level 400's hours
 //         d  no wall: from Level 2 on, no Level takes more than twice the one before, and none takes less
+//   C9  THE PACE'S CAREERS PLAY (lane/refhero-recut, 2026-11-27): a one-hero career (tools/balance-sim/career.mjs, the one sim.mjs --plan pace
+//       runs) records a chunk, so C1's re-measure can run (retire-tier-chain left its trace reading a retired `tier`: every career threw)
 // A red C1 is not a curve bug: the content moved. Re-measure (2-3 h on 4 workers:
 // eight careers of ~170 h) and re-pin (C6 reads the reference rate it measured):
 //   node tools/balance-sim/sim.mjs --plan pace --out tools/balance-sim/out/pace
@@ -151,6 +153,8 @@ function judge(w) {
     if (!(H(2000) < 1.25 * H(400))) out.push('C8c: Level 2,000 takes ' + H(2000).toFixed(2) + ' h, 1.25x or more Level 400\'s ' + H(400).toFixed(2) + ': it does not level off');
     for (let L = 2; L < 3000; L++) { const k = H(L + 1) / H(L); if (!(k >= 1 && k <= 2)) { out.push('C8d: Level ' + (L + 1) + ' takes ' + k.toFixed(2) + 'x Level ' + L + '\'s hours'); break; } }
   }
+  /* C9: the careers C1's re-measure plays can play (a one-hero career records its chunk) */
+  if (!w.career || !w.career.ok) out.push('C9: the pace plan\'s career cannot play, so C1 cannot be re-measured (tools/balance-sim/career.mjs: ' + ((w.career && w.career.why) || 'no probe') + ')');
   return { out, R };
 }
 
@@ -174,9 +178,24 @@ async function measureHeld({ start } = {}) {
   return held;
 }
 
+/* C9's probe: a one-hero career from Level 1 to 2 in one short chunk, on the career the pace plan plays (tools/balance-sim/career.mjs, the
+   game's own hunt advice). { ok, why } */
+async function careerProbe() {
+  try {
+    const { loadCellRunner } = await import('../tools/balance-sim/cell.mjs');
+    const { runCareer } = await import('../tools/balance-sim/career.mjs');
+    const { recommendedHunt } = await import('../src/shell/hunt-list.js');
+    const R = await loadCellRunner(ROOT);
+    const out = runCareer(R, { id: 'C9', party: ['hammer'], startLevel: 1, targetLevel: 2, maxHours: 0.05, chunkH: 0.05, seed: 0, root: ROOT,
+      recommend: (levels, n) => recommendedHunt(levels, n).hunt });
+    const ok = !!out && Array.isArray(out.trace) && out.trace.length >= 1 && out.hours > 0;
+    return { ok, why: ok ? '' : 'it recorded no chunk' };
+  } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+}
+
 async function world() {
   const D = await loadPaceData(ROOT);
-  return { xpFor: XP.charXpForLevel, rows: XP.levelCurveRows(), curve: JSON.parse(JSON.stringify(LEVEL_CURVE)), snap: SNAP,
+  return { xpFor: XP.charXpForLevel, rows: XP.levelCurveRows(), curve: JSON.parse(JSON.stringify(LEVEL_CURVE)), snap: SNAP, career: await careerProbe(),
     fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D, scaleGrounds: Object.keys(DANGER_GROUNDS), held: await measureHeld(),
     hours: (await import('../src/core/hunt/danger.js')).hoursForLevel, levelHours: LEVEL_HOURS };
 }
@@ -218,6 +237,8 @@ const MUTANTS = [
   ['C8', 'the ceiling doubled (Level 200 in about 330 days)', { hours: () => (L) => levelHoursOf(L, { ...LEVEL_HOURS, ceiling: 2 * LEVEL_HOURS.ceiling }) }],
   ['C8', 'the retired hand table back (40 h a Level at 1,000, still rising)', { hours: () => (L) => Math.min(40.32, 0.6 + L * 0.0397) }],
   ['C8', 'a half point of 1 (full ceiling by Level 2: a wall in the first hour)', { hours: () => (L) => levelHoursOf(L, { ...LEVEL_HOURS, half: 1 }) }],
+  /* C9 planted on the probe's answer (the defect it was written for: retire-tier-chain left the trace reading a retired `tier`, and every career threw) */
+  ['C9', 'a career that throws (a field the tier rows took with them)', { career: () => ({ ok: false, why: 'ReferenceError: tier is not defined' }) }],
 ];
 
 async function main() {

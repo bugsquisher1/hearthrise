@@ -561,14 +561,12 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 575, gp: [15, 42]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 645, gp: [12, 39]'],
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 1130, gp: [24, 69]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 1965, gp: [36, 108]'],
       ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 2280, gp: [39, 120]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 1280, gp: [24, 78]']] },
-  /* ON THE SCALE a kill's Level XP is a share of the hours table at the ground's reference kill rate, never its row's xp (danger.js dangerDial
-     xpPm), so a third of the XP is three times the row's refKillsHead and half the coin is half its coin level (lane/refhero-recut: the row
-     edits alone moved only the coin, and the re-cut Glade's 135 kills a head paid its XP over the Sewer's party anyway) */
-  { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
-    edits: [['src/data/danger.js', 'topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800,', 'topStep: 120, refKillsHead: 405, refHeld: 55, coinPm: 3900,'],
-      ['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [2, 7]'],
-      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [5, 12]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [7, 19]'],
-      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [7, 20]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [5, 14]']] },
+  /* (lane/refhero-recut) the Glade's lone tank plays its rows, and the re-cut Sewer's floor party nets 1,407 g an hour, under the Glade's
+     halved coin (1,698): the plant is a third of its coin as well as of its XP, so it pays under the Sewer's party in both again */
+  { name: 'the glade\'s coin and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [2, 5]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [1, 4]'],
+      ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [3, 8]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [4, 12]'],
+      ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [4, 13]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [3, 9]']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 25, atk: 5, aim: 24, evasion: 11, def: 1, xp: 96,', 'hp: 25, atk: 48, aim: 24, evasion: 11, def: 1, xp: 96,'], ['src/data/monsters.js', 'hp: 28, atk: 5, aim: 15, evasion: 16, def: 3, xp: 91,', 'hp: 28, atk: 30, aim: 15, evasion: 16, def: 3, xp: 91,']] },
   { name: 'the Warrens\' coin halved and its XP a fifth (the Glade out-earns the harder ground in both)', case: 'harder-pays-more',

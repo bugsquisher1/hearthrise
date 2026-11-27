@@ -66,8 +66,8 @@ export default definePack({
       name: 'Troll Picker', icon: '🧌', tier: 6, level: 111, cls: 'humanoid', family: 'Troll', speed: 3400,
       role: 'swarm',
       /* the swarm: the young ones, going through the inn's rooms and the last wagon for anything that shines. Humanoid, no override. */
-      drops: [{ id: 'bones', everyHours: 0.0261, ch: 0.617, band: 'common' }, { id: 'troll_hide', everyHours: 0.0435, ch: 0.37, band: 'common' }, { id: 'pewter_spoon', everyHours: 0.1631, ch: 0.0987, band: 'uncommon' },
-        { id: 'ember_boots', everyHours: 1.003, ch: 0.016, band: 'scarce' }, { id: 'dragonhide_boots', everyHours: 1.003, ch: 0.016, band: 'scarce' }, { id: 'archmage_boots', everyHours: 1.003, ch: 0.016, band: 'scarce' }],
+      drops: [{ id: 'bones', everyHours: 0.0322, ch: 0.5, band: 'common' }, { id: 'troll_hide', everyHours: 0.0536, ch: 0.3, band: 'common' }, { id: 'pewter_spoon', everyHours: 0.2011, ch: 0.08, band: 'uncommon' },
+        { id: 'ember_boots', everyHours: 1.24, ch: 0.013, band: 'scarce' }, { id: 'dragonhide_boots', everyHours: 1.24, ch: 0.013, band: 'scarce' }, { id: 'archmage_boots', everyHours: 1.24, ch: 0.013, band: 'scarce' }],
       hp: 160, atk: 107, aim: 108, evasion: 42, def: 4, xp: 1451, gp: [24, 70], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
@@ -82,8 +82,8 @@ export default definePack({
       role: 'brute',
       /* the heavy: the big one that sleeps in the stable and swings the water trough */
       spells: ['trough_swing'],
-      drops: [{ id: 'big_bones', everyHours: 0.06668, ch: 0.543, band: 'common' }, { id: 'troll_hide', everyHours: 0.06669, ch: 0.543, band: 'common' }, { id: 'stable_bit', everyHours: 0.4167, ch: 0.0869, band: 'uncommon' },
-        { id: 'ember_platelegs', everyHours: 1.008, ch: 0.0359, band: 'scarce' }, { id: 'dragonhide_pants', everyHours: 1.008, ch: 0.0359, band: 'scarce' }, { id: 'archmage_pants', everyHours: 1.008, ch: 0.0359, band: 'scarce' }],
+      drops: [{ id: 'big_bones', everyHours: 0.0724, ch: 0.5, band: 'common' }, { id: 'troll_hide', everyHours: 0.0724, ch: 0.5, band: 'common' }, { id: 'stable_bit', everyHours: 0.4526, ch: 0.08, band: 'uncommon' },
+        { id: 'ember_platelegs', everyHours: 1.094, ch: 0.0331, band: 'scarce' }, { id: 'dragonhide_pants', everyHours: 1.094, ch: 0.0331, band: 'scarce' }, { id: 'archmage_pants', everyHours: 1.094, ch: 0.0331, band: 'scarce' }],
       hp: 253, atk: 106, aim: 96, evasion: 65, def: 28, xp: 2578, gp: [37, 112], formula: true },
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,

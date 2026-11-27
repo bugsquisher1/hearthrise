@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "bfef19a6f5d2b4fd",
+ "authored": "7d1153354bd14910",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17534,
+  "typed": 17535,
   "files": 263,
   "lever": 324,
   "notLever": 432,
@@ -983,7 +983,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -1431,12 +1431,15 @@
      }
     ],
     "mentions": [
+     "tests/balance-calibration.mjs",
      "tests/balance-sheet.mjs",
+     "tests/bands.mjs",
      "tests/drop-formula.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/hunt-core/engine-parity.mjs"
+     "tests/hunt-core/engine-parity.mjs",
+     "tests/hunt-core/first-week-bands.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9843,7 +9846,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 92,
+     "distinct": 88,
      "low": 0.06,
      "high": 1
     }
@@ -10086,7 +10089,7 @@
       "trophy"
      ],
      "rows": 308,
-     "distinct": 88,
+     "distinct": 91,
      "low": 0.0005,
      "high": 0.05
     }
@@ -10888,11 +10891,10 @@
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/signature-rules.mjs",
      "tests/hunt-core/talents.mjs",
-     "tests/kit-recipes.mjs",
      "tests/special-attributes.mjs",
      "tests/world-tick-parity.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11060,7 +11062,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11068,7 +11070,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11161,7 +11163,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 447,
       "distinct": 37,
       "low": 1,
@@ -11169,7 +11171,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 229,
       "distinct": 63,
       "low": 1,
@@ -13318,7 +13320,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13326,7 +13328,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 784,
+      "rows": 785,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -14840,19 +14842,19 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 38,
+     "line": 39,
      "text": "lineShare: Object.freeze({ draught: 0.2, imbuement: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 41,
+     "line": 42,
      "text": "stageShare: Object.freeze({ gather: 0.5, refine: 0.2, make: 0.3 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 44,
+     "line": 45,
      "text": "rungs: Object.freeze({ count: 10, span: 10 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -14902,25 +14904,25 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 46,
+     "line": 47,
      "text": "yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 51,
+     "line": 52,
      "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5, live: false }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 53,
+     "line": 54,
      "text": "speedAt99: 1.25,",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 61,
+     "line": 62,
      "text": "masteryCap: 3,",
      "binding": "TRADE_LEVERS"
     }
@@ -14972,13 +14974,13 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 56,
+     "line": 57,
      "text": "table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 59,
+     "line": 60,
      "text": "xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15028,7 +15030,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 63,
+     "line": 64,
      "text": "jobFee: 0.25,",
      "binding": "TRADE_LEVERS"
     }
@@ -15076,7 +15078,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 66,
+     "line": 67,
      "text": "store: Object.freeze({ lagSteps: 20, floorShare: 0.4, budgetHours: 1 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15132,7 +15134,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 69,
+     "line": 70,
      "text": "tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15181,7 +15183,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 72,
+     "line": 73,
      "text": "cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15229,7 +15231,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 158,
+     "line": 159,
      "text": "export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });",
      "binding": "RUNE_KINDS"
     }
@@ -17038,10 +17040,10 @@
   },
   {
    "at": "src/data/trades.js#KIT_BATCH_MAX",
-   "why": "a content process bound: at most 20 named kit recipes in all, a batch of 20 or fewer (CLAUDE.md section 10; band 0 whole is 14 of them, 09 4.11 row 1b), no outcome reads it"
+   "why": "a content process bound: at most 20 named kit recipes a batch, each batch on its own (CLAUDE.md section 10; 09 4.13), no outcome reads it"
   },
   {
-   "at": "src/data/trades.js#KIT_RECIPES",
+   "at": "src/data/trades.js#KIT_BATCHES",
    "why": "content rows: each named recipe band is which metal it is, a row, never a size (the Temper kits a band, Iron to Dawnsteel; its work and price are derived, src/core/trades.js)"
   },
   {

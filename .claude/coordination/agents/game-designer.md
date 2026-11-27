@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 lane/designer-kit-band1 (the cut's four calls, the orphan list, band 1)
+- Count an orphan by its DOORS, not by reachability: catalogue-coherence's labels collide ('made by cooking' is both the bench and a job), so read jobFaces() apart. The script (cut-orphans.mjs) reproduced the backend's 145 exactly on its first run; the band rule needed iL first (an item's `step` is a tier index, not 20 a band) and runes kept off the metal words ('rune' is a metal and a family).
+- A shared face across bands needs a "one good, one recipe" rule, or a later band's job is the same good behind a gate. The rune's stone is bandless; the rune's band is its tier and binder.
+- A hunted stream with a null face at a band silently drops every recipe that binds with it from jobRecipes (not sold). Walk every band's hunted faces before calling a batch whole.
+- The K1 tool's pace table applies one burn to the whole career: a band-1 burn (the Glade's casters drink hard, 0.66 work-h a hunted hour) read career-long overstates the lag. Report the band's labor ratio from it, keep the pace on the reference burn.
+
 ## 2026-11-16 lane/d-supply-prices (Tyler: raise supply costs for the gold imbalance)
 - Supplies scale with RISK, not with hours played. A lone hero on Normal in its range buys almost nothing (the career tank 0 g/h from 30 to 39 and 60 to 69, the Mage under 1k in Plain runes), so no store price reaches the audit's F12 hero; only coin and loot do. Read a career's bill by item before promising a sink.
 - A store price never changes a fight, so play a cell once, keep its buys by row (cell.mjs `buysPerH`), and price them at any list. `tools/balance-sim/supply-prices-table.mjs` does it; its "was" column reproduced the separate old-price run to the gold.

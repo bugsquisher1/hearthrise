@@ -11,6 +11,12 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 6. *Never edit a file a background writer rewrites.* new-ground --write rewrites danger.js whole; my edit raced one settle and survived only by luck. Hold data edits until the queue's writes finish.
 7. *Classify against the set before owning.* git archive the set, lay one file at a time: REF_HERO alone moves muster-steps-4 and the Tower's cost, the rows alone the tier scenarios, the bands alone Muster's tally.
 8. *A retired field leaves a crash, not a red.* career.mjs traced `tier` after the tier rows left: every pace career threw in 2 s and sim.mjs printed "8 failed". A probe in the guard that owns the measurement (level-curve C9) keeps it from rotting again.
+## 2026-11-27 · lane/ci-reds-1127 (three reds on next, the job budgets)
+1. *Size a job from the slowest of many runs, not the last one.* The Hunt core read 11.0 min on a nightly and 26.5 on a push a day later with every file about twice as slow: the runner, not the tree. Eleven runs' slowest per step (`gh api .../jobs`, steps' start and end) is the number; one run would have under-sized it again.
+2. *A one-word edit in src/core pulls 99 tests.* A JSDoc field in abilities.js (no behavior) made guards-for list every settle test; the cheap proof of "no behavior" is typecheck + edge-bundle, the rest goes to `--remote`.
+3. *A shard nobody registers is a proof that silently shrinks.* `--shard=K/N` families had no guard that every K ran; CI-SHAPE-14 now holds it, both ways (a K left out, a K cut with another N).
+4. *A proof that re-measures what the plain run just measured is paying twice.* lineup-v4 --mutate played the plain run's 324 cells again, then 324 more where only 144 move; the world is handed over in the step, and the engine mutant plays 24 cells.
+5. *Generated regions are the merge's easy half.* The one conflict on the base merge was a header rename inside a SELF-REGISTERED region: take either side and `ci-shape --write`.
 
 ## 2026-11-26 · lane/r-ui-roads (the Roads screen, R-UI)
 1. *A window that is mostly one big view loads on need.* Eager, the map put +15.4 KB gzip on every player's town stage; behind a door (`new URL('./talents/index.js', import.meta.url)`, the game-master pattern, listed in `site-delivery.mjs RUNTIME_MODULES`) it costs +4 KB. Measure the base with `git archive` into the scratchpad and the same borrowed esbuild before blaming the lane.

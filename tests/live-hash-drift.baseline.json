@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3552,
+  "replay_ms": 3710,
   "counts": {
     "tracked_names": 1180,
     "entries": 991
@@ -20819,8 +20819,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "16917f00cd4ef1e476529af54a8fa5cc",
-        "norm_len": 620,
+        "md5": "18cda98c7c070d80b5e7cfe89b0b1d44",
+        "norm_len": 800,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -21377,8 +21377,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "29d15cbe9c790d15994fdd3d259a23a7",
-        "norm_len": 1686,
+        "md5": "f459c516d61385af9405d2d8671dba46",
+        "norm_len": 3185,
         "source": "computed-from-replay"
       },
       "agree": false,

@@ -31,7 +31,8 @@
 --   session_id (pk, a hunt session) · user_id · slot · luck_pm (the luck the hunt rolls at, permille) · top (the company's highest hero
 --   Level when it began: the fuel's worth reads it, frozen so a Level gained mid-hunt never moves a cut) · units (Remains it burned) ·
 --   burned { item: units } · created_at.
--- THE READ (hr_hunt_instance_read, ONE SPLICE): instance `flame` = hr_flag_on('inner_flame'): the edge sends each member's claim only then.
+-- THE READ (hr_hunt_instance_read, ONE SPLICE): instance `flame` = the hr_flame_fuel items, null while inner_flame is off: the edge notes
+--   only those, and sends each member's claim only then.
 --   hr_trait_drops_of (RESTATED WHOLE): `luck_pm` is the member's session's frozen luck (0 while inner_flame is off or none was frozen).
 -- THE COMMIT (hr_hunt_apply_instance, THREE SPLICES): a member may carry `flame` [[at_ms, seq, item, qty], ...]. Before any member lands,
 --   under every hero lock and purse, hr_flame_settle re-proves every claim and walks each company's fire once (the flame row FOR UPDATE,
@@ -72,7 +73,8 @@
 --   twin calls (a decay a drop, a burn a drop); no ledger row (the burn rides the member's own hunt row's meta). ~2,000 x 2 sessions a day
 --   = 4,000 rows a day, ~0.25 MB; hunt_flame rows are a hunt's, kept as long as the session row.
 --
--- EDGE: hr-accrue (hunt-settle.js flameDropsOf / the member `flame` claim; src/core/hunt-rewards.js giveDrop notes a Remains drop). An
+-- EDGE: hr-accrue (hunt-settle.js flameDropsOf / the member `flame` claim; src/core/hunt-rewards.js giveDrop notes a Remains drop of the
+--   read's fuel list). An
 --   older edge sends no claim: the fire does not burn down until it deploys (the switch stays off until both land). An older database
 --   hands no `flame`: the new edge sends nothing. Either order is safe.
 -- REVERSIBLE: re-run 1063's trigger function and section (its §3, §4 text), 1071's hr_trait_drops_of, and re-apply 1071's two restated
@@ -86,7 +88,8 @@ begin
      or to_regprocedure('public.hr_flame_decay(bigint,bigint,bigint,bigint)') is null
      or to_regprocedure('public.hr_flame_burn_units(bigint,integer,bigint,integer,integer)') is null
      or to_regprocedure('public.hr_flame_luck_pm(bigint)') is null or to_regprocedure('public.hr_flame_level_of(bigint)') is null
-     or to_regprocedure('public.hr_flame_room_mpts(integer)') is null or to_regprocedure('public.hr_flame_temper_settle()') is null then
+     or to_regprocedure('public.hr_flame_room_mpts(integer)') is null or to_regprocedure('public.hr_flame_temper_settle()') is null
+     or to_regprocedure('public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)') is null then
     raise exception 'PRECONDITION: 1063-flame-temper.sql and its catalogue first (company_flame, the flame twins)'; end if;
   if to_regprocedure('public.hr_trait_drops_of(uuid,integer)') is null or to_regclass('public.trait_pieces') is null
      or position('TRAIT-PIECES (1071-trait-pieces.sql)' in (select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure)) = 0
@@ -164,60 +167,8 @@ begin
     'luck_pm', coalesce(v_l, 0));
 end $fn$;
 
--- ── §4 THE WALK (the twin of src/core/inner-flame.js walk, pinned in §9 (b)) ──
-create or replace function public.hr_flame_walk(p_height bigint, p_points bigint, p_carry bigint, p_spans jsonb, p_drops jsonb,
-                                                p_keep_pm int, p_tops jsonb)
-returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare
-  v_h bigint := greatest(0, coalesce(p_height, 0)); v_p bigint := greatest(0, coalesce(p_points, 0)); v_c bigint := greatest(0, coalesce(p_carry, 0));
-  v_keep int := greatest(0, least(1000, coalesce(p_keep_pm, 0)));
-  v_spans jsonb; v_t bigint; v_end bigint; v_at bigint; v_ms bigint; v_d jsonb; v_x jsonb; v_fuel jsonb;
-  v_item text; v_key text; v_qty bigint; v_l int; v_room bigint; v_b jsonb; v_u bigint; v_m bigint;
-  v_burned jsonb := '{}'::jsonb; v_units bigint := 0; v_mpts bigint := 0; v_decayed bigint := 0;
-begin
-  -- INNER-FLAME (1074-inner-flame-luck.sql): ONE COMPANY'S FIRE OVER ONE WINDOW, ON THE WINDOW'S CLOCK. p_spans [[key, from_ms, to_ms]]
-  -- the hunted milliseconds of each hero; p_drops [[at_ms, key, item, qty]] the Remains each picked up, in the engine's order; p_tops
-  -- { key: top }. Every hunted hero-minute that ended by a drop's instant burns the height down first (hr_flame_decay), then the drop
-  -- burns up to the stoke rule's target (the fire lifted by room - target, so hr_flame_burn_units' room is the target), the rest stays.
-  select coalesce(jsonb_agg(s.value), '[]'::jsonb), min((s.value->>1)::bigint), max((s.value->>2)::bigint) into v_spans, v_t, v_end
-    from jsonb_array_elements(coalesce(p_spans, '[]'::jsonb)) s where (s.value->>2)::bigint > (s.value->>1)::bigint;
-  if v_t is null then
-    return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', '{}'::jsonb,
-                              'units', 0, 'mpts', 0, 'decayed', 0);
-  end if;
-  select coalesce(jsonb_object_agg(f.item_id, f.band), '{}'::jsonb) into v_fuel from public.hr_flame_fuel f;
-  for v_x in select e.value from jsonb_array_elements(coalesce(p_drops, '[]'::jsonb)) with ordinality e(value, n) order by e.n loop
-    v_item := v_x->>2; v_key := v_x->>1; v_qty := greatest(0, (v_x->>3)::bigint);
-    continue when not (v_fuel ? v_item) or v_qty = 0;
-    v_at := least(v_end, (v_x->>0)::bigint);
-    if v_at > v_t then
-      select coalesce(sum(greatest(0, least(v_at, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
-        from jsonb_array_elements(v_spans) s;
-      v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
-      v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
-      v_decayed := v_decayed + (v_d->>'burned')::bigint; v_t := v_at;
-    end if;
-    v_l := public.hr_flame_level_of(v_p);
-    v_room := public.hr_flame_room_mpts(v_l);
-    v_b := public.hr_flame_burn_units(v_h + (v_room - (v_room * v_keep) / 1000), v_l, v_qty, (v_fuel->>v_item)::int,
-                                      coalesce((p_tops->>v_key)::int, 0));
-    v_u := (v_b->>'units')::bigint; v_m := (v_b->>'mpts')::bigint;
-    continue when v_u < 1;
-    v_h := v_h + v_m;
-    v_burned := v_burned || jsonb_build_object(v_key, coalesce(v_burned->v_key, '{}'::jsonb)
-                  || jsonb_build_object(v_item, coalesce((v_burned->v_key->>v_item)::bigint, 0) + v_u));
-    v_units := v_units + v_u; v_mpts := v_mpts + v_m;
-  end loop;
-  if v_end > v_t then
-    select coalesce(sum(greatest(0, least(v_end, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
-      from jsonb_array_elements(v_spans) s;
-    v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
-    v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
-    v_decayed := v_decayed + (v_d->>'burned')::bigint;
-  end if;
-  return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', v_burned,
-                            'units', v_units, 'mpts', v_mpts, 'decayed', v_decayed);
-end $fn$;
+-- ── §4 THE WALK: hr_flame_walk is the generated twin of src/core/inner-flame.js walk (1069-gear-phase-b-flame-temper-catalogue.generated.sql,
+--   tools/gen-flame-temper.mjs, pinned there as VERIFY(t)); this file adds the fuel bound it reads beside it ──
 
 -- The most of `p_item` one kill on `p_hunt` drops, times the member's journalled kills: hr_hunt_apply_member's own item bound, for fuel.
 create or replace function public.hr_flame_fuel_cap(p_hunt text, p_item text, p_kills bigint)
@@ -349,9 +300,9 @@ $a$      'trait_drops', public.hr_flag_on('trait_drops'),
 $a$];
   rr constant text[] := array[
 $a$      'trait_drops', public.hr_flag_on('trait_drops'),
-      -- INNER-FLAME (1074-inner-flame-luck.sql): whether the company fires walk this window (the switch inner_flame; hunt-settle.js
-      -- flameDropsOf): the edge names each Remains a hero picks up only then.
-      'flame', public.hr_flag_on('inner_flame'),
+      -- INNER-FLAME (1074-inner-flame-luck.sql): the Remains items the company fires burn (hr_flame_fuel), null while the switch inner_flame
+      -- is off (hunt-settle.js flameDropsOf): the edge names each one a hero picks up only then, and only these.
+      'flame', case when public.hr_flag_on('inner_flame') then (select coalesce(jsonb_agg(f.item_id order by f.item_id), '[]'::jsonb) from public.hr_flame_fuel f) end,
 $a$];
   aa constant text[] := array[
 $a$'analyzer', 'traits'))) then$a$,
@@ -436,7 +387,7 @@ do $mig$
 declare v_sig text; v_role text;
 begin
   foreach v_sig in array array['public.hr_flame_top_of(uuid)', 'public.hr_flame_session_freeze()', 'public.hr_trait_drops_of(uuid,integer)',
-      'public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)', 'public.hr_flame_fuel_cap(text,text,bigint)',
+      'public.hr_flame_fuel_cap(text,text,bigint)',
       'public.hr_flame_settle(uuid,text,jsonb)', 'public.hr_flame_net(jsonb)', 'public.hr_flame_temper_settle()',
       'public.hr_flame_view(uuid,integer)'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
@@ -449,8 +400,7 @@ end $mig$;
 -- ── §9 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- (a) DARK: with the switches as applied (off), a hunt session's insert freezes nothing, the section is null, the roller reads no luck,
 --     and a claim reaching the settle's step is refused flame_dark.
--- (b) THE WALK equals src/core/inner-flame.js walk at four pinned windows (two heroes and a non-fuel drop, three heroes on Keep 2/3 with a
---     late joiner and a high top, Off on a fire one point from Level 99, four heroes over twenty minutes from an empty fire).
+-- (b) THE WALK is the generated twin's (tools/gen-flame-temper.mjs VERIFY(t) pins it against src/core/inner-flame.js walk at four windows).
 -- (c) LIT: an insert freezes the luck of the company's height and its top; the roller reads it while the fire moves; the section lists
 --     the hunt; a dark-begun hunt reads no luck.
 -- (d) THE NET DELTA: a member's burned Remains leave its items (a whole stack leaves the key) and name themselves in its journal's meta;
@@ -481,26 +431,6 @@ begin
       if sqlerrm <> 'flame_dark' then raise exception 'VERIFY(a): a dark claim answered %', sqlerrm; end if;
     end;
     delete from public.hunt_sessions where id = v_s;
-
-    -- (b) the walk, pinned against the JS twin
-    for v_r in select * from (values
-      ('{"height":12000,"points":50000,"carryMs":30000}'::jsonb, '[["a",0,90000],["b",0,90000]]'::jsonb,
-       '[[10000,"a","bones",1],[10000,"b","bones",1],[45000,"a","big_bones",2],[80000,"b","bones",3],[85000,"a","not_fuel",9]]'::jsonb, 1000, '{"a":60,"b":60}'::jsonb,
-       '{"height":12016,"points":50048,"carry_ms":30000,"level":11,"burned":{"a":{"bones":1,"big_bones":2},"b":{"bones":4}},"units":7,"mpts":64,"decayed":48}'::jsonb),
-      ('{"height":12400,"points":3000,"carryMs":0}'::jsonb, '[["a",0,600000],["b",120000,600000],["c",0,300000]]'::jsonb,
-       '[[1000,"a","bones",40],[130000,"b","bone_chips",25],[299000,"c","grave_dust",60],[500000,"a","bones",80]]'::jsonb, 667, '{"a":50,"b":50,"c":120}'::jsonb,
-       '{"height":12430,"points":3391,"carry_ms":0,"level":1,"burned":{"a":{"bones":22},"b":{"bone_chips":7},"c":{"grave_dust":18}},"units":47,"mpts":421,"decayed":391}'::jsonb),
-      ('{"height":18000,"points":5999000,"carryMs":59000}'::jsonb, '[["a",0,3600000]]'::jsonb,
-       '[[600000,"a","bones",500],[1800000,"a","dragon_bones",3]]'::jsonb, 0, '{"a":200}'::jsonb,
-       '{"height":17265,"points":5999735,"carry_ms":59000,"level":98,"burned":{},"units":0,"mpts":0,"decayed":735}'::jsonb),
-      ('{"height":0,"points":0,"carryMs":0}'::jsonb, '[["a",0,1200000],["b",0,1200000],["c",0,1200000],["d",0,1200000]]'::jsonb,
-       (select jsonb_agg(jsonb_build_array(i * 20000, substr('abcd', i % 4 + 1, 1), (array['bones', 'big_bones', 'bone_chips'])[i % 3 + 1], 1 + i % 5) order by i)
-          from generate_series(0, 59) i), 1000, '{"a":45,"b":45,"c":45,"d":45}'::jsonb,
-       '{"height":1668,"points":132,"carry_ms":0,"level":1,"burned":{"a":{"bones":15,"big_bones":15,"bone_chips":15},"b":{"big_bones":15,"bone_chips":15,"bones":15},"c":{"bone_chips":15,"bones":15,"big_bones":15},"d":{"bones":15,"big_bones":15,"bone_chips":15}},"units":180,"mpts":1800,"decayed":132}'::jsonb)
-    ) t(f, spans, drops, keep, tops, want) loop
-      v_w := public.hr_flame_walk((v_r.f->>'height')::bigint, (v_r.f->>'points')::bigint, (v_r.f->>'carryMs')::bigint, v_r.spans, v_r.drops, v_r.keep, v_r.tops);
-      if v_w is distinct from v_r.want then raise exception 'VERIFY(b): the walk answered % where src/core/inner-flame.js walk answers %', v_w, v_r.want; end if;
-    end loop;
 
     -- (c) lit: the freeze, the roller's read, the section
     update public.hr_flags set enabled = true where key in ('inner_flame', 'trait_drops');
@@ -542,7 +472,7 @@ begin
     raise exception 'VERIFY(e): §9 LEAKED a probe row'; end if;
   if exists (select 1 from public.hr_flags where key = 'inner_flame' and enabled) then raise exception 'VERIFY(e): inner_flame is lit after the apply'; end if;
   -- (e) the splices
-  if position('''flame'', public.hr_flag_on(''inner_flame'')' in (select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure)) = 0
+  if position('''flame'', case when public.hr_flag_on(''inner_flame'')' in (select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure)) = 0
      or position('hr_flame_settle(p_instance, v_i.hunt_id, p_members)' in (select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure)) = 0
      or position('public.hr_flame_net(v_m)' in (select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure)) = 0
      or position('''traits'', ''flame''' in (select prosrc from pg_proc where oid = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure)) = 0

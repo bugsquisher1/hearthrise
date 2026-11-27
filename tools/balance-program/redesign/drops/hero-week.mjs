@@ -16,7 +16,10 @@
 //   dials    --pity off (the roll's pityOn what-if) and --base uniform (the roll's baseFit what-if); both are the Lab's, never the server's
 //
 //   node tools/balance-program/redesign/drops/hero-week.mjs [--ground muster_barrows] [--samples 2000] [--seed 1] [--pity on|off]
-//        [--base worn|uniform] [--only week,wanted,kit,bank] [--json out.json]
+//        [--base worn|uniform] [--only week,wanted,kit,bank,flame] [--luck 0,200,300,360] [--seats hammer,mage,bow] [--hours 40,200,1000]
+//        [--json out.json]
+//   flame    (lane/f1-inner-flame) the company flame's luck, as the server freezes it per hunt: the kit in steps unfed against fed at
+//            40 / 200 / 1000 h and the two V10 gaps against kitSpreadMax, a hero-week's pieces at each luck, and the flame against the bank
 // ════════════════════════════════════════════════════════════════════════
 import { writeFileSync } from 'node:fs';
 import { HUNT_GROUNDS } from '../../../../src/data/hunt-grounds.js';
@@ -54,14 +57,16 @@ const fits = (seat, piece) => SEATS[seat](ITEMS[piece.base]);
 const q = (xs, p) => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))];
 const dials = (o) => ({ ...(o.pity === false ? { pityOn: { rare: false, very_rare: false } } : {}), ...(o.base ? { baseFit: o.base } : {}) });
 
-/* one hero's run: `plan` is [[hours, n, step], ...] played in order; `stop(piece)` ends it early (answers the hours it took) */
+/* one hero's run: `plan` is [[hours, n, step, luckPm?], ...] played in order (a fourth entry sets the company flame's luck for that block,
+   as the server freezes it per hunt: lane/f1-inner-flame); `stop(piece)` ends it early (answers the hours it took) */
 function run(groundId, seat, plan, o, i, stop) {
   const ground = HUNT_GROUNDS[groundId], kph = killsHeadHour(ground);
   const tr = { luckPm: { h: o.luckPm || 0 }, pity: {}, found: [], ...dials(o) };
   const rng = createRng(hashSeed('hero-week', groundId, seat, o.seed, i, JSON.stringify(plan), o.pity === false ? 0 : 1, o.base || ''));
   const worn = kitOf(groundId, seat);
   let t = 0;
-  for (const [hours, n, step] of plan) {
+  for (const [hours, n, step, luck] of plan) {
+    if (Number.isFinite(luck)) tr.luckPm.h = luck;
     const sw = traitSwing(tr, ground, step, () => rng);
     const kills = Math.round(hours * kph * n);
     for (let k = 0; k < kills; k++) {
@@ -108,6 +113,41 @@ export function kit(groundId, seat, hours, o) {
   }
   filled.sort((x, y) => x - y);
   return { of: slots.length, p10: q(filled, 0.1), p50: q(filled, 0.5), p90: q(filled, 0.9) };
+}
+
+/** THE KIT IN STEPS (V10 with the flame; 21 sections 1.6 and 1.7 F2, lane/f1-inner-flame): after `hours` solo at the reference held step
+    with the company flame at `luckPm`, the conditional steps the seat's best wearable piece in each Trait slot gives (each Trait at its
+    rank's GEAR_STEPS.traitSteps, a Very Rare both), summed, and the same held to the gear slice (conditionalStepsMax, the engine's clamp):
+    { p10, p50, p90, mean, clampP90 }. */
+export function kitSteps(groundId, seat, hours, luckPm, o) {
+  const step = refHeldOf(groundId), steps = [], clamped = [];
+  const val = (p) => p.traits.reduce((s, t) => s + (GEAR_STEPS.traitSteps[t.rank - 1] || 0), 0);
+  for (let i = 0; i < o.samples; i++) {
+    const { found } = run(groundId, seat, [[hours, 1, step, luckPm]], o, i);
+    const best = new Map();
+    for (const p of found) if (fits(seat, p)) best.set(p.slot, Math.max(best.get(p.slot) || 0, val(p)));
+    const s = [...best.values()].reduce((a, b) => a + b, 0);
+    steps.push(s); clamped.push(Math.min(GEAR_STEPS.conditionalStepsMax, s));
+  }
+  steps.sort((a, b) => a - b); clamped.sort((a, b) => a - b);
+  return { p10: q(steps, 0.1), p50: q(steps, 0.5), p90: q(steps, 0.9), mean: steps.reduce((a, b) => a + b, 0) / steps.length, clampP90: q(clamped, 0.9) };
+}
+
+/** The flame against pity's bank (the brief: no party-to-solo bank through the flame): `cycles` of 10 h solo unfed then 10 h solo on a full
+    fire (luck `full`), finds against the finds the luck states (the stated rate x (1 + luck) per block), and the same in the reverse order. */
+export function flameBank(groundId, o, full, cycles = 20) {
+  const step = refHeldOf(groundId);
+  const perHour = (luck) => (depthRarePm(groundId, step) / 1000) * (1 + luck / 1000) * (1 / DROP_HOURS.rarity.rare.everyHours + 1 / DROP_HOURS.rarity.very_rare.everyHours);
+  const out = {};
+  for (const [name, a, b] of [['unfed -> full', [10, 1, step, 0], [10, 1, step, full]], ['full -> unfed', [10, 1, step, full], [10, 1, step, 0]], ['full only', [10, 1, step, full], [10, 1, step, full]]]) {
+    const plan = [];
+    for (let c = 0; c < cycles; c++) plan.push(a, b);
+    let found = 0;
+    for (let i = 0; i < o.samples; i++) found += run(groundId, 'hammer', plan, o, i).found.length;
+    const stated = o.samples * plan.reduce((s, [h, , , l]) => s + h * perHour(l), 0);
+    out[name] = { found, stated: Math.round(stated), ratio: found / stated };
+  }
+  return out;
 }
 
 /** Finds against the stated finds over `cycles` of [10 h, party of 4, depth 1] then [10 h, alone, depth 20] (and the reverse order). */
@@ -164,6 +204,34 @@ if (runAsMain) {
   if (only.includes('bank')) {
     res.bank = bank(groundId, { ...o, samples: Math.max(100, Math.round(o.samples / 10)) });
     for (const [k, v] of Object.entries(res.bank)) console.log(`  bank ${k.padEnd(22)}: found ${v.found} against ${v.stated} stated, ratio ${v.ratio.toFixed(3)}`);
+  }
+  /* THE FLAME (lane/f1-inner-flame, 21 section 1.7 F2, 19 V10): unfed (0), own drops at Flame Level 1 and 99 (200, 300) and a full fire
+     at 99 (360, the most luck the room allows); the kit in steps at 40, 200 and 1000 hunted hours, and the two V10 gaps (fed p90 against
+     unfed p10, full p90 against own-drops p10), each against kitSpreadMax (conditionalStepsMax, one tier); then the flame against the bank */
+  if (only.includes('flame')) {
+    res.flame = { kit: {}, v10: {}, week: {} };
+    const lucks = String(arg('--luck', '0,200,300,360')).split(',').map(Number);
+    const seats = String(arg('--seats', 'hammer,mage,bow')).split(',');
+    const hoursList = String(arg('--hours', '40,200,1000')).split(',').map(Number);
+    const cap = GEAR_STEPS.conditionalStepsMax, top = Math.max(...lucks), own = lucks.includes(300) ? 300 : lucks[lucks.length - 2];
+    for (const luck of lucks) {
+      const w = week(groundId, 'hammer', 1, { ...o, luckPm: luck });
+      res.flame.week[luck] = w;
+      console.log(`  flame week hammer alone, luck +${luck / 10}%: pieces mean ${w.mean.toFixed(3)} (p10 ${w.p10} p50 ${w.p50} p90 ${w.p90})`);
+    }
+    for (const seat of seats) for (const h of hoursList) {
+      const n = Math.max(100, Math.round(o.samples / (h >= 1000 ? 10 : 4)));
+      const cell = {};
+      for (const luck of lucks) cell[luck] = kitSteps(groundId, seat, h, luck, { ...o, samples: n });
+      res.flame.kit[seat + ':' + h] = cell;
+      const fed = cell[top].p90 - cell[0].p10, full = cell[top].p90 - cell[own].p10;
+      const fedC = Math.min(cap, cell[top].p90) - Math.min(cap, cell[0].p10), fullC = Math.min(cap, cell[top].p90) - Math.min(cap, cell[own].p10);
+      res.flame.v10[seat + ':' + h] = { fed, full, fedClamped: fedC, fullClamped: fullC, cap, pass: fedC <= cap && fullC <= cap };
+      console.log(`  flame kit ${seat.padEnd(6)} ${String(h).padStart(4)} h (${n} heroes): ` + lucks.map((l) => `+${l / 10}% p10/p50/p90 ${cell[l].p10}/${cell[l].p50}/${cell[l].p90}`).join(' | ')
+        + ` | V10 fed ${fed} (held ${fedC}), full over own ${full} (held ${fullC}) of ${cap}`);
+    }
+    res.flame.bank = flameBank(groundId, { ...o, samples: Math.max(100, Math.round(o.samples / 10)) }, top);
+    for (const [k, v] of Object.entries(res.flame.bank)) console.log(`  flame bank ${k.padEnd(14)}: found ${v.found} against ${v.stated} stated, ratio ${v.ratio.toFixed(3)}`);
   }
   const out = arg('--json', null);
   if (out) writeFileSync(out, JSON.stringify(res, null, 1) + '\n');

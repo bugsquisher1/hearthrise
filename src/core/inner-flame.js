@@ -11,7 +11,7 @@
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
-import { FLAME, FLAME_LEVELS, FLAME_FUEL } from '../data/inner-flame.js';
+import { FLAME, FLAME_LEVELS } from '../data/inner-flame.js';
 import { DANGER } from '../data/danger.js';
 
 const MINUTE_MS = 60000;
@@ -162,23 +162,6 @@ export function walk(flame, spans, drops, keepPm, bandOf, topOf) {
   }
   advance(end);
   return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };
-}
-
-const FUEL_BAND = new Map(FLAME_FUEL.map((r) => [r.item, r.band]));
-/** A Remains good's band (FLAME_FUEL), or null: not fuel, it never burns. */
-export function fuelBandOf(item) {
-  return FUEL_BAND.has(item) ? FUEL_BAND.get(item) : null;
-}
-
-/** THE ENGINE'S NOTE OF THE WINDOW'S REMAINS (hunt-settle.js flameDropsOf, only when the server says the fire is lit): { list, seq }. */
-export function flameDrops() {
-  return { list: [], seq: 0 };
-}
-
-/** One Remains `item` picked up by member `key` at `atMs`, in the engine's own order (src/core/hunt-rewards.js giveDrop). No die. */
-export function noteFuel(fd, key, item, atMs) {
-  if (!fd || !Array.isArray(fd.list) || !FUEL_BAND.has(item) || !Number.isFinite(atMs)) return;
-  fd.list.push({ at: Math.floor(atMs), seq: fd.seq++, key, item, qty: 1 });
 }
 
 /** A named fuel's burst at Flame Level `fl`: burstPm of the room, which it may stand over by that much (21 section 1.2). */

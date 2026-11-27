@@ -111,7 +111,7 @@ begin
     -- the instance read at 1071's image (restated whole with this file's DANGER-SCALE overlay in it, plus the worn pieces): the same.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = '209f8462d94db3fc386a12980342f2e8')
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('fc3028f121261dd3b7a15476c5164c40', 'bbd7dbb30b09031ea139812420a40405')) then
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

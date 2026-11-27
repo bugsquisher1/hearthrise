@@ -129,7 +129,7 @@ function fightOf(sim, unitId, call) {
  *        the highest floor its heroes cleared + 1); required on the Tower's ground (src/core/hunt/tower.js), never read elsewhere
  * @param inp.traitDrops  the Trait roll (hunt-settle.js traitDropsOf: { luckPm, pity, found }), only when the server's read says it is on;
  *        the engine pushes what it finds onto `found` and counts `pity` in place (src/core/trait-roll.js)
- * @param inp.flameDrops  the Inner Flame's note (src/core/inner-flame.js flameDrops: { list, seq }), only when the server's read says the fire
+ * @param inp.flameDrops  the Inner Flame's note (hunt-settle.js flameDropsOf: { fuel, list, seq }), only when the server's read says the fire
  *        is lit; the engine pushes each Remains picked up onto `list` (src/core/hunt-rewards.js giveDrop)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }

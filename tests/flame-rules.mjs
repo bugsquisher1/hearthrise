@@ -28,8 +28,8 @@
 //   FR-7  THE SETTLE'S WALK (lane/f1-inner-flame, 1074-inner-flame-luck.sql hr_flame_walk): BOTH PATHS, a company's fire walked over one
 //         span equals the same span cut into windows at any instants and resumed from each stored answer (the burns, the height, the
 //         Flame XP, the carry); no drop is pure decay; Keep full stops at the room, Keep 2/3 at its share, Off burns nothing and the rest
-//         stays in the bag; a drop goes on after the minutes that ended by then; a far company's bones are worth less; only Remains are
-//         noted (giveDrop's note), and the note keeps the engine's order
+//         stays in the bag; a drop goes on after the minutes that ended by then; a far company's bones are worth less (the engine's note of
+//         each drop is tests/flame-settle-db.mjs's, through the real settle)
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -81,7 +81,8 @@ async function pure(base) {
   const s = C.clampStoke({ keep: 'two_thirds', buy_per_day: 1e9, cap_hours_pm: -4 });
   if (!s || s.buy_per_day !== D.FLAME.stokeBuyMax || s.cap_hours_pm !== 0 || s.own_first !== true) out.push('FR-5 the limits were not clamped: ' + JSON.stringify(s));
   /* FR-7 THE WALK */
-  const band = (i) => C.fuelBandOf(i);
+  const bands = new Map(D.FLAME_FUEL.map((r) => [r.item, r.band]));
+  const band = (i) => (bands.has(i) ? bands.get(i) : null);
   const span = (key, from, to) => ({ key, from, to });
   const sp = [span('a', 0, 3600000), span('b', 0, 3600000), span('c', 600000, 2400000)];
   const dr = [];
@@ -120,9 +121,6 @@ async function pure(base) {
   const far = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], [{ at: 10, key: 'a', item: 'bones', qty: 100 }], 1000, band, () => 200);
   const near2 = C.walk({ height: 0, points: 0, carryMs: 0 }, [span('a', 0, 20)], [{ at: 10, key: 'a', item: 'bones', qty: 100 }], 1000, band, () => 45);
   if (!(far.mpts < near2.mpts && near2.mpts === 1000)) out.push('FR-7 a far company is not worth less fuel: ' + JSON.stringify([far.mpts, near2.mpts]));
-  const fd = C.flameDrops();
-  C.noteFuel(fd, 'a', 'bones', 5.7); C.noteFuel(fd, 'b', 'gold_coin', 6); C.noteFuel(fd, 'b', 'grave_dust', 9);
-  if (JSON.stringify(fd.list) !== JSON.stringify([{ at: 5, seq: 0, key: 'a', item: 'bones', qty: 1 }, { at: 9, seq: 1, key: 'b', item: 'grave_dust', qty: 1 }])) out.push('FR-7 the note is ' + JSON.stringify(fd.list));
   /* FR-6 */
   if (C.topRankPmOf(0) !== D.FLAME.topRankPm || C.topRankPmOf(360) !== 680 || C.topRankPmOf(100000) !== D.FLAME.topRankMaxPm) out.push('FR-6 the top rank does not read luck under its cap');
   return out;
@@ -143,7 +141,6 @@ const MUTANTS = [
   ['the walk forgets a late joiner span', 'src/core/inner-flame.js', '    for (const s of sp) ms += Math.max(0, Math.min(t1, s.to) - Math.max(t, s.from));', '    for (const s of sp) ms += Math.max(0, t1 - t);'],
   ['the stoke target is ignored', 'src/core/inner-flame.js', 'const h = Math.max(0, toInt(height)), lift = roomMpts(fl) - targetMpts(fl, keepPm);', 'const h = Math.max(0, toInt(height)), lift = 0;'],
   ['the walk never burns down at its end', 'src/core/inner-flame.js', '  advance(end);\n  return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };', '  return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };'],
-  ['the note takes every drop', 'src/core/inner-flame.js', 'if (!fd || !Array.isArray(fd.list) || !FUEL_BAND.has(item) || !Number.isFinite(atMs)) return;', 'if (!fd || !Array.isArray(fd.list) || !Number.isFinite(atMs)) return;'],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/flame-rules.mjs', pure, mutants: MUTANTS,

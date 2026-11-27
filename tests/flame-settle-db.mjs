@@ -84,7 +84,7 @@ async function dark(boot) {
   if (Number(r.inst.refusals) !== 0) problems.push('FS-1 ' + r.inst.refusals + ' window(s) refused');
   const read = await one(r.db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [r.users[0]]);
   if (!read || read.open !== true) return [...problems, 'FS-1 CONTROL: the hunt is not open'];
-  if (read.instance.flame !== false) problems.push('FS-1 the read says flame ' + JSON.stringify(read.instance.flame));
+  if (read.instance.flame !== null) problems.push('FS-1 the read says flame ' + JSON.stringify(read.instance.flame));
   const s = await stored(r.db);
   if (s.hunts.length || s.journal.length || s.fires.some((f) => Number(f.h) !== START_MPTS || Number(f.p) !== 0)) problems.push('FS-1 a dark hunt moved a fire: ' + canon(s).slice(0, 300));
   if (!s.bags.some((b) => Number(b.qty) > 0)) problems.push('FS-1 CONTROL: no Remains dropped');
@@ -129,7 +129,7 @@ async function bothPaths(boot, o = {}) {
     /* the luck each hunt rolls at is the one it froze as it began, after its fire moved */
     const want = Number(await one(closed.db, 'select public.hr_flame_luck_pm($1)', [START_MPTS]));
     const read = await one(closed.db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [closed.users[0]]);
-    if (!read || read.instance.flame !== true) problems.push('FS-2 a lit read says flame ' + JSON.stringify(read && read.instance.flame));
+    if (!read || !Array.isArray(read.instance.flame) || JSON.stringify(read.instance.flame) !== JSON.stringify([...FUEL].sort())) problems.push('FS-2 a lit read says flame ' + JSON.stringify(read && read.instance.flame));
     for (const m of (read && read.members) || []) if (!m.drops || m.drops.luck_pm !== want) { problems.push('FS-2 the read hands luck ' + canon(m.drops) + ', the hunt froze ' + want); break; }
     if (a.hunts.some((h) => h.luck_pm !== want) || a.fires.every((f) => Number(f.h) === START_MPTS) || !(want > 0)) problems.push('FS-2 the frozen luck is not the start fire\'s (' + want + '): ' + canon(a.hunts.map((h) => h.luck_pm)));
   } finally { if (edge) edge.done(); }
@@ -206,7 +206,9 @@ const MUTANTS = [
   { name: 'the dark switch is ignored', fn: 'public.hr_flame_settle(uuid,text,jsonb)',
     find: "if not public.hr_flag_on('inner_flame') then perform public.hr_reject('flame_dark'); end if;", repl: '', want: /^FS-1/, test: dark },
   /* an edge defect: the engine never notes a drop, so nothing burns */
-  { name: 'the engine notes no Remains', edits: [['src/core/hunt-rewards.js', '  if (ctx.flameDrops) noteFuel(ctx.flameDrops, m.key, ev.id, atMs);\n', '']], want: /^FS-2/, test: bothPaths },
+  { name: 'the engine notes no Remains', edits: [['src/core/hunt-rewards.js', 'if (ctx.flameDrops && ctx.flameDrops.fuel.has(ev.id)) ctx.flameDrops.list.push(', 'if (false) ctx.flameDrops.list.push(']], want: /^FS-2/, test: bothPaths },
+  /* ...and an engine that notes every drop as fuel: the server walks only its own fuel, so nothing it does not list burns */
+  { name: 'the edge notes every drop as fuel', edits: [['src/core/hunt-rewards.js', 'if (ctx.flameDrops && ctx.flameDrops.fuel.has(ev.id)) ctx.flameDrops.list.push(', 'if (ctx.flameDrops) ctx.flameDrops.list.push(']], want: /^FS-2/, test: bothPaths },
 ];
 
 async function main() {

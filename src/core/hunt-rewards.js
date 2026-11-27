@@ -49,7 +49,6 @@ import { resolveHearthfind } from './hearthfind.js';
 import { magicXpFor } from './hunt/xp-share.js';
 import { splitEven, itemOwner, rareRoll } from './party-split.js';
 import { rollKillFor } from './trait-roll.js';
-import { noteFuel } from './inner-flame.js';
 import { makeEvent } from './hunt/events.js';
 import { trainingSwing } from './hunt/training.js';
 import { isHero, isMonster } from './hunt/sides.js';
@@ -89,8 +88,9 @@ function countKill(m, kind, bestiary) {
 /* One dropped unit into member `m`'s bag (unit `unitId`), with the rare-drop moment when its band reveals. */
 function giveDrop(m, unitId, ev, ctx, atMs) {
   call(m.fx, 'addItem', ev.id, 1);
-  /* THE INNER FLAME (1074-inner-flame-luck.sql): a Remains noted with its instant, in the engine's own order, when the server handed a note */
-  if (ctx.flameDrops) noteFuel(ctx.flameDrops, m.key, ev.id, atMs);
+  /* THE INNER FLAME (1074-inner-flame-luck.sql): a Remains noted with its instant, in the engine's own order, when the server handed a note
+     (hunt-settle.js flameDropsOf: { fuel, list, seq }, `fuel` the server's own hr_flame_fuel items). No die is drawn. */
+  if (ctx.flameDrops && ctx.flameDrops.fuel.has(ev.id)) ctx.flameDrops.list.push({ at: Math.floor(atMs), seq: ctx.flameDrops.seq++, key: m.key, item: ev.id, qty: 1 });
   if (ev.rare) {
     m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1;
     /* THE RARE-DROP MOMENT: a world event for the owner (the timeline: alert, float, log) and the

@@ -40,6 +40,17 @@ const KIT_IL_PINS = [0, 1, 19, 20, 39, 40, 59, 60, 79, 80, 99, 100, 119, 120, 13
 /* the imbuement band lock (lane/tp-server-1): bands either side of each hero Level's wear-ahead edge, and the empty ends */
 const WEAR_PINS = [[0, 40], [45, 0], [45, 34], [45, 35], [45, 36], [50, 39], [50, 40], [55, 44], [55, 45], [70, 59], [70, 60], [70, 200], [210, 199], [210, 200]];
 const CH_PINS = [[0.5, 1, 0], [0.5, 4, 0], [1, 4, 0], [0.002, 3, 200], [0.0001, 2, 360], [0.9, 1, 600], [0, 2, 100]];
+/* the settle's walk (lane/f1-inner-flame): two heroes and a non-fuel drop, three on Keep 2/3 with a late joiner and a high top, Off on a fire
+   one point from Level 99, four over twenty minutes from an empty fire. [flame, spans [key, from, to], drops [at, key, item, qty], keep, tops] */
+const WALK_PINS = [
+  [{ height: 12000, points: 50000, carryMs: 30000 }, [['a', 0, 90000], ['b', 0, 90000]],
+    [[10000, 'a', 'bones', 1], [10000, 'b', 'bones', 1], [45000, 'a', 'big_bones', 2], [80000, 'b', 'bones', 3], [85000, 'a', 'not_fuel', 9]], 1000, { a: 60, b: 60 }],
+  [{ height: 12400, points: 3000, carryMs: 0 }, [['a', 0, 600000], ['b', 120000, 600000], ['c', 0, 300000]],
+    [[1000, 'a', 'bones', 40], [130000, 'b', 'bone_chips', 25], [299000, 'c', 'grave_dust', 60], [500000, 'a', 'bones', 80]], 667, { a: 50, b: 50, c: 120 }],
+  [{ height: 18000, points: 5999000, carryMs: 59000 }, [['a', 0, 3600000]], [[600000, 'a', 'bones', 500], [1800000, 'a', 'dragon_bones', 3]], 0, { a: 200 }],
+  [{ height: 0, points: 0, carryMs: 0 }, [['a', 0, 1200000], ['b', 0, 1200000], ['c', 0, 1200000], ['d', 0, 1200000]],
+    Array.from({ length: 60 }, (_, i) => [i * 20000, 'abcd'[i % 4], ['bones', 'big_bones', 'bone_chips'][i % 3], 1 + (i % 5)]), 1000, { a: 45, b: 45, c: 45, d: 45 }],
+];
 const PITY_PINS = [[0.0002, 0], [0.0002, 438000000], [0.01, 5000000000], [0.5, 9000000000], [0.00001, 1]];
 
 async function load(root) {
@@ -113,6 +124,12 @@ export function rowsOf(d) {
     carry: [],
     kit: KIT_IL_PINS.map((il) => [il, d.tradesC.temperKitAt(il)]),
     wear: WEAR_PINS.map(([b, L]) => [b, L, ic.imbueStepsAt(b, L) > 0]),
+    walk: WALK_PINS.map(([f, spans, drops, keep, tops]) => {
+      const band = new Map(d.flameD.FLAME_FUEL.map((x) => [x.item, x.band]));
+      const w = fc.walk(f, spans.map(([key, from, to]) => ({ key, from, to })), drops.map(([at, key, item, qty]) => ({ at, key, item, qty })), keep,
+        (i) => (band.has(i) ? band.get(i) : null), (k) => tops[k]);
+      return [f, spans, drops, keep, tops, { height: w.height, points: w.points, carry_ms: w.carryMs, level: w.level, burned: w.burned, units: w.units, mpts: w.mpts, decayed: w.decayed }];
+    }),
   };
   for (const s of slots) for (let r = 1; r <= T.ranks; r++) for (const il of [60, 200]) pins.rank.push([s, r, il, tc.rankQuote(s, r, il)]);
   for (const s of ['weapon', 'ring1', 'body']) for (const il of IL_PINS) for (const n of [0, 1, 2, 5]) pins.seat.push([s, n, il, tc.seatPrice(s, n, il)]);
@@ -153,7 +170,8 @@ export function buildSql(r) {
 --   hr_item_levels (${r.itemLevels.length} gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (${r.imbues.length} rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
---   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp; hr_temper_rank_mh, hr_temper_rank_cap,
+--   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp, hr_flame_walk (the settle's walk,
+--   lane/f1-inner-flame: 1074-inner-flame-luck.sql reads it); hr_temper_rank_mh, hr_temper_rank_cap,
 --   hr_temper_rank_quote, hr_temper_seat_price, hr_temper_kit_at; hr_imbue_life_ms, hr_imbue_fee, hr_imbue_wearable (wearAhead ${G.wearAhead});
 --   hr_hero_chance, hr_pity_chance, hr_pity_after; hr_carry_fee.
 -- READERS: 1063-flame-temper.sql (the verbs, the settle's decay and timers, the sections), restated for the kit a band and the band lock by
@@ -355,6 +373,61 @@ begin
                             'sell_rest', coalesce(p_rule->'sell_rest', 'false'::jsonb) = 'true'::jsonb);
 end $fn$;
 
+create or replace function public.hr_flame_walk(p_height bigint, p_points bigint, p_carry bigint, p_spans jsonb, p_drops jsonb,
+                                                p_keep_pm int, p_tops jsonb)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare
+  v_h bigint := greatest(0, coalesce(p_height, 0)); v_p bigint := greatest(0, coalesce(p_points, 0)); v_c bigint := greatest(0, coalesce(p_carry, 0));
+  v_keep int := greatest(0, least(1000, coalesce(p_keep_pm, 0)));
+  v_spans jsonb; v_t bigint; v_end bigint; v_at bigint; v_ms bigint; v_d jsonb; v_x jsonb; v_fuel jsonb;
+  v_item text; v_key text; v_qty bigint; v_l int; v_room bigint; v_b jsonb; v_u bigint; v_m bigint;
+  v_burned jsonb := '{}'::jsonb; v_units bigint := 0; v_mpts bigint := 0; v_decayed bigint := 0;
+begin
+  -- THE SETTLE'S WALK (src/core/inner-flame.js walk; lane/f1-inner-flame, read by 1074-inner-flame-luck.sql hr_flame_settle): ONE COMPANY'S
+  -- FIRE OVER ONE WINDOW, ON THE WINDOW'S CLOCK. p_spans [[key, from_ms, to_ms]]
+  -- the hunted milliseconds of each hero; p_drops [[at_ms, key, item, qty]] the Remains each picked up, in the engine's order; p_tops
+  -- { key: top }. Every hunted hero-minute that ended by a drop's instant burns the height down first (hr_flame_decay), then the drop
+  -- burns up to the stoke rule's target (the fire lifted by room - target, so hr_flame_burn_units' room is the target), the rest stays.
+  select coalesce(jsonb_agg(s.value), '[]'::jsonb), min((s.value->>1)::bigint), max((s.value->>2)::bigint) into v_spans, v_t, v_end
+    from jsonb_array_elements(coalesce(p_spans, '[]'::jsonb)) s where (s.value->>2)::bigint > (s.value->>1)::bigint;
+  if v_t is null then
+    return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', '{}'::jsonb,
+                              'units', 0, 'mpts', 0, 'decayed', 0);
+  end if;
+  select coalesce(jsonb_object_agg(f.item_id, f.band), '{}'::jsonb) into v_fuel from public.hr_flame_fuel f;
+  for v_x in select e.value from jsonb_array_elements(coalesce(p_drops, '[]'::jsonb)) with ordinality e(value, n) order by e.n loop
+    v_item := v_x->>2; v_key := v_x->>1; v_qty := greatest(0, (v_x->>3)::bigint);
+    continue when not (v_fuel ? v_item) or v_qty = 0;
+    v_at := least(v_end, (v_x->>0)::bigint);
+    if v_at > v_t then
+      select coalesce(sum(greatest(0, least(v_at, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
+        from jsonb_array_elements(v_spans) s;
+      v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
+      v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
+      v_decayed := v_decayed + (v_d->>'burned')::bigint; v_t := v_at;
+    end if;
+    v_l := public.hr_flame_level_of(v_p);
+    v_room := public.hr_flame_room_mpts(v_l);
+    v_b := public.hr_flame_burn_units(v_h + (v_room - (v_room * v_keep) / 1000), v_l, v_qty, (v_fuel->>v_item)::int,
+                                      coalesce((p_tops->>v_key)::int, 0));
+    v_u := (v_b->>'units')::bigint; v_m := (v_b->>'mpts')::bigint;
+    continue when v_u < 1;
+    v_h := v_h + v_m;
+    v_burned := v_burned || jsonb_build_object(v_key, coalesce(v_burned->v_key, '{}'::jsonb)
+                  || jsonb_build_object(v_item, coalesce((v_burned->v_key->>v_item)::bigint, 0) + v_u));
+    v_units := v_units + v_u; v_mpts := v_mpts + v_m;
+  end loop;
+  if v_end > v_t then
+    select coalesce(sum(greatest(0, least(v_end, (s.value->>2)::bigint) - greatest(v_t, (s.value->>1)::bigint))), 0)::bigint into v_ms
+      from jsonb_array_elements(v_spans) s;
+    v_d := public.hr_flame_decay(v_h, v_p, v_c, v_ms);
+    v_h := (v_d->>'height')::bigint; v_p := (v_d->>'points')::bigint; v_c := (v_d->>'carry_ms')::bigint;
+    v_decayed := v_decayed + (v_d->>'burned')::bigint;
+  end if;
+  return jsonb_build_object('height', v_h, 'points', v_p, 'carry_ms', v_c, 'level', public.hr_flame_level_of(v_p), 'burned', v_burned,
+                            'units', v_units, 'mpts', v_mpts, 'decayed', v_decayed);
+end $fn$;
+
 -- ── §4 TEMPER'S TWINS (src/core/temper-steps.js) ─────────────────────────────
 create or replace function public.hr_temper_rank_mh(p_slot text, p_rank int)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
@@ -446,6 +519,7 @@ begin
       'public.hr_flame_luck_pm(bigint)', 'public.hr_flame_top_rank_pm(integer)', 'public.hr_flame_level_of(bigint)',
       'public.hr_flame_decay(bigint,bigint,bigint,bigint)', 'public.hr_flame_worth_mpts(bigint,integer,integer)',
       'public.hr_flame_burn_units(bigint,integer,bigint,integer,integer)', 'public.hr_flame_stoke_clamp(jsonb)',
+      'public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)',
       'public.hr_temper_rank_mh(text,integer)', 'public.hr_temper_rank_cap(integer)', 'public.hr_temper_rank_quote(text,integer,integer)',
       'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_temper_kit_at(integer)', 'public.hr_imbue_life_ms(text)',
       'public.hr_imbue_fee(integer,integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
@@ -503,6 +577,11 @@ ${values(r.pins.worth, ([n, b, t, w]) => `    (${n}::bigint, ${b}, ${t}, ${w}::b
 ${values(r.pins.burn, ([h, fl, n, b, t, o]) => `    (${h}::bigint, ${fl}, ${n}::bigint, ${b}, ${t}, ${jlit(o)})`)}) p(h, fl, n, b, t, o) loop
     v_j := public.hr_flame_burn_units(v_r.h, v_r.fl, v_r.n, v_r.b, v_r.t);
     if v_j is distinct from v_r.o then raise exception 'VERIFY(h): the burn % is % in SQL, % in JS', row(v_r.h, v_r.fl, v_r.n, v_r.b, v_r.t), v_j, v_r.o; end if;
+  end loop;
+  for v_r in select * from (values
+${values(r.pins.walk, ([f, spans, drops, keep, tops, o]) => `    (${jlit(f)}, ${jlit(spans)}, ${jlit(drops)}, ${keep}, ${jlit(tops)}, ${jlit(o)})`)}) p(f, spans, drops, keep, tops, o) loop
+    v_j := public.hr_flame_walk((v_r.f->>'height')::bigint, (v_r.f->>'points')::bigint, (v_r.f->>'carryMs')::bigint, v_r.spans, v_r.drops, v_r.keep, v_r.tops);
+    if v_j is distinct from v_r.o then raise exception 'VERIFY(t): the walk over % is % in SQL, % in src/core/inner-flame.js walk', v_r.spans, v_j, v_r.o; end if;
   end loop;
   for v_r in select * from (values
 ${values(r.pins.stoke, ([i, o]) => `    (${jlit(i)}, ${jlit(o)})`)}) p(i, o) loop
@@ -590,9 +669,9 @@ async function selftest() {
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));
-  for (const v of 'abcdefghijklmnopqrs') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
+  for (const v of 'abcdefghijklmnopqrst') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
   if (bites.length) { console.error('gen-flame-temper --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
-  console.log('gen-flame-temper --selftest: 14 refusals bite, 19 verifications pinned');
+  console.log('gen-flame-temper --selftest: 14 refusals bite, 20 verifications pinned');
 }
 
 if (isMain(import.meta.url)) {

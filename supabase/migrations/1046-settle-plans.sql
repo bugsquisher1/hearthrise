@@ -76,7 +76,7 @@ begin
     -- whole with this file's fences in it, plus the worn pieces), and after 1074-inner-flame-luck.sql the same with its `flame` key.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae',
-                                                                              'fc3028f121261dd3b7a15476c5164c40', 'bbd7dbb30b09031ea139812420a40405'))
+                                                                              'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc'))
        and not (v_r.fn = 'public.hr_hunt_member_read(public.hunt_sessions)' and v_md5 = '8cf75f1bce69a3273f3490e52650354c')
        and not (v_r.fn = 'public.hr_skill_level(text,bigint)' and v_md5 = 'e01730edbac721c3eb5ea4c3f32a7514') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;

@@ -67,7 +67,6 @@ import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
 import { sessionModeOf } from '../../../src/data/session-modes.js';
 import { towerOf, towerMonsters, towerRoom } from '../../../src/core/hunt/tower.js';
-import { flameDrops } from '../../../src/core/inner-flame.js';
 
 /* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
    world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
@@ -850,11 +849,13 @@ export function traitsFor(drops, key) {
   return found.length || moved ? { found, pity: after } : null;
 }
 
-/** THE INNER FLAME'S NOTE THIS WINDOW HANDS THE ENGINE (src/core/inner-flame.js flameDrops), or null: only when the server's read says
-    the fire is lit (hr_hunt_instance_read instance `flame`, 1074-inner-flame-luck.sql). Built afresh for every proposal, so a degraded
-    retry notes from the window's start again. */
+/** THE INNER FLAME'S NOTE THIS WINDOW HANDS THE ENGINE (src/core/hunt-rewards.js giveDrop pushes onto it), or null: only when the server's
+    read says the fire is lit (hr_hunt_instance_read instance `flame`, 1074-inner-flame-luck.sql: the server's own Remains items, its
+    hr_flame_fuel, so what counts as fuel is the catalogue's alone). Built afresh for every proposal, so a degraded retry notes from the
+    window's start again. { fuel: Set, list: [{ at, seq, key, item, qty }], seq } */
 export function flameDropsOf(inst) {
-  return inst && inst.flame === true ? flameDrops() : null;
+  if (!inst || !Array.isArray(inst.flame)) return null;
+  return { fuel: new Set(inst.flame.filter((i) => typeof i === 'string')), list: [], seq: 0 };
 }
 
 /** ONE MEMBER'S `flame` CLAIM FOR THE COMMIT (hr_flame_settle re-proves it and walks the fire from it): every Remains it picked up this

@@ -69,9 +69,9 @@ begin
     -- A RETRY AFTER 1056-danger-scale.sql (staged after this file) finds the instance read at 1056's image: this file's hold seat read
     -- already in it, plus the frozen stance in the overlay. The splice below then finds its post text and moves nothing. After
     -- 1071-trait-pieces.sql, at 1071's image (restated whole with this file's hold seat read in it, plus the worn pieces), and after
-    -- 1074-inner-flame-luck.sql the same with its `flame` key (bbd7dbb3).
+    -- 1074-inner-flame-luck.sql the same with its `flame` key (06fa5411).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('3097347b88e3a5187f2f12cf0d7fbcae', 'fc3028f121261dd3b7a15476c5164c40', 'bbd7dbb30b09031ea139812420a40405')) then
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('3097347b88e3a5187f2f12cf0d7fbcae', 'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -374,7 +374,7 @@ begin
   if not has_function_privilege('hr_engine', 'public.hr_hunt_instance_read(uuid,integer)', 'execute') then
     raise exception 'VERIFY(c): the spliced instance read lost hr_engine''s EXECUTE'; end if;
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) not in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae',
-                                                                                                                                       'fc3028f121261dd3b7a15476c5164c40', 'bbd7dbb30b09031ea139812420a40405')
+                                                                                                                                       'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc')
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_set(integer,integer,uuid)'::regprocedure) is distinct from '09b2d6618bc975ea70dd8fdcad169121'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure) is distinct from '4bc8c642106dba6846780e5808142b4f'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_scaled_hunt_of(uuid)'::regprocedure) is distinct from 'e409f4934708ce768b038a1086ce48db' then

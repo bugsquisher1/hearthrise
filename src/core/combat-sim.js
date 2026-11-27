@@ -304,7 +304,7 @@ export function bornHpOf(u, evs) {
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
  *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled),
  *        traitDrops? (the server's Trait roll, src/core/trait-roll.js traitSwing: DARK, nothing hands one while GEAR_STEPS.traitsLive is false),
- *        flameDrops? (the Inner Flame's note of every Remains a hero picks up and when, src/core/inner-flame.js flameDrops: handed only when
+ *        flameDrops? (the Inner Flame's note of every Remains a hero picks up and when, hunt-settle.js flameDropsOf: handed only when
  *        the server says the fire is lit; the server walks the fire from it, 1074-inner-flame-luck.sql; no die is drawn),
  *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws),
  *        towerFloor? (the Burning Tower, src/core/hunt/tower.js: the floor whose room stands, or stands next, at this span's start: the
@@ -518,7 +518,7 @@ export function simulateHuntInstance(inst, ctx) {
         /* THE TRAIT ROLL (src/core/trait-roll.js), DARK: only on the scale and only when the server hands one (ctx.traitDrops; none while
            GEAR_STEPS.traitsLive is false). Each hero's own stream for the swing, seed domain t:<unit> (action-rules.js SEED_DOMAIN) */
         ...(ctx.traitDrops && scale && !train ? { traitDrops: traitSwing(ctx.traitDrops, ctx.ground, world.danger, (u) => createRng(seedOf(ctx, 't:' + u, sw))) } : {}),
-        /* THE INNER FLAME (src/core/inner-flame.js flameDrops): the server's note of each Remains picked up, only when it hands one */
+        /* THE INNER FLAME (hunt-settle.js flameDropsOf): the server's note of each Remains picked up, only when it hands one */
         ...(ctx.flameDrops ? { flameDrops: ctx.flameDrops } : {}) });
       /* THE BURNING TOWER: each hero standing when its room fell cleared the floor (tower.js towerCleared's `floor` event names them). */
       if (tw) for (const e of r.events) if (e.type === 'floor') for (const id of Object.keys(e.by)) { const m = byUnit.get(Number(id)); if (m) out.get(m.key).floors.push(e.floor); }

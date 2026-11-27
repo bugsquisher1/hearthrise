@@ -19,9 +19,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { encodePlanCode } from '../core/plan-code.js';
 import { normalize, pointsSpent } from '../core/talents.js';
-import { companyPlanOf } from './company-sections.js';
+import { companyPlanOf, planGroundOf } from './company-sections.js';
 import { dangerOf } from './danger-sections.js';
-import { huntOf } from './hunt-sections.js';
 import { setHeroPlan } from './company-intents.js';
 import { setRisk } from './danger-intents.js';
 import { setCompanyLine } from './carry-on-intents.js';
@@ -44,12 +43,9 @@ function roadsOf(cs) {
   return { nodes: normalize(sec.nodes), builds, points: Number.isSafeInteger(sec.points) ? sec.points : null };
 }
 
-/* The ground the hero's next Start goes to: the plan's, else the one it hunted last (the Start repeats it). */
-function groundOf(cs, co) {
-  if (co && co.planHunt) return co.planHunt;
-  const h = huntOf(cs);
-  return h && h.huntId && ID.test(h.huntId) ? h.huntId : null;
-}
+/* The ground the hero's next Start goes to: the plan's, else the one it hunted last (the Start repeats it); the Roads map's Plan route
+   saves its build on the same ground (company-sections.js planGroundOf, the one reading). */
+const groundOf = (cs, co) => planGroundOf(cs, co);
 
 /** The plan the server holds for this hero ({ ground, risk, lines, nodes }, each null when unknown). Display only. */
 function heroPlanOf(cs) {

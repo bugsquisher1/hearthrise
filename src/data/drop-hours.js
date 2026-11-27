@@ -39,9 +39,11 @@
 // press is not a kill; never depth: a part carries none, so its odds and its rank roll as at the ground's reference step, the flame's luck
 // read as on a drop). One Trait piece per 40 hunted hours of parts, made or found: the market sees the same Trait supply either way.
 //
-// PITY (04 guard 5, 21 section 4.2, gear-steps.js GEAR_STEPS.pity): a hero's chance rises with every kill it rolled and missed, reset on a
-// hit, so the long-run rate is the stated one and the unlucky tail is short. Linear, solved for the mean (src/core/trait-roll.js pityChance):
-//   chance after k misses = C x (k + 1),  C = pi / 2 x p^2     (mean kills to a hit = 1 / p, the tail a Rayleigh's: p90 = 1.71 x mean)
+// PITY (04 guard 5, 21 section 4.2, gear-steps.js GEAR_STEPS.pity; THE ONE PITY, designer, lane/designer-pity, 2026-11-26, 12-targets 8.6):
+// a hero's chance rises with the finds it was owed and missed, reset on a hit, so the long-run rate is the stated one and the unlucky tail
+// is short. Personal loot's (src/core/personal-loot.js, src/data/party.js PERSONAL_LOOT): p0 = p x basePm / 1000, x the sum of p0 over
+// the misses since the last find, chance p0 x (1 + growPm / 1000 x x) (mean rolls to a hit 1 / p, p90 1.94 x the mean, p10 0.20 x).
+// Counted in finds, not kills, so a miss in a party of four, at depth 1 or on a slow ground weighs what it was worth.
 //
 // STARTING VALUES, NOT RULINGS (the Lab tunes them; in band is enough). PURE ESM. Data only. Imports only loot-bands.js.
 // ════════════════════════════════════════════════════════════════════════

@@ -19,6 +19,9 @@
 //                                src/core/bands.js refHeldOf), permille (x1 at depth 1 to x3 at 20)
 //   traitSlotsDropped(ground)    the Trait slots (gear-steps.js traitSlots) the ground's drop rows carry a piece of: a Rare's slot comes
 //                                first (GEAR_STEPS.traitRoll.slotFirst), so only these can roll a Trait there
+//   traitBasesOf(ground, ...)    the pieces a Trait piece found there may be, by Trait slot
+//   kindOf(item)                 a piece's kind in its slot (armor class, weapon type with a caster's discipline, off-hand): the Trait
+//                                roller draws a found piece's base of the kind its finder wears there (12-targets 8.6)
 //
 // tools/gen-drop-hours.mjs writes every scale ground's derived `ch` with this; tests/drop-formula.mjs holds them equal.
 //
@@ -137,4 +140,15 @@ export function traitBasesOf(ground, traitSlots, gearLevel, monsters = MONSTERS,
   const out = {};
   for (const s of Object.keys(all).sort()) out[s] = [...(at[s] || all[s])].sort();
   return out;
+}
+
+/** A PIECE'S KIND in its slot (designer, lane/designer-pity, 2026-11-26; 12-targets 8.6): what a hero who wears it there can swap it for
+    without changing how it fights. Armor by its class (plate, leather, cloth), a weapon by its type (sword, axe, hammer, ranged, magic) and,
+    for a caster's, its discipline (a healer's staff is not a wand), an off-hand by its kind (shield, spellbook). '' for a piece with none
+    (a ring, a cape): every base of such a slot is one kind. */
+export function kindOf(it) {
+  if (!it || typeof it !== 'object') return '';
+  if (it.type === 'weapon') return 'weapon:' + (it.weaponType || '') + ':' + (it.discipline || '');
+  if (it.type === 'offhand') return 'offhand:' + (it.offhand || '') + ':' + (it.discipline || '');
+  return it.armourClass ? 'armor:' + it.armourClass : '';
 }

@@ -8,9 +8,12 @@
 // docs/design/redesign/20-v030-the-roads.md section 4 (R-UI), 18-roads-review-ux.md, 17-talent-tree.md v3. One component: a window
 // over the World on desktop (src/data/shell-windows.js `talents`, offered only while the server sends the `talents` section, i.e. while
 // the Roads switch is on), a full-width sheet on a phone with the node card sliding in over the map (src/styles/roads.css).
-//   band   Points and Vows (the server's), Spend as suggested (ONE intent), the zoom tier (Country, Road, Node), Recenter
-//   map    ./map.js: every stone in one of four states, the route to the stone under the pointer or picked, its cost badge
-//   card   ./card.js: what the picked stone is, its route and cost, and its Take (ONE intent, on only from the server's state)
+//   band   Points and Vows (the server's), Spend as suggested (the standing rule: a toggle drawn from the server's `auto`, ONE intent
+//          a press, never flipped before the answer), the zoom tier (Country, Road, Node), Recenter
+//   map    ./map.js: every stone in one of four states, the route to the stone under the pointer or picked, its cost badge, the plan's
+//          stones (./road-plan.js: the server's saved build); over it Find talent and the filters (./find.js); the stage takes the keys
+//   card   ./card.js: what the picked stone is, its route and cost, its Take (ONE intent, on only from the server's state) and its Plan
+//          route (ONE saveBuild); with nothing picked, the plan and Spend on plan
 //   list   Country view: each country with its owned count; a press flies there at Road view
 // OPENS WHERE YOU ARE (18 section 3): every opening starts at Road view on the next stone of the hero's suggested road.
 // The camera, the pick and the hover are display scratch in memory (this file's WeakMap), never the residue and never sent.
@@ -22,7 +25,7 @@ import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { roadsLayout } from '../../../render/roads-layout.js';
 import { nodeStates, routeTo, nextSuggested, vowsOf } from '../../../core/talent-route.js';
 import { talentsOf } from '../../../session/talent-sections.js';
-import { spendSuggested, spendTalent } from '../../../session/talent-intents.js';
+import { setTalentAuto, spendTalent } from '../../../session/talent-intents.js';
 import { equipmentOf } from '../../../session/item-sections.js';
 import { rows, text, prop, cls, attr, element } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
@@ -31,6 +34,9 @@ import { t } from '../../../render/player-text.js';
 import { mapHtml, mapOf, paintMap, bindGestures, nodeAt, countryAt } from './map.js';
 import { cardHtml, patchCard } from './card.js';
 import { fitScale, tierOf, scaleOf, toMap, clampCam, zoomAbout, stepScale, tierIn, TIERS } from './camera.js';
+import { roadPlanOf, actPlan } from './road-plan.js';
+import { findTalents, FILTERS, stoneToward } from './find.js';
+import { keyBelongsToField } from '../../../utils/dom.js';
 
 /* the plan the map reads the suggested road for (the company joins at Level 5, 17 section 13): the card's and the tab's */
 const PLAN = 'party';
@@ -40,7 +46,11 @@ const scratchOf = (cs) => {
   if (!s) {
     s = { cam: null, sel: null, hover: null, pending: false, msg: '', memo: null, frame: 0,
       /* the stage as last painted ({ w, h, fit, phone }), the country list's measured width, and a pending Country fit */
-      view: null, listW: 0, fitCountry: false };
+      view: null, listW: 0, fitCountry: false,
+      /* Find talent's words and rows, and the filters on (find.js): display scratch */
+      find: '', found: [], filters: new Set(),
+      /* the phone's sheet held open with nothing picked */
+      sheet: false };
     SCRATCH.set(cs, s);
   }
   return s;
@@ -49,16 +59,24 @@ const roleKeyOf = (cs) => { const eq = /** @type {{ weapon?: string }} */ (equip
 
 /** The skeleton (built once per opening): an opening starts where the hero is (the camera is chosen at the first paint). */
 export function renderBody(ctx) {
-  if (ctx.character) { const sc = scratchOf(ctx.character); sc.cam = null; sc.sel = null; sc.hover = null; sc.msg = ''; }
+  if (ctx.character) { const sc = scratchOf(ctx.character); sc.cam = null; sc.sel = null; sc.hover = null; sc.msg = ''; sc.find = ''; sc.found = []; sc.sheet = false; }
   return '<div class="rdw">'
     + '<div class="rdw-band">'
     + '<p class="rdw-stat"><span></span><b class="rdw-points"></b></p><p class="rdw-stat"><span></span><b class="rdw-vows"></b></p>'
-    + '<button type="button" class="hh-tool" data-hs-act="rd-suggested"></button><p class="hs-note rdw-band-why"></p>'
+    /* the band's one toggle (18 section 8): the standing rule, as the server holds it */
+    + '<button type="button" class="hh-tool rdw-auto" data-hs-act="rd-auto" aria-pressed="false"></button>'
+    /* the phone's way to the sheet with nothing picked (the plan's rows): the desktop's card always stands beside the map */
+    + '<button type="button" class="hh-tool rdw-sheet-open" data-hs-act="rd-sheet" aria-expanded="false"></button>'
     + '<span class="rdw-gap"></span>'
     + '<div class="hw-tabs rdw-tiers" role="tablist">' + TIERS.map((k) => '<button type="button" role="tab" class="hw-tab" data-hs-act="rd-tier" data-tier="' + k + '"></button>').join('') + '</div>'
     + '<button type="button" class="hh-tool is-link" data-hs-act="rd-home"></button>'
     + '</div>'
-    + '<div class="rdw-main"><div class="rdw-mapbox">' + mapHtml() + '<ul class="rdw-countries"></ul></div>' + cardHtml() + '</div>'
+    + '<div class="rdw-main"><div class="rdw-mapbox">' + mapHtml() + '<ul class="rdw-countries"></ul>'
+    /* Find talent and the filters, over the map's top left (find.js) */
+    + '<div class="rdw-tools"><div class="rdw-findbox"><input type="search" class="rdw-find" data-hs-act="rd-find" autocomplete="off" spellcheck="false">'
+    + '<ul class="rdw-found"></ul><p class="hs-note rdw-found-none"></p></div>'
+    + Object.keys(FILTERS).map((f) => '<button type="button" class="hh-tool rdw-filter" data-hs-act="rd-filter" data-filter="' + f + '" aria-pressed="false"></button>').join('')
+    + '</div></div>' + cardHtml() + '</div>'
     + '</div>';
 }
 
@@ -102,21 +120,28 @@ export function patchBody(body, ctx) {
   const root = body.querySelector('.rdw');
   const tl = talentsOf(cs, roleKeyOf(cs), PLAN);
   const memo = memoOf(sc, tl);
+  const plan = roadPlanOf(cs, tl);
   const L = roadsLayout();
   const phone = phoneOf(ctx);
-  /* the band: the server's points and vow slots; Spend as suggested is ONE intent, off with no point to spend */
+  /* the band: the server's points and vow slots */
   const bandStats = root.querySelectorAll('.rdw-stat');
   text(bandStats[0].querySelector('span'), t('talents.points_label'));
   text(root.querySelector('.rdw-points'), whole(tl ? tl.left : 0));
   const vw = tl ? vowsOf(tl.nodes, tl.level) : { held: 0, open: 0 };
   text(bandStats[1].querySelector('span'), t('talents.vows_label'));
   text(root.querySelector('.rdw-vows'), t('talents.vows_of', { held: whole(vw.held), open: whole(vw.open) }));
-  const go = root.querySelector('[data-hs-act="rd-suggested"]');
+  /* Spend as suggested, the standing rule: pressed exactly while the SERVER's section says it is on (`auto`), never flipped by the
+     press itself; off while a press is out (its busy line says so) */
+  const go = root.querySelector('[data-hs-act="rd-auto"]');
   text(go, t('talents.spend_suggested'));
-  const noPoints = !tl || !tl.left;
-  prop(go, 'disabled', noPoints || sc.pending);
-  text(root.querySelector('.rdw-band-why'), noPoints ? t('talents.no_points') : '');
+  attr(go, 'aria-pressed', String(!!(tl && tl.auto)));
+  prop(go, 'disabled', sc.pending);
+  const sheet = root.querySelector('[data-hs-act="rd-sheet"]');
+  text(sheet, t('talents.plan_label'));
+  attr(sheet, 'aria-expanded', String(sc.sheet && !sc.sel));
+  cls(root, 'is-sheet', sc.sheet && !sc.sel);
   text(root.querySelector('[data-hs-act="rd-home"]'), t('talents.recenter'));
+  patchTools(root, ctx, sc);
 
   /* the map: sized to its stage, opened where the hero is */
   const stage = root.querySelector('[data-rd-stage]');
@@ -136,7 +161,8 @@ export function patchBody(body, ctx) {
     sc.cam = clampCam(sc.cam, L.bounds, fit);
     sc.view = { w, h, fit, phone };
     const shown = sc.hover && NODE_INDEX[sc.hover] ? sc.hover : sc.sel;
-    paintMap(M, { cam: sc.cam, w, h, states: memo.states, picks: memo.picks, route: routeOf(memo, tl, shown), sel: sc.sel, counts: memo.counts });
+    paintMap(M, { cam: sc.cam, w, h, states: memo.states, picks: memo.picks, route: routeOf(memo, tl, shown), sel: sc.sel, counts: memo.counts,
+      planned: plan.planned, filters: sc.filters });
   }
   const tier = sc.cam ? tierOf(sc.cam.s) : 'road';
   attr(root, 'data-tier', tier);
@@ -159,7 +185,27 @@ export function patchBody(body, ctx) {
   const card = root.querySelector('.rdw-card');
   cls(root, 'is-picked', !!sc.sel);
   const home = homeOf(cs, tl);
-  patchCard(card, ctx, { tl, sel: sc.sel, route: routeOf(memo, tl, sc.sel), states: memo.states, fork: home === 'hearth' ? null : home, pending: sc.pending, msg: sc.msg });
+  patchCard(card, ctx, { tl, sel: sc.sel, route: routeOf(memo, tl, sc.sel), states: memo.states, fork: home === 'hearth' ? null : home, pending: sc.pending, msg: sc.msg,
+    plan, suggest: PLAN });
+}
+
+/* Find talent's rows and the filters' toggles (find.js); the typed words are the input's own, never written back but to clear them */
+function patchTools(root, ctx, sc) {
+  const input = root.querySelector('.rdw-find');
+  attr(input, 'placeholder', t('talents.find'));
+  attr(input, 'aria-label', t('talents.find'));
+  if (!sc.find && input.value) input.value = '';
+  rows(root.querySelector('.rdw-found'), sc.found, {
+    key: (r) => r.id + '|' + r.label,
+    build: (r) => element(ctx.doc, '<li><button type="button" class="hh-tool is-link rdw-hit" data-hs-act="rd-found" data-node="' + r.id + '"><b></b><small></small></button></li>'),
+    patch: (li, r) => { text(li.querySelector('b'), r.label); text(li.querySelector('small'), r.sub); },
+  });
+  text(root.querySelector('.rdw-found-none'), sc.find.trim().length >= 2 && !sc.found.length ? t('talents.find_none') : '');
+  for (const b of root.querySelectorAll('[data-hs-act="rd-filter"]')) {
+    const f = b.getAttribute('data-filter');
+    text(b, t('talents.filter_' + f));
+    attr(b, 'aria-pressed', String(sc.filters.has(f)));
+  }
 }
 
 /* a size change repaints (the window docks, the phone turns, the card opens) */
@@ -206,6 +252,8 @@ function gestures(body, ctx, sc, M) {
       sc.sel = id;
       sc.hover = null;
       sc.msg = '';
+      /* a tap on the map lets the phone's held sheet go (a stone's own card takes its place) */
+      sc.sheet = false;
       /* a phone's card covers the map's right edge: a stone picked under it moves to the middle of the room left of it (18 section 6) */
       const card = body.querySelector('.rdw-card');
       const cw = v.phone && card ? card.offsetWidth : 0;
@@ -224,12 +272,87 @@ function gestures(body, ctx, sc, M) {
 /* a country's place to fly to: its first crossroads */
 const firstStone = (country) => { const L = roadsLayout(); const m = COUNTRY_ROADS[country] && COUNTRY_ROADS[country][0]; return (m && L.pos[m + '.x1']) || L.pos.hearth; };
 
+/* pick stone `id` and bring it on screen: centred when it stands outside the stage's inner room, else where it is */
+function pickStone(body, ctx, sc, id) {
+  const v = sc.view;
+  sc.sel = id; sc.hover = null; sc.msg = '';
+  const p = roadsLayout().pos[id];
+  if (!v || !sc.cam || !p) { patchBody(body, ctx); return; }
+  const s = Math.max(sc.cam.s, scaleOf('road', v.fit, v.phone));
+  const sx = (p.x - sc.cam.cx) * s + v.w / 2, sy = (p.y - sc.cam.cy) * s + v.h / 2, m = 48;
+  if (s !== sc.cam.s || sx < m || sy < m || sx > v.w - m || sy > v.h - m) flyTo(body, ctx, sc, p, s); else schedule(body, ctx, sc);
+}
+
+const ARROWS = Object.freeze({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] });
+
+/* THE KEYS on the stage, and the words typed into Find talent (find.js); true when the key was the map's */
+function actKeys(ctx, body, sc, action, ev, el) {
+  if (action === 'rd-find' && ev.type === 'input') {
+    sc.find = String(el.value || '');
+    sc.found = findTalents(sc.find);
+    patchTools(body.querySelector('.rdw'), ctx, sc);
+    return false;
+  }
+  if (action === 'rd-find' && ev.type === 'keydown') {
+    if (ev.key === 'Enter' && !ev.isComposing && sc.found.length) { const id = sc.found[0].id; sc.find = ''; sc.found = []; pickStone(body, ctx, sc, id); return true; }
+    if (ev.key === 'Escape' && sc.find) { sc.find = ''; sc.found = []; patchBody(body, ctx); return true; }
+    return false;
+  }
+  if (action !== 'rd-keys' || ev.type !== 'keydown' || keyBelongsToField(ev.target, ev.key) || ev.altKey || ev.ctrlKey || ev.metaKey) return false;
+  const v = sc.view;
+  if (!v || !sc.cam) return false;
+  const dir = ARROWS[ev.key];
+  if (dir) {
+    if (tierOf(sc.cam.s) === 'country') return false;
+    const tl = talentsOf(ctx.character, roleKeyOf(ctx.character), PLAN);
+    const next = sc.sel ? stoneToward(roadsLayout().pos, sc.sel, dir[0], dir[1]) : homeOf(ctx.character, tl);
+    if (next) pickStone(body, ctx, sc, next);
+    return true;
+  }
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    /* the card's own Take, exactly as a press would send it: on only from the server's state */
+    const take = body.querySelector('.rdw-card .rdw-take');
+    if (sc.sel && take && !take.hidden && !take.disabled) take.click();
+    return !!sc.sel;
+  }
+  if (ev.key === 'Escape' && sc.sel) { sc.sel = null; sc.msg = ''; patchBody(body, ctx); return true; }
+  if (ev.key === '+' || ev.key === '=' || ev.key === '-') {
+    const s = ev.key === '-' ? stepScale(sc.cam.s, 1 / 1.6, v.fit, v.phone) : tierIn(sc.cam.s, v.fit, v.phone);
+    moveTo(body, ctx, sc, zoomAbout(sc.cam, v.w, v.h, v.w / 2, v.h / 2, s));
+    return true;
+  }
+  return false;
+}
+
 export function actBody(ctx, body, action, ev, el) {
-  if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
+  if (ev.type !== 'click') return actKeys(ctx, body, sc, action, ev, el);
   const repaint = () => patchBody(body, ctx);
   const v = sc.view;
+  const tlOf = () => talentsOf(cs, roleKeyOf(cs), PLAN);
+  if (actPlan(ctx, sc, action, el, repaint, tlOf, PLAN)) return true;
+  if (action === 'rd-sheet') { sc.sheet = !(sc.sheet && !sc.sel); sc.sel = null; sc.msg = ''; repaint(); return true; }
+  if (action === 'rd-filter') {
+    const f = el.getAttribute('data-filter');
+    if (Object.prototype.hasOwnProperty.call(FILTERS, f)) { if (sc.filters.has(f)) sc.filters.delete(f); else sc.filters.add(f); }
+    repaint();
+    return true;
+  }
+  if (action === 'rd-found') {
+    const id = el.getAttribute('data-node');
+    sc.find = ''; sc.found = [];
+    if (id && NODE_INDEX[id]) pickStone(body, ctx, sc, id); else repaint();
+    return true;
+  }
+  if (action === 'rd-auto') {
+    const tl = tlOf();
+    if (!tl) return true;
+    const on = !tl.auto;
+    runIntent(sc, repaint, () => setTalentAuto(ctx.account, cs, on ? PLAN : null), t('talents.spending'),
+      (r) => (on && r.spent ? (r.spent === 1 ? t('talents.spent_one') : t('talents.spent_many', { count: whole(r.spent) })) : t(on ? 'talents.auto_on' : 'talents.auto_off')), cs);
+    return true;
+  }
   if (action === 'rd-tier' && v && sc.cam) {
     const tier = el.getAttribute('data-tier');
     const s = scaleOf(tier, v.fit, v.phone);
@@ -253,11 +376,6 @@ export function actBody(ctx, body, action, ev, el) {
       sc.sel = id; sc.msg = '';
       if (v && sc.cam) flyTo(body, ctx, sc, roadsLayout().pos[id], Math.max(sc.cam.s, scaleOf('road', v.fit, v.phone))); else repaint();
     }
-    return true;
-  }
-  if (action === 'rd-suggested') {
-    runIntent(sc, repaint, () => spendSuggested(ctx.account, cs, PLAN), t('talents.spending'),
-      (r) => (r.spent === 1 ? t('talents.spent_one') : t('talents.spent_many', { count: whole(r.spent || 0) })), cs);
     return true;
   }
   if (action === 'rd-take' && sc.sel) {

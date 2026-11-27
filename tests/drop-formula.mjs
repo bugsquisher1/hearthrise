@@ -15,7 +15,10 @@
 //         that cell; a Very Rare's second Trait shares its slot, never its key, never a banned pair; no rank over the ground's maxRank,
 //         only rank 1 under depth 8, and at depth 20 of a rank-3 ground the top rank about topRankPm, more with luck, never past
 //         topRankMaxPm; personal loot: a hero of four finds as often an hour as a hero alone; the flame's luck multiplies the odds; pity
-//         keeps the long-run rate (the mean kills to a hit 1 / p) and the tail short (p90 under 2x the mean, against ~2.3 without)
+//         keeps the long-run rate (the mean kills to a hit 1 / p) and the tail short (p90 under 2x the mean, against ~2.3 without);
+//         (designer, lane/designer-pity, 12-targets 8.6) the ONE pity counts the finds owed, so a hero who banks misses in a party of four at
+//         depth 1 and spends them alone at depth 20 finds what the halves state (a pity of whole missed rolls ran it at about 1.5x); a found
+//         piece's base is the kind its finder wears in that slot (armor class, weapon type and a caster's discipline, off-hand)
 //   DF-5  THE SETTLE, VIEWED OR CLOSED: a scale hunt handed a roll finds the same pieces for the same heroes in one window, 10 s windows
 //         and odd cuts (world and pity through JSON at every cut); and every other output (events, items, gold, world) is the hunt's
 //         without the roll, digit for digit: the roller draws on its own streams only
@@ -63,7 +66,7 @@ function sampler(M, groundId, step, o = {}) {
   const tr = { luckPm: { h: o.luckPm || 0 }, pity: {}, found: [], ...(o.hours ? { hours: o.hours } : {}), ...(o.pityOn ? { pityOn: o.pityOn } : {}) };
   const rng = M.rng.createRng(M.rng.hashSeed('df4', groundId, step, o.seed || 1));
   const sw = M.TR.traitSwing(tr, ground, step, () => rng);
-  return { tr, sw, rng, kill: (n = 1) => M.TR.rollKillFor(sw, 'h', 1, n, rng) };
+  return { tr, sw, rng, kill: (n = 1) => M.TR.rollKillFor(sw, 'h', 1, n, rng, undefined, undefined, o.worn) };
 }
 /* kills to each first hit, `samples` times (pity reset at each hit, as the roller does) */
 function killsToHit(M, groundId, step, o) {
@@ -215,6 +218,38 @@ const CASES = {
     if (!near(mean(pity), 600, 0.06)) return 'pity moved the long-run rate: ' + mean(pity).toFixed(0) + ' kills a hit, not 600';
     if (!(q(pity, 0.9) / mean(pity) < 2)) return 'pity: p90 is ' + (q(pity, 0.9) / mean(pity)).toFixed(2) + 'x the mean (21 L2: under 2)';
     if (!(q(alone, 0.9) / mean(alone) > 2)) return 'CONTROL: without pity p90 is only ' + (q(alone, 0.9) / mean(alone)).toFixed(2) + 'x the mean';
+    /* (designer, lane/designer-pity, 12-targets 8.6) THE ONE PITY COUNTS THE FINDS OWED: 584 kills in a party of four at depth 1, then 146
+       alone at depth 20 (a hero-week's 10 h blocks at these odds: an eighth of a find, then three eighths), 4000 times, on one carried
+       pity. Each block states its own finds (kills x p); the whole run finds their sum (a pity of whole missed rolls finds about 1.57x) */
+    {
+      const mrow = M.D.DANGER_GROUNDS.muster_barrows, mg = M.grounds.HUNT_GROUNDS.muster_barrows;
+      let d1 = 0;
+      while (M.DR.depthOf('muster_barrows', d1) !== 1) d1 += 1;
+      const tr = { luckPm: { h: 0 }, pity: {}, found: [], hours: hrs };
+      const rng = M.rng.createRng(M.rng.hashSeed('df4-bank', 1));
+      const deep = M.TR.traitSwing(tr, mg, mrow.topStep, () => rng), shallow = M.TR.traitSwing(tr, mg, d1, () => rng);
+      let stated = 0;
+      for (let c = 0; c < 4000; c++) {
+        for (let k = 0; k < 584; k++) M.TR.rollKillFor(shallow, 'h', 1, 4, rng);
+        for (let k = 0; k < 146; k++) M.TR.rollKillFor(deep, 'h', 1, 1, rng);
+        stated += ((584 / 4) * (shallow.rarePm / 1000)) / 600 + (146 * (deep.rarePm / 1000)) / 600;
+      }
+      const ratio = tr.found.length / stated;
+      if (!(shallow.rarePm < 700 && deep.rarePm > 1300)) return 'CONTROL: depth 1 and depth 20 read x' + (shallow.rarePm / 1000).toFixed(2) + ' and x' + (deep.rarePm / 1000).toFixed(2);
+      if (!near(ratio, 1, 0.08)) return 'pity banked in a party at depth 1 and spent alone at depth 20 found ' + tr.found.length + ' against ' + stated.toFixed(0) + ' stated (x' + ratio.toFixed(2) + ')';
+    }
+    /* (designer, lane/designer-pity) THE BASE FITS THE FINDER: a caster in a wand and cloth on Muster finds only wands and cloth there (a
+       hero who wears nothing in a slot finds any of its bases: the weapon-cell check above), and the kind reads a caster's discipline */
+    {
+      const worn = { weapon: 'maple_wand', body: 'warlock_body', belt: 'warlock_belt', shield: 'maple_spellbook' };
+      const sm = sampler(M, 'muster_barrows', ref, { hours: { rare: 0.01, very_rare: 0.02 }, worn });
+      for (let i = 0; i < 3000; i++) sm.kill(1);
+      const want = (slot) => M.DR.kindOf(M.ITEMS[worn[slot]]);
+      if (sm.tr.found.length < 200) return 'CONTROL: the caster found ' + sm.tr.found.length + ' pieces';
+      for (const pc of sm.tr.found) if (M.DR.kindOf(M.ITEMS[pc.base]) !== want(pc.slot)) return 'a caster in ' + worn[pc.slot] + ' found a ' + pc.slot + ' piece on ' + pc.base;
+      if (M.DR.kindOf(M.ITEMS.maple_wand) === M.DR.kindOf(M.ITEMS.maple_staff)) return "a wand and a healer's staff read as one kind";
+      if (M.DR.kindOf(M.ITEMS.mithril_platebody) === M.DR.kindOf(M.ITEMS.warlock_body)) return 'plate and cloth read as one kind';
+    }
     return null;
   },
   'DF-5'(M) {
@@ -324,17 +359,21 @@ const MUTANTS = [
   /* (lane/depth-reading-fix) the authored hours are the reference COMPANY's: x1 where it holds, not at the pay's anchor */
   { name: 'the Rare odds read against the pay anchor, not the reference hold', case: 'DF-3', edits: [['src/core/drop-rate.js', 'ref = depthOf(groundId, refHeldOf(groundId));', 'ref = depthOf(groundId, row.refStep); void refHeldOf;']] },
   { name: 'no divisor for the heroes at the kill', case: 'DF-4', edits: [['src/core/trait-roll.js', '((chanceOf(hours, tr.kills) || 0) / n)', '((chanceOf(hours, tr.kills) || 0) / 1)']] },
-  { name: 'pity off', case: 'DF-4', edits: [['src/core/trait-roll.js', 'if (!on) return Math.min(1, p);', 'return Math.min(1, p);']] },
+  { name: 'pity off', case: 'DF-4', edits: [['src/core/trait-roll.js', 'const hit = rng.next() < (on ? pityChance(p, owed) : Math.min(1, p));', 'const hit = rng.next() < Math.min(1, p);']] },
+  /* (designer, lane/designer-pity) the second model the ruling retired: a pity of whole missed rolls, read at the current chance */
+  { name: 'pity counts the kills missed, not the finds owed', case: 'DF-4', edits: [['src/core/trait-roll.js', 'const hit = rng.next() < (on ? pityChance(p, owed) : Math.min(1, p));\n    pity[rarity] = on ? pityAfter(owed, p, hit) : 0;', 'const hit = rng.next() < (on ? Math.min(1, (Math.PI / 2) * p * p * (owed + 1)) : Math.min(1, p));\n    pity[rarity] = on ? (hit ? 0 : owed + 1) : 0;']] },
+  { name: 'the base ignores what the finder wears', case: 'DF-4', edits: [['src/core/trait-roll.js', 'base: pick(basesFor(list, slot, worn, fit), rng), traits,', 'base: pick(list, rng), traits,']] },
+  { name: 'a caster\'s discipline left out of its kind', case: 'DF-4', edits: [['src/core/drop-rate.js', "if (it.type === 'weapon') return 'weapon:' + (it.weaponType || '') + ':' + (it.discipline || '');", "if (it.type === 'weapon') return 'weapon:' + (it.weaponType || '');"]] },
   { name: 'the flame left out', case: 'DF-4', edits: [['src/core/trait-roll.js', '(tr.rarePm / 1000) * ((1000 + luck) / 1000);', '(tr.rarePm / 1000);']] },
   { name: 'a Very Rare pair of one key', case: 'DF-4', edits: [['src/core/trait-roll.js', "if (a !== b && traits[a].key !== traits[b].key && !banned.includes(tag)) seen.add(tag);", 'if (a !== b && !banned.includes(tag)) seen.add(tag);']] },
   { name: 'a rank past the ground\'s top', case: 'DF-4', edits: [['src/core/trait-roll.js', 'if (depth >= d && i + 1 <= maxRank) top = i + 1;', 'if (depth >= d) top = i + 1;']] },
   { name: 'the slot from the whole pool, not the dropped cells', case: 'DF-4', edits: [['src/core/trait-roll.js', 'const slots = traitSlotsDropped(ground, GEAR_STEPS.traitSlots);', 'const slots = Object.keys(GEAR_STEPS.traitSlots);']] },
-  { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId)', 'ctx.rng, atMs, monId)']] },
+  { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId, m.worn)', 'ctx.rng, atMs, monId, m.worn)']] },
   /* (lane/t1-traits-drop) the base, the step and the kill a piece carries to the server */
-  { name: 'the base is always the slot\'s first', case: 'DF-4', edits: [['src/core/trait-roll.js', 'base: pick(list, rng), traits,', 'base: list[0], traits,']] },
+  { name: 'the base is always the slot\'s first', case: 'DF-4', edits: [['src/core/trait-roll.js', 'base: pick(basesFor(list, slot, worn, fit), rng), traits,', 'base: list[0], traits,']] },
   { name: 'the base from any slot\'s pieces, off the ground\'s item Level', case: 'DF-4', edits: [['src/core/drop-rate.js', '    if (it.iL === gearLevel) (at[s] || (at[s] = new Set())).add(r.id);\n', '']] },
   { name: 'the piece forgets its step', case: 'DF-4', edits: [['src/core/trait-roll.js', 'traits, ground: ground.id, step, depth,', 'traits, ground: ground.id, step: 0, depth,']] },
-  { name: 'the kill that made it is not named', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId)', 'ctx.traitDrops.rngOf(ids[i]), atMs)']] },
+  { name: 'the kill that made it is not named', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId, m.worn)', 'ctx.traitDrops.rngOf(ids[i]), atMs, undefined, m.worn)']] },
   { name: 'pity kept on the swing, not carried', case: 'DF-5', edits: [['src/core/trait-roll.js', 'pity: drops.pity || (drops.pity = {}),', 'pity: {},']] },
   { name: 'a server file hands the settle a roll', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', 'export const traitDrops = null;\nexport const SEED_DOMAIN =']] },
   { name: 'another module names the roller', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', "export const ROLLER = './trait-roll.js';\nexport const SEED_DOMAIN ="]] },

@@ -9,8 +9,9 @@
 //                    wait on the designer's trim), ONE Uncommon in (5%, 15%], every Scarce / Rare / Trophy row at 5% or
 //                    less; a monster's Scarce armour is helmet / body / legs / boots in heavy, medium AND light, once each per
 //                    slot it carries (weapons may join), wearable in the ground's band; a Trophy only on a boss. A REVEALED
-//                    item (Rare, Trophy) is live (no dormant effect), has its pixel icon, is no Hearthfind, not tier 8, not
-//                    'unique', not sold by a listed Shop row, of its dropper's tier or one above, and its
+//                    item (Rare, Trophy) is live (no dormant effect), has its pixel icon, is no Hearthfind, not
+//                    'unique', not sold by a listed Shop row, a piece at its GROUND's base item Level (12-targets 8.3 b: the
+//                    scale row's, or the scale grounds cut from an off-scale ground's rooms), and its
 //                    dropper is no Hearthfind source (the checks lucky-finds and field-salvage make for their own rows)
 //   slot-homes       each Scarce slot on a ground has ONE home a player can learn: one monster, or a named group of the
 //                    ground's slow monsters (loot-bands.js LOOT_GROUPS); a monster carries at most two armour slots and one
@@ -173,20 +174,31 @@ function rosterOf(ground) {
 const weightOf = (M, it) => (it && it.type === 'armor' && BUILD_SLOTS.includes(it.slot) && M.WEIGHT[it.armourClass]) || null;
 
 /* Why a revealed (Rare / Trophy) row's item may not be revealed, or null: the lucky-finds / field-salvage item rules. */
-function revealWhy(M, tag, mid, m, d, gid) {
+function revealWhy(M, tag, mid, d, gid) {
   const it = M.ITEMS[d.id];
   if (!M.live(it)) return tag + ' reveals ' + d.id + ', which declares a dormant effect';
   if (it.hearthfind) return tag + ' reveals ' + d.id + ', a Hearthfind (it has one door, hr_apply\'s hearthfind arm)';
-  if (it.tier === 8 || it.rarity === 'unique') return tag + ' reveals ' + d.id + ', tier 8 or unique (its sink is the forge, not a drop)';
+  /* (a unique's sink is the forge. "Not tier 8" left with the uniques ladder past Dawnsteel, 12-targets 8.8: on 8.3 tier 8 is Cobalt, a
+     standard tier, and the Roost's own base, lane/named-piece-drops) */
+  if (it.rarity === 'unique') return tag + ' reveals ' + d.id + ', a unique (its sink is the forge, not a drop)';
   if (!M.hasIcon(d.id)) return tag + ' reveals ' + d.id + ', which has no pixel icon (the reveal shows it)';
   if (M.shopSold.has(d.id)) return tag + ' reveals ' + d.id + ', which a listed Shop row sells (a drop it shortcuts)';
   if (M.hfSources.has(mid)) return tag + ' is a Hearthfind source and reveals ' + d.id + ' (two chase rolls on one kill)';
-  /* A DANGER-SCALE GROUND DROPS ONE BASE (12-targets 3.3; lane/scale-grounds-2): a revealed piece is the ground's base item Level, never the
-     next tier's (the tier path's Rare rule below is the old ladder's) */
-  const g = gid && M.scale && Object.prototype.hasOwnProperty.call(M.scale, gid) ? M.scale[gid] : null;
-  if (g && it.slot && Number.isInteger(g.gearLevel)) return it.iL === g.gearLevel ? null : tag + ' reveals ' + d.id + ' at item Level ' + it.iL + ', not the ground base ' + g.gearLevel;
-  if (Number.isInteger(it.tier) && !(it.tier === m.tier || it.tier === m.tier + 1)) return tag + ' reveals ' + d.id + ' of tier ' + it.tier + ', not its tier ' + m.tier + ' or one above';
-  return null;
+  /* ONE BASE A GROUND (12-targets 3.3 and 8.3 b; lane/scale-grounds-2): a revealed piece is its ground's base item Level, never the next
+     tier's. The base is the GROUND'S, never its body's: a monster's `tier` is the old ladder's (tier 6 on Krell's Hold, the Roost and the
+     Catacombs alike), so the old "its dropper's tier or one above" rule retired with that ladder (lane/named-piece-drops) */
+  if (!it.slot) return null;
+  const base = baseLevelOf(M, gid);
+  if (base === null) return tag + ' reveals ' + d.id + ' on a ground with no base tier (off the Danger scale and cut into no scale ground, 12-targets 8.3 b)';
+  return it.iL === base ? null : tag + ' reveals ' + d.id + ' at item Level ' + it.iL + ', not the ground base ' + base;
+}
+/* A GROUND'S BASE ITEM LEVEL (12-targets 8.3 b): its Danger scale row's `gearLevel`; for a ground off the scale whose rooms are cut into scale
+   grounds (the Unmarked Catacombs, whose wings read its rows: catacomb-wings.js `rosterGround`), theirs, when they agree; else null. */
+function baseLevelOf(M, gid) {
+  const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+  if (own(M.scale, gid)) return Number.isInteger(M.scale[gid].gearLevel) ? M.scale[gid].gearLevel : null;
+  const cut = Object.entries(M.G.HUNT_GROUNDS).filter(([w, g]) => g.rosterGround === gid && own(M.scale, w)).map(([w]) => M.scale[w].gearLevel);
+  return cut.length && cut.every((L) => Number.isInteger(L) && L === cut[0]) ? cut[0] : null;
 }
 
 const cases = {
@@ -222,7 +234,7 @@ const cases = {
             trophies++;
             if (m.boss !== true) return tag + ' carries a Trophy row (' + d.id + ') and is no boss';
           }
-          if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, m, d, gid); if (why) return why; }
+          if (M.LB.REVEAL_BANDS.includes(d.band)) { const why = revealWhy(M, tag, id, d, gid); if (why) return why; }
         }
         if (commons < 1 || (commons > 2 && !COMMONS_PENDING.includes(id))) return tag + ' has ' + commons + ' Common rows, the rule is 1-2';
         if (uncommons !== 1) return tag + ' has ' + uncommons + ' Uncommon rows, the rule is one (its part)';
@@ -382,8 +394,20 @@ function bossKillsOf(M, monsters, gid, x, rerun) {
 /* ONE DROP CHANCE A KILL FOR EVERYONE (Tyler 2026-11-09: "base drop chances should be the same all around"; a ruled contract change): a row's pace is
    judged at ONE sample point, the ground's reference group. A second group (BAND_ALT: the Sewer's party, the Warrens' lone hero at 45) reads the same
    chance at its own kill speed: its paces are printed, never judged (`judge` false), so a lone 45 who kills the Chief faster sees the Cauldron sooner. */
-function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge = true) {
+/* A BODY SEVERAL GROUNDS SHARE (the Unmarked Catacombs and its two wings stand the same five bodies, catacomb-wings.js): its row has ONE chance
+   a kill everywhere (the ruling above), and the grounds kill it at their own speed (the Shrouded Pauper about 97 times a hero-hour at the Bone
+   Wing's floor, 22 at the Flooded Wing's), so no one chance holds every ground's band. Such a row is judged at ONE sample point, the ground that
+   pays it fastest (where a player farms it): there it holds the whole band, and everywhere it holds the band's floor (never faster than
+   its band; every other ground is slower, so its pace is printed). `shared` = { '<band>:<id>': [{ gid, h, line }] }, filled here and judged by
+   sharedPaces once every ground has played (lane/named-piece-drops). */
+const sharedBodies = (M) => {
+  const seen = {};
+  for (const g of Object.values(M.G.HUNT_GROUNDS)) for (const id of rosterOf(g)) seen[id] = (seen[id] || 0) + 1;
+  return new Set(Object.keys(seen).filter((id) => seen[id] > 1));
+};
+function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge = true, shared = null) {
   const E = expectedLoot(M, P, monsters, x, n, bossKills), list = Object.values(E.items), at = gid + (label ? ' (' + label + ')' : '');
+  const bodies = shared ? sharedBodies(M) : null;
   const range = (band) => list.filter((p) => p.band === band && !p.pending).map((p) => 1 / p.perH);
   /* A parked row (PENDING_ROWS) is measured at the pace it will have on this run's kills. */
   const per = 1 / n / (x.playedMs / H || 1);
@@ -396,7 +420,11 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge 
     const rule = band === 'scarce' ? 'gear-pace' : band === 'rare' ? 'rare-pace' : 'trophy-pace';
     for (const p of list.filter((q) => q.band === band)) {
       const h = 1 / p.perH;
-      if (judge) R.ok(h >= lo && h <= hi, rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h');
+      const line = rule + ': ' + at + ' ' + (p.pending ? 'pending ' : '') + band + ' ' + p.id + ' (' + p.from.join(', ') + ') every ' + h.toFixed(2) + ' h per hero, outside ' + lo + '-' + hi + ' h';
+      if (!judge) continue;
+      /* a shared body's row: the band's floor here, its top where it is farmed (sharedPaces) */
+      if (bodies && !p.pending && p.from.every((m) => bodies.has(m))) { R.ok(h >= lo, line); (shared[band + ':' + p.id] = shared[band + ':' + p.id] || []).push({ gid, h, hi, line }); continue; }
+      R.ok(h >= lo && h <= hi, line);
     }
   }
   R.ok(E.gear <= FAUCET * E.coin, 'gear-faucet: ' + at + ' equipment sells for ' + Math.round(E.gear) + ' g/h, over ' + FAUCET + ' of the coin (' + Math.round(E.coin) + ' g/h)');
@@ -406,6 +434,16 @@ function bandRules(M, P, monsters, R, gid, x, n, today, label, bossKills, judge 
   const fmax = E.gearBook > 0 ? Math.min(FAUCET * E.coin, (1 + TOTAL_RISE_MAX) * today - E.coin - E.commons - E.other) / E.gearBook : Infinity;
   return { E, total, today, fmax, label: label || '', scarce: range('scarce'), rare: range('rare'), trophy: range('trophy'), pieces: list,
     pending: list.filter((q) => q.pending).map((q) => q.id + ' ' + (1 / q.perH).toFixed(1) + ' h') };
+}
+/* A shared body's row holds its band's top on the ground that pays it fastest (bandRules' `shared`); answers each one's farm ground. */
+function sharedPaces(R, shared) {
+  const out = [];
+  for (const [key, at] of Object.entries(shared)) {
+    const best = at.reduce((a, b) => (b.h < a.h ? b : a));
+    R.ok(best.h <= best.hi, best.line + ' (a body ' + at.map((a) => a.gid).join(', ') + ' share, judged where it is farmed)');
+    out.push(key.split(':')[1] + ' ' + best.gid + ' ' + best.h.toFixed(1) + ' h (' + at.filter((a) => a !== best).map((a) => a.gid + ' ' + a.h.toFixed(1)).join(', ') + ')');
+  }
+  return out;
 }
 
 /* THE FRESH HERO: all four slots of each weight within GEAR_HOURS (realized on the real settle). */
@@ -474,7 +512,7 @@ const packCheck = (M, gid, key) => {
 /* `only` (a mutant's ground list) plays just those grounds' floor hours; `fresh` adds their fresh-hero and party
    hunts (the realized gear-pace and the reveal-path). */
 async function plays(M, P, monsters, R, print, only, fresh = !only) {
-  const rows = [];
+  const rows = [], shared = {};
   for (const gid of Object.keys(M.G.HUNT_GROUNDS)) {
     if (only && !only.includes(gid)) continue;
     /* a ground pack states its own reference group and value pin (src/data/grounds/<id>/pack.js checks.dropRef, checks.valueToday) */
@@ -492,7 +530,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
     const vFull = ref.valueFull === undefined ? ref.full : ref.valueFull;
     const xv = vFull === ref.full ? x : P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters });
     const refKills = bossKillsOf(M, monsters, gid, xv, (secret) => P.run(gid, Math.max(1, floor), ref.roles, { spanMs: H, fullSet: vFull, monsters, secret }));
-    row.bands = bandRules(M, P, monsters, R, gid, xv, n, TOTAL_TODAY[gid] ?? packCheck(M, gid, 'valueToday'), '', refKills);
+    row.bands = bandRules(M, P, monsters, R, gid, xv, n, TOTAL_TODAY[gid] ?? packCheck(M, gid, 'valueToday'), '', refKills, true, shared);
     /* A PARTY GROUND's second group (the Sewer's party at the floor, the Warrens' lone hero at soloFrom) holds the bands too. */
     const alt = BAND_ALT[gid];
     if (alt) {
@@ -503,6 +541,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
       row.altLevel = lv;
     }
   }
+  const farmed = sharedPaces(R, shared);
   const freshB = {}, partyB = {};
   if (fresh) {
     for (const [gid, pr] of Object.entries(PARTY_REVEAL)) {
@@ -534,6 +573,7 @@ async function plays(M, P, monsters, R, print, only, fresh = !only) {
   }
   for (const [gid, b] of Object.entries(freshB)) console.log('  fresh solo hero, ' + gid + ', ' + GEAR_HOURS + ' h: slots held ' + b.held + ' | reveals on the settle: ' + b.reveal);
   for (const [gid, b] of Object.entries(partyB)) console.log('  party of four, ' + gid + ', ' + GEAR_HOURS + ' h at the floor: Rare units ' + b);
+  if (farmed.length) console.log('  rows on a body several grounds share, judged where farmed (that ground, then the others): ' + farmed.join(' ; '));
 }
 
 /* THE BIG PULL (lane c-house-pelts, 2026-10-31). A monster standing only in a pocket's FILL rows is never met in the floor
@@ -728,6 +768,10 @@ const dataMutants = [
   /* (lane/scale-early-grounds: the Thicket drops one base, so Grayjaw's tier-2 helms left her rows; her fang stands in for the reveal) */
   { name: 'a revealed item two tiers up', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'grayjaw', 'alpha_fang').id = 'mithril_helm'; } },
   { name: 'a Hearthfind source that reveals', case: 'loot-structure', edit: (ms, M2) => { M2.hfSources.add('grayjaw'); } },
+  /* (lane/named-piece-drops) the ground's base, never the body's: the whole Catacombs (off the scale) reads its wings' Wolfram 160 */
+  { name: 'the whole Catacombs reveals a Cobalt piece', case: 'loot-structure', edit: (ms) => { rowOf(ms, 'keeper_dunn', 'dunns_mallet').id = 'cobalt_warhammer'; } },
+  { name: 'a ground off the scale cut into no scale ground reveals a piece', case: 'loot-structure', edit: (ms, M2) => {
+    M2.G = { ...M2.G, HUNT_GROUNDS: Object.fromEntries(Object.entries(M2.G.HUNT_GROUNDS).map(([k, g]) => [k, g.rosterGround ? { ...g, rosterGround: 'nowhere' } : g])) }; } },
   /* slot homes */
   { name: 'a slot with two homes and no group', case: 'slot-homes', edit: (ms) => { ms.carrion_crow.drops.push(...['iron_helm', 'studded_helmet', 'adept_helmet'].map((id) => ({ id, ch: 0.01, band: 'scarce' }))); } },
   { name: 'a monster with three armour slots', case: 'slot-homes', edit: (ms) => {
@@ -781,6 +825,13 @@ const playMutants = [
   /* (0.19%, was 0.17%: on the to-hit ratio, 2026-11-20, the Chief dies a little slower, so 0.17% read 130.7 h, inside the band's 125 h floor with its boost) */
   { name: 'the Chief\'s Cauldron at 0.19% (a full Bestiary under 125 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.0019; } },
   { name: 'the Chief\'s Cauldron at 0.10% (the party waits over 150 h)', rule: 'trophy-pace: coppercap_warrens', edit: (ms) => { rowOf(ms, 'chief_coppercap', 'coppercaps_cauldron').ch = 0.001; } },
+  /* THE NAMED PIECES PAST DAWNSTEEL (lane/named-piece-drops, 28-named-pieces 2.7): the Roost's, and a body the Catacombs' three grounds share,
+     judged where it is farmed (its top) and everywhere (its floor). `grounds` plays those grounds together */
+  { name: 'the Burnt Crag Leg Plates at 1% (a Rare every 3 h)', rule: 'rare-pace: wyvern_roost rare burnt_crag_leg_plates', grounds: ['wyvern_roost'], edit: (ms) => { rowOf(ms, 'crag_wyvern', 'burnt_crag_leg_plates').ch = 0.01; } },
+  { name: 'the Pauper\'s Shroud three times rarer where the Paupers are farmed', rule: 'rare-pace: catacomb_bone_wing rare paupers_shroud',
+    grounds: ['unmarked_catacombs', 'catacomb_bone_wing', 'catacomb_flooded_wing'], edit: (ms) => { rowOf(ms, 'shrouded_pauper', 'paupers_shroud').ch /= 3; } },
+  { name: 'Dunn\'s Mallet three times commoner (under the band where he is farmed)', rule: 'rare-pace: catacomb_flooded_wing rare dunns_mallet',
+    grounds: ['unmarked_catacombs', 'catacomb_bone_wing', 'catacomb_flooded_wing'], edit: (ms) => { rowOf(ms, 'keeper_dunn', 'dunns_mallet').ch *= 3; } },
   { name: 'the den mother\'s fang a War Crown at 2% (value, not gear)', rule: 'total-value: meadowbrook_thicket', edit: (ms) => { Object.assign(rowOf(ms, 'grayjaw', 'alpha_fang'), { id: 'war_crown', ch: 0.02 }); } },
   { name: 'a fresh hero\'s heavy boots gone', rule: 'gear-pace: a fresh hero at the meadowbrook_thicket', fresh: true, edit: (ms) => { ms.gray_whelp.drops = ms.gray_whelp.drops.filter((d) => d.id !== 'bronze_boots'); } },
 ];
@@ -889,7 +940,7 @@ for (const mu of engineMutants) {
 const groundOf = (rule) => /meadowbrook_thicket|millrace_sewer|mosslight_glade|coppercap_warrens|mill_cellar|wickstead/.exec(rule)[0];
 for (const mu of playMutants) {
   const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
-  await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [groundOf(mu.rule)], mu.fresh === true);
+  await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, mu.grounds || [groundOf(mu.rule)], mu.fresh === true);
   R.ok(MR.fails.some((f) => f.startsWith(mu.rule)), 'mutant "' + mu.name + '" was NOT caught by ' + mu.rule + ' (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
 }
 /* The big pull: what the floor hours cannot see (a Bear Claw at 2% passes them untouched). */

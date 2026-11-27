@@ -32,8 +32,9 @@
 //   GSF-11 THE STAGED UNIQUES PAST DAWNSTEEL, SORTED (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8; lane/retire-dawnsteel-lines):
 //         every row the table keeps (c) is an item that is its home's base-tier plain piece to the number (`statsAs` a ladder rung: its
 //         stats, tier, item Level, wear and book), carrying exactly ONE rule (one resistance or one bane) that answers its home (an element a
-//         monster there casts, a class that lives there), its dropper spawning there; every row it cuts is no item. The re-aim of the retired
-//         line guards' piece rules (armor-line AL6 and AL8, weapon-line WL6: one attribute, and it answers its own ground).
+//         monster there casts, a class that lives there), its dropper spawning there and carrying its ONE Rare row (no other body drops it;
+//         lane/named-piece-drops); every row it cuts is no item. The re-aim of the retired line guards' piece rules (armor-line AL6 and AL8,
+//         weapon-line WL6: one attribute, and it answers its own ground).
 //
 //   node tests/gear-stats.mjs            the guard
 //   node tests/gear-stats.mjs --mutate   each rule driven red by a defect planted on an in-memory copy
@@ -182,8 +183,8 @@ export function check(o) {
 }
 
 /* GSF-11: WHERE EACH KEPT ROW OF 28-named-pieces.md 2.7 LIVES. `grounds` its home (the wings both, where the table says "the Catacomb wings"),
-   `monster` the body its Rare row goes on when the home's art lands (tests/catalogue-coherence.mjs PENDING_SOURCE until then). The table is the
-   ruling; this is its home column as data, and the guard holds the two to the same ids. */
+   `monster` the body that carries its Rare row, its one door (lane/named-piece-drops; the row's rate is held by tests/hunt-core/drop-tables.mjs
+   rare-pace). The table is the ruling; this is its home column as data, and the guard holds the two to the same ids. */
 const WINGS = Object.freeze(['catacomb_bone_wing', 'catacomb_flooded_wing']);
 export const LATE_HOMES = Object.freeze({
   burnt_crag_leg_plates: Object.freeze({ grounds: Object.freeze(['wyvern_roost']), monster: 'crag_wyvern' }),
@@ -228,6 +229,9 @@ function latePieces(o) {
     for (const g of on) if (!(L.scale[g] && L.scale[g].gearLevel === it.iL)) out.push('GSF-11 ' + id + ' is item Level ' + it.iL + ', not its home ' + g + '\'s base tier (' + (L.scale[g] || {}).gearLevel + ')');
     const bodies = new Set(on.flatMap((g) => [...L.monstersOn(L.grounds[g])]));
     if (!bodies.has(h.monster)) out.push('GSF-11 ' + id + '\'s dropper ' + h.monster + ' spawns on none of ' + h.grounds.join(', '));
+    /* its one door: a Rare row on its dropper, and on no other body */
+    if (!((L.monsters[h.monster] || {}).drops || []).some((d) => d.id === id && d.band === 'rare')) out.push('GSF-11 ' + id + ' is no Rare row of its dropper ' + h.monster);
+    for (const [mid, m] of Object.entries(L.monsters)) if (mid !== h.monster && (m.drops || []).some((d) => d.id === id)) out.push('GSF-11 ' + id + ' is dropped by ' + mid + ' too, not only by its dropper ' + h.monster);
     const els = new Set(), cls = new Set();
     for (const m of bodies) {
       const row = L.monsters[m] || {};
@@ -406,6 +410,9 @@ const MUTANTS = [
   ['GSF-11', 'a kept piece with no rule (a stat trade only)', (o) => { lateRow(o, 'burnt_crag_leg_plates', { resistPm: {} }); }],
   ['GSF-11', 'a resistance nothing on its home casts', (o) => { lateRow(o, 'burnt_crag_leg_plates', { resistPm: { frost: 100 } }); }],
   ['GSF-11', 'a bane of a class that does not live at home', (o) => { lateRow(o, 'dunns_mallet', { bane: { class: 'dragon', mult: 1.1 } }); }],
+  ['GSF-11', 'a kept piece with no drop row (its door gone)', (o) => { const L = lateCopy(o), m = L.monsters.keeper_dunn; L.monsters = { ...L.monsters, keeper_dunn: { ...m, drops: m.drops.filter((d) => d.id !== 'dunns_mallet') } }; }],
+  ['GSF-11', 'a kept piece dropped as a Scarce piece, not a Rare', (o) => { const L = lateCopy(o), m = L.monsters.bone_wall; L.monsters = { ...L.monsters, bone_wall: { ...m, drops: m.drops.map((d) => (d.id === 'limewashed_plate' ? { ...d, band: 'scarce' } : d)) } }; }],
+  ['GSF-11', 'a kept piece on a second body', (o) => { const L = lateCopy(o), m = L.monsters.night_carter; L.monsters = { ...L.monsters, night_carter: { ...m, drops: [...m.drops, { id: 'watchmans_sword', ch: 0.001, band: 'rare' }] } }; }],
   ['GSF-11', 'a home its dropper never spawns on', (o) => { lateCopy(o).homes.keepers_leg_plates = { grounds: ['catacomb_bone_wing'], monster: 'keeper_dunn' }; }],
   ['GSF-11', 'a piece on a ground off its tier', (o) => { lateCopy(o).homes.burnt_crag_leg_plates = { grounds: ['catacomb_flooded_wing'], monster: 'keeper_dunn' }; }],
   ['GSF-11', 'a cut row back as an item', (o) => { o.items = { ...o.items, hoist_hooks: { ...o.items.wolfram_hatchets, n: 'Hoist Hooks' } }; }],

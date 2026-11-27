@@ -317,10 +317,18 @@ const CASES = {
           read += 1;
           const it = M.ITEMS[id];
           if (!it || !(it.tier >= tier)) return gid + ' offers ' + id + ' (tier ' + (it && it.tier) + ') as a ' + slot + ' base, under its tier ' + tier;
+          /* (lane/named-piece-drops) a named twin's door is its own Rare row: never a Trait base (its plain piece is) */
+          if (typeof it.statsAs === 'string') return gid + ' offers the named twin ' + id + ' (of ' + it.statsAs + ') as a ' + slot + ' base: a Trait piece is the plain base';
         }
       }
     }
     if (read < 200) return 'CONTROL: only ' + read + ' Trait bases read';
+    /* the twins this reads are dropped: the six named pieces past Dawnsteel ride their homes' rows (28-named-pieces 2.7) */
+    const twins = Object.keys(M.D.DANGER_GROUNDS).filter((gid) => M.grounds.HUNT_GROUNDS[gid]).flatMap((gid) => {
+      const g = M.grounds.HUNT_GROUNDS[gid], ids = new Set([...M.grounds.monstersOn(g)].flatMap((m) => ((M.MONSTERS[m] || {}).drops || []).map((d) => d.id)));
+      return [...ids].filter((id) => M.ITEMS[id] && typeof M.ITEMS[id].statsAs === 'string');
+    });
+    if (new Set(twins).size < 6) return 'CONTROL: only ' + new Set(twins).size + ' named twins dropped on a scale ground (the rule reads nothing)';
     return null;
   },
   'DF-6'(M) {
@@ -384,6 +392,8 @@ const MUTANTS = [
     "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"],
     ['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };',
       'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };\nfor (const [id, it] of Object.entries(ITEMS)) if (it && it.catacombTier) ITEMS[id] = { ...it, step: 8 };']] },
+  { name: 'a named twin offered as a Trait base (the Limewashed Plate beside Wolfram plate)', case: 'DF-7', edits: [['src/core/drop-rate.js',
+    "const isTwin = (it) => !!it && typeof it.statsAs === 'string';", 'const isTwin = () => false;']] },
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */

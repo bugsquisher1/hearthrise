@@ -19,7 +19,8 @@
 //              exactly imbueRecipe's set (5 of its part, 4 Remains of its band) at its part's band; every face and input is an item on
 //              both sides; every Danger scale ground's band is its gearLevel over tierSteps
 //   TJ-TWIN    the server's roller is settleJob to the last good: hr_trade_mulberry is mulberry32's draw at 2,000 states,
-//              hr_trade_roll is settleJob for every recipe at several Levels, times and seeds (and with Mastery and a bench),
+//              hr_trade_roll is settleJob for every recipe at several Levels, times and seeds (and with Mastery and a bench, quality
+//              dark as shipped, every good Plain, and the cascade lit in a rolled-back transaction: 09 4.11 row 6),
 //              hr_trade_band_rung is bandRung for every kind and band 0 to 12, hr_trade_work_stop is workStopMs over day states and times
 //   TJ-ORDER   the start's refusals in the spec's order, each moving nothing: bad_recipe, busy, rung_locked, band_locked, work_cap,
 //              count_cap, quote_changed, short_inputs; dark, not_open and no section
@@ -29,9 +30,13 @@
 //              settleJob on the stored seed. Twice: a whole-count Cook Shrimp, and a band 2 imbuement the day cuts short (work_cap, the
 //              rest refunded)
 //   TJ-STOP    a stop an hour in lands exactly the first hour of the seeded sequence, hands every unattempted set back to Storage
-//              (trade_refund), and the restart is a new job with a new seed
-//   TJ-DAY     a job the day ends stops at work_cap with the day used; a work block bought under a running job moves its end (the sweep
-//              at the old end answers not_due and later collects the whole count)
+//              (trade_refund) and their share of the fee (fee - ceil(fee x attempted / count), one trade_fee_refund credit: 09 4.11
+//              row 5), and the restart is a new job with a new seed
+//   TJ-DAY     a job the day ends stops at work_cap with the day used and the fee of its unattempted sets back; a work block bought
+//              under a running job moves its end (the sweep at the old end answers not_due and later collects the whole count)
+//   TJ-RULE    the standing work rule buys for a running job (09 4.11 row 7), the browser closed: nothing for a hero with no job; the
+//              cron's sweep buys one block for a whole day's job on the day's last minutes, the job's end moves by the block, the rule's
+//              count holds, and the job lands the bought time's attempts
 //   TJ-KEY     the start pressed twice with one key is one job and one fee; the pointer cannot leave idle while a job is open (HRJ01)
 //   TJ-SURFACE anon reaches neither verb, no client reaches the settle, the sweep or the roller, and the seed never leaves the server
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
@@ -218,12 +223,19 @@ const ARMS = {
         }
       }
     }
-    /* Mastery and a bench (a yield over 1000: returned sets, and Master first) */
-    for (const kind of ['arrow', 'meal', 'ore', 'imbuement']) for (const seed of [11, 99]) {
-      const js0 = T.settleJob(CAT.kinds[kind], 1, 60, { mastery: true, benchPm: 100, count: 300, elapsedMs: 9 * HOUR, seed });
-      const s = await one(db, 'select public.hr_trade_roll($1, 1, 60, true, 100, 1000, 300, $2::bigint, $3::bigint)', [kind, 9 * HOUR, seed]);
-      if (!s || s.plain !== js0.plain || s.fine !== js0.fine || s.master !== js0.master || s.returned !== js0.returned) p.push(kind + ' with the Mastery: SQL ' + js(s) + ' JS ' + js(js0));
+    /* Mastery and a bench (a yield over 1000: returned sets, and Master first). QUALITY IS DARK as shipped (09 4.11 row 6): the server's
+       switch is 0 and every roll lands Plain; the lit cascade is pinned with the switch lit in this arm's rolled-back transaction */
+    if (Number(await one(db, 'select quality_live from public.hr_trade_levers')) !== 0) p.push('the server ships the quality switch lit');
+    for (const lit of [false, true]) {
+      await db.query('update public.hr_trade_levers set quality_live = $1', [lit ? 1 : 0]);
+      for (const kind of ['arrow', 'meal', 'ore', 'imbuement']) for (const seed of [11, 99]) {
+        const js0 = T.settleJob(CAT.kinds[kind], 1, 60, { mastery: true, benchPm: 100, count: 300, elapsedMs: 9 * HOUR, seed, quality: lit });
+        const s = await one(db, 'select public.hr_trade_roll($1, 1, 60, true, 100, 1000, 300, $2::bigint, $3::bigint)', [kind, 9 * HOUR, seed]);
+        if (!s || s.plain !== js0.plain || s.fine !== js0.fine || s.master !== js0.master || s.returned !== js0.returned) p.push(kind + ' with the Mastery, quality ' + (lit ? 'lit' : 'dark') + ': SQL ' + js(s) + ' JS ' + js(js0));
+        if (!lit && s && (s.fine || s.master)) p.push(kind + ' rolls ' + s.fine + ' Fine and ' + s.master + ' Master with quality dark');
+      }
     }
+    await db.query('update public.hr_trade_levers set quality_live = 0');
     /* bandRung */
     for (const k of Object.values(CAT.kinds)) for (let band = 0; band <= 12; band++) {
       const s = await one(db, 'select public.hr_trade_band_rung($1, $2)', [k.id, band]);
@@ -365,6 +377,7 @@ const ARMS = {
     const qd = await quote(db, u, 'meal_b0', null);
     const count = Number(qd.count_cap);
     const fee = Number((await quote(db, u, 'meal_b0', count)).fee);
+    const g0 = await purse(db, u);
     const s1 = await start(db, u, 'meal_b0', count, fee);
     if (!s1 || s1.ok !== true || 'seed' in (s1.job || {})) p.push('the start answered ' + js(s1 && (s1.error || s1.job)));
     const job = await openJob(db, u);
@@ -376,6 +389,11 @@ const ARMS = {
     if (await bank(db, u, 'shrimp') !== 500 - want.attempts) p.push('Storage holds ' + (await bank(db, u, 'shrimp')) + ' shrimp, want ' + (500 - want.attempts));
     const refund = await q(db, "select qty::int as n from public.player_ledger where user_id = $1 and meta->>'reason' = 'trade_refund' and meta->>'job' = $2", [u, job.id]);
     if (refund.length !== 1 || refund[0].n !== count - want.attempts) p.push('the refund row is ' + js(refund));
+    /* THE FEE OF EVERY SET NEVER ATTEMPTED comes back (09 4.11 row 5): fee - ceil(fee x attempted / count), one credit, journalled */
+    const feeBack = fee - Math.ceil((fee * want.attempts) / count);
+    const feeRows = await q(db, "select gold::text as g from public.player_ledger where user_id = $1 and meta->>'reason' = 'trade_fee_refund' and meta->>'job' = $2", [u, job.id]);
+    if (!(feeBack > 0) || stop.fee_refund !== feeBack || feeRows.length !== 1 || Number(feeRows[0].g) !== feeBack) p.push('the stop gave back ' + js(stop && stop.fee_refund) + ' (rows ' + js(feeRows) + '), want ' + feeBack + ' of ' + fee);
+    if (await purse(db, u) !== g0 - fee + feeBack) p.push('the purse reads ' + (await purse(db, u)) + ' after a stop, want ' + (g0 - fee + feeBack) + ' (only the attempted sets keep their fee)');
     const s2 = await start(db, u, 'meal_b0', 3, Number((await quote(db, u, 'meal_b0', 3)).fee));
     const job2 = await openJob(db, u);
     if (!s2 || s2.ok !== true || !job2 || job2.id === job.id || String(job2.seed) === String(job.seed)) p.push('the restart is ' + js(job2 && { id: job2.id }) + ': not a new job with a new seed');
@@ -414,9 +432,57 @@ const ARMS = {
     const want = expected(job, endMs - new Date(job.started_at).getTime());
     if (got.result.attempts !== want.attempts || got.plain !== want.plain) p.push('the lengthened job landed ' + js(got) + ', settleJob says ' + js(want));
     if (got.end !== (endMs < msOf(at('14:00')) ? 'done' : 'work_cap')) p.push('the lengthened job ended ' + got.end);
+    /* a job the day's cap ends gives back the fee of its unattempted sets too (the fee is the sink on goods made, 09 4.11 row 5) */
+    const fee = Number(job.fee), feeBack = fee - Math.ceil((fee * want.attempts) / job.count);
+    const feeRow = await one(db, "select coalesce(sum(gold), 0)::text from public.player_ledger where user_id = $1 and meta->>'reason' = 'trade_fee_refund' and meta->>'job' = $2", [u, job.id]);
+    if (got.end === 'work_cap' && (!(feeBack > 0) || Number(feeRow) !== feeBack || got.result.fee_refund !== feeBack)) p.push('the day\'s cap gave back ' + feeRow + ' of the fee, want ' + feeBack);
     /* the day spent: the 6 h before it and the job's own span (to the bought block's end, 14:00) */
     const spent = 6 * HOUR + (endMs - new Date(job.started_at).getTime());
     if (got.work.d !== DAY || got.work.ms !== String(spent)) p.push('the work day reads ' + js(got.work) + ', want ' + spent + ' ms on ' + DAY);
+    return p;
+  },
+
+  /* THE STANDING WORK RULE BUYS FOR A RUNNING JOB (09 4.11 row 7), with nothing awake but the server: the hero sets the rule (its one
+     client verb), starts a whole day's job on the day's last minutes, and the cron's own sweep buys the block; the job's end moves out by
+     the block and the job then lands the bought time's attempts. With no job the rule buys nothing (not working) */
+  async 'TJ-RULE'(db) {
+    const p = [];
+    await lit(db);
+    await pin(db, at('10:00'));
+    const u = await makeHero(db);
+    await setPurse(db, u, 500000000);
+    await setBank(db, u, 'shrimp', 2000);
+    const lead = Number(await one(db, "select lead_min::bigint * 60000 from public.hr_time_blocks where kind = 'work'"));
+    const block = Number(await one(db, "select block_min::bigint * 60000 from public.hr_time_blocks where kind = 'work'"));
+    const base = Number((await one(db, 'select public.hr_work_state($1, 0)', [u])).base_ms);
+    await db.query('update public.player_state set work_day = $2::date, work_ms = $3 where user_id = $1 and slot = 0', [u, DAY, base - lead / 2]);
+    await clear(db);
+    const set = await as(db, u, "select public.hr_time_auto_set('work', 0, 1, null, $1::uuid) as r", [idem()]);
+    if (!set || set.ok !== true) { p.push('the rule could not be set: ' + js(set)); return p; }
+    const autoRows = async () => Number(await one(db, "select count(*)::text from public.player_ledger where user_id = $1 and intent like 'time\\_buy:work:%' and meta->>'auto' = 'true'", [u]));
+    await one(db, 'select public.hr_time_auto_sweep(50)');
+    if (await autoRows() !== 0) p.push('the rule bought a block for a hero with no job');
+    const count = Number((await quote(db, u, 'meal_b0', null)).count_cap);
+    const s1 = await start(db, u, 'meal_b0', count, Number((await quote(db, u, 'meal_b0', count)).fee));
+    if (!s1 || s1.ok !== true) { p.push('the start answered ' + js(s1)); return p; }
+    const job = await openJob(db, u);
+    const end0 = new Date(job.ends_at).getTime();
+    if (end0 !== msOf(at('10:00')) + lead / 2) p.push('a whole day\'s job on the day\'s last ' + lead / 2 / MIN + ' minutes ends at ' + job.ends_at);
+    const sw = await one(db, 'select public.hr_time_auto_sweep(50)');
+    if (!sw || sw.bought !== 1 || await autoRows() !== 1) { p.push('the cron\'s sweep did not buy for the running job: ' + js(sw)); return p; }
+    /* the server's own reading of the job (the section the Work window paints) has the block's end */
+    const sec = await section(db, u);
+    const end1 = sec && sec.job ? new Date(sec.job.ends_at).getTime() : 0;
+    if (end1 !== end0 + block) p.push('after the bought block the job ends at ' + js(sec && sec.job && sec.job.ends_at) + ', want ' + new Date(end0 + block).toISOString());
+    /* the rule's count is spent: the next minute buys nothing more */
+    await one(db, 'select public.hr_time_auto_sweep(50)');
+    if (await autoRows() !== 1) p.push('a rule of one bought a second block');
+    /* the browser closed through the bought time: the trade sweep lands the job at its new end, the bought time's attempts included */
+    await pin(db, new Date(end1 + MIN).toISOString());
+    await sweep(db);
+    const got = await landed(db, u, job);
+    const want = expected(job, end1 - new Date(job.started_at).getTime());
+    if (!got.result || got.result.attempts !== want.attempts || got.plain !== want.plain || got.end !== 'work_cap') p.push('the job landed ' + js(got.result) + ', settleJob through the bought block says ' + js(want));
     return p;
   },
 
@@ -504,6 +570,18 @@ const MUTANTS = [
     find: 'v_at := greatest(j.started_at, least(p_at, v_end));', repl: 'v_at := v_end;' },
   { arm: 'TJ-STOP', name: 'the unattempted sets are kept', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
     find: 'v_n := l.per * (v_ret + v_unused);', repl: 'v_n := l.per * v_ret;' },
+  { arm: 'TJ-STOP', name: 'a stop keeps the fee of the sets it never attempted', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
+    find: 'if v_unused > 0 and j.fee > 0 then', repl: 'if false then' },
+  { arm: 'TJ-STOP', name: 'the refund is the whole fee, attempted sets included', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
+    find: 'v_fee_back := j.fee - ((j.fee * (j.count - v_unused) + j.count - 1) / j.count);', repl: 'v_fee_back := j.fee;' },
+  { arm: 'TJ-DAY', name: 'a job the day ends keeps the fee of its unattempted sets', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
+    find: 'if v_unused > 0 and j.fee > 0 then', repl: 'if v_unused > 0 and j.fee > 0 and v_at < v_end then' },
+  { arm: 'TJ-RULE', name: 'the rule ignores a running job', fn: 'public.hr_time_auto_buy(uuid,integer,text)',
+    find: '       and not public.hr_trade_job_wants_block(p_user, p_slot) then', repl: '       then' },
+  { arm: 'TJ-RULE', name: 'the rule\'s sweep never visits a hero with a job', fn: 'public.hr_time_auto_sweep(integer)',
+    find: 'or exists (select 1 from public.trade_jobs t where t.user_id = r.user_id and t.slot = r.slot and t.settled_at is null)', repl: 'or false' },
+  { arm: 'TJ-TWIN', name: 'the roller ignores the quality switch', fn: 'public.hr_trade_roll(text,integer,integer,boolean,integer,integer,integer,bigint,bigint)',
+    find: 'if k.rolls is null or c.quality_live <> 1 then v_plain := v_plain + 1; continue; end if;', repl: 'if k.rolls is null then v_plain := v_plain + 1; continue; end if;' },
   { arm: 'TJ-DAY', name: 'the work day is never spent', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
     find: "update public.player_state set work_day = (f->>'day')::date, work_ms = least(86400000, greatest(0, (f->>'used_ms')::bigint)),",
     repl: 'update public.player_state set work_day = work_day, work_ms = work_ms,' },

@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 2817,
+  "replay_ms": 3046,
   "counts": {
-    "tracked_names": 1179,
-    "entries": 1003
+    "tracked_names": 1180,
+    "entries": 1004
   },
   "functions": [
     {
@@ -19340,19 +19340,21 @@
       "sig": "hr_time_auto_buy(p_user uuid, p_slot integer, p_kind text)",
       "name": "hr_time_auto_buy",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1071-work-blocks.sql"
+        "1071-work-blocks.sql",
+        "1073-k1-job-slice.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "2a2c0bd313d7419a1d3149e37e2ddcde",
-        "norm_len": 6122,
+        "md5": "ddd73177a99ee99f24e3536ee84ca4fa",
+        "norm_len": 6375,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql, 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_time_auto_set(p_kind text, p_slot integer, p_up_to integer, p_max_price bigint, p_idem uuid)",
@@ -19376,19 +19378,21 @@
       "sig": "hr_time_auto_sweep(p_limit integer)",
       "name": "hr_time_auto_sweep",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
-        "1071-work-blocks.sql"
+        "1071-work-blocks.sql",
+        "1073-k1-job-slice.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "7088732d3260a62caed90b7ff8694c7a",
-        "norm_len": 2286,
+        "md5": "a7fbe7ad4d6ede46b904097e63cbbbe8",
+        "norm_len": 2513,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-work-blocks.sql."
+      "why": "STAGED for the v0.2.144 release by 1071-work-blocks.sql, 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
       "sig": "hr_time_block_price(p_kind text, p_level integer, p_n integer)",
@@ -21235,8 +21239,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "c8f2fee9dcd6f687afb569b97ba47937",
-        "norm_len": 7305,
+        "md5": "fa898397d51cae374f9272d27b3810ce",
+        "norm_len": 9150,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -21315,6 +21319,24 @@
       "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
     },
     {
+      "sig": "hr_trade_job_wants_block(p_user uuid, p_slot integer)",
+      "name": "hr_trade_job_wants_block",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1073-k1-job-slice.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "d7fdf8da90301fae14c504c0ebd1fd54",
+        "norm_len": 836,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1073-k1-job-slice.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1073-k1-job-slice.sql."
+    },
+    {
       "sig": "hr_trade_jobs_prune(p_limit integer)",
       "name": "hr_trade_jobs_prune",
       "tracked_by": [
@@ -21343,8 +21365,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "c9bbfbc6b39b581595356827ed9736ea",
-        "norm_len": 1863,
+        "md5": "cbea77918bb574ff94f9ffe3d28f7d23",
+        "norm_len": 2336,
         "source": "computed-from-replay"
       },
       "agree": false,
@@ -21469,8 +21491,8 @@
       ],
       "live": null,
       "replay": {
-        "md5": "0aaaeb8570ccca77bda837c0f1f4371d",
-        "norm_len": 3303,
+        "md5": "a438adb1c5f6c11054990bc25987f587",
+        "norm_len": 3472,
         "source": "computed-from-replay"
       },
       "agree": false,

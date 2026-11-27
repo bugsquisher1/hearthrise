@@ -71,9 +71,9 @@
       },
       {
         "modules": 13,
-        "gzipBytes": 206440,
+        "gzipBytes": 206619,
         "on": "2026-11-27",
-        "why": "lane/ci-reds-1126c: src/data/drop-hours.js DROP_HOURS.made.part names 'part', the field every part carries since lane/tp-im-steps (it named the retired 'imbue'); one string, +2 B gzip to the sign-in stage"
+        "why": "lane/designer-text-1126: the one-time block-offer card in the coach box (time-offer-card.js, coach rows) and the What's new v0.3.0 copy"
       }
     ],
     "town": [
@@ -424,6 +424,18 @@
         "gzipBytes": 980148,
         "on": "2026-11-27",
         "why": "lane/talents-plan-server: Spend on plan is one server press (talent-intents.js spendPlan), the plan's ground is the server's word (company-sections.js planGroundOf reads talents.plan_hunt), three refusal words (no_plan, plan_changed, plan_done)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981173,
+        "on": "2026-11-27",
+        "why": "lane/designer-text-1126: the one-time block-offer card in the coach box (time-offer-card.js, coach rows) and the What's new v0.3.0 copy"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981179,
+        "on": "2026-11-27",
+        "why": "lane/ci-reds-1126c on the set's ceiling 3a8c2cbca: src/data/drop-hours.js DROP_HOURS.made.part names 'part', the field every part carries since lane/tp-im-steps (it named the retired 'imbue'); one string, a few bytes gzip"
       }
     ]
   }

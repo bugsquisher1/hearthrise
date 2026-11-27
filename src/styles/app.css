@@ -177,6 +177,8 @@
 .whats-new-head { display: flex; align-items: center; gap: 8px; margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); line-height: 1.2; letter-spacing: .12em; color: var(--gold); }
 .whats-new-head::after { content: ''; flex: 1; height: 2px; background: var(--steel-rule); }
 .whats-new-fresh { color: var(--ink); }
+.whats-new-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
+.whats-new-list b { color: var(--gold-2); font-weight: 700; }
 .whats-new-do { margin: 0; }
 .char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; background: var(--bg-0); border: 2px solid var(--steel-edge); }
 .char-row + .char-row { border-top: 2px solid var(--steel-sep); }

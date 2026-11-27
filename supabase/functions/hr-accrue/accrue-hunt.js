@@ -129,6 +129,8 @@ function fightOf(sim, unitId, call) {
  *        the highest floor its heroes cleared + 1); required on the Tower's ground (src/core/hunt/tower.js), never read elsewhere
  * @param inp.traitDrops  the Trait roll (hunt-settle.js traitDropsOf: { luckPm, pity, found }), only when the server's read says it is on;
  *        the engine pushes what it finds onto `found` and counts `pity` in place (src/core/trait-roll.js)
+ * @param inp.flameDrops  the Inner Flame's note (src/core/inner-flame.js flameDrops: { list, seq }), only when the server's read says the fire
+ *        is lit; the engine pushes each Remains picked up onto `list` (src/core/hunt-rewards.js giveDrop)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
@@ -166,7 +168,10 @@ export function accrueHunt(inp) {
       ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}),
       /* THE TRAIT ROLL (hunt-settle.js traitDropsOf, only when the server's read says it is on; 1071-trait-pieces.sql): its found list and
          pity are the objects the caller reads back */
-      ...(inp.traitDrops ? { traitDrops: inp.traitDrops } : {}) });
+      ...(inp.traitDrops ? { traitDrops: inp.traitDrops } : {}),
+      /* THE INNER FLAME (hunt-settle.js flameDropsOf, only when the server's read says the fire is lit; 1074-inner-flame-luck.sql): the
+         engine notes each Remains a hero picks up, and when, onto its list; the server walks the company's fire from it */
+      ...(inp.flameDrops ? { flameDrops: inp.flameDrops } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
   /* THE LEDGER'S WINDOW (analyzerOf): on the scale, the swings this settle played and the seat of each hero (the server's hunt_sessions.seat) */
   const ledger = sim.world && dangerOn(sim.world) ? { step: sim.world.danger, fromMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), toMs: sim.nextSwingAtMs,

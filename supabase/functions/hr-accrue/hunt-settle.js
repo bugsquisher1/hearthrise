@@ -67,6 +67,7 @@ import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
 import { sessionModeOf } from '../../../src/data/session-modes.js';
 import { towerOf, towerMonsters, towerRoom } from '../../../src/core/hunt/tower.js';
+import { flameDrops } from '../../../src/core/inner-flame.js';
 
 /* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
    world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
@@ -726,6 +727,8 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
   const play = inst.play || { level: null, restart: false };
   /* THE TRAIT ROLL (1071-trait-pieces.sql): handed only when the server's read says it is on; the engine rolls it on the scale alone */
   const drops = traitDropsOf(inst, members);
+  /* THE INNER FLAME (1074-inner-flame-luck.sql): the note of the window's Remains, handed only when the server's read says the fire is lit */
+  const flame = flameDropsOf(inst);
   const out = accrueHunt({
     instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: play.restart ? null : (inst.world || null),
       worldSwing: Number(inst.world_swing) || 0 },
@@ -737,6 +740,7 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     /* the Tower's floor, the read's own (readHuntSettle proposes nothing on the Tower without one) */
     ...(towerOf(where.ground) ? { towerFloor: inst.tower_floor } : {}),
     ...(drops ? { traitDrops: drops } : {}),
+    ...(flame ? { flameDrops: flame } : {}),
   });
   const engineMs = Math.max(0, tick() - t0);
   if (!out.accrued) return { out, commit: null, engineMs };
@@ -747,7 +751,7 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     payload.push({ user: m.user, slot: m.slot, session: m.sessionId, version: m.version,
       intent: await intentIdFor({ user: m.user, slot: m.slot, watermark: huntWatermarkLabel(inst, m),
         version: m.version, salt: String(inst.secret || ''), attempt: attempt || 0 }),
-      delta: p.delta, hunt: p.hunt, analyzer: p.analyzer, ...(traits ? { traits } : {}) });
+      delta: p.delta, hunt: p.hunt, analyzer: p.analyzer, ...(traits ? { traits } : {}), ...(flame ? { flame: flameFor(flame, m.key) } : {}) });
   }
   /* THE SCALE IT PLAYED, a claim the commit re-proves (never sent unscaled, so a database before 2027-03-21-scaled-hunts.sql takes every window as before) */
   return { out, engineMs, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
@@ -810,8 +814,8 @@ function memberInput(m, inst, perks) {
        drops an unknown id or rank (trait-rules.js wornTraitsOf, signature-rules.js wornSignatureOf); a read without them wears nothing */
     _wornTraits: Array.isArray(m.worn_traits) && m.worn_traits.length ? m.worn_traits : null,
     _wornSignature: typeof m.worn_signature === 'string' && m.worn_signature ? m.worn_signature : null,
-    /* WHAT ITS TRAIT ROLL READS (hr_hunt_instance_read `drops`, hr_trait_drops_of): its pity by rarity and its company flame's luck at the
-       window's start; null while trait_drops is off (traitDropsOf hands the engine no roll) */
+    /* WHAT ITS TRAIT ROLL READS (hr_hunt_instance_read `drops`, hr_trait_drops_of): its pity by rarity and its company flame's luck as its
+       hunt began (frozen per hunt, 1074-inner-flame-luck.sql); null while trait_drops is off (traitDropsOf hands the engine no roll) */
     _drops: m.drops && typeof m.drops === 'object' ? m.drops : null,
   };
 }
@@ -844,6 +848,19 @@ export function traitsFor(drops, key) {
   const after = Object.fromEntries(RARITIES.map((r) => [r, wholeOr0((drops.pity[key] || {})[r])]));
   const moved = RARITIES.some((r) => after[r] !== (drops.start[key] || {})[r]);
   return found.length || moved ? { found, pity: after } : null;
+}
+
+/** THE INNER FLAME'S NOTE THIS WINDOW HANDS THE ENGINE (src/core/inner-flame.js flameDrops), or null: only when the server's read says
+    the fire is lit (hr_hunt_instance_read instance `flame`, 1074-inner-flame-luck.sql). Built afresh for every proposal, so a degraded
+    retry notes from the window's start again. */
+export function flameDropsOf(inst) {
+  return inst && inst.flame === true ? flameDrops() : null;
+}
+
+/** ONE MEMBER'S `flame` CLAIM FOR THE COMMIT (hr_flame_settle re-proves it and walks the fire from it): every Remains it picked up this
+    window, [[at_ms, seq, item, qty], ...] in the engine's order; [] when none (the server still walks the fire down). */
+export function flameFor(fd, key) {
+  return fd.list.filter((d) => d.key === key).map((d) => [d.at, d.seq, d.item, d.qty]);
 }
 
 /** The derived intent label of one member's share of an instance window: the

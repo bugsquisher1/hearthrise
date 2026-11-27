@@ -11,7 +11,7 @@
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
-import { FLAME, FLAME_LEVELS } from '../data/inner-flame.js';
+import { FLAME, FLAME_LEVELS, FLAME_FUEL } from '../data/inner-flame.js';
 import { DANGER } from '../data/danger.js';
 
 const MINUTE_MS = 60000;
@@ -95,6 +95,90 @@ export function burn(height, fl, count, band, top) {
   while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (fuelWorthMpts(mid, band, top) <= space) lo = mid; else hi = mid; }
   const m = fuelWorthMpts(lo, band, top);
   return { units: lo, mpts: m, height: h + m };
+}
+
+/** The stoke rule's TARGET at Flame Level `fl`: `keepPm` of the room (Keep full 1000, Keep 2/3 667, Off 0), in milli-points. */
+export function targetMpts(fl, keepPm) {
+  const k = Math.max(0, Math.min(1000, toInt(keepPm)));
+  return Math.floor((roomMpts(fl) * k) / 1000);
+}
+
+/**
+ * THE BURN UP TO THE STOKE RULE'S TARGET (the settle's walk): `burn` on a fire whose room is the target. The space left is
+ * target - height, so the fire is lifted by (room - target) and `burn` finds the units (the SQL twin calls hr_flame_burn_units the
+ * same way, so the two agree to the unit). Answers { units, mpts, height }.
+ */
+export function burnTo(height, fl, keepPm, count, band, top) {
+  const h = Math.max(0, toInt(height)), lift = roomMpts(fl) - targetMpts(fl, keepPm);
+  const b = burn(h + lift, fl, count, band, top);
+  return { units: b.units, mpts: b.mpts, height: h + b.mpts };
+}
+
+/**
+ * THE SETTLE'S WALK (lane/f1-inner-flame, 2026-11-26; 21 sections 1.2 and 1.4): one company's fire over one settle window, on the
+ * window's own clock. The server's twin is hr_flame_walk (supabase/migrations/1074-inner-flame-luck.sql), pinned point for point.
+ *   flame    { height, points, carryMs } as the server stored it at the window's start
+ *   spans    [{ key, from, to }]: each hero of the company in the window and the milliseconds it hunted ([from, to], the server's
+ *            settled_to before and after)
+ *   drops    [{ at, key, item, qty }] in the order the engine gave them: each Remains a hero picked up, and when
+ *   keepPm   the stoke rule's share of the room (FLAME.stokeKeeps: Keep full 1000, Keep 2/3 667, Off 0)
+ *   bandOf   (item) -> the fuel's band, or null (not fuel: it never burns)
+ *   topOf    (key) -> the company's highest hero Level, frozen when that hero's hunt began (hunt_flame.top)
+ * Hunted hero-time burns the height down a whole hero-minute at a time, counted on the clock across every hero (decay, the carry kept);
+ * each drop goes on the fire AT ITS INSTANT, after every minute that ended by then, up to the stoke rule's target at that moment, and
+ * what does not fit stays in the bag. Cut the window anywhere and resume from the stored answer: the same answer, so a watched hunt and
+ * a closed one store the same fire (pure decay steps between two drops are one function applied n times, so their grouping is free).
+ * Answers { height, points, carryMs, level, burned: { key: { item: units } }, units, mpts, decayed }.
+ */
+export function walk(flame, spans, drops, keepPm, bandOf, topOf) {
+  let st = { height: Math.max(0, toInt(flame && flame.height)), points: Math.max(0, toInt(flame && flame.points)),
+    carryMs: Math.max(0, toInt(flame && flame.carryMs)) };
+  const sp = (Array.isArray(spans) ? spans : []).map((s) => ({ from: toInt(s.from), to: toInt(s.to) })).filter((s) => s.to > s.from);
+  const burned = {};
+  let units = 0, mpts = 0, decayed = 0;
+  if (!sp.length) return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };
+  let t = Math.min(...sp.map((s) => s.from));
+  const end = Math.max(...sp.map((s) => s.to));
+  const advance = (t1) => {
+    if (!(t1 > t)) return;
+    let ms = 0;
+    for (const s of sp) ms += Math.max(0, Math.min(t1, s.to) - Math.max(t, s.from));
+    const d = decay(st, ms);
+    st = { height: d.height, points: d.points, carryMs: d.carryMs };
+    decayed += d.burned;
+    t = t1;
+  };
+  for (const d of Array.isArray(drops) ? drops : []) {
+    const band = bandOf(d.item);
+    const qty = Math.max(0, toInt(d.qty));
+    if (band === null || band === undefined || qty === 0) continue;
+    advance(Math.min(end, toInt(d.at)));
+    const b = burnTo(st.height, levelOf(st.points), keepPm, qty, band, topOf(d.key));
+    if (b.units < 1) continue;
+    st.height = b.height;
+    const row = burned[d.key] || (burned[d.key] = {});
+    row[d.item] = (row[d.item] || 0) + b.units;
+    units += b.units; mpts += b.mpts;
+  }
+  advance(end);
+  return { ...st, level: levelOf(st.points), burned, units, mpts, decayed };
+}
+
+const FUEL_BAND = new Map(FLAME_FUEL.map((r) => [r.item, r.band]));
+/** A Remains good's band (FLAME_FUEL), or null: not fuel, it never burns. */
+export function fuelBandOf(item) {
+  return FUEL_BAND.has(item) ? FUEL_BAND.get(item) : null;
+}
+
+/** THE ENGINE'S NOTE OF THE WINDOW'S REMAINS (hunt-settle.js flameDropsOf, only when the server says the fire is lit): { list, seq }. */
+export function flameDrops() {
+  return { list: [], seq: 0 };
+}
+
+/** One Remains `item` picked up by member `key` at `atMs`, in the engine's own order (src/core/hunt-rewards.js giveDrop). No die. */
+export function noteFuel(fd, key, item, atMs) {
+  if (!fd || !Array.isArray(fd.list) || !FUEL_BAND.has(item) || !Number.isFinite(atMs)) return;
+  fd.list.push({ at: Math.floor(atMs), seq: fd.seq++, key, item, qty: 1 });
 }
 
 /** A named fuel's burst at Flame Level `fl`: burstPm of the room, which it may stand over by that much (21 section 1.2). */

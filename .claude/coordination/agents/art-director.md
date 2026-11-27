@@ -4008,3 +4008,17 @@ px, a corner ornament under 4 art px reads as a notch, so tell two frames apart 
 against double rule), not by corner detail; (3) a catalogue field named `rarity` can be a tier ladder in disguise: read what it
 holds (bronze=common, steel=rare) before painting by it; (4) the pane's screenshot crops an emulated viewport larger than the pane:
 take gate shots with openWorld + Playwright at the real size.
+## 2026-11-26 lane/visual-read-1126 (the independent visual read of the set's new screens, 1440x900 and 922x423 touch)
+Read on tools/qa/local-world.mjs with the Talents switch on and rows planted in its database only; Rare previewed through the page's
+own itemIconHtml (no client reads `pieces` yet). Pass: sign-in (crest, name and legal links balance against the card at both sizes,
+nothing reads missing), What's new (a ruled section in the characters card), the frames on bag, Storage, worn slots, tooltip,
+summary, Tower chest; combat HUD and inventory unchanged. Fixed, each with its test: a Signature spelled from its id with no kind line
+("Barrow knights blade"; item-standing IS-2), the summary's cut find names (IS-4), the share code boxes (72 px wells with a grip;
+field-sizing content, plan-share SH-LOOK), the Roads tools floating over the map with labels between the presses (one plate; RW-14),
+the phone's Plan dead in Country view (RW-10), What's new's Got it 30 px on a phone (WN-LOOK). Briefed (HANDOFFS): the open road's
+card says its kind twice, country watermarks under stone labels, the desktop card column empty with nothing picked, a Signature's
+tooltip carries no rule.
+Lessons: (1) an identity fallback (spell the id) hides a missing name until a surface shows a row the catalogue never had: read a
+new item class through every name path, not only the icon; (2) a toolbar laid over a pannable map needs its own plate, or the map
+shows through the gaps at every pan; (3) a press that lights and opens nothing in one view is a dead press: test it in every view
+the band shows it in; (4) pick stones with a picker bounded by the map box, never screen guesses: my first route clicks landed off it.

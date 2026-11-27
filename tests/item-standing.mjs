@@ -11,7 +11,7 @@
 // ci-run: node tests/item-standing.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
 //
-// mutant-anchors: src/shell/item-standing.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css
+// mutant-anchors: src/shell/item-standing.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css src/styles/summary.css
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 // Plain gear is the floor; a Rare carries a Trait, a Signature is a named piece (06-comparison.md 2c). The step is the PIECE's (the
@@ -142,6 +142,8 @@ async function pure(base) {
   }
   if (!/position:\s*relative/.test(rule(hunt, '.hh-std > .hh-std-art, .hh-std > .hs-glyph'))) out.push('IS-4 the icon is not positioned above its frame');
   if (!/border-color:\s*transparent/.test(rule(win, '.hw-pocket:has(.hh-std), .hw-slot:has(.hh-std)'))) out.push('IS-4 a framed pocket keeps its rim beside the frame');
+  /* the summary's drop lines keep a find's whole name (a half-width cell wraps it), so a Signature is never "Barrow Knight's Bl..." */
+  if (!/white-space:\s*normal/.test(rule(read('src/styles/summary.css'), '.hsum-loot .hsum-name b'))) out.push('IS-4 the summary cuts a long find\'s name');
   return out;
 }
 
@@ -158,6 +160,7 @@ const MUTANTS = [
   ['the summary draws its own icon', 'src/shell/windows/hunt-summary.js', "'<li class=\"hsum-item\"><span class=\"hsum-ico\">' + itemIconHtml(ctx.glyphs, x.it) + '</span>'", "'<li class=\"hsum-item\"><span class=\"hsum-ico\"><img src=\"' + PIXEL_DIR + x.it + '.png\"></span>'"],
   ['the frame sits inside the icon', 'src/styles/hunt.css', 'inset: calc(-1 * var(--art-px));', 'inset: 0;'],
   ['the Signature frame at the Rare slice', 'src/styles/hunt.css', "std-frame-signature.png') 4 / var(--art-4)", "std-frame-signature.png') 3 / var(--art-3)"],
+  ['the summary cuts a find\'s name again', 'src/styles/summary.css', '.hsum-loot .hsum-name b { white-space: normal; line-height: 1.2; }', ''],
   ['the frame is drawn over the icon', 'src/styles/hunt.css', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: relative; }', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: static; }'],
 ];
 

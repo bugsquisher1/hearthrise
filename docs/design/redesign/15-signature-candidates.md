@@ -166,9 +166,9 @@ Note: Works with every Shelter branch. (Reshaped 2026-11-26, batch 2: a readied 
 ## Sword
 
 **4. Charred Sabre** · Weapon (sword) · Drops from: Pyre Field, Charred Pikeman
-Flame Strike on a kill: casts again on the nearest monster at no cost
+Flame Strike: its target's next blow lands at half damage
 Best for: Melee, sword. Also Tank.
-Note: Strong on packs of weak monsters. The free cast can't trigger another one.
+Note: The burned monster flinches. (Reshaped 2026-11-26, batch 2: a free Flame Strike on a kill read +1.5 and on every hit +2.6 on Pyre Field. A sword's damage buys no held depth.)
 
 **5. Pikeman's Gauntlets** · Gloves · Drops from: Muster Barrows, Barrow Pikeman
 Flame Strike: Power Strike is ready again

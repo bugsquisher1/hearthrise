@@ -36,7 +36,8 @@
 //   #3  Grave Guard's Mail      tank      RESHAPED (a readied Challenge read -1.9: the reference tank casts it 9 times an hour): shield_break
 //                                         (a shell the wearer cast: the shield discipline casts only Shelter's) -> Guarded at three times
 //                                         its row (-30% taken, the key's cap) 8 s on that shell's hero
-//   #4  Charred Sabre           sword     kill (of Flame Strike) -> Flame Strike again on the nearest monster, free
+//   #4  Charred Sabre           sword     RESHAPED (a free Flame Strike on a kill +1.5, on every hit +2.6: a sword's damage buys no held
+//                                         depth): cast (of Flame Strike) -> Blunted on its target (its next blow at half)
 //   #5  Pikeman's Gauntlets     sword     hit (of Flame Strike) -> Power Strike ready
 //   #7  Floodwater Hatchets     axes      cast (of Rend) -> Poison, 20% of the cast's damage over 6 s
 //   #9  Lurcher's Collar        ranger    REWRITTEN for a long fight (15 "The sample, re-read": the moved Mark read 0): hit on a marked
@@ -108,8 +109,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'shield_break', do: 'boon', status: 'guarded', pw: 3000, ms: 8000 }] }),
   charred_sabre: sig({ id: 'charred_sabre', n: 4, name: 'Charred Sabre', slot: 'weapon', weapon: 'sword', move: 'flame_strike',
     home: { kind: 'monster', id: 'charred_pikeman' }, best: { seat: 'melee_dps', ground: 'pyre_field' },
-    tip: 'Flame Strike on a kill: casts again on the nearest monster at no cost',
-    reacts: [{ on: 'kill', of: 'flame_strike', do: 'cast', move: 'flame_strike', free: true, again: true }] }),
+    tip: 'Flame Strike: its target\'s next blow lands at half damage',
+    reacts: [{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted' }] }),
   pikemans_gauntlets: sig({ id: 'pikemans_gauntlets', n: 5, name: 'Pikeman\'s Gauntlets', slot: 'gloves', move: 'flame_strike',
     home: { kind: 'monster', id: 'barrow_pikeman' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
     tip: 'Flame Strike: Power Strike is ready again',

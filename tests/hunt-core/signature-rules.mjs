@@ -22,8 +22,10 @@
 //                     another move's cast nothing
 //   shell-break-guard #3 Grave Guard's Mail (reshaped): a shell the wearer cast breaking Guards that shell's hero -30% for 8 s (the wearer
 //                     untouched); another hero's shell, or a shell that held, nothing
-//   kill-recast       #4 Charred Sabre: a Flame Strike kill casts Flame Strike again on the nearest monster, no mana and no rune; the
-//                     free cast's own kill casts nothing more
+//   cast-blunt-target #4 Charred Sabre (reshaped): a Flame Strike cast Blunts its target (its next blow at half), not the monsters beside it;
+//                     another move's cast nothing
+//   kill-recast       the cast-again piece (a planted row: the Sabre as first written): a Flame Strike kill casts Flame Strike again on the
+//                     nearest monster, no mana and no rune; the free cast's own kill casts nothing more
 //   ready-power       #5 Pikeman's Gauntlets: a Flame Strike hit makes Power Strike ready; another move's hit nothing
 //   cast-poison       #7 Floodwater Hatchets: a Rend lays Poison ticking 20% of the whole cast's damage over 6 s, a fixed tick
 //   marked-bleed      #9 Lurcher's Collar (re-written): a hit on a marked monster lays a Bleed stack, not on an unmarked one, once a 4 s clock
@@ -327,13 +329,32 @@ const cases = {
     }
     return null;
   },
+  'cast-blunt-target': (M) => {
+    const play = (move) => {
+      const u = H(M, 1, 12, 3, 'melee_dps', { mana: 100, maxMana: 100, maxHit: 50 }), o = H(M, 2, 10, 8, 'healer');
+      const t = E(M, 10, 0, 13, 3, 1, { hp: 9000, maxHp: 9000 }), side = E(M, 11, 0, 13, 4, 1, { hp: 9000, maxHp: 9000 });
+      const inst = fight(M, [u, o, t, side]);
+      inst.heroes = { 1: entry(M, [move]) };
+      u.target = 10;
+      wear(M, u, 'charred_sabre');
+      const sc = sc2(M, 57);
+      M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
+      return { cast: sc.events.some((e) => e.type === 'cast' && e.ability === move), t: stacksOf(t, 'blunted').length, side: stacksOf(side, 'blunted').length };
+    };
+    const fs = play('flame_strike'), ps = play('power_strike');
+    if (!fs.cast || !ps.cast) return 'CONTROL: the casts ' + JSON.stringify([fs, ps]);
+    if (fs.t !== 1 || fs.side !== 0) return 'a Flame Strike cast: Blunted on its target ' + fs.t + ', beside it ' + fs.side + ' (want 1, 0)';
+    if (ps.t || ps.side) return 'another move\'s cast Blunted';
+    return null;
+  },
   'kill-recast': (M) => {
     const u = H(M, 1, 12, 3, 'melee_dps', { mana: 100, maxMana: 100, maxHit: 50 }), o = H(M, 2, 10, 8, 'healer');
     const a = E(M, 10, 0, 13, 3, 1, { hp: 1, maxHp: 400 }), b = E(M, 11, 0, 13, 4, 1, { hp: 1, maxHp: 400 }), c = E(M, 12, 0, 11, 3, 1, { hp: 1, maxHp: 400 });
     const inst = fight(M, [u, o, a, b, c]);
     inst.heroes = { 1: entry(M, ['flame_strike']) };
     u.target = 10;
-    wear(M, u, 'charred_sabre');
+    /* (a planted row: the Sabre as first written, the cast-again piece the reshape left for a later row) */
+    u.reacts = [{ kind: 'react', id: 'again_test', on: 'kill', of: 'flame_strike', do: 'cast', move: 'flame_strike', free: true, again: true }];
     const sc = sc2(M, 44);
     M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
     const casts = sc.events.filter((e) => e.type === 'cast' && e.ability === 'flame_strike');
@@ -639,6 +660,7 @@ const mutants = [
   { name: 'a cast counts one monster', case: 'cast-count-shield', edits: [[RX, 'const k = ctx.n === undefined ? 1 : int(ctx.n);', 'const k = 1;']] },
   { name: 'Grave Guard\'s Mail guards at its row\'s own strength', case: 'shell-break-guard', edits: [[SG, "status: 'guarded', pw: 3000, ms: 8000 }", "status: 'guarded', ms: 8000 }"]] },
   { name: 'a broken shell queues nothing', case: 'shell-break-guard', edits: [[DM, "  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });\n", '']] },
+  { name: 'the Sabre Blunts every monster beside the wearer', case: 'cast-blunt-target', edits: [[SG, "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted' }", "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted', r: 1 }"]] },
   { name: 'a cast again waits on its cooldown', case: 'kill-recast', edits: [[AB, "gate === 'cooldown' ? !!(react && react.again) : false", 'false']] },
   { name: 'a cast again spends its rune', case: 'kill-recast', edits: [[AB, 'lines: react && react.again ? [] : s.lines', 'lines: s.lines']] },
   { name: 'the Gauntlets ready Flame Strike', case: 'ready-power', edits: [[SG, "do: 'ready', move: 'power_strike' }", "do: 'ready', move: 'flame_strike' }"]] },

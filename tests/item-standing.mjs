@@ -11,7 +11,7 @@
 // ci-run: node tests/item-standing.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/item-standing.mjs --mutate
 //
-// mutant-anchors: src/shell/item-standing.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css src/styles/summary.css
+// mutant-anchors: src/shell/item-standing.js src/shell/windows/item-tip.js src/shell/widgets/bits.js src/shell/windows/inventory/pockets.js src/shell/item-lore.js src/shell/share-card.js src/shell/windows/hunt-summary.js src/styles/hunt.css src/styles/summary.css
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 // Plain gear is the floor; a Rare carries a Trait, a Signature is a named piece (06-comparison.md 2c). The step is the PIECE's (the
@@ -22,7 +22,8 @@
 //   IS-2  ONE FRAME: bits.js itemIconHtml draws a Rare and a Signature inside .hh-std (one icon, the piece's own art) and a plain row
 //         with none; the bag and Storage pocket (pockets.js) gets it for a Signature and paints a plain steel piece by nothing (no
 //         rarity class, no pips); the tooltip's kind line names Rare only for a Rare; the share card frames and inks a Signature, not a
-//         plain find
+//         plain find; a Signature's tooltip carries its one rule (src/data/signatures.js tip) and its "Used for" is its slot, never
+//         "Shop won't buy it" (visual read 2026-11-26)
 //   IS-3  EVERY SURFACE GOES THROUGH IT: the bag and Storage pocket, the worn slots, the picked item and loot rows, the hunt summary's
 //         drop lines, the return card and the Tower chest's haul each call itemIconHtml; no other src/shell file writes an item's art
 //         path (PIXEL_DIR) into a page but the ones listed with why; nothing in src/shell or src/styles paints by the catalogue's rung
@@ -66,8 +67,8 @@ const rel = (base, p) => p.slice(base.length + 1).split('\\').join('/');
 
 async function pure(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + '?t=' + Date.now());
-  const [S, B, P, L, C, SG] = await Promise.all([imp('src/shell/item-standing.js'), imp('src/shell/widgets/bits.js'), imp('src/shell/windows/inventory/pockets.js'),
-    imp('src/shell/item-lore.js'), imp('src/shell/share-card.js'), imp('src/data/signatures.js')]);
+  const [S, B, P, L, C, SG, TIP, TX] = await Promise.all([imp('src/shell/item-standing.js'), imp('src/shell/widgets/bits.js'), imp('src/shell/windows/inventory/pockets.js'),
+    imp('src/shell/item-lore.js'), imp('src/shell/share-card.js'), imp('src/data/signatures.js'), imp('src/shell/windows/item-tip.js'), imp('src/data/text/item.js')]);
   const out = [];
   const sigIds = Object.keys(SG.SIGNATURES);
   if (sigIds.length < 5) out.push('IS-1 fixture: the Signature sample has ' + sigIds.length + ' rows');
@@ -107,6 +108,17 @@ async function pure(base) {
   for (const id of sigIds) {
     if (B.itemName(id) !== SG.SIGNATURES[id].name) out.push('IS-2 the Signature ' + id + ' is named ' + JSON.stringify(B.itemName(id)) + ', not its own name');
     if (!/^(Weapon|Armor|Jewelry), Signature$/.test(L.kindWords(id))) out.push('IS-2 the Signature ' + id + '\'s kind line is ' + JSON.stringify(L.kindWords(id)));
+    /* its tooltip names its rule, and its "Used for" is the slot it is worn in, never unsellable stock (visual read 2026-11-26) */
+    const tip = TIP.tipHtml(id, {});
+    const ruleEsc = SG.SIGNATURES[id].tip.replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+    if (!tip.includes('hw-tip-rule') || !(tip.includes(SG.SIGNATURES[id].tip) || tip.includes(ruleEsc))) out.push('IS-2 the Signature ' + id + '\'s tooltip names no rule: ' + tip.slice(0, 200));
+    const uses = L.usesOf(id);
+    if (uses.includes(TX.ITEM_TEXT.keep_only) || !uses.some((u) => /^Worn in the /.test(u))) out.push('IS-2 the Signature ' + id + ' is used for ' + JSON.stringify(uses));
+  }
+  const pieceRule = L.signatureRuleOf('iron_sword', { base: 'iron_sword', signature: sig });
+  if (pieceRule !== SG.SIGNATURES[sig].tip) out.push('IS-2 a Signature piece\'s rule reads ' + JSON.stringify(pieceRule));
+  if (L.signatureRuleOf('iron_sword', RARE) || /hw-tip-rule/.test(TIP.tipHtml('iron_sword', { piece: RARE })) || /hw-tip-rule/.test(TIP.tipHtml('steel_sword', {}))) {
+    out.push('IS-2 a piece that is no Signature carries a Signature\'s rule');
   }
   const sigCard = C.cardLayout(Object.assign(C.cardFacts({ kind: 'rare', item: sig }), { icon: 'assets/icons-bundle/pixel/items/' + sig + '.png' }));
   const plainCard = C.cardLayout(C.cardFacts({ kind: 'rare', item: 'steel_sword' }));
@@ -161,6 +173,8 @@ const MUTANTS = [
   ['the frame sits inside the icon', 'src/styles/hunt.css', 'inset: calc(-1 * var(--art-px));', 'inset: 0;'],
   ['the Signature frame at the Rare slice', 'src/styles/hunt.css', "std-frame-signature.png') 4 / var(--art-4)", "std-frame-signature.png') 3 / var(--art-3)"],
   ['the summary cuts a find\'s name again', 'src/styles/summary.css', '.hsum-loot .hsum-name b { white-space: normal; line-height: 1.2; }', ''],
+  ['a Signature\'s tooltip names no rule', 'src/shell/windows/item-tip.js', '  if (rule) h += \'<p class="hw-tip-line hw-tip-rule">', '  if (false) h += \'<p class="hw-tip-line hw-tip-rule">'],
+  ['a Signature reads as unsellable stock', 'src/shell/item-lore.js', '  if (!ITEMS[id] && Object.hasOwn(SIGNATURES, id)) {', '  if (false) {'],
   ['the frame is drawn over the icon', 'src/styles/hunt.css', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: relative; }', '.hh-std > .hh-std-art, .hh-std > .hs-glyph { position: static; }'],
 ];
 

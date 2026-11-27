@@ -219,7 +219,10 @@ const SEED = '-4611686018427387904';
    one file of this tree at a time over a git archive of step 1 (067cc8a4e): src/data/monsters.js alone moves the three tier scenarios (the
    Glade's and the Warrens' rows on the clock's REF_HERO, played off the scale as hand rows, their drops from hours) and nothing else;
    src/data/danger.js alone moves muster-steps-4's tally only (Muster's refStep 630 -> 610: the pay and the loot read refStep); the Muster
-   pack alone holds all five. The engine diff against the set is empty. */
+   pack alone holds all five. The engine diff against the set is empty.
+   RE-PINNED 2026-11-27 (lane/refhero-recut step 3), glade-4's TALLY only (from settle 11; world, timeline, kills 520 held): the crow's rows
+   back on the set's chances (drop-tables rare-pace, gen-drop-hours --convert). Proof: the pin holds on a git archive of 5b6b28906 (exit 0, the
+   late grounds re-cut and every catalogue regenerated), and this tree's src/data/monsters.js alone over it moves glade-4's tally at settle 11. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

@@ -33,7 +33,7 @@
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js, src/data/catacomb-wings.js, src/data/items.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -377,9 +377,13 @@ const CASES = {
 };
 
 const MUTANTS = [
+  /* both halves of the old state: the wing's drop row, and the chest pieces carried at the wing's item Level (the stamp did it; the plant
+     gives them the Wolfram step so items.js ITEM_LEVELS writes 160). A row alone is no base: traitBasesOf takes the ground's item Level only */
   { name: 'a wing drops a Hearth Chest hat again (a bronze-tier body at item Level 160)', case: 'DF-7', edits: [['src/data/catacomb-wings.js',
     '  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n',
-    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"]] },
+    "  respawnMs: g.respawnMs, pullDist: g.pullDist, groupFit: g.groupFit, densityMax: g.densityMax,\n  drops: Object.freeze([Object.freeze({ id: 'midwifes_hat', everyHours: 28, ch: 0.001, band: 'rare' })]),\n"],
+    ['src/data/items.js', 'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };',
+      'for (const [id, iL] of Object.entries(SCALE_ITEM_LEVELS)) ITEMS[id] = { ...ITEMS[id], iL };\nfor (const [id, it] of Object.entries(ITEMS)) if (it && it.catacombTier) ITEMS[id] = { ...it, step: 8 };']] },
   { name: 'a stale chance after a kill-rate change', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.018,"]] },
   { name: 'a typed chance on a scale ground', case: 'DF-1', edits: [['src/data/grounds/muster_barrows/pack.js', "{ id: 'mithril_sword', everyHours: 1.08, ch: 0.016,", "{ id: 'mithril_sword', ch: 0.016,"]] },
   /* lane/scale-early-grounds: a base ground's rows (src/data/monsters.js) are owned the same way */

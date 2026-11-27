@@ -243,6 +243,22 @@ const ARMS = {
         if (got !== want) p.push('the stop from ' + hhmm + ' with day ' + day + ' used ' + used + ' is ' + new Date(got).toISOString() + ' in SQL, ' + new Date(want).toISOString() + ' in JS');
       }
     }
+    /* and with bought work in today's cap (one block: the stop moves by it today, not tomorrow) */
+    await pin(db, at('10:00'));
+    await db.query('update public.player_state set work_day = $2::date, work_ms = $3 where user_id = $1 and slot = 0', [u, DAY, 8 * HOUR]);
+    await setPurse(db, u, 500000000);
+    await clear(db);
+    const wq = await one(db, "select public.hr_time_quote($1, 0, 'work')", [u]);
+    const buy = wq && wq.available ? await as(db, u, "select public.hr_time_buy('work', 0, $1::bigint, $2::uuid) as r", [wq.price, idem()]) : null;
+    if (!buy || buy.ok !== true) p.push('no work block to test the stop with: ' + js(wq) + ' ' + js(buy));
+    const wb = await one(db, 'select public.hr_work_state($1, 0)', [u]);
+    if (!(wb.extra_ms > 0)) p.push('the bought block is not in the day: ' + js(wb));
+    for (const hhmm of ['10:00', '21:00']) {
+      const from = msOf(at(hhmm));
+      const want = workStopMs({ dayMs: today, usedMs: 8 * HOUR, baseMs: wb.base_ms, extraMs: wb.extra_ms, todayMs: today }, from);
+      const got = msOf(await one(db, 'select public.hr_trade_work_stop($1, 0, $2::timestamptz)::text', [u, new Date(from).toISOString()]));
+      if (got !== want) p.push('with a bought block the stop from ' + hhmm + ' is ' + new Date(got).toISOString() + ' in SQL, ' + new Date(want).toISOString() + ' in JS');
+    }
     if (n < 500) p.push('the roll was swept at ' + n + ' points, under 500');
     return p;
   },
@@ -387,7 +403,10 @@ const ARMS = {
     await pin(db, at('12:00'));
     const early = await sweep(db);
     const still = await openJob(db, u);
-    if (!early || early.settled !== 0 || !still || new Date(still.ends_at).getTime() <= msOf(at('12:00'))) p.push('the sweep at the old end answered ' + js(early) + ', the job ' + js(still && still.ends_at));
+    if (!early || early.settled !== 0 || !still || new Date(still.ends_at).getTime() <= msOf(at('12:00'))) {
+      p.push('the sweep at the old end answered ' + js(early) + ', the job ' + js(still && still.ends_at));
+      return p;
+    }
     const endMs = await trueEnd(db, still);
     await pin(db, new Date(endMs + MIN).toISOString());
     await sweep(db);
@@ -395,6 +414,9 @@ const ARMS = {
     const want = expected(job, endMs - new Date(job.started_at).getTime());
     if (got.result.attempts !== want.attempts || got.plain !== want.plain) p.push('the lengthened job landed ' + js(got) + ', settleJob says ' + js(want));
     if (got.end !== (endMs < msOf(at('14:00')) ? 'done' : 'work_cap')) p.push('the lengthened job ended ' + got.end);
+    /* the day spent: the 6 h before it and the job's own span (to the bought block's end, 14:00) */
+    const spent = 6 * HOUR + (endMs - new Date(job.started_at).getTime());
+    if (got.work.d !== DAY || got.work.ms !== String(spent)) p.push('the work day reads ' + js(got.work) + ', want ' + spent + ' ms on ' + DAY);
     return p;
   },
 

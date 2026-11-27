@@ -538,6 +538,12 @@
         "gzipBytes": 983052,
         "on": "2026-11-27",
         "why": "lane/f1-inner-flame: the flame section reader and the return card's flame line (flame-sections.js, away.js)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 983183,
+        "on": "2026-11-27",
+        "why": "lane/named-piece-drops: the 6 named pieces' Rare drop rows in the Roost and Catacomb packs, and drop-rate.js isTwin"
       }
     ]
   }

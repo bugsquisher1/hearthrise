@@ -26,8 +26,8 @@ const PAIRS = [
 ];
 /* batch 2: [name, [best ground, plain, worn], [second ground, plain, worn]] */
 const ROWS2 = [
-  ['#1 Bannerman\'s Pavise (tank)', ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pavise'], ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pavise']],
-  ['#2 Ossuary Helm (tank, + Frost Slam)', ['Bone Wing', 'b2-bone-tank-slam', 'b2-bone-helm'], ['Muster Barrows', 'b2-muster-tank-slam', 'b2-muster-helm']],
+  ['#1 Bannerman\'s Pavise (tank)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pavise'], ['Krell\'s Hold', 'b2-krell-tank', 'b2-krell-pavise']],
+  ['#2 Ossuary Helm (tank, + Frost Slam)', ['Krell\'s Hold', 'b2-krell-tank-slam', 'b2-krell-helm'], ['Muster Barrows', 'b2-muster-tank-slam', 'b2-muster-helm']],
   ['#3 Grave Guard\'s Mail (tank, + Shelter)', ['Krell\'s Hold', 'b2-krell-tank-shelter', 'b2-krell-mail'], ['Muster Barrows', 'b2-muster-tank-shelter', 'b2-muster-mail']],
   ['#4 Charred Sabre (sword)', ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-sabre'], ['Muster Barrows', 'b2-muster-sword', 'b2-muster-sabre']],
   ['#5 Pikeman\'s Gauntlets (sword)', ['Muster Barrows', 'b2-muster-sword', 'b2-muster-gauntlets'], ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-gauntlets']],
@@ -41,7 +41,9 @@ const ROWS2 = [
   ['#16 Lamplighter\'s Robe (mage)', ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-robe'], ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-robe']],
   ['#17 Bargeman\'s Pole (healer)', ['The Slake', 'b2-slake-mixed', 'b2-slake-pole'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-pole']],
   ['#21 Drover\'s Hat (healer)', ['Ox Road', 'b2-ox-mixed', 'b2-ox-hat'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-hat']],
-  ['#23 Ferry Pennies (tank)', ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pennies'], ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies']],
+  ['#23 Ferry Pennies (tank)', ['Muster Barrows', 'b2-muster-tank', 'b2-muster-pennies'], ['Krell\'s Hold', 'b2-krell-tank', 'b2-krell-pennies']],
+  /* (the home ground pinned: the tank four at Hask's Ford's top, kept as the reading of why the tank reads elsewhere) */
+  ['#1 on Hask\'s Ford (pinned)', ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pavise'], ['Hask\'s Ford', 'b2-ford-tank', 'b2-ford-pavise']],
 ];
 const cellOf = (name, need) => {
   const f = join(HERE, name + '.json');

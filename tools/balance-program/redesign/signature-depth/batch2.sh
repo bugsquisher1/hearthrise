@@ -28,11 +28,14 @@ run() {
 }
 T=tank,bow,mage,healer; S=sword,bow,mage,healer; A=axes,bow,mage,healer; X=hammer,bow,mage,healer; C=hammer,crossbow,mage,healer
 # ── the home cells (the size bar) ──
-run b2-ford-tank          hasks_ford 52 $T
-run b2-ford-pavise        hasks_ford 52 $T --signatures bannermans_pavise,-,-,-
-run b2-ford-pennies       hasks_ford 52 $T --signatures ferry_pennies,-,-,-
-run b2-bone-tank-slam     catacomb_bone_wing 175 $T --add-moves frost_slam,-,-,-
-run b2-bone-helm          catacomb_bone_wing 175 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
+# (the tank four sits at the top of Hask's Ford, 654.5 of 655 at Level 52 and 643.5 at 45, of Pyre Field, 116.8 of 120, and of the Bone
+#  Wing, 602.9 of 605: a Signature there reads 0 by construction, so the tank's rows read on Muster Barrows and Krell's Hold, its two grounds
+#  with room over the plain four; the Ford's pair is kept as the pinned reading, b2-ford-tank and b2-ford-pavise)
+run b2-muster-tank        muster_barrows 60 $T
+run b2-muster-pavise      muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
+run b2-muster-pennies     muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+run b2-krell-tank-slam    krells_hold 97 $T --add-moves frost_slam,-,-,-
+run b2-krell-helm         krells_hold 97 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
 run b2-krell-tank-shelter krells_hold 97 $T --add-moves shelter,-,-,-
 run b2-krell-mail         krells_hold 97 $T --add-moves shelter,-,-,- --signatures grave_guards_mail,-,-,-
 run b2-pyre-sword         pyre_field 80 $S
@@ -58,9 +61,9 @@ run b2-bone-shroud        catacomb_bone_wing 175 $X --signatures -,-,catacomb_sh
 run b2-slake-mixed        the_slake 57 $X
 run b2-slake-pole         the_slake 57 $X --signatures -,-,-,bargemans_pole
 # ── the second scale ground (the spread bar) ──
-run b2-muster-tank          muster_barrows 60 $T
-run b2-muster-pavise        muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
-run b2-muster-pennies       muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+run b2-krell-tank           krells_hold 97 $T
+run b2-krell-pavise         krells_hold 97 $T --signatures bannermans_pavise,-,-,-
+run b2-krell-pennies        krells_hold 97 $T --signatures ferry_pennies,-,-,-
 run b2-muster-tank-slam     muster_barrows 60 $T --add-moves frost_slam,-,-,-
 run b2-muster-helm          muster_barrows 60 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
 run b2-muster-tank-shelter  muster_barrows 60 $T --add-moves shelter,-,-,-

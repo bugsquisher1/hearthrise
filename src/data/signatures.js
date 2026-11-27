@@ -54,7 +54,8 @@
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
 // move a move Signature belongs to (every live move gets one, CC-5). `best` is the seat (src/data/hunt-roles.js HUNT_ROLES) and the ground it
-// is sized on; a home off the Danger scale is sized on a scale ground its seat meets (the doc says which). `slot` the equip slot its piece
+// is sized on; a home off the Danger scale, or one whose reference four sits at its top (the tank's on Hask's Ford, Pyre Field and the Bone
+// Wing), is sized on a scale ground its seat meets with room over the plain four (the doc says which). `slot` the equip slot its piece
 // fills; `weapon` the weapon kind a weapon Signature is (src/data/items.js weaponType: its piece is that weapon).
 //
 // DARK (SIGNATURE_RULES.live false): nothing drops one, no screen shows one, and no server or client file hands a hero `wornSignature`
@@ -91,11 +92,11 @@ export const SIGNATURES = Object.freeze({
 
   /* ── BATCH 2 (lane/signatures-batch-2) ── */
   bannermans_pavise: sig({ id: 'bannermans_pavise', n: 1, name: 'Bannerman\'s Pavise', slot: 'shield', move: 'challenge',
-    home: { kind: 'monster', id: 'bannerman' }, best: { seat: 'tank', ground: 'hasks_ford' },
+    home: { kind: 'monster', id: 'bannerman' }, best: { seat: 'tank', ground: 'muster_barrows' },
     tip: 'Challenge: the first blow from each monster you taunt lands at half damage',
     reacts: [{ on: 'taunt', do: 'status', status: 'blunted' }] }),
   ossuary_helm: sig({ id: 'ossuary_helm', n: 2, name: 'Ossuary Helm', slot: 'helmet', move: 'frost_slam',
-    home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'catacomb_bone_wing' },
+    home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'krells_hold' },
     tip: 'Frost Slam: gain a shield of 3% of max health for each monster it Chills (up to 15%)',
     reacts: [{ on: 'cast', of: 'frost_slam', do: 'shield', pm: 30, capPm: 150 }] }),
   grave_guards_mail: sig({ id: 'grave_guards_mail', n: 3, name: 'Grave Guard\'s Mail', slot: 'body', move: 'shelter',
@@ -148,7 +149,7 @@ export const SIGNATURES = Object.freeze({
     tip: 'Protective Ward: returns 50% of the damage it absorbs to the attacker',
     reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }] }),
   ferry_pennies: sig({ id: 'ferry_pennies', n: 23, name: 'Ferry Pennies', slot: 'earrings', move: 'mend',
-    home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'hasks_ford' },
+    home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'muster_barrows' },
     tip: 'Mend below 20% health: also Chills every monster next to you for 3 s',
     reacts: [{ on: 'heal', of: 'mend', belowPm: 200, do: 'status', status: 'chill', r: 1, ms: 3000 }] }),
 });

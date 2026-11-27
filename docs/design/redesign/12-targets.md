@@ -625,6 +625,44 @@ Why the front loses, read off the Slake's cells: the mixed four's hammer stands 
 
 **Built (lane/front-seat, 2026-11-27): the close.** Two rules, on the scale only, both in the one engine. First, a reach that keeps to a row with nobody of that row in its pack's area takes every row by its own order (`monster-roles.js reachPick`), so brutes run to the hero nearest them and a swarm spreads over the whole four, and a brute with nobody in front keeps a hero it stands beside. Second, a role row that `pins` (the Brute, the Swarm and the Warder, `src/data/monster-roles.js`) holds a ranged hero it reaches where it was caught (`roles.js rangedPos`): it walks to no new spot, as it holds under a mark. A Stalker does not pin, so the back row still walks clear of the dive (a pinning Stalker cost the mixed four 22% on Muster and 17% on the Flooded Wing, and handed the healer four two grounds). The melee seat's damage (the second dial) was not needed. **MEASURED** (`tests/lineup-v4.mjs`, 3 seeds x 2 h, every lineup over the mixed four): three mages and a healer 0.67x to 1.11x (was 1.24x to 1.75x), three bows and a healer 0.55x to 0.96x (was 0.56x to 1.19x), the best four of one style 0.58x to 0.99x (the mage four's six wins are gone), read on the re-cut bands. V4-1, V4-2 and V4-3 green. The one frontless answer is Muster (three mages and a healer 1.09x the best fronted four, inside 1.15). On the bands as they stood, the mixed four reads the same to the digit on ten of twelve grounds (its hammer stands in front, so nothing that pins ever reaches its back row), Muster +0.6%, the Flooded Wing -2.8%. A lone bow or mage on the scale earns 0% to 18% less (a brute it reaches keeps it), and the lone mage stays the best lone style.
 
+### 8.10 BD-9 on Carter's Rest and the Flooded Wing, ruled: the top was measured under its own cap (2026-11-27, designer, lane/designer-bd9)
+
+**How it plays:** the top of a ground is where a strong party really stops. On Carter's Rest a Level 125 party in the next tier's gear climbs to step 100, 40 steps past where the reference party holds, so the depth number climbs about one depth every 4 steps. A good run or a bad fall moves you a depth or two, never half the ground.
+
+**The read** (CONFLICTS 2026-11-27, lane/front-seat): `tests/bands.mjs` BD-9 ("the reference company reads within one depth of its share of the band") was red on two grounds. Carter's Rest read 0 / 60 / 70 with refHeld 55 and the Flooded Wing 440 / 480 / 485 with refHeld 475. Their upper halves were 15 and 10 steps, so the reference company's 2 steps of drift read 2 depths (depth 12 against a share of 10).
+
+**What BD-9 protects.** "Depth N of 20" is a ruler. The reference company sits near its share of the band, and the climb above it is wide enough in steps that a depth is a few steps, not a fraction of one. On a 10-step upper half every step was 1.5 depths, and one Steady fall (`CLIMB.fallSteps` 18) dropped more than the whole upper half. The rule is right for both grounds: an off-scale or wing ground reads the same ruler.
+
+**Cause, MEASURED: not the band's shape. The top cell was measured under its own cap.** The engine climbs no step past a row's `topStep` (`src/core/hunt/danger.js stepOn`), and `new-ground.mjs` played every cell on the row as it stood. The strong four climbs to the cap, falls, climbs back, so its mean hold sits a few steps under the cap, and the cut rounds that to the new top. Each re-cut ratcheted the top down (Carter's 75 -> 70, the Flooded Wing 515 -> 500 -> 485). Played with the climb free (the cap at the scale's `stepMax`), Carter's strong four holds **98.3** (capped 69.7) and the Flooded Wing's **499.5** (capped 487.2). It was the whole class: every one of the 16 tops was capped.
+
+**Ruling.**
+1. **BD-9 stays as written.** It caught a real fault. No tolerance in steps, no exemption for narrow halves.
+2. **The dial is the measuring, not the ground.** Not the Level band (Carter's 110-125 is right: its strong four holds 41 steps over the reference), not the monsters, not the base tier. `tools/new-ground.mjs` plays every cell of a ground with a row free of its top: a Lab candidate (`tools/lib/danger-band.mjs topFreeCandidate`) lifts only the engine's cap line on a scratch copy. The row, its depth reading, its drop odds and its pay read the band as it stands (lifting the row's `topStep` instead read the Flooded Wing's reference loot 7% low, every step a shallower depth). Every report says `candidate: top-free` and `tests/new-ground.mjs` NG-9 holds every pin to it.
+3. **Every band re-cut on it** (`new-ground.mjs --hold-level --hours 10 --seeds 4`, coin read back as played 0.98 to 1.03 of the wage; two coin levels moved and were read back: the Flooded Wing 3300 -> 3700 at 1.02, the Sewer 8200 -> 7500 at 1.00). Floor / reference / top, MEASURED:
+
+| Ground | Was | Now | Strong four free |
+|---|---|---|---|
+| the Mill Cellar | 0 / 60 / 110 | 0 / 60 / **125** | 125.1 |
+| the Thicket | 0 / 110 / 145 | 0 / 110 / **170** | 168.3 |
+| Wickstead | 0 / 80 / 125 | 0 / 80 / **145** | 142.9 |
+| the Sewer | 0 / 60 / 110 | 0 / 60 / **135** | 137.4 |
+| the Glade | 0 / 60 / 115 | 0 / 60 / **130** | 129.5 |
+| the Warrens | 30 / 80 / 125 | **25** / 80 / **150** | 150.0 |
+| Hask's Ford | 535 / 590 / 640 | 535 / 590 / **650** | 650.3 |
+| the Slake | 45 / 100 / 130 | 45 / 100 / **145** | 146.7 |
+| Muster Barrows | 525 / 610 / 690 | **520** / 610 / **710** | 708.1 |
+| Pyre Field | 0 / 50 / 100 | 0 / 50 / **110** | 109.6 |
+| Krell's Hold | 0 / 40 / 115 | 0 / 40 / **130** | 127.6 |
+| **Carter's Rest** | 0 / 60 / 70, refHeld 55 | 0 / 60 / **100**, no refHeld (its four holds 57.5, refStep at the band's grain) | 98.3 |
+| the Ox Road | 0 / 100 / 165 | 0 / 100 / **180** | 179.3 |
+| Wyvern Roost | 0 / 110 / 190 | 0 / 110 / **195** | 194.5 |
+| the Bone Wing | 405 / 500 / 545 | 405 / 500 / **550** | 551.6 |
+| **the Flooded Wing** | 440 / 480 / 485 | 440 / 480 / **500**, refHeld 475 | 499.5 |
+
+Two floors moved with their tops (the floor's margin is one depth of the band, `floorMarginOf`). Every verdict is OPEN except the Mill Cellar's REVIEW, its sustain 96 as ruled in 8.9 item 5. BD-9 now reads Carter's arriving company at depth 2 and its reference at 10, the Flooded Wing's at 3 and 10. BD-9's Muster climb, re-measured free on this tree (`depth-budget/muster-*`, 6 seeds x 10 h): arriving 558.1 depth 5, grown 620.8 depth 11, strong 687.1 depth 18, Bold 743.8 depth 20 (Bold free climbs 34 steps past the top, so on the live cap it pins depth 20).
+
+**What it changes for a player.** The tops rise 5 to 30 steps. A strong party keeps climbing and earning depth pay to where it really stops (the pay's `gapMax` 120 is unchanged), and "outgrown" fires there, not at a cap the party had already beaten. The reference party still reads about depth 10. **Known reading, no action:** balance-guard G7 (report-only) reads the next ground's depth 1 against the last ground's top, so a higher top lowers it 0.01 to 0.08 on every pair (0.51 to 0.66, already under its 1.0 keep everywhere before this). Moving on is paid by the next base tier and the Level XP, not by coin a hold, so G7 stays a report.
+
 ## 9. Sinks priced in wage hours, and the gold ledger (2026-11-26, designer, lane/sn-sinks; 20 lane SN and gate 7)
 
 **How it plays.** Your heroes earn gold every hunt. Gold buys extra hunting time, your kit, Temper, imbuements, carry-over, a Blessing before a risky Bold hunt, a Talent reset, and your hall. Each price is a number of hours of pay at your hero's Level, so a reset or a Blessing feels the same at Level 30 and at Level 300.

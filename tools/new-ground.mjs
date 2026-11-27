@@ -23,14 +23,19 @@
 //          row yet gets the row printed to paste: its gear base (gearLevel), drop home (ladderTier or named) and Trait pool are the
 //          designer's, never a tool's. Paste it and run again with --write.
 // Reports land in tools/balance-program/redesign/grounds/<ground>-{floor,top,ref}.{json,txt}.
+// THE CLIMB IS MEASURED FREE (lane/designer-bd9, 12-targets 8.10): on a ground with a row every cell plays a scratch copy whose climb
+// stops only at DANGER.stepMax (tools/lib/danger-band.mjs topFreeCandidate, v1-climb --candidate; the row and its depth reading as they
+// stand), so the top is the strong four's hold, never the cap the last cut set (a capped climb reads a few steps under its cap, and the
+// top ratcheted down cut by cut). Its reports say so (`candidate: top-free`, tests/new-ground.mjs NG-9).
 //
 // Exit 0 cut (any verdict) · 1 --write refused (no row) · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { bandFromReports, packPrint, rewriteRow, anchorOf } from './lib/danger-band.mjs';
+import { bandFromReports, packPrint, rewriteRow, anchorOf, topFreeCandidate } from './lib/danger-band.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -40,7 +45,7 @@ const die = (m, code = 2) => { console.error('new-ground: ' + m); process.exit(c
 if (!G) die('usage: node tools/new-ground.mjs <ground> --entry L --top L [--mid L] [--write]');
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-const { DANGER_GROUNDS, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
+const { DANGER_GROUNDS, DANGER, PAY, DEPTHS, BAND_RULE } = await imp('src/data/danger.js');
 /* THE ABSOLUTE BAND (lane/foundations-block): the band is a formula of the row (src/core/bands.js bandAbs); the cells measure its bridge */
 const { bandAbs, absPmOf, depthAt, insideOneTier } = await imp('src/core/bands.js');
 const { GEAR_STEPS } = await imp('src/data/gear-steps.js');
@@ -66,6 +71,13 @@ if (arg('ref')) {
   mkdirSync(OUT, { recursive: true });
   const V1 = join(ROOT, 'tools', 'balance-program', 'redesign', 'v1-climb.mjs');
   const OWN_TIER = insideOneTier(G);
+  /* THE CLIMB IS MEASURED FREE (lane/designer-bd9; tools/lib/danger-band.mjs topFreeCandidate): on a ground with a row, every cell plays a
+     copy whose climb stops only at the scale's stepMax (the row untouched), so no cell measures the cap its last cut set */
+  const FREE = DANGER_GROUNDS[G] ? topFreeCandidate(readFileSync(join(ROOT, 'src', 'core', 'hunt', 'danger.js'), 'utf8')) : null;
+  if (DANGER_GROUNDS[G] && !FREE) die('src/core/hunt/danger.js stepOn no longer reads its cap on the line tools/lib/danger-band.mjs TOP_CAP_LINE names: the cells cannot be played free of the top');
+  const FREE_DIR = FREE ? mkdtempSync(join(tmpdir(), 'hr-top-free-')) : null;
+  const FREE_JSON = FREE ? join(FREE_DIR, FREE.id + '.json') : null;
+  if (FREE) { writeFileSync(FREE_JSON, JSON.stringify(FREE)); process.on('exit', () => { rmSync(FREE_JSON, { force: true }); rmdirSync(FREE_DIR); }); }
   if (OWN_TIER) process.stderr.write('new-ground: ' + G + ' sits inside one gear tier: every cell wears its own tier (item Level ' + DANGER_GROUNDS[G].gearLevel + ' to ' + (DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1) + ')\n');
   const run = (cell, L, gear) => {
     const json = join(OUT, G + '-' + cell + '.json');
@@ -73,7 +85,7 @@ if (arg('ref')) {
     /* --hold-level (lane/scale-early-grounds): each company stays at its Level all day (v1-climb.mjs --hold-level), for a ground whose
        Levels come faster than a measuring day (under about Level 20) or whose hunt ends at a Level (the Mill Cellar's at 5) */
     const txt = execFileSync(process.execPath, [V1, '--ground', G, '--level', String(L), '--gear', gear, '--seeds', arg('seeds', '4'), '--hours', arg('hours', '12'),
-      '--settle', arg('settle', '4'), '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json, ...(argv.includes('--hold-level') ? ['--hold-level'] : []),
+      '--settle', arg('settle', '4'), '--workers', arg('workers', '6'), '--only', 'base:steady', '--json', json, ...(argv.includes('--hold-level') ? ['--hold-level'] : []), ...(FREE ? ['--candidate', FREE_JSON] : []),
       /* A GROUND INSIDE ONE GEAR TIER (src/core/bands.js insideOneTier; 29-tuning-pass.md 7.5): every cell in the ground's own tier's kit */
       ...(OWN_TIER ? ['--max-il', String(DANGER_GROUNDS[G].gearLevel + GEAR_STEPS.tierSteps - 1)] : [])],
       { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 << 20 });

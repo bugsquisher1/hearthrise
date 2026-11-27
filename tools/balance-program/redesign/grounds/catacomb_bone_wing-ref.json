@@ -250,8 +250,8 @@
    }
   }
  },
- "wallS": 33,
- "candidate": "C0",
+ "wallS": 56,
+ "candidate": "top-free",
  "moves": {
   "levels:careful": null,
   "weapon:careful": null,

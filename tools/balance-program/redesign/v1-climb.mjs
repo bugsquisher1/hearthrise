@@ -83,7 +83,9 @@ const PAY_FROM_H = Number(arg('pay-from', SETTLE_H));
 /* --candidate <id> (lane/r4): play a Lab candidate (tools/balance-program/candidates/<id>.json) on its scratch copy in place of the tree;
    the cells are built from the tree (the same kits), the engine is the candidate's */
 const CAND = arg('candidate');
-const TREE = CAND ? await (async () => { const C = await imp('tools/balance-program/candidates.mjs'); return C.treeOf(C.readCandidate(CAND)); })() : { root: ROOT, done: () => {} };
+/* the report names the candidate by its manifest id, never the path it was read from (a manifest written to a temp folder, tools/new-ground.mjs) */
+let CAND_ID = 'C0';
+const TREE = CAND ? await (async () => { const C = await imp('tools/balance-program/candidates.mjs'); const c = C.readCandidate(CAND); CAND_ID = c.id; return C.treeOf(c); })() : { root: ROOT, done: () => {} };
 const tableRate = (lv) => (charXpForLevel(lv + 1) - charXpForLevel(lv)) / hoursForLevel(lv);
 
 /* ── the plan ── */
@@ -291,7 +293,7 @@ process.stderr.write('V1: ' + jobs.length + ' seed jobs (' + cells.length + ' ce
 const { out, errors } = await playAll(jobs, WORKERS);
 if (errors.length) { console.error('V1 harness errors:\n' + errors.map((e) => '  ' + e.id + ': ' + e.error).join('\n')); }
 
-const report = { ground: GROUND, levels: [L, L + 3, L2], seeds: SEEDS, hours: HOURS, settleFromH: SETTLE_H, levers: { DANGER, CLIMB, RISKS: RISK_ROWS }, cells: {}, wallS: 0, candidate: CAND || 'C0' };
+const report = { ground: GROUND, levels: [L, L + 3, L2], seeds: SEEDS, hours: HOURS, settleFromH: SETTLE_H, levers: { DANGER, CLIMB, RISKS: RISK_ROWS }, cells: {}, wallS: 0, candidate: CAND_ID };
 TREE.done();
 for (const c of cells) {
   const seeds = [];

@@ -38,7 +38,9 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/hasks_ford-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/hasks_ford-ref.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-top.json",
+    "tools/balance-program/redesign/grounds/hasks_ford-floor.json"
    ]
   },
   "catacomb_bone_wing": {
@@ -138,7 +140,9 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/mosslight_glade-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/mosslight_glade-ref.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-top.json",
+    "tools/balance-program/redesign/grounds/mosslight_glade-floor.json"
    ]
   },
   "coppercap_warrens": {
@@ -215,7 +219,9 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/krells_hold-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/krells_hold-ref.json",
+    "tools/balance-program/redesign/grounds/krells_hold-top.json",
+    "tools/balance-program/redesign/grounds/krells_hold-floor.json"
    ]
   },
   "wickstead": {
@@ -275,7 +281,9 @@
    },
    "measured": "2026-11-27",
    "evidence": [
-    "tools/balance-program/redesign/grounds/ox_road-{floor,top,ref}.json"
+    "tools/balance-program/redesign/grounds/ox_road-ref.json",
+    "tools/balance-program/redesign/grounds/ox_road-top.json",
+    "tools/balance-program/redesign/grounds/ox_road-floor.json"
    ]
   },
   "millrace_sewer": {

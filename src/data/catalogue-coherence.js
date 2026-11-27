@@ -43,6 +43,8 @@ import { MONSTERS } from './monsters.js';
 import { NAMED_FUELS } from './hearth.js';
 import { TEMPER_KITS } from './temper.js';
 import { imbuePartUses } from './imbue-rules.js';
+/* THE TRADE DOOR (lane/k1-job-slice, 2026-11-26): a job recipe's face is made by its trade (hr_trade_job_start), its inputs spent by it */
+import { jobFaces, IMBUE_JOBS } from './trades.js';
 import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from './jewelry.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js';
 import { BOSS_CALLS } from './boss-calls.js';
@@ -313,6 +315,10 @@ export function reachableSources(opts = {}) {
         if (need.every((id) => m.has(id))) for (const id of outs) grew = put(id, 'made by ' + skill) || grew;
       }
     }
+    /* a job recipe (src/data/trades.js jobFaces; hr_trade_job_start): its face is made by its trade once every input is reachable */
+    for (const j of jobFaces()) {
+      if (j.output && !m.has(j.output) && j.inputs.every((id) => id && m.has(id))) grew = put(j.output, 'made by ' + j.trade) || grew;
+    }
     /* a step tier's made piece (slot-ladders.js STEP_MADE): its job joins the bench the day its part is served (recipes.js), so it is a door
        wherever its inputs are reachable, the staged home's part included when the planned door opens it */
     for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) {
@@ -363,6 +369,8 @@ export function itemSources() {
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
   /* a step tier's made piece whose job waits for its home's pack (recipes.js servedMade): the bench is its door all the same */
   for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) push(m, r.output, 'made by ' + skill);
+  /* a job recipe's face (src/data/trades.js jobFaces): made by its trade (hr_trade_job_start, the job slice) */
+  for (const j of jobFaces()) push(m, j.output, 'made by ' + j.trade);
   /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
      lists (catalogue.js offerRefusal: `not_listed`); the other SHOP_OFFERS rows are the vendor's price list, a door
      nobody can open. Counting them hid eleven items no player could ever obtain (the farming seeds, the apprentice
@@ -409,6 +417,9 @@ export function itemUses() {
   for (const id of TEMPER_KITS) if (id) push(m, id, 'pays for a Temper rank');
   /* an imbuement's part (src/data/imbue-rules.js): Artificing makes the imbuement from it (21 section 3.2) */
   for (const [id, made] of imbuePartUses()) push(m, id, 'makes ' + made.join(', ') + ' at the Artificing bench');
+  /* a job recipe's inputs (src/data/trades.js jobFaces): spent by its trade's job; a made imbuement goes onto a worn piece (hr_imbue_apply) */
+  for (const j of jobFaces()) for (const id of j.inputs) push(m, id, j.trade + ' job input');
+  for (const j of IMBUE_JOBS) push(m, j.face, 'imbued onto a worn piece');
   /* the Hallmark step (src/data/jewelry.js, hr_hallmark): a Fine piece and its tier's gem make the Hallmarked row */
   for (const o of HALLMARK_OFFERS) { push(m, o.from, 'Hallmarked at the jeweler'); push(m, o.gem, 'pays for a Hallmark'); }
   /* the jewel reforge (hr_jewel_reforge): a Hallmarked piece, the next tier's bars and gem make that tier's Hallmarked row */

@@ -250,6 +250,8 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/talent-intents.js': { rule: 5 },
   /* lane B1 (1071-work-blocks.sql): the standing block rule and its offer, one askVia each on the one rule */
   'src/session/time-intents.js': { rule: 2 },
+  /* lane/k1-job-slice (1073-k1-job-slice.sql): a kit-trade job's start and its end, one askVia each on the one rule */
+  'src/session/trade-intents.js': { rule: 2 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
   'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
   'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
@@ -319,6 +321,9 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   /* lane B1 (1071-work-blocks.sql): the standing block rule's two settings */
   ['src/session/time-intents.js', 'setTimeRule', 'hr_time_auto_set', ['work', 2]],
   ['src/session/time-intents.js', 'answerTimeOffer', 'hr_time_offer_answer', [1]],
+  /* lane/k1-job-slice (1073-k1-job-slice.sql): the job's start on the server's quote and its collect */
+  ['src/session/trade-intents.js', 'startTradeJob', 'hr_trade_job_start', ['meal_b0', 3, 113]],
+  ['src/session/trade-intents.js', 'endTradeJob', 'hr_trade_job_end', [false]],
   ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
   ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],
   ['src/session/party-intents.js', 'disbandParty', 'hr_hunt_party_disband', []],

@@ -411,6 +411,10 @@ function contract(R, cs, body, tl) {
     'foundNowOf yields ' + JSON.stringify(R.PC.foundNowOf(cs)) + ' from ' + String(JSON.stringify(hsb)).slice(0, 200));
   need('pieces', body.pieces === null && R.PC.piecesOf(cs) === null && R.PC.freePiecesOf(cs).length === 0,
     'piecesOf yields ' + JSON.stringify(R.PC.piecesOf(cs)) + ' from ' + JSON.stringify(body.pieces));
+  /* trade_jobs (1073-k1-job-slice.sql): the switch is off, so the server projects null and the Jobs pane's reader yields null (it hides);
+     tests/trade-jobs.mjs reads the lit section through the same reader (TJ-BOTH) */
+  need('trade_jobs', body.trade_jobs === null && R.TJ.tradeJobsOf(cs) === null,
+    'tradeJobsOf yields ' + JSON.stringify(R.TJ.tradeJobsOf(cs)) + ' from ' + JSON.stringify(body.trade_jobs));
   return out;
 }
 
@@ -447,7 +451,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
-  'work_day', 'gold_estimate', 'watched', 'talents', 'pieces', 'hunt_settle']);
+  'work_day', 'gold_estimate', 'watched', 'talents', 'pieces', 'hunt_settle', 'trade_jobs']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -513,6 +517,7 @@ async function readers(root) {
     RC: await import(u('src/session/recruit-sections.js')),
     TL: await import(u('src/session/talent-sections.js')),
     PC: await import(u('src/session/piece-sections.js')),
+    TJ: await import(u('src/session/trade-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),

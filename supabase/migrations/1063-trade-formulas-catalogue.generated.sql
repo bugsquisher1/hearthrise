@@ -14,14 +14,20 @@
 --   hr_trade_xp       99 rows: XP (seconds of work) to reach each trade Level; 1000 hours to 99.
 --   twins (internal)  the curve (yield, Fine, Master, speed, XP factor), the Level from XP, V and the job fee, the store's step, ask and bid,
 --                     the contest curve behind a band, a tool's speed, life and rent, and the job's bound; each pinned to the JS (§4).
--- READERS: none yet. The job slice (09 section 6: the job row, its start and settle verbs, banded stacks) reads them; until it lands no
--- verb, engine or client reads this file, and the live town work (hr_activities, the old rows) is untouched.
+--   THE JOB SLICE (lane/k1-job-slice, 2026-11-26; 09 sections 4.9 and 6):
+--   hr_trade_recipes  16 recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
+--                     trade, band, rung, opening Level, face, and inputs as whole goods a set. A recipe not here is refused bad_recipe.
+--   hr_trade_ground_bands  16 Danger scale grounds and their band (gearLevel / tierSteps): a depth record there opens its band.
+--   twins (internal)  hr_trade_band_rung (bandRung), hr_trade_mulberry (src/core/rng.js mulberry32's draw) and hr_trade_roll (settleJob, line
+--                     for line), pinned EXACTLY at 77 jobs, so the server settles a job from its stored seed itself.
+-- READERS: 1073-k1-job-slice.sql (hr_trade_job_start, its settle and the `trade_jobs` section). The live town work (hr_activities, the old
+-- rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
--- missing and their rows upserted (a kind the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
--- EXPLOIT SURFACE: none added. Three catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
+-- missing and their rows upserted (a kind or recipe the data no longer has is deleted), the functions restated, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- EXPLOIT SURFACE: none added. Five catalogue tables, RLS on, no policy, no grant to any client role; every twin revoked from every client
 -- role and the engine's. No value moves here. ON THE PRE-EA SECURITY LIST (13-security-list.md S-10): V anchors the job fee, the store's
--- ask and bid and the market's bands once the job slice reads it.
--- REVERSIBLE: drop the functions and the three tables.
+-- ask and bid and the market's bands; the recipe rows and the roller decide what a job takes and makes.
+-- REVERSIBLE: drop the functions and the five tables.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -80,13 +86,33 @@ create table if not exists public.hr_trade_xp (
   level int    primary key check (level between 1 and 99),
   xp    bigint not null check (xp >= 0)
 );
+create table if not exists public.hr_trade_recipes (
+  recipe  text   primary key check (recipe ~ '^[a-z][a-z0-9_]{1,63}$'),
+  kind    text   not null references public.hr_trade_kinds (kind),
+  trade   text   not null check (trade ~ '^[a-z]{1,16}$'),
+  band    int    not null check (band >= 0),
+  rung    int    not null check (rung >= 1),
+  r_level int    not null check (r_level >= 1),
+  face    text   not null check (face ~ '^[a-z0-9_]{1,64}$'),
+  name    text   not null check (length(name) between 3 and 48),
+  inputs  jsonb  not null check (jsonb_typeof(inputs) = 'object'),
+  imbue   text
+);
+create table if not exists public.hr_trade_ground_bands (
+  hunt_id text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  band    int  not null check (band >= 0)
+);
 alter table public.hr_trade_levers enable row level security;
 alter table public.hr_trade_kinds enable row level security;
 alter table public.hr_trade_xp enable row level security;
-revoke all on public.hr_trade_levers, public.hr_trade_kinds, public.hr_trade_xp from public, anon, authenticated, service_role;
+alter table public.hr_trade_recipes enable row level security;
+alter table public.hr_trade_ground_bands enable row level security;
+revoke all on public.hr_trade_levers, public.hr_trade_kinds, public.hr_trade_xp, public.hr_trade_recipes, public.hr_trade_ground_bands from public, anon, authenticated, service_role;
 comment on table public.hr_trade_levers is '1063-trade-formulas-catalogue.generated.sql: the trades'' levers as whole numbers (src/data/trades.js through tools/gen-trades.mjs).';
 comment on table public.hr_trade_kinds is '1063-trade-formulas-catalogue.generated.sql: one row a kind of good, its work and inputs derived by src/core/trades.js tradeCatalogue.';
 comment on table public.hr_trade_xp is '1063-trade-formulas-catalogue.generated.sql: the XP (seconds of work) to reach each trade Level (src/core/trades.js tradeXpTable).';
+comment on table public.hr_trade_recipes is '1063-trade-formulas-catalogue.generated.sql: the recipes a job may run (src/core/trades.js jobRecipes), inputs as whole goods a set.';
+comment on table public.hr_trade_ground_bands is '1063-trade-formulas-catalogue.generated.sql: each Danger scale ground''s band (src/data/danger.js DANGER_GROUNDS gearLevel / tierSteps).';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 -- Upserted, never deleted and re-made: once the job slice points a row at a kind (a job, a stack), a catalogue change rewrites the kind
@@ -135,7 +161,46 @@ insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
   ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
+delete from public.hr_trade_recipes where recipe <> all (array['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'temper_kit_b1', 'temper_kit_b2', 'temper_kit_b3', 'temper_kit_b4', 'temper_kit_b5', 'temper_kit_b6', 'imbuement_fire_ward', 'imbuement_fire_edge', 'imbuement_brute_edge', 'imbuement_life_leech', 'imbuement_mana_leech']);
+insert into public.hr_trade_recipes (recipe, kind, trade, band, rung, r_level, face, name, inputs, imbue) values
+  ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', 'Mine Copper Ore', '{}'::jsonb, null),
+  ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', 'Forge Bronze Arrowheads', '{"bronze_bar":1}'::jsonb, null),
+  ('arrow_b0', 'arrow', 'woodcrafting', 0, 1, 1, 'bronze_arrows', 'Fletch Bronze Arrows', '{"bronze_arrowheads":1,"normal_plank":1}'::jsonb, null),
+  ('meal_b0', 'meal', 'cooking', 0, 1, 1, 'cooked_shrimp', 'Cook Shrimp', '{"shrimp":1}'::jsonb, null),
+  ('rune_fire_b0', 'rune_fire', 'runecutting', 0, 1, 1, 'chalked_fire_rune', 'Cut Chalked Fire Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('temper_kit_b1', 'temper_kit', 'smithing', 1, 3, 21, 'temper_salts', 'Mix Tempering Salts', '{"iron_bar":3}'::jsonb, null),
+  ('temper_kit_b2', 'temper_kit', 'smithing', 2, 3, 21, 'fine_temper_salts', 'Mix Fine Tempering Salts', '{"steel_bar":3}'::jsonb, null),
+  ('temper_kit_b3', 'temper_kit', 'smithing', 3, 4, 31, 'mithril_temper_salts', 'Mix Mithril Tempering Salts', '{"mithril_bar":3}'::jsonb, null),
+  ('temper_kit_b4', 'temper_kit', 'smithing', 4, 5, 41, 'rune_temper_salts', 'Mix Rune Tempering Salts', '{"rune_bar":3}'::jsonb, null),
+  ('temper_kit_b5', 'temper_kit', 'smithing', 5, 6, 51, 'ember_temper_salts', 'Mix Ember Tempering Salts', '{"ember_bar":3}'::jsonb, null),
+  ('temper_kit_b6', 'temper_kit', 'smithing', 6, 7, 61, 'dawn_temper_salts', 'Mix Dawnsteel Tempering Salts', '{"dawn_bar":3}'::jsonb, null),
+  ('imbuement_fire_ward', 'imbuement', 'artificing', 2, 1, 1, 'imbue_fire_ward', 'Make Fire Ward', '{"ford_weed":5,"bones":4}'::jsonb, 'fire_ward'),
+  ('imbuement_fire_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_fire_edge', 'Make Fire Edge', '{"rake_tine":5,"razor_claw":4}'::jsonb, 'fire_edge'),
+  ('imbuement_brute_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_brute_edge', 'Make Brute Edge', '{"pike_ferrule":5,"razor_claw":4}'::jsonb, 'brute_edge'),
+  ('imbuement_life_leech', 'imbuement', 'artificing', 2, 1, 1, 'imbue_life_leech', 'Make Life Leech', '{"mudlark_hook":5,"bones":4}'::jsonb, 'life_leech'),
+  ('imbuement_mana_leech', 'imbuement', 'artificing', 2, 1, 1, 'imbue_mana_leech', 'Make Mana Leech', '{"urn_shard":5,"bones":4}'::jsonb, 'mana_leech')
+on conflict (recipe) do update set kind = excluded.kind, trade = excluded.trade, band = excluded.band, rung = excluded.rung,
+  r_level = excluded.r_level, face = excluded.face, name = excluded.name, inputs = excluded.inputs, imbue = excluded.imbue;
 delete from public.hr_trade_kinds where kind <> all (array['ore', 'rune_stone', 'log', 'fish', 'grain', 'herb', 'bar', 'shaft', 'cut_stone', 'meal', 'drink', 'honing_stone', 'arrowhead', 'arrow', 'bolt', 'ward_charm', 'imbuement', 'draught', 'camp_pot', 'temper_kit', 'haft', 'rune_earth', 'rune_water', 'rune_fire', 'rune_ice', 'rune_poison', 'rune_rupture', 'tool_pick', 'tool_axe', 'tool_rod', 'tool_hoe', 'tool_knife', 'tool_hammer', 'tool_saw', 'tool_chisel', 'tool_graver', 'tool_mortar']);
+delete from public.hr_trade_ground_bands where hunt_id <> all (array['carters_rest', 'catacomb_bone_wing', 'catacomb_flooded_wing', 'coppercap_warrens', 'hasks_ford', 'krells_hold', 'meadowbrook_thicket', 'mill_cellar', 'millrace_sewer', 'mosslight_glade', 'muster_barrows', 'ox_road', 'pyre_field', 'the_slake', 'wickstead', 'wyvern_roost']);
+insert into public.hr_trade_ground_bands (hunt_id, band) values
+  ('carters_rest', 5),
+  ('catacomb_bone_wing', 8),
+  ('catacomb_flooded_wing', 8),
+  ('coppercap_warrens', 2),
+  ('hasks_ford', 2),
+  ('krells_hold', 4),
+  ('meadowbrook_thicket', 0),
+  ('mill_cellar', 0),
+  ('millrace_sewer', 0),
+  ('mosslight_glade', 1),
+  ('muster_barrows', 3),
+  ('ox_road', 6),
+  ('pyre_field', 4),
+  ('the_slake', 2),
+  ('wickstead', 0),
+  ('wyvern_roost', 7)
+on conflict (hunt_id) do update set band = excluded.band;
 insert into public.hr_trade_xp (level, xp) values
   (1, 0), (2, 2198), (3, 4494), (4, 6894), (5, 9402), (6, 12023), (7, 14762), (8, 17624), (9, 20615), (10, 23740), (11, 27006), (12, 30419), (13, 33985), (14, 37713), (15, 41607), (16, 45677), (17, 49931), (18, 54375), (19, 59020), (20, 63873), (21, 68945), (22, 74246), (23, 79784), (24, 85572), (25, 91621), (26, 97941), (27, 104547), (28, 111449), (29, 118662), (30, 126199), (31, 134076), (32, 142307), (33, 150909), (34, 159897), (35, 169290), (36, 179106), (37, 189364), (38, 200083), (39, 211284), (40, 222990), (41, 235222), (42, 248004), (43, 261362), (44, 275321), (45, 289909), (46, 305152), (47, 321082), (48, 337728), (49, 355124), (50, 373302), (51, 392298), (52, 412149), (53, 432894), (54, 454572), (55, 477225), (56, 500898), (57, 525636), (58, 551487), (59, 578502), (60, 606732), (61, 636233), (62, 667061), (63, 699277), (64, 732942), (65, 768122), (66, 804885), (67, 843303), (68, 883449), (69, 925402), (70, 969243), (71, 1015056), (72, 1062931), (73, 1112961), (74, 1165242), (75, 1219876), (76, 1276968), (77, 1336629), (78, 1398975), (79, 1464127), (80, 1532210), (81, 1603357), (82, 1677706), (83, 1755400), (84, 1836591), (85, 1921435), (86, 2010098), (87, 2102750), (88, 2199571), (89, 2300750), (90, 2406481), (91, 2516971), (92, 2632432), (93, 2753089), (94, 2879176), (95, 3010936), (96, 3148626), (97, 3292512), (98, 3442873), (99, 3600000)
 on conflict (level) do update set xp = excluded.xp;
@@ -341,6 +406,95 @@ begin
     'xp', (v_spent * public.hr_trade_xp_pm(p_level, v_r)) / 1000000);
 end $fn$;
 
+create or replace function public.hr_trade_band_rung(p_kind text, p_band int)
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare c public.hr_trade_levers%rowtype; v_opens int;
+begin
+  -- TRADES (1063-trade-formulas-catalogue.generated.sql; src/core/trades.js bandRung; 09 4.9): band b opens at rung b + 1, every band past the ladder at its last
+  -- rung, never before the kind's own rung. Null for no such kind.
+  select * into c from public.hr_trade_levers;
+  select opens into v_opens from public.hr_trade_kinds where kind = p_kind;
+  if v_opens is null then return null; end if;
+  return greatest(v_opens, least(c.rung_count, greatest(0, coalesce(p_band, 0)) + 1));
+end $fn$;
+
+create or replace function public.hr_trade_mulberry(p_a bigint)
+returns float8 language plpgsql immutable set search_path = public, pg_catalog as $fn$
+declare
+  m constant bigint := 4294967296; t bigint; x bigint; y bigint;
+begin
+  -- TRADES (1063-trade-formulas-catalogue.generated.sql; src/core/rng.js mulberry32): the draw for the generator state p_a (already advanced by 0x6D2B79F5), in [0, 1).
+  -- Every value is a uint32 held in a bigint, so XOR, OR and the shifts are the JS bits, and Math.imul is the low 32 bits of the product,
+  -- taken in two 16-bit halves so no product passes 2^48. The division by 2^32 is exact in float8, as in JS.
+  t := mod(greatest(0, coalesce(p_a, 0)), m);
+  x := t # (t >> 15); y := t | 1;
+  t := mod(mod((x >> 16) * y, 65536) * 65536 + (x & 65535) * y, m);
+  x := t # (t >> 7); y := t | 61;
+  t := t # mod(t + mod(mod((x >> 16) * y, 65536) * 65536 + (x & 65535) * y, m), m);
+  return (t # (t >> 14))::float8 / m::float8;
+end $fn$;
+
+create or replace function public.hr_trade_roll(p_kind text, p_rung int, p_level int, p_mastery boolean, p_bench_pm int,
+  p_tool_pm int, p_count int, p_elapsed_ms bigint, p_seed bigint)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare
+  c public.hr_trade_levers%rowtype; k public.hr_trade_kinds%rowtype; b jsonb; v_r int; v_y int; v_n bigint; v_i bigint;
+  v_a bigint; v_fine float8 := 0; v_master float8 := 0; v_plain bigint := 0; v_fn bigint := 0; v_ms bigint := 0; v_ret bigint := 0;
+begin
+  -- TRADES (1063-trade-formulas-catalogue.generated.sql; src/core/trades.js settleJob, line for line; 09 section 6): THE CLOSED-FORM SETTLE on the job's seed, so the
+  -- same seed always lands the same goods and a stop only ever cuts the same sequence shorter. The attempts, the time and the XP are the
+  -- bound's (hr_trade_job_bound); the dice are mulberry32 from the seed, drawn in the JS order:
+  --   gather  a unit with the yield's chance under 1000 (no draw at or over it), a second with (yield - 1000)'s over it
+  --   make    over 1000 the set comes back with chance 1 - 1000 / yield; under 1000 a miss loses the set; a good that rolls quality is
+  --           Master first (with the Mastery), then Fine, else Plain
+  -- Null when the bound refuses the job.
+  b := public.hr_trade_job_bound(p_kind, p_rung, p_level, p_mastery, p_bench_pm, p_tool_pm, p_count, p_elapsed_ms);
+  if b is null then return null; end if;
+  select * into c from public.hr_trade_levers;
+  select * into k from public.hr_trade_kinds where kind = p_kind;
+  v_r := 1 + (p_rung - 1) * c.rung_span;
+  v_y := (b->>'yield_pm')::int;
+  v_n := (b->>'attempts')::bigint;
+  if k.rolls is not null then
+    v_fine := public.hr_trade_fine_pm(p_level, v_r)::float8 / 1000::float8;
+    v_master := public.hr_trade_master_pm(p_level, v_r, p_mastery)::float8 / 1000::float8;
+  end if;
+  v_a := mod(greatest(0, coalesce(p_seed, 0)), 4294967296);
+  v_i := 0;
+  while v_i < v_n loop
+    v_i := v_i + 1;
+    if k.stage = 'gather' then
+      if v_y >= 1000 then v_plain := v_plain + 1;
+      else
+        v_a := mod(v_a + 1831565813, 4294967296);
+        if public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8 then v_plain := v_plain + 1; end if;
+      end if;
+      if v_y > 1000 then
+        v_a := mod(v_a + 1831565813, 4294967296);
+        if public.hr_trade_mulberry(v_a) < (v_y - 1000)::float8 / 1000::float8 then v_plain := v_plain + 1; end if;
+      end if;
+      continue;
+    end if;
+    if v_y > 1000 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if public.hr_trade_mulberry(v_a) < 1::float8 - 1000::float8 / v_y::float8 then v_ret := v_ret + 1; end if;
+    end if;
+    if v_y < 1000 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if not (public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8) then continue; end if;
+    end if;
+    if k.rolls is null then v_plain := v_plain + 1; continue; end if;
+    if v_master > 0 then
+      v_a := mod(v_a + 1831565813, 4294967296);
+      if public.hr_trade_mulberry(v_a) < v_master then v_ms := v_ms + 1; continue; end if;
+    end if;
+    v_a := mod(v_a + 1831565813, 4294967296);
+    if public.hr_trade_mulberry(v_a) < v_fine then v_fn := v_fn + 1; else v_plain := v_plain + 1; end if;
+  end loop;
+  return jsonb_build_object('attempts', v_n, 'spent_ms', (b->>'spent_ms')::bigint, 'xp', (b->>'xp')::bigint,
+    'plain', v_plain, 'fine', v_fn, 'master', v_ms, 'returned', v_ret, 'yield_pm', v_y);
+end $fn$;
+
 do $mig$
 declare v_sig text; v_role text;
 begin
@@ -359,7 +513,10 @@ begin
     'public.hr_trade_tool_speed_pm(integer,integer)',
     'public.hr_trade_tool_life_ms(integer)',
     'public.hr_trade_tool_rent(text,integer)',
-    'public.hr_trade_job_bound(text,integer,integer,boolean,integer,integer,integer,bigint)'] loop
+    'public.hr_trade_job_bound(text,integer,integer,boolean,integer,integer,integer,bigint)',
+    'public.hr_trade_band_rung(text,integer)',
+    'public.hr_trade_mulberry(bigint)',
+    'public.hr_trade_roll(text,integer,integer,boolean,integer,integer,integer,bigint,bigint)'] loop
     execute format('revoke execute on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke execute on function %s from %I', v_sig, v_role); end if;
@@ -381,13 +538,13 @@ begin
      or (select sum(own_uh) from public.hr_trade_kinds) <> 4145333
      or (select count(*) from public.hr_trade_kinds where final) <> 26 then
     raise exception 'VERIFY(a): the kinds'' work is not the data''s'; end if;
-  if exists (select 1 from pg_class t where t.oid in ('public.hr_trade_levers'::regclass, 'public.hr_trade_kinds'::regclass, 'public.hr_trade_xp'::regclass)
+  if exists (select 1 from pg_class t where t.oid in ('public.hr_trade_levers'::regclass, 'public.hr_trade_kinds'::regclass, 'public.hr_trade_xp'::regclass, 'public.hr_trade_recipes'::regclass, 'public.hr_trade_ground_bands'::regclass)
               and not t.relrowsecurity)
-     or exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_trade_levers', 'hr_trade_kinds', 'hr_trade_xp')) then
+     or exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_trade_levers', 'hr_trade_kinds', 'hr_trade_xp', 'hr_trade_recipes', 'hr_trade_ground_bands')) then
     raise exception 'VERIFY(b): a trade catalogue table has RLS off or a policy'; end if;
-  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_trade_levers', 'public.hr_trade_kinds', 'public.hr_trade_xp']) t(n)
+  if exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_trade_levers', 'public.hr_trade_kinds', 'public.hr_trade_xp', 'public.hr_trade_recipes', 'public.hr_trade_ground_bands']) t(n)
               where has_table_privilege(g.r, t.n, 'select') or has_table_privilege(g.r, t.n, 'insert') or has_table_privilege(g.r, t.n, 'update'))
-     or exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_trade_yield_pm(integer,integer,boolean,integer)', 'public.hr_trade_fine_pm(integer,integer)', 'public.hr_trade_master_pm(integer,integer,boolean)', 'public.hr_trade_speed_pm(integer)', 'public.hr_trade_xp_pm(integer,integer)', 'public.hr_trade_level(bigint)', 'public.hr_trade_value(text,integer,integer)', 'public.hr_trade_job_fee(text,integer,integer)', 'public.hr_trade_store_step(integer)', 'public.hr_trade_store_ask(text,integer)', 'public.hr_trade_store_bid(text,integer,integer)', 'public.hr_trade_behind_pm(integer)', 'public.hr_trade_tool_speed_pm(integer,integer)', 'public.hr_trade_tool_life_ms(integer)', 'public.hr_trade_tool_rent(text,integer)', 'public.hr_trade_job_bound(text,integer,integer,boolean,integer,integer,integer,bigint)']) f(s)
+     or exists (select 1 from unnest(array['anon', 'authenticated']) g(r), unnest(array['public.hr_trade_yield_pm(integer,integer,boolean,integer)', 'public.hr_trade_fine_pm(integer,integer)', 'public.hr_trade_master_pm(integer,integer,boolean)', 'public.hr_trade_speed_pm(integer)', 'public.hr_trade_xp_pm(integer,integer)', 'public.hr_trade_level(bigint)', 'public.hr_trade_value(text,integer,integer)', 'public.hr_trade_job_fee(text,integer,integer)', 'public.hr_trade_store_step(integer)', 'public.hr_trade_store_ask(text,integer)', 'public.hr_trade_store_bid(text,integer,integer)', 'public.hr_trade_behind_pm(integer)', 'public.hr_trade_tool_speed_pm(integer,integer)', 'public.hr_trade_tool_life_ms(integer)', 'public.hr_trade_tool_rent(text,integer)', 'public.hr_trade_job_bound(text,integer,integer,boolean,integer,integer,integer,bigint)', 'public.hr_trade_band_rung(text,integer)', 'public.hr_trade_mulberry(bigint)', 'public.hr_trade_roll(text,integer,integer,boolean,integer,integer,integer,bigint,bigint)']) f(s)
               where has_function_privilege(g.r, f.s, 'execute')) then
     raise exception 'VERIFY(b): a client role reads a trade catalogue table or runs a twin'; end if;
   for v_r in select * from (values
@@ -1447,6 +1604,453 @@ begin
     if public.hr_trade_job_bound(v_r.k, v_r.rung, v_r.l, false, 0, 1000, 10, 3600000) is not null then
       raise exception 'VERIFY(h): the bound admits % on rung % at Level %', v_r.k, v_r.rung, v_r.l; end if;
   end loop;
-  raise notice 'gen-trades: % kinds, % Levels, the twins pinned at % points, % settles admitted; all green', 37, 99,
-    982, 13;
+  -- (i) THE JOB SLICE'S ROWS: every recipe the data's, inputs as whole goods; every ground's band
+  if (select count(*) from public.hr_trade_recipes) <> 16 or (select count(*) from public.hr_trade_ground_bands) <> 16 then
+    raise exception 'VERIFY(i): % recipes and % ground bands, not % and %', (select count(*) from public.hr_trade_recipes),
+      (select count(*) from public.hr_trade_ground_bands), 16, 16; end if;
+  for v_r in select * from (values
+    ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', '{}'::jsonb),
+    ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', '{"bronze_bar":1}'::jsonb),
+    ('arrow_b0', 'arrow', 'woodcrafting', 0, 1, 1, 'bronze_arrows', '{"bronze_arrowheads":1,"normal_plank":1}'::jsonb),
+    ('meal_b0', 'meal', 'cooking', 0, 1, 1, 'cooked_shrimp', '{"shrimp":1}'::jsonb),
+    ('rune_fire_b0', 'rune_fire', 'runecutting', 0, 1, 1, 'chalked_fire_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('temper_kit_b1', 'temper_kit', 'smithing', 1, 3, 21, 'temper_salts', '{"iron_bar":3}'::jsonb),
+    ('temper_kit_b2', 'temper_kit', 'smithing', 2, 3, 21, 'fine_temper_salts', '{"steel_bar":3}'::jsonb),
+    ('temper_kit_b3', 'temper_kit', 'smithing', 3, 4, 31, 'mithril_temper_salts', '{"mithril_bar":3}'::jsonb),
+    ('temper_kit_b4', 'temper_kit', 'smithing', 4, 5, 41, 'rune_temper_salts', '{"rune_bar":3}'::jsonb),
+    ('temper_kit_b5', 'temper_kit', 'smithing', 5, 6, 51, 'ember_temper_salts', '{"ember_bar":3}'::jsonb),
+    ('temper_kit_b6', 'temper_kit', 'smithing', 6, 7, 61, 'dawn_temper_salts', '{"dawn_bar":3}'::jsonb),
+    ('imbuement_fire_ward', 'imbuement', 'artificing', 2, 1, 1, 'imbue_fire_ward', '{"ford_weed":5,"bones":4}'::jsonb),
+    ('imbuement_fire_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_fire_edge', '{"rake_tine":5,"razor_claw":4}'::jsonb),
+    ('imbuement_brute_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_brute_edge', '{"pike_ferrule":5,"razor_claw":4}'::jsonb),
+    ('imbuement_life_leech', 'imbuement', 'artificing', 2, 1, 1, 'imbue_life_leech', '{"mudlark_hook":5,"bones":4}'::jsonb),
+    ('imbuement_mana_leech', 'imbuement', 'artificing', 2, 1, 1, 'imbue_mana_leech', '{"urn_shard":5,"bones":4}'::jsonb)) p(id, k, t, band, rung, rl, face, inputs) loop
+    if not exists (select 1 from public.hr_trade_recipes x where x.recipe = v_r.id and x.kind = v_r.k and x.trade = v_r.t and x.band = v_r.band
+                    and x.rung = v_r.rung and x.r_level = v_r.rl and x.face = v_r.face and x.inputs = v_r.inputs) then
+      raise exception 'VERIFY(i): recipe % is not the data''s (%)', v_r.id, (select to_jsonb(x) from public.hr_trade_recipes x where x.recipe = v_r.id); end if;
+  end loop;
+  for v_r in select * from (values
+    ('carters_rest', 5),
+    ('catacomb_bone_wing', 8),
+    ('catacomb_flooded_wing', 8),
+    ('coppercap_warrens', 2),
+    ('hasks_ford', 2),
+    ('krells_hold', 4),
+    ('meadowbrook_thicket', 0),
+    ('mill_cellar', 0),
+    ('millrace_sewer', 0),
+    ('mosslight_glade', 1),
+    ('muster_barrows', 3),
+    ('ox_road', 6),
+    ('pyre_field', 4),
+    ('the_slake', 2),
+    ('wickstead', 0),
+    ('wyvern_roost', 7)) p(id, band) loop
+    if (select band from public.hr_trade_ground_bands where hunt_id = v_r.id) is distinct from v_r.band then
+      raise exception 'VERIFY(i): ground % is not band %', v_r.id, v_r.band; end if;
+  end loop;
+  -- (j) the band's rung (bandRung)
+  for v_r in select * from (values
+    ('ore', 0, 1),
+    ('ore', 1, 2),
+    ('ore', 2, 3),
+    ('ore', 5, 6),
+    ('ore', 9, 10),
+    ('ore', 10, 10),
+    ('ore', 12, 10),
+    ('ore', 400, 10),
+    ('rune_stone', 0, 1),
+    ('rune_stone', 1, 2),
+    ('rune_stone', 2, 3),
+    ('rune_stone', 5, 6),
+    ('rune_stone', 9, 10),
+    ('rune_stone', 10, 10),
+    ('rune_stone', 12, 10),
+    ('rune_stone', 400, 10),
+    ('log', 0, 1),
+    ('log', 1, 2),
+    ('log', 2, 3),
+    ('log', 5, 6),
+    ('log', 9, 10),
+    ('log', 10, 10),
+    ('log', 12, 10),
+    ('log', 400, 10),
+    ('fish', 0, 1),
+    ('fish', 1, 2),
+    ('fish', 2, 3),
+    ('fish', 5, 6),
+    ('fish', 9, 10),
+    ('fish', 10, 10),
+    ('fish', 12, 10),
+    ('fish', 400, 10),
+    ('grain', 0, 1),
+    ('grain', 1, 2),
+    ('grain', 2, 3),
+    ('grain', 5, 6),
+    ('grain', 9, 10),
+    ('grain', 10, 10),
+    ('grain', 12, 10),
+    ('grain', 400, 10),
+    ('herb', 0, 1),
+    ('herb', 1, 2),
+    ('herb', 2, 3),
+    ('herb', 5, 6),
+    ('herb', 9, 10),
+    ('herb', 10, 10),
+    ('herb', 12, 10),
+    ('herb', 400, 10),
+    ('bar', 0, 1),
+    ('bar', 1, 2),
+    ('bar', 2, 3),
+    ('bar', 5, 6),
+    ('bar', 9, 10),
+    ('bar', 10, 10),
+    ('bar', 12, 10),
+    ('bar', 400, 10),
+    ('shaft', 0, 1),
+    ('shaft', 1, 2),
+    ('shaft', 2, 3),
+    ('shaft', 5, 6),
+    ('shaft', 9, 10),
+    ('shaft', 10, 10),
+    ('shaft', 12, 10),
+    ('shaft', 400, 10),
+    ('cut_stone', 0, 1),
+    ('cut_stone', 1, 2),
+    ('cut_stone', 2, 3),
+    ('cut_stone', 5, 6),
+    ('cut_stone', 9, 10),
+    ('cut_stone', 10, 10),
+    ('cut_stone', 12, 10),
+    ('cut_stone', 400, 10),
+    ('meal', 0, 1),
+    ('meal', 1, 2),
+    ('meal', 2, 3),
+    ('meal', 5, 6),
+    ('meal', 9, 10),
+    ('meal', 10, 10),
+    ('meal', 12, 10),
+    ('meal', 400, 10),
+    ('drink', 0, 1),
+    ('drink', 1, 2),
+    ('drink', 2, 3),
+    ('drink', 5, 6),
+    ('drink', 9, 10),
+    ('drink', 10, 10),
+    ('drink', 12, 10),
+    ('drink', 400, 10),
+    ('honing_stone', 0, 1),
+    ('honing_stone', 1, 2),
+    ('honing_stone', 2, 3),
+    ('honing_stone', 5, 6),
+    ('honing_stone', 9, 10),
+    ('honing_stone', 10, 10),
+    ('honing_stone', 12, 10),
+    ('honing_stone', 400, 10),
+    ('arrowhead', 0, 1),
+    ('arrowhead', 1, 2),
+    ('arrowhead', 2, 3),
+    ('arrowhead', 5, 6),
+    ('arrowhead', 9, 10),
+    ('arrowhead', 10, 10),
+    ('arrowhead', 12, 10),
+    ('arrowhead', 400, 10),
+    ('arrow', 0, 1),
+    ('arrow', 1, 2),
+    ('arrow', 2, 3),
+    ('arrow', 5, 6),
+    ('arrow', 9, 10),
+    ('arrow', 10, 10),
+    ('arrow', 12, 10),
+    ('arrow', 400, 10),
+    ('bolt', 0, 2),
+    ('bolt', 1, 2),
+    ('bolt', 2, 3),
+    ('bolt', 5, 6),
+    ('bolt', 9, 10),
+    ('bolt', 10, 10),
+    ('bolt', 12, 10),
+    ('bolt', 400, 10),
+    ('ward_charm', 0, 3),
+    ('ward_charm', 1, 3),
+    ('ward_charm', 2, 3),
+    ('ward_charm', 5, 6),
+    ('ward_charm', 9, 10),
+    ('ward_charm', 10, 10),
+    ('ward_charm', 12, 10),
+    ('ward_charm', 400, 10),
+    ('imbuement', 0, 1),
+    ('imbuement', 1, 2),
+    ('imbuement', 2, 3),
+    ('imbuement', 5, 6),
+    ('imbuement', 9, 10),
+    ('imbuement', 10, 10),
+    ('imbuement', 12, 10),
+    ('imbuement', 400, 10),
+    ('draught', 0, 1),
+    ('draught', 1, 2),
+    ('draught', 2, 3),
+    ('draught', 5, 6),
+    ('draught', 9, 10),
+    ('draught', 10, 10),
+    ('draught', 12, 10),
+    ('draught', 400, 10),
+    ('camp_pot', 0, 5),
+    ('camp_pot', 1, 5),
+    ('camp_pot', 2, 5),
+    ('camp_pot', 5, 6),
+    ('camp_pot', 9, 10),
+    ('camp_pot', 10, 10),
+    ('camp_pot', 12, 10),
+    ('camp_pot', 400, 10),
+    ('temper_kit', 0, 3),
+    ('temper_kit', 1, 3),
+    ('temper_kit', 2, 3),
+    ('temper_kit', 5, 6),
+    ('temper_kit', 9, 10),
+    ('temper_kit', 10, 10),
+    ('temper_kit', 12, 10),
+    ('temper_kit', 400, 10),
+    ('haft', 0, 2),
+    ('haft', 1, 2),
+    ('haft', 2, 3),
+    ('haft', 5, 6),
+    ('haft', 9, 10),
+    ('haft', 10, 10),
+    ('haft', 12, 10),
+    ('haft', 400, 10),
+    ('rune_earth', 0, 1),
+    ('rune_earth', 1, 2),
+    ('rune_earth', 2, 3),
+    ('rune_earth', 5, 6),
+    ('rune_earth', 9, 10),
+    ('rune_earth', 10, 10),
+    ('rune_earth', 12, 10),
+    ('rune_earth', 400, 10),
+    ('rune_water', 0, 1),
+    ('rune_water', 1, 2),
+    ('rune_water', 2, 3),
+    ('rune_water', 5, 6),
+    ('rune_water', 9, 10),
+    ('rune_water', 10, 10),
+    ('rune_water', 12, 10),
+    ('rune_water', 400, 10),
+    ('rune_fire', 0, 1),
+    ('rune_fire', 1, 2),
+    ('rune_fire', 2, 3),
+    ('rune_fire', 5, 6),
+    ('rune_fire', 9, 10),
+    ('rune_fire', 10, 10),
+    ('rune_fire', 12, 10),
+    ('rune_fire', 400, 10),
+    ('rune_ice', 0, 1),
+    ('rune_ice', 1, 2),
+    ('rune_ice', 2, 3),
+    ('rune_ice', 5, 6),
+    ('rune_ice', 9, 10),
+    ('rune_ice', 10, 10),
+    ('rune_ice', 12, 10),
+    ('rune_ice', 400, 10),
+    ('rune_poison', 0, 1),
+    ('rune_poison', 1, 2),
+    ('rune_poison', 2, 3),
+    ('rune_poison', 5, 6),
+    ('rune_poison', 9, 10),
+    ('rune_poison', 10, 10),
+    ('rune_poison', 12, 10),
+    ('rune_poison', 400, 10),
+    ('rune_rupture', 0, 1),
+    ('rune_rupture', 1, 2),
+    ('rune_rupture', 2, 3),
+    ('rune_rupture', 5, 6),
+    ('rune_rupture', 9, 10),
+    ('rune_rupture', 10, 10),
+    ('rune_rupture', 12, 10),
+    ('rune_rupture', 400, 10),
+    ('tool_pick', 0, 2),
+    ('tool_pick', 1, 2),
+    ('tool_pick', 2, 3),
+    ('tool_pick', 5, 6),
+    ('tool_pick', 9, 10),
+    ('tool_pick', 10, 10),
+    ('tool_pick', 12, 10),
+    ('tool_pick', 400, 10),
+    ('tool_axe', 0, 2),
+    ('tool_axe', 1, 2),
+    ('tool_axe', 2, 3),
+    ('tool_axe', 5, 6),
+    ('tool_axe', 9, 10),
+    ('tool_axe', 10, 10),
+    ('tool_axe', 12, 10),
+    ('tool_axe', 400, 10),
+    ('tool_rod', 0, 2),
+    ('tool_rod', 1, 2),
+    ('tool_rod', 2, 3),
+    ('tool_rod', 5, 6),
+    ('tool_rod', 9, 10),
+    ('tool_rod', 10, 10),
+    ('tool_rod', 12, 10),
+    ('tool_rod', 400, 10),
+    ('tool_hoe', 0, 2),
+    ('tool_hoe', 1, 2),
+    ('tool_hoe', 2, 3),
+    ('tool_hoe', 5, 6),
+    ('tool_hoe', 9, 10),
+    ('tool_hoe', 10, 10),
+    ('tool_hoe', 12, 10),
+    ('tool_hoe', 400, 10),
+    ('tool_knife', 0, 2),
+    ('tool_knife', 1, 2),
+    ('tool_knife', 2, 3),
+    ('tool_knife', 5, 6),
+    ('tool_knife', 9, 10),
+    ('tool_knife', 10, 10),
+    ('tool_knife', 12, 10),
+    ('tool_knife', 400, 10),
+    ('tool_hammer', 0, 2),
+    ('tool_hammer', 1, 2),
+    ('tool_hammer', 2, 3),
+    ('tool_hammer', 5, 6),
+    ('tool_hammer', 9, 10),
+    ('tool_hammer', 10, 10),
+    ('tool_hammer', 12, 10),
+    ('tool_hammer', 400, 10),
+    ('tool_saw', 0, 2),
+    ('tool_saw', 1, 2),
+    ('tool_saw', 2, 3),
+    ('tool_saw', 5, 6),
+    ('tool_saw', 9, 10),
+    ('tool_saw', 10, 10),
+    ('tool_saw', 12, 10),
+    ('tool_saw', 400, 10),
+    ('tool_chisel', 0, 2),
+    ('tool_chisel', 1, 2),
+    ('tool_chisel', 2, 3),
+    ('tool_chisel', 5, 6),
+    ('tool_chisel', 9, 10),
+    ('tool_chisel', 10, 10),
+    ('tool_chisel', 12, 10),
+    ('tool_chisel', 400, 10),
+    ('tool_graver', 0, 2),
+    ('tool_graver', 1, 2),
+    ('tool_graver', 2, 3),
+    ('tool_graver', 5, 6),
+    ('tool_graver', 9, 10),
+    ('tool_graver', 10, 10),
+    ('tool_graver', 12, 10),
+    ('tool_graver', 400, 10),
+    ('tool_mortar', 0, 2),
+    ('tool_mortar', 1, 2),
+    ('tool_mortar', 2, 3),
+    ('tool_mortar', 5, 6),
+    ('tool_mortar', 9, 10),
+    ('tool_mortar', 10, 10),
+    ('tool_mortar', 12, 10),
+    ('tool_mortar', 400, 10)) p(k, band, rung) loop
+    if public.hr_trade_band_rung(v_r.k, v_r.band) is distinct from v_r.rung then
+      raise exception 'VERIFY(j): % at band % opens at rung % in SQL, % in JS', v_r.k, v_r.band, public.hr_trade_band_rung(v_r.k, v_r.band), v_r.rung; end if;
+  end loop;
+  -- (k) mulberry32's draw, to the last bit
+  for v_r in select * from (values
+    (1831565813::bigint, '0.26642920868471265'::float8),
+    (1831565814::bigint, '0.6270739405881613'::float8),
+    (1831565815::bigint, '0.7342509443406016'::float8),
+    (3663131626::bigint, '0.0003297457005828619'::float8),
+    (3979049460::bigint, '0.4290980885270983'::float8),
+    (3979049461::bigint, '0.8205775609239936'::float8),
+    (1831565812::bigint, '0.8964226141106337'::float8),
+    (1955022602::bigint, '0.2577907438389957'::float8),
+    (2819220134::bigint, '0.9514403040520847'::float8),
+    (536598517::bigint, '0.7568875285796821'::float8)) p(a, u) loop
+    if public.hr_trade_mulberry(v_r.a) is distinct from v_r.u then
+      raise exception 'VERIFY(k): the draw at state % is % in SQL, % in JS', v_r.a, public.hr_trade_mulberry(v_r.a), v_r.u; end if;
+  end loop;
+  -- (l) THE ROLL: settleJob's result exactly, at every sample and every recipe's own job
+  for v_r in select * from (values
+    ('ore', 1, 1, false, 0, 1000, 500, 3600000::bigint, 11::bigint, 14::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 3520::bigint, 3520959::bigint),
+    ('fish', 3, 26, false, 0, 1000, 500, 28800000::bigint, 12::bigint, 121::bigint, 107::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('log', 10, 99, true, 100, 1000, 1000, 36000000::bigint, 13::bigint, 178::bigint, 194::bigint, 0::bigint, 0::bigint, 0::bigint, 35884::bigint, 35884800::bigint),
+    ('bar', 1, 5, false, 0, 1000, 40, 28800000::bigint, 14::bigint, 40::bigint, 34::bigint, 0::bigint, 0::bigint, 0::bigint, 3984::bigint, 3984190::bigint),
+    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 15::bigint, 14::bigint, 5::bigint, 5::bigint, 0::bigint, 0::bigint, 3520::bigint, 3520959::bigint),
+    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 16::bigint, 131::bigint, 87::bigint, 23::bigint, 21::bigint, 13::bigint, 28681::bigint, 28681147::bigint),
+    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 17::bigint, 78::bigint, 58::bigint, 14::bigint, 0::bigint, 0::bigint, 21520::bigint, 21520540::bigint),
+    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 18::bigint, 297::bigint, 59::bigint, 94::bigint, 144::bigint, 44::bigint, 35925::bigint, 35925120::bigint),
+    ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 19::bigint, 66::bigint, 48::bigint, 17::bigint, 0::bigint, 0::bigint, 17932::bigint, 17932076::bigint),
+    ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 20::bigint, 8::bigint, 7::bigint, 1::bigint, 0::bigint, 0::bigint, 9473::bigint, 14288364::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 21::bigint, 6::bigint, 5::bigint, 0::bigint, 0::bigint, 0::bigint, 2461::bigint, 2461539::bigint),
+    ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 22::bigint, 3::bigint, 1::bigint, 2::bigint, 0::bigint, 0::bigint, 975::bigint, 1471390::bigint),
+    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 23::bigint, 38::bigint, 30::bigint, 6::bigint, 0::bigint, 0::bigint, 10625::bigint, 10625243::bigint),
+    ('ore', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('ore', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('ore', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('ore', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('arrowhead', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 190::bigint, 143::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrowhead', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 190::bigint, 140::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrowhead', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('arrowhead', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 190::bigint, 130::bigint, 17::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 190::bigint, 126::bigint, 14::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 198::bigint, 156::bigint, 42::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 198::bigint, 165::bigint, 33::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 81::bigint, 8::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 73::bigint, 9::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 93::bigint, 25::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 101::bigint, 17::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 66::bigint, 7::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 60::bigint, 7::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 78::bigint, 21::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 84::bigint, 15::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 70::bigint, 51::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 70::bigint, 50::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
+    ('temper_kit', 3, 36, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 72::bigint, 72::bigint, 0::bigint, 0::bigint, 0::bigint, 28535::bigint, 28535780::bigint),
+    ('temper_kit', 3, 36, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 72::bigint, 72::bigint, 0::bigint, 0::bigint, 0::bigint, 28535::bigint, 28535780::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 70::bigint, 51::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 70::bigint, 50::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
+    ('temper_kit', 3, 36, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 72::bigint, 72::bigint, 0::bigint, 0::bigint, 0::bigint, 28535::bigint, 28535780::bigint),
+    ('temper_kit', 3, 36, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 72::bigint, 72::bigint, 0::bigint, 0::bigint, 0::bigint, 28535::bigint, 28535780::bigint),
+    ('temper_kit', 4, 31, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 71::bigint, 52::bigint, 0::bigint, 0::bigint, 0::bigint, 28452::bigint, 28452691::bigint),
+    ('temper_kit', 4, 31, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 71::bigint, 51::bigint, 0::bigint, 0::bigint, 0::bigint, 28452::bigint, 28452691::bigint),
+    ('temper_kit', 4, 46, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 74::bigint, 74::bigint, 0::bigint, 0::bigint, 0::bigint, 28645::bigint, 28645162::bigint),
+    ('temper_kit', 4, 46, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 74::bigint, 74::bigint, 0::bigint, 0::bigint, 0::bigint, 28645::bigint, 28645162::bigint),
+    ('temper_kit', 5, 41, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 73::bigint, 53::bigint, 0::bigint, 0::bigint, 0::bigint, 28591::bigint, 28591116::bigint),
+    ('temper_kit', 5, 41, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 73::bigint, 52::bigint, 0::bigint, 0::bigint, 0::bigint, 28591::bigint, 28591116::bigint),
+    ('temper_kit', 5, 56, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 76::bigint, 76::bigint, 0::bigint, 0::bigint, 0::bigint, 28774::bigint, 28774759::bigint),
+    ('temper_kit', 5, 56, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 76::bigint, 76::bigint, 0::bigint, 0::bigint, 0::bigint, 28774::bigint, 28774759::bigint),
+    ('temper_kit', 6, 51, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 75::bigint, 54::bigint, 0::bigint, 0::bigint, 0::bigint, 28723::bigint, 28723405::bigint),
+    ('temper_kit', 6, 51, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 75::bigint, 53::bigint, 0::bigint, 0::bigint, 0::bigint, 28723::bigint, 28723405::bigint),
+    ('temper_kit', 6, 66, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 77::bigint, 77::bigint, 0::bigint, 0::bigint, 0::bigint, 28528::bigint, 28528302::bigint),
+    ('temper_kit', 6, 66, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 77::bigint, 77::bigint, 0::bigint, 0::bigint, 0::bigint, 28528::bigint, 28528302::bigint),
+    ('temper_kit', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 76::bigint, 55::bigint, 0::bigint, 0::bigint, 0::bigint, 28450::bigint, 28450607::bigint),
+    ('temper_kit', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 76::bigint, 54::bigint, 0::bigint, 0::bigint, 0::bigint, 28450::bigint, 28450607::bigint),
+    ('temper_kit', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 79::bigint, 79::bigint, 0::bigint, 0::bigint, 0::bigint, 28654::bigint, 28654912::bigint),
+    ('temper_kit', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 79::bigint, 79::bigint, 0::bigint, 0::bigint, 0::bigint, 28654::bigint, 28654912::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint)) p(k, rung, l, m, b, t, n, ms, seed, att, plain, fine, master, ret, xp, spent) loop
+    v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
+    if v_j is null or (v_j->>'attempts')::bigint <> v_r.att or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine
+       or (v_j->>'master')::bigint <> v_r.master or (v_j->>'returned')::bigint <> v_r.ret or (v_j->>'xp')::bigint <> v_r.xp
+       or (v_j->>'spent_ms')::bigint <> v_r.spent then
+      raise exception 'VERIFY(l): % on rung % at Level % seed % rolls % in SQL, attempts % plain % fine % master % returned % XP % in settleJob',
+        v_r.k, v_r.rung, v_r.l, v_r.seed, v_j, v_r.att, v_r.plain, v_r.fine, v_r.master, v_r.ret, v_r.xp; end if;
+  end loop;
+  raise notice 'gen-trades: % kinds, % Levels, % recipes, the twins pinned at % points, % settles admitted, % rolled exactly; all green', 37, 99,
+    16, 1288, 13, 77;
 end $mig$;

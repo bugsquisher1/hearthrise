@@ -15,8 +15,10 @@ import { GEAR_STEPS } from './danger.js';
 /* THE REMAINS A BAND (imbue-rules.js: "the Remains good is one a band, and the job slice names its face"). JUDGMENT, the designer re-rules
    it (CONFLICTS 2026-11-26 k1-job-slice): band 0 is Bones (the designer's, 09 4.9), band 2 is Bones too (inner-flame.js FLAME_FUEL stands
    it at entry Level 45, band 2, and it drops on every band-2 imbuement part's home ground) and band 3 is Razor Claw (FLAME_FUEL Level 70,
-   band 3, and it drops on the Pyre Field, home of both band-3 parts). Band 1 has no imbuement, so no face. */
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', null, 'bones', 'razor_claw']) });
+   band 3, and it drops on the Pyre Field, home of both band-3 parts). Band 1 is Bones too (the designer, lane/designer-kit-band1, 09 4.13):
+   band 1 has no imbuement, but its runes bind with Remains, and the Mosslight Glade (the band-1 ground, gear Level 20) drops Bones
+   from glade_poacher, goblin_sluicer and rook_poacher, so the binder of bands 0 to 2 is one good and changes where the imbuement's does. */
+export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'razor_claw']) });
 
 /** The item a hunted stream drops at `band` (null: none named). */
 export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;

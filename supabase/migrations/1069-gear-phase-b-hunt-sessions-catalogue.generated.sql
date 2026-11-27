@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: f768dea60af55713f634ea6c318d81a071b3015f9fb9fa358f9d329d1902fe7d
+--   digest: 286ab450d40bc4163e5d571cdbddd1d3b2dc857cbf5aad16cf46e5cf702b429f
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   714 vendor values, 49 store supplies paid per use, 5 target modes,
+--   715 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -1952,6 +1952,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('imbue_fire_ward', 100),
   ('imbue_life_leech', 104),
   ('imbue_mana_leech', 120),
+  ('iron_arrowheads', 5),
   ('iron_arrows', 1),
   ('iron_axe', 25),
   ('iron_bar', 6),
@@ -2397,7 +2398,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 714
+     or (select count(*) from public.hr_hunt_vendor_value) <> 715
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

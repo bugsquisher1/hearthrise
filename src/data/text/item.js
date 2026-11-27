@@ -107,6 +107,7 @@ export const ITEM_TEXT = Object.freeze({
   one_bones: 'Bone',
   /* the job slice's part (lane/k1-job-slice): one head of an arrow */
   one_bronze_arrowheads: 'Bronze Arrowhead',
+  one_iron_arrowheads: 'Iron Arrowhead',
   one_big_bones: 'Big Bone',
   one_dragon_bones: 'Dragon Bone',
   one_bone_chips: 'Bone Chip',

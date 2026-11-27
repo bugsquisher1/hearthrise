@@ -80,6 +80,12 @@
         "gzipBytes": 206701,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206702,
+        "on": "2026-11-27",
+        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
       }
     ],
     "town": [
@@ -448,6 +454,12 @@
         "gzipBytes": 983681,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 988390,
+        "on": "2026-11-27",
+        "why": "lane/k1-job-slice: the Work window's Jobs pane (work-jobs.js, trade-sections.js, trade-intents.js), the kit trades' data on the town stage (src/data/trades.js through catalogue-coherence's trade door and the pane's trade names, job-faces.js through the made imbuements' item rows) and their text rows (the pane, two refusal words, one singular name, seven flavour lines)"
       }
     ]
   }

@@ -11,6 +11,9 @@
 #   bash batch2.sh [step ...]     every step, or only the named ones (a step is a report's name: b2-ford-tank, b2-ford-pavise, ...)
 # W: workers (default 2: the PC runs other lanes). SEEDS (12), HOURS (8). OUT: where reports go (default this directory: a measuring run
 # from a snapshot of the tree writes back here). A step whose report exists is kept (resumable); FRESH=1 plays every step again.
+# A REPORT IS THE ROW AS IT STOOD WHEN PLAYED. The b2-* steps of a row reshaped later hold its as-written shape (played from the tree before
+# the reshape: lane/signatures-batch-2 319850652 for the tank's, e72bc4412 for the low-health lines); the shapes tried were temporary ids
+# on a scratch copy (sum.mjs VARIANTS). The adopted shapes are the rows now, and their steps (b2v-*, last below) replay them from this tree.
 set -e
 HERE="$(cd "$(dirname "$0")" && (pwd -W 2>/dev/null || pwd))"
 ROOT="$HERE/../../../.."
@@ -71,14 +74,9 @@ run b2-slake-mixed        the_slake 57 $X
 run b2-slake-mixed-bold   the_slake 57 $X
 run b2-muster-pennies40   muster_barrows 60 $T --signatures ferry_pennies,-,-,-
 run b2-slake-pole50       the_slake 57 $X --signatures -,-,-,bargemans_pole
-# ── the second scale ground (the spread bar) ──
-run b2-muster-sabre         muster_barrows 60 $S --signatures charred_sabre,-,-,-
+# ── the second scale ground (the spread bar; a row under its size on its best cell needs none, so the Hatchets', Collar's, Coal Runner's
+#    and Longbow's were not played) ──
 run b2-pyre-gauntlets       pyre_field 80 $S --signatures pikemans_gauntlets,-,-,-
-run b2-muster-axes          muster_barrows 60 $A
-run b2-muster-hatchets      muster_barrows 60 $A --signatures floodwater_hatchets,-,-,-
-run b2-pyre-collar          pyre_field 80 $X --signatures -,lurchers_collar,-,-
-run b2-pyre-coalbow         pyre_field 80 $X --signatures -,coal_runners_bow,-,-
-run b2-muster-longbow       muster_barrows 60 $X --signatures -,provosts_longbow,-,-
 run b2-pyre-crossbow        pyre_field 80 $C
 run b2-pyre-barb            pyre_field 80 $C --signatures -,wyvern_barb_crossbow,-,-
 run b2-muster-wand          muster_barrows 60 $X --signatures -,-,hall_fire_wand,-
@@ -86,3 +84,10 @@ run b2-krell-shroud         krells_hold 97 $X --signatures -,-,catacomb_shroud,-
 run b2-muster-robe          muster_barrows 60 $X --signatures -,-,lamplighters_robe,-
 run b2-muster-pole50        muster_barrows 60 $X --signatures -,-,-,bargemans_pole
 run b2-muster-hat           muster_barrows 60 $X --signatures -,-,-,drovers_hat
+# ── the adopted shapes: the rows as they stand (read first as temporary ids on a scratch copy; these steps replay them by their real ids) ──
+run b2v-muster-helm20            muster_barrows 60 $T --add-moves frost_slam,-,-,- --signatures ossuary_helm,-,-,-
+run b2v-muster-mail-guard30x8    muster_barrows 60 $T --add-moves shelter,-,-,- --signatures grave_guards_mail,-,-,-
+run b2v-pyre-sabre-target-blunt  pyre_field 80 $S --signatures charred_sabre,-,-,-
+run b2v-muster-sabre-target-blunt muster_barrows 60 $S --signatures charred_sabre,-,-,-
+run b2v-muster-pole15            muster_barrows 60 $X --signatures -,-,-,bargemans_pole
+run b2v-muster-pennies-blunt45   muster_barrows 60 $T --signatures ferry_pennies,-,-,-

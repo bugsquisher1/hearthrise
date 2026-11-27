@@ -670,6 +670,8 @@
     "node tests/death-popup.mjs": "in-page-24",
     "node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate": "in-page-24",
     "node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate --shard=2/2": "in-page-54",
+    "node tests/per-player-cost.mjs --lit": "pg17-lt",
+    "node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.1 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json": "pg17-lt",
     "node tests/frame-self-echo.mjs": "db-replay-14",
     "node tools/mutant-gate.mjs node tests/frame-self-echo.mjs --mutate": "db-replay-14",
     "node tests/frame-push-revive.mjs": "db-replay-14",

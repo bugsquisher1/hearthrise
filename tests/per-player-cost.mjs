@@ -8,6 +8,13 @@
 //                                                      recorded beside the numbers in its history, whether a number fell or rose
 //   node tests/per-player-cost.mjs --only <fixture>    one fixture (a name or a part of one), for a quick look; never with --write
 //   node tests/per-player-cost.mjs --selftest          the planted regressions each turn EVERY fixture red; the clean control passes
+//   node tests/per-player-cost.mjs --lit               the same ratchet with the v0.3.0 drop switches ON (V030_SWITCHES: personal loot,
+//                                                      Trait pieces and drops, Signatures, the Inner Flame), lit in the replay only,
+//                                                      judged against the SAME baseline: what a hero costs once the release flips them
+//                                                      (20-v030-the-roads.md section 4 Band 6 LT, gate 10). Never with --write or --selftest
+//
+// ci-step: pg17-lt | Per-hero server cost with the v0.3.0 drop switches on, every fixture inside the shipped baseline (rule 10, gate 10)
+// ci-run: node tests/per-player-cost.mjs --lit
 //
 // mutant-anchors: none — --selftest plants a journal row a kill (a trigger on the tally and the bag), one more statement a settle
 //   (this file's own counting exec), a settle four times slower (a burn inside the timed settle), an index.ts that lost its marker
@@ -621,6 +628,19 @@ export function concurrencyBand(measured, base, tabs) {
   return { red, low, expected };
 }
 
+/* ── THE v0.3.0 SWITCHES (--lit; tools/beta-load.mjs --shape=lt lights the same list) ─────────────────────────────────── */
+/** The drop and flame switches v0.3.0 flips, dark on the chain until then (20-v030-the-roads.md section 4 Band 6 LT): personal loot's
+    pity (1063-flame-temper.sql), the Trait piece readers, Signatures and the settle's Trait roll (1071-trait-pieces.sql), and the Inner
+    Flame (1063, walked in the settle by 1074-inner-flame-luck.sql). */
+export const V030_SWITCHES = Object.freeze(['personal_loot', 'trait_pieces', 'signatures', 'trait_drops', 'inner_flame']);
+/** Light `keys` in THIS database (a replay or a scratch clone, never production); a key with no hr_flags row is a harness fault. */
+export async function lightSwitches(db, keys = V030_SWITCHES) {
+  const lit = (await db.query('update public.hr_flags set enabled = true where key = any ($1::text[]) returning key', [[...keys]])).rows.map((r) => r.key);
+  const missing = keys.filter((k) => !lit.includes(k));
+  if (missing.length) throw new Error(`lightSwitches: no hr_flags row for ${missing.join(', ')} on this chain`);
+  return lit.sort();
+}
+
 /** The why after --write (--raise, the old spelling, is accepted before it). */
 function whyOf() {
   const at = argv.indexOf('--write');
@@ -631,6 +651,9 @@ function whyOf() {
 }
 
 async function main() {
+  /* --lit: the release's switches on in this replay, the same fixtures and the same baseline (a baseline is the chain as it ships) */
+  const lit = argv.includes('--lit');
+  if (lit && (argv.includes('--write') || argv.includes('--selftest'))) { console.error('--lit measures only: the baseline is the chain as it ships (drop --write / --selftest)'); return 2; }
   const base = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null;
   const pinned = tripsPin(readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8'));
   const { db } = await bootReplay();
@@ -736,6 +759,7 @@ async function main() {
     return fails.length ? 1 : 0;
   }
 
+  if (lit) console.log(`  lit in this replay: ${(await lightSwitches(db)).join(', ')}`);
   const measured = await measureAll(db, M, { only });
   const calibration = await calibrate(db);
   console.log(`  calibration ${calibration} ms${base && base.calibration_ms ? ` (the baseline's ${base.calibration_ms} ms)` : ''}`);
@@ -766,12 +790,18 @@ async function main() {
   if (pin) red.push(`BUDGET-PIN ${pin}`);
   if (red.length) {
     for (const r of red) console.error(`  RED  ${r}`);
+    if (lit) {
+      console.error(`\nper-player-cost --lit: a hero costs the server more than the baseline once ${V030_SWITCHES.join(', ')} are on (rule 10).`);
+      console.error('  Cut it in the settle the switch lights, before the release flips it (the baseline is the chain as it ships)');
+      return 1;
+    }
     console.error('\nper-player-cost: a hero costs the server more than the baseline (rule 10). Cut it, or');
     console.error('  node tests/per-player-cost.mjs --write "<why this cost is worth it>"');
     return 1;
   }
-  for (const t of tighter) console.log(`  can tighten: ${t}  (node tests/per-player-cost.mjs --write "<why>")`);
-  console.log('per-player-cost: green — no hero costs more than the baseline');
+  if (!lit) for (const t of tighter) console.log(`  can tighten: ${t}  (node tests/per-player-cost.mjs --write "<why>")`);
+  console.log(lit ? `per-player-cost --lit: green — with ${V030_SWITCHES.join(', ')} on, no hero costs more than the baseline`
+    : 'per-player-cost: green — no hero costs more than the baseline');
   return 0;
 }
 

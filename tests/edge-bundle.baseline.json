@@ -538,6 +538,11 @@
         "bytes": 3949667,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: 14 batch-2 Signature rows and the reaction pieces they play (a cast's and a shell's moments, a status's reach, fixed tick and patch, cast again, burst, reflect, Blunted and Kindled), with their comments; no new module reached"
+      },
+      {
+        "bytes": 3948303,
+        "on": "2026-11-27",
+        "why": "cut locked in (1364 bytes)"
       }
     ]
   }

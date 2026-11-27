@@ -114,11 +114,10 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 |---|---|---|---|
 | A cast's own moment | a hero's cast landed: the HP its hits took and the monsters its status landed on | #2 (a shield for each monster Chilled), #7 (Poison of the whole cast) | any rule read once a cast, not once a hit |
 | A shell's blow | a monster's blow a shell the hero cast took: what it took and from whom | #21 (half back on the attacker) | |
-| A status's reach, a fixed tick, a patch | a status on every monster within `r` of the hero, on each monster a taunt took, a tick of `pm` of the moment's damage, or a ground patch at the moment's target | #23 (Chill round the wearer), #7 and #12 (Poison), #1 (Blunted on each taunted) | #42 (Chill on the pull, with a pull-start moment) |
-| Cast again | a reaction's free cast that waits on no cooldown and spends no supply | #4 (Flame Strike again on a kill) | |
+| A status's reach, a fixed tick | a status on every monster within `r` of the hero, or a tick of `pm` of the moment's damage | #23 (Blunted round the wearer), #7 and #12 (Poison) | #42 (Chill on the pull, with a pull-start moment) |
 | A burst | pm of the fallen's max health on every monster within `r` of it, exact, never chaining | #13 | |
-| A boon's strength | a boon at `pw` permille of its row (Guarded at -20%, its row -10%) | #17 | #38 |
-| Blunted, Kindled | a monster's next blow cut (spent on it); a hero's next cast of named moves raised (spent on it) | #1, #16 | |
+| A boon's strength | a boon at `pw` permille of its row (Guarded at -15% and -30%, its row -10%) | #3, #17 | #38 |
+| Blunted, Kindled | a monster's next blow cut (spent on it); a hero's next cast of named moves raised (spent on it) | #4 and #23 (Blunted), #16 (Kindled) | |
 
 **Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with a mutant: 25 cases, 47 mutants caught) and on the real settle (both paths: 10-minute and 100-second windows play one hunt). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is COMPUTED only.
 

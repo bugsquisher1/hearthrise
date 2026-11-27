@@ -17,8 +17,8 @@
 //             read at the health it started from), marked (the moment's monster carries a live Mark), clockMs
 //   do        shield (pm of max health on the wearer, x a moment's count, at most capPm), reset (ms off `move`, at most capMs a cycle),
 //             ready (`move` ready now), pass (what the fallen carried moves on), boon (`status` on the moment's hero, `ms` long, `pw` its
-//             strength), status (on the moment's monsters, `r` tiles round the wearer, `pm` a fixed tick of the moment's damage, a ground
-//             status a patch), cast (`again`: no cooldown, no supply), burst (pm of the fallen's max health round it), reflect, ...
+//             strength), status (on the moment's monsters, `r` tiles round the wearer, `pm` a fixed tick of the moment's damage),
+//             burst (pm of the fallen's max health round it), reflect, ...
 // Never x ramp (19 section 2: no ramp on what a hero finds). A reaction never sets off another (react-queue.js), so a reset, a free cast or
 // an explosion from a Signature can't chain (15 "Proposed rules").
 //
@@ -33,7 +33,7 @@
 // readings are 15 "Batch 2, measured", each row's number the one that read inside the size bar or the doc's starting value):
 //   #1  Bannerman's Pavise      tank      DROPPED (15 "Batch 2, measured"): its moment, a taunt, is about 9 Challenges and 13 monsters an
 //                                         hour for the reference tank, which holds its pulls without one (-0.2, se 2.9; +0.5 pinned on its home);
-//                                         its piece, Blunted on the monsters a taunt took, stays in the engine (#23 and #4 lay Blunted)
+//                                         its status, Blunted, is laid by #4 and #23
 //   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 2% x each monster it Chills, at most 10% (CUT from 3% and 15%: +15.8 read over the band)
 //   #3  Grave Guard's Mail      tank      RESHAPED (a readied Challenge read -1.9: the reference tank casts it 9 times an hour): shield_break
 //                                         (a shell the wearer cast: the shield discipline casts only Shelter's) -> Guarded at three times

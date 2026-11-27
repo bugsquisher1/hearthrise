@@ -16,7 +16,7 @@
 //                     moves its Mark, time left, to the nearest engaged monster not marked; an unmarked death moves nothing; it moves a
 //                     status the wearer laid (a Bleed, scale and time)
 // BATCH 2 (one case a row, each with its mutant):
-//   first-blow-half   the taunt piece (a planted row: #1 as written, dropped): a Challenge lays Blunted on each monster it takes (not one it did not); that monster's next
+//   first-blow-half   Blunted in a swing (Ferry Pennies' low Mend lays it on the two monsters beside the wearer, not the far one): each one's next
 //                     swing lands half of what the same swing lands without it, and the stack is spent on it
 //   cast-count-shield #2 Ossuary Helm: a Frost Slam that Chills 3 shields the wearer 6% of max health, one that Chills 6 holds at 10%;
 //                     another move's cast nothing
@@ -24,8 +24,6 @@
 //                     untouched); another hero's shell, or a shell that held, nothing
 //   cast-blunt-target #4 Charred Sabre (reshaped): a Flame Strike cast Blunts its target (its next blow at half), not the monsters beside it;
 //                     another move's cast nothing
-//   kill-recast       the cast-again piece (a planted row: the Sabre as first written): a Flame Strike kill casts Flame Strike again on the
-//                     nearest monster, no mana and no rune; the free cast's own kill casts nothing more
 //   ready-power       #5 Pikeman's Gauntlets: a Flame Strike hit makes Power Strike ready; another move's hit nothing
 //   cast-poison       #7 Floodwater Hatchets: a Rend lays Poison ticking 20% of the whole cast's damage over 6 s, a fixed tick
 //   marked-bleed      #9 Lurcher's Collar (re-written): a hit on a marked monster lays a Bleed stack, not on an unmarked one, once a 4 s clock
@@ -54,7 +52,7 @@
 //   dark              SIGNATURE_RULES.live is false and no src or server file but the engine's three readers names `wornSignature`; a hero
 //                     with none writes no field (the switch off plays as before: engine-parity holds with no re-pin)
 //
-// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/core/hunt/abilities.js src/core/hunt/status.js src/core/hunt/targeting.js src/data/statuses.js
+// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/core/hunt/abilities.js src/core/hunt/status.js src/data/statuses.js
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -266,16 +264,15 @@ const cases = {
 
   /* ── BATCH 2 ── */
   'first-blow-half': (M) => {
-    /* the same Challenge and the same swings, the wearer and a plain tank: the taunted monster's first swing lands half */
+    /* the same low Mend and the same swings, the wearer and a plain tank: each monster beside it lands its next swing at half */
     const play = (worn) => {
-      const k = H(M, 1, 12, 3, 'tank', { hp: 5000, maxHp: 5000 }), o = H(M, 2, 14, 6, 'mage', { hp: 5000, maxHp: 5000 });
-      const a = E(M, 10, 0, 13, 3, 2, { maxHit: 400 }), b = E(M, 11, 0, 13, 4, 2, { maxHit: 400 }), far = E(M, 12, 0, 30, 9, 2, { maxHit: 400 });
+      const k = H(M, 1, 12, 3, 'tank', { hp: 1000, maxHp: 5000 }), o = H(M, 2, 14, 6, 'mage', { hp: 5000, maxHp: 5000 });
+      const a = E(M, 10, 0, 13, 3, 1, { maxHit: 400 }), b = E(M, 11, 0, 13, 4, 1, { maxHit: 400 }), far = E(M, 12, 0, 30, 9, 1, { maxHit: 400 });
       /* (off the Danger scale: a fixture world's pull has no low line yet, so on it every swing reads as a fall back) */
       const inst = fight(M, [k, o, a, b, far], { leader: 1, risk: null });
-      /* (a planted row: the Pavise as written, dropped from the data; its piece, a status on each monster a taunt took, stays) */
-      if (worn) k.reacts = [{ kind: 'react', id: 'taunt_blunt_test', on: 'taunt', do: 'status', status: 'blunted' }];
+      if (worn) wear(M, k, 'ferry_pennies');
       const sc = sc2(M, 41);
-      M.targeting.challengeFrom(inst, sc, k); M.RX.drainReactions(inst, sc);
+      M.HR.landHeal(k, k, 50, sc, false, M.AD.ABILITIES.mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
       for (const m of [a, b, far]) m.swingLeftMs = 0;
       const blunted = [a, b, far].map((m) => stacksOf(m, 'blunted').length);
       M.movement.occupancy(inst);
@@ -284,9 +281,8 @@ const cases = {
       return { k, a, b, far, blunted, took, after: [a, b].map((m) => stacksOf(m, 'blunted').length) };
     };
     const w = play(true), p = play(false);
-    if (w.a.target !== 1 || w.b.target !== 1) return 'CONTROL: the Challenge did not take both monsters';
-    if (w.blunted.join() !== '1,1,0') return 'Blunted on the taken, the taken and the far monster: ' + w.blunted + ' (want 1,1,0)';
-    if (p.blunted.join() !== '0,0,0') return 'a plain tank\'s Challenge Blunted: ' + p.blunted;
+    if (w.blunted.join() !== '1,1,0') return 'Blunted on the two beside and the far monster: ' + w.blunted + ' (want 1,1,0)';
+    if (p.blunted.join() !== '0,0,0') return 'a plain tank\'s Mend Blunted: ' + p.blunted;
     /* (the same dice both ways: a swing that misses misses in both, and is still the swing the stack is spent on) */
     if (!w.took.length || w.took.length !== p.took.length || !(p.took[0] >= 8)) return 'CONTROL: the swings at the tank were ' + JSON.stringify([w.took, p.took]);
     for (let i = 0; i < w.took.length; i++) if (Math.abs(2 * w.took[i] - p.took[i]) > 1) return 'a Blunted swing landed ' + w.took[i] + ' where the plain one landed ' + p.took[i] + ' (want half)';
@@ -346,24 +342,6 @@ const cases = {
     if (!fs.cast || !ps.cast) return 'CONTROL: the casts ' + JSON.stringify([fs, ps]);
     if (fs.t !== 1 || fs.side !== 0) return 'a Flame Strike cast: Blunted on its target ' + fs.t + ', beside it ' + fs.side + ' (want 1, 0)';
     if (ps.t || ps.side) return 'another move\'s cast Blunted';
-    return null;
-  },
-  'kill-recast': (M) => {
-    const u = H(M, 1, 12, 3, 'melee_dps', { mana: 100, maxMana: 100, maxHit: 50 }), o = H(M, 2, 10, 8, 'healer');
-    const a = E(M, 10, 0, 13, 3, 1, { hp: 1, maxHp: 400 }), b = E(M, 11, 0, 13, 4, 1, { hp: 1, maxHp: 400 }), c = E(M, 12, 0, 11, 3, 1, { hp: 1, maxHp: 400 });
-    const inst = fight(M, [u, o, a, b, c]);
-    inst.heroes = { 1: entry(M, ['flame_strike']) };
-    u.target = 10;
-    /* (a planted row: the Sabre as first written, the cast-again piece the reshape left for a later row) */
-    u.reacts = [{ kind: 'react', id: 'again_test', on: 'kill', of: 'flame_strike', do: 'cast', move: 'flame_strike', free: true, again: true }];
-    const sc = sc2(M, 44);
-    M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
-    const casts = sc.events.filter((e) => e.type === 'cast' && e.ability === 'flame_strike');
-    const dead = [a, b, c].filter((m) => m.alive !== true).length;
-    if (casts.length !== 2) return 'a Flame Strike kill cast ' + casts.length + ' Flame Strikes (want the first and one again)';
-    if (casts[1].mana !== 0 || !(casts[0].gold > 0) || casts[1].gold !== 0) return 'the free cast paid: ' + JSON.stringify(casts.map((x) => [x.mana, x.gold]));
-    if (u.mana !== 100 - casts[0].mana) return 'the wearer\'s mana after two casts is ' + u.mana;
-    if (dead !== 2) return dead + ' monsters fell (want the first strike\'s and the free one\'s: the free cast\'s kill casts nothing more)';
     return null;
   },
   'ready-power': (M) => {
@@ -634,7 +612,6 @@ const RQ = 'src/core/hunt/react-queue.js';
 const DM = 'src/core/hunt/damage.js';
 const AB = 'src/core/hunt/abilities.js';
 const ST = 'src/core/hunt/status.js';
-const TG = 'src/core/hunt/targeting.js';
 const HRL = 'src/core/hunt/heal-rules.js';
 const SG = 'src/data/signatures.js';
 const STD = 'src/data/statuses.js';
@@ -657,7 +634,6 @@ const mutants = [
   { name: 'a boon keeps the row\'s own time', case: 'heal-boon', edits: [[RX, '    if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;\n    return true;\n  },\n});', '    return true;\n  },\n});']] },
   /* ── batch 2: each row's case, its mutant ── */
   { name: 'a Blunted swing is never spent', case: 'first-blow-half', edits: [[DM, '      spendOnce(u, sc);\n      continue;', '      continue;']] },
-  { name: 'the taunt names no monsters', case: 'first-blow-half', edits: [[TG, "{ n: took.length, ms: took }", '{ n: took.length }']] },
   { name: 'Blunted cuts nothing', case: 'first-blow-half', edits: [[STD, 'dealtPm: -500, once: true', 'dealtPm: -1, once: true']] },
   { name: 'a cast queues no moment', case: 'cast-count-shield', edits: [[AB, "  if (tally) queueOn(inst, u, 'cast', { t: pick.target, ability: row.id, n: tally.n.size, dmg: tally.dmg });\n", '']] },
   { name: 'a shield ignores its cap', case: 'cast-count-shield', edits: [[RX, 'row.capPm ? Math.min(n, Math.floor((int(u.maxHp) * row.capPm) / 1000)) : n', 'n']] },
@@ -665,8 +641,6 @@ const mutants = [
   { name: 'Grave Guard\'s Mail guards at its row\'s own strength', case: 'shell-break-guard', edits: [[SG, "status: 'guarded', pw: 3000, ms: 8000 }", "status: 'guarded', ms: 8000 }"]] },
   { name: 'a broken shell queues nothing', case: 'shell-break-guard', edits: [[DM, "  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });\n", '']] },
   { name: 'the Sabre Blunts every monster beside the wearer', case: 'cast-blunt-target', edits: [[SG, "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted' }", "{ on: 'cast', of: 'flame_strike', do: 'status', status: 'blunted', r: 1 }"]] },
-  { name: 'a cast again waits on its cooldown', case: 'kill-recast', edits: [[AB, "gate === 'cooldown' ? !!(react && react.again) : false", 'false']] },
-  { name: 'a cast again spends its rune', case: 'kill-recast', edits: [[AB, 'lines: react && react.again ? [] : s.lines', 'lines: s.lines']] },
   { name: 'the Gauntlets ready Flame Strike', case: 'ready-power', edits: [[SG, "do: 'ready', move: 'power_strike' }", "do: 'ready', move: 'flame_strike' }"]] },
   { name: 'a cast tallies no damage', case: 'cast-poison', edits: [[AB, '    if (tally) tally.dmg += r.dmg;\n', '']] },
   { name: 'the Hatchets read each hit, not the cast', case: 'cast-poison', edits: [[SG, "{ on: 'cast', of: 'rend',", "{ on: 'hit', of: 'rend',"]] },

@@ -362,8 +362,7 @@ const mends = (row) => !!row && MEND_TARGETS.includes(row.target);
    reaction's cast (castNow): its lane is never waited on, and a FREE one ({ free: true }, Lifeline) costs no mana. */
 function tryCast(inst, hero, h, row, slot, cx, sc, react) {
     const gate = gateOf(hero, h, row, sc.atMs);
-    /* (a reaction's cast takes no lane; a free one no mana; one cast AGAIN, Charred Sabre's, waits on no cooldown and spends no supply) */
-    const lifted = gate === 'lane' ? !!react : gate === 'mana' ? !!(react && react.free) : gate === 'cooldown' ? !!(react && react.again) : false;
+    const lifted = gate === 'lane' ? !!react : gate === 'mana' ? !!(react && react.free) : false;
     if (!lifted && (gate === 'cooldown' || gate === 'mana')) return { why: gate };
     if (gate && !lifted) return null;
     /* AN ABILITY ITS HERO HAS NOT UNLOCKED (`unlock`, a level in the row's own skill): the slot is kept and waits
@@ -390,7 +389,7 @@ function tryCast(inst, hero, h, row, slot, cx, sc, react) {
     /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
        chipped shell, recasts and refunds the rest: shieldRefund). */
     if (row.target === 'self' && shells(row) && int(hero.shield) >= landsShield(hero, row, pm, inst)) return { why: 'no_target' };
-    return { row, target: t, lines: react && react.again ? [] : s.lines, version: s.version, mana, pm, ...(react && react.free ? { free: true } : {}) };
+    return { row, target: t, lines: s.lines, version: s.version, mana, pm, ...(react && react.free ? { free: true } : {}) };
 }
 
 /**
@@ -442,7 +441,7 @@ export function castNow(inst, sc, u, move, o) {
     if (!castsNow(row, u.role, solo)) continue;
     if (t && row.target === 'self' && t !== u) continue;
     if (t && row.target === 'party' && !(t === u || dist2(t, u) <= row.radius * row.radius)) continue;
-    const pick = tryCast(inst, u, h, row, r.slot, t && row.target === 'ally' ? { ally: t } : null, sc, { free: !!(o && o.free), again: !!(o && o.again) });
+    const pick = tryCast(inst, u, h, row, r.slot, t && row.target === 'ally' ? { ally: t } : null, sc, { free: !!(o && o.free) });
     if (!pick || pick.why) continue;
     return fire(inst, u, pick, sc);
   }

@@ -728,12 +728,12 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
    the fallen carried moves on (`what`: 'mark' or a status id); `boon` a status on the moment's hero; `has` the moment's monster carries a status) */
 /* (lane/signatures-batch-2: `cast` the hero's own cast landed, counting the HP its hits took and the monsters its status landed on; `absorb`
    a monster's blow a shell the hero cast took, what it took and from whom; `burst` an explosion on a kill; `reflect` what a shell took,
-   back on its dealer; `again` a cast that waits on no cooldown and spends no supply; `pw` a boon's strength; `marked` the moment's monster
-   carries a live Mark; a status's `r` (every monster that near the hero) and `pm` (a fixed tick of the moment's damage); a shield's `capPm`) */
+   back on its dealer; `pw` a boon's strength; `marked` the moment's monster carries a live Mark; a status's `r` (every monster that near
+   the hero) and `pm` (a fixed tick of the moment's damage); a shield's `capPm`) */
 export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb']);
 export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect']);
 const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
-  'again', 'pw', 'marked']);
+  'pw', 'marked']);
 /* the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen): pm fields ramp, the rest whole */
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
@@ -755,7 +755,6 @@ export function reactProblems(e, moves = null) {
   if (e.do === 'status' && e.pm !== undefined && !(Number.isInteger(e.pm) && e.pm > 0 && e.pm <= 1000 && isStatus(e.status) && Array.isArray(STATUSES[e.status].tick) && !STATUSES[e.status].ground && !STATUSES[e.status].heals)) {
     out.push('a status with pm lays a fixed tick (pm 1..1000 of the moment\'s damage) of a damage status that ticks');
   }
-  if (e.again !== undefined && !(e.again === true && e.do === 'cast' && e.free === true)) out.push('again is a free cast\'s (no cooldown, no supply, no mana)');
   if (e.pw !== undefined && !(e.do === 'boon' && Number.isInteger(e.pw) && e.pw > 0 && e.pw <= 5000)) out.push('pw is a boon\'s strength, permille 1..5000');
   if (e.marked !== undefined && e.marked !== true) out.push('marked is true or absent');
   if (e.of !== undefined && (typeof e.of !== 'string' || (moves && !moves.includes(e.of)))) out.push('a reaction reads the moments of a live move (of)');

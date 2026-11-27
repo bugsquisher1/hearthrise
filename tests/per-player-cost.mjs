@@ -756,6 +756,20 @@ async function main() {
     arm('MUTANT band_rows: a row a kill at concurrency is red', rows.red.some((x) => x.startsWith('ledger_rows')), rows.red.join('; ') || 'NOT red');
     const st = concurrencyBand({ ledger_rows_a_hero_hour: blend('ledger_rows_a_hero_hour', 1), statements_a_hero_hour: blend('statements_a_hero_hour', 1.3) }, base, 0.5);
     arm('MUTANT band_statements: a third more statements at concurrency is red', st.red.some((x) => x.startsWith('statements')), st.red.join('; ') || 'NOT red');
+    /* --lit IS NOT HOLLOW: it lights every v0.3.0 switch, a switch the chain lacks is a fault (never a silent dark run), and the lit
+       Krell four writes what the switches write (its pity and its fire: row writes a settle above the dark run's) */
+    if (!only || slowAt.includes(only)) {
+      const lit = await lightSwitches(db);
+      try {
+        arm('CONTROL: --lit lights every v0.3.0 switch', lit.join() === [...V030_SWITCHES].sort().join(), lit.join(', '));
+        const litM = (await measureAll(db, M, { only: slowAt }))[slowAt];
+        arm('CONTROL: a lit Krell four writes its pity and its fire (row writes a settle above the dark run\'s)',
+          litM.row_writes_a_settle > cleanM[slowAt].row_writes_a_settle, `${litM.row_writes_a_settle} lit, ${cleanM[slowAt].row_writes_a_settle} dark`);
+        let threw = null;
+        try { await lightSwitches(db, [...V030_SWITCHES, 'no_such_switch']); } catch (e) { threw = e.message; }
+        arm('MUTANT lit_missing: a switch the chain lacks is a fault, not a dark run', threw !== null && threw.includes('no_such_switch'), threw || 'NOT red');
+      } finally { await db.query('update public.hr_flags set enabled = false where key = any ($1::text[])', [[...V030_SWITCHES]]); }
+    }
     return fails.length ? 1 : 0;
   }
 

@@ -80,6 +80,12 @@
         "gzipBytes": 206701,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206427,
+        "on": "2026-11-27",
+        "why": "a cut locked in"
       }
     ],
     "town": [
@@ -448,6 +454,12 @@
         "gzipBytes": 983681,
         "on": "2026-11-27",
         "why": "lane/t1b-piece-verbs: Trait pieces on the doll, the bag's Rares strip, Equip/Sell and the drop alert (piece-sections, piece-intents, piece-words, piece-value); they draw on core screens once trait_pieces is on"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 972872,
+        "on": "2026-11-27",
+        "why": "a cut locked in"
       }
     ]
   }

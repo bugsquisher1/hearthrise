@@ -10,6 +10,8 @@ import { STONECRAFT_ITEMS } from './stonecraft.js';
 import { CHAMPION_ITEMS } from './champions.js';
 import { DRINK_ITEMS } from './drinks.js';
 import { IMBUE_ITEMS } from './imbuements.js';
+import { IMBUE, IMBUE_RULES } from './imbue-rules.js';
+import { IMBUE_JOBS, streamFaceOf } from './job-faces.js';
 import { SHIELD_ITEMS } from './shields.js';
 import { CALL_ITEMS } from './boss-calls.js';
 import { JEWELRY_ITEMS } from './jewelry.js';
@@ -663,6 +665,12 @@ export const ITEMS={
   mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:100, tag:'temper'},
   rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:135, tag:'temper'},
   ember_temper_salts: {n:'Ember Tempering Salts', icon:'🧂', v:180, tag:'temper'},
+  /* THE JOB SLICE'S NEW FACES (lane/k1-job-slice, backend-architect, 2026-11-26; src/data/trades.js NEW_FACES): each an item with the verb
+     that makes it (hr_trade_job_start), never before (W0). Dawnsteel's salts are band 6's Temper kit (21 section 2.2), made from three
+     Dawnsteel Bars, the ladder's next book step (JUDGMENT, under its three bars). Bronze Arrowheads are half an arrow (09 3.3), forged from
+     one Bronze Bar, booked under it so a forged head sold back loses money. */
+  dawn_temper_salts: {n:'Dawnsteel Tempering Salts', icon:'🧂', v:230, tag:'temper'},
+  bronze_arrowheads: {n:'Bronze Arrowheads', icon:'🔺', v:20},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -757,6 +765,17 @@ export const ITEMS={
 for (const [id, row] of Object.entries(foldRows('item', {}, GROUND_PACKS, (p) => p.items))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('ground pack: item ' + id + ' is already taken; a pack only adds');
   ITEMS[id] = { ...row };
+}
+
+/* THE MADE IMBUEMENTS (lane/k1-job-slice, backend-architect, 2026-11-26; src/data/trades.js IMBUE_JOBS, 21 section 3.2): one good an
+   imbuement, `imbue_<id>`, made by Artificing from its part and its band's Remains, spent by hr_imbue_apply onto the worn piece. Derived,
+   never typed: its name is the row's, its book value the book value of the set it is made from, raw like its inputs, so selling it to the
+   vendor never pays more than selling the set (the job fee is burned on top). After the packs: a part is a pack's item. */
+for (const j of IMBUE_JOBS) {
+  if (Object.prototype.hasOwnProperty.call(ITEMS, j.face)) throw new Error('made imbuement ' + j.face + ' is already an item');
+  const part = ITEMS[j.part], rem = ITEMS[streamFaceOf('remains', j.band)];
+  if (!part || !rem) throw new Error('made imbuement ' + j.face + ': its part or its band\'s Remains is no item');
+  ITEMS[j.face] = { n: IMBUE_RULES[j.imbue].name, icon: '🔮', v: IMBUE.parts * (part.v || 0) + IMBUE.remains * (rem.v || 0), raw: true, tag: 'imbue' };
 }
 
 /* b215: backfill tier + rarity onto the hand-authored pieces that sit on the
@@ -959,6 +978,7 @@ const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
   'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
+  'dawn_temper_salts', 'bronze_arrowheads',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

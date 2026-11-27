@@ -39,15 +39,15 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
-| Economy sources and sinks | 48 | 34 | 2 | 11 | 1 | 0 | 43 | 36 |
-| **All** | **244** | 130 | 32 | 52 | 30 | 31 | 130 | 135 |
+| Economy sources and sinks | 49 | 35 | 2 | 11 | 1 | 0 | 44 | 37 |
+| **All** | **245** | 131 | 32 | 52 | 30 | 31 | 131 | 136 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 769 (in 263 files, 17579 typed numbers) |
-| Claimed by a lever | 332 |
+| Top-level bindings in the rule code that hold a typed number | 770 (in 264 files, 17583 typed numbers) |
+| Claimed by a lever | 333 |
 | Claimed by a not-a-lever reason | 437 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 19 and 11 |
@@ -327,6 +327,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | outside-hunt | `econ.hunt-block` Bought hunting block price | Economy sources and sinks | a block is bought in town or mid-hunt, never by a cell. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.jewelry-crafting` Jewelry tiers, Hallmark and rolls | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |
 | outside-hunt | `econ.job-fee` The job fee | Economy sources and sinks | a gold sink of town work |
+| outside-hunt | `econ.piece-value` What a Trait piece is worth, and what the store pays for one | Economy sources and sinks | a sale in town, never read by a cell |
 | outside-hunt | `econ.refill` Stamina refill price | Economy sources and sinks | retired from play. Tools/balance-program/stamina-day.mjs models the day |
 | outside-hunt | `econ.reset-price` Talent reset price | Economy sources and sinks | a reset is bought in town, never by a cell |
 | outside-hunt | `econ.shop-prices` Shop offers | Economy sources and sinks | a town system the matrix does not simulate: town work (gathering, benches, crafting), the market, sinks past the store, the House |

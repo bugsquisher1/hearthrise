@@ -1,55 +1,71 @@
 THE GOLD LEDGER (lane/sn-sinks): sinks over minted, cumulative from day 1, four heroes an account, castle 0
   MEASURED (tools/balance-program/redesign/tuning/final/c0-muster-ref.json): Steady pays 1.036 of the wage an hour, coin 80.5% of it, the store kit 28.9%; Bold pays 1.27, kit 27.9%, 0.063 deaths a hero a 10 h day
-  kit labor 0.779 work-hours a hunted hour (trades/measured.json + imbuements); 8 h work day a hero; imbuements from Level 55, Traits from 45
+  kit labor 0.779 work-hours a hunted hour (trades/measured.json + imbuements); 8 h work day a hero; imbuements from Level 45, Traits from 45
 
 reference: REFERENCE: the full 10 h day, Steady, crafts its kit, the block rule at 2 (04 section 1, 20 section 4)
-  day  30  sinks 82.4% of minted (coin only 102.3%)  Levels 85/85/85/85  hall rungs 0/35  purse 4.6 days of minting
-           storeKit 7.4%  jobFee 3.6%  imbue 1.5%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 66.7%  hall 0.0%
-  day 180  sinks 87.7% of minted (coin only 108.8%)  Levels 261/261/261/261  hall rungs 0/35  purse 17.6 days of minting
-           storeKit 7.6%  jobFee 3.5%  imbue 3.4%  temper 0.6%  carry 1.2%  bless 0.0%  reset 0.7%  block 70.6%  hall 0.0%
+  day  30  sinks 81.3% of minted (coin only 102.6%)  Levels 85/85/85/85  hall rungs 0/35  purse 4.9 days of minting
+           storeKit 7.3%  jobFee 3.5%  imbue 1.7%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 65.6%  hall 0.0%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.7%
+  day 180  sinks 86.3% of minted (coin only 108.9%)  Levels 261/261/261/261  hall rungs 0/35  purse 19.7 days of minting
+           storeKit 7.5%  jobFee 3.5%  imbue 3.4%  temper 0.6%  carry 1.1%  bless 0.0%  reset 0.7%  block 69.5%  hall 0.0%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.6%
 
 reference, rule at 1: the same company, the block rule at 1
-  day  30  sinks 43.6% of minted (coin only 54.2%)  Levels 79/79/79/79  hall rungs 0/35  purse 15.2 days of minting
-           storeKit 4.1%  jobFee 4.1%  imbue 1.2%  temper 0.9%  carry 1.1%  bless 0.0%  reset 0.8%  block 31.4%  hall 0.0%
-  day 180  sinks 46.6% of minted (coin only 57.9%)  Levels 235/235/235/235  hall rungs 0/35  purse 73.2 days of minting
-           storeKit 4.1%  jobFee 4.1%  imbue 3.4%  temper 0.7%  carry 1.2%  bless 0.0%  reset 0.8%  block 32.3%  hall 0.0%
+  day  30  sinks 43.3% of minted (coin only 54.6%)  Levels 79/79/79/79  hall rungs 0/35  purse 15.1 days of minting
+           storeKit 4.0%  jobFee 4.1%  imbue 1.5%  temper 0.9%  carry 1.1%  bless 0.0%  reset 0.8%  block 31.0%  hall 0.0%
+           minted: coin 79.3%  loot 19.2%  floor 0.0%  pieces 1.6%
+  day 180  sinks 45.9% of minted (coin only 57.9%)  Levels 235/235/235/235  hall rungs 0/35  purse 74.5 days of minting
+           storeKit 4.1%  jobFee 4.1%  imbue 3.3%  temper 0.7%  carry 1.2%  bless 0.0%  reset 0.8%  block 31.7%  hall 0.0%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.7%
 
 reference, no rule: the same company, no block rule (what blocks carry)
-  day  30  sinks 8.7% of minted (coin only 10.8%)  Levels 71/71/71/71  hall rungs 0/35  purse 24.9 days of minting
-           storeKit 0.0%  jobFee 4.8%  imbue 0.9%  temper 1.1%  carry 1.0%  bless 0.0%  reset 1.0%  block 0.0%  hall 0.0%
-  day 180  sinks 11.2% of minted (coin only 13.9%)  Levels 208/208/208/208  hall rungs 0/35  purse 118.8 days of minting
-           storeKit 0.0%  jobFee 4.8%  imbue 3.3%  temper 0.9%  carry 1.3%  bless 0.0%  reset 1.0%  block 0.0%  hall 0.0%
+  day  30  sinks 9.0% of minted (coin only 11.3%)  Levels 71/71/71/71  hall rungs 0/35  purse 24.6 days of minting
+           storeKit 0.0%  jobFee 4.7%  imbue 1.3%  temper 1.0%  carry 1.0%  bless 0.0%  reset 1.0%  block 0.0%  hall 0.0%
+           minted: coin 79.3%  loot 19.1%  floor 0.2%  pieces 1.4%
+  day 180  sinks 11.0% of minted (coin only 13.9%)  Levels 208/208/208/208  hall rungs 0/35  purse 119.4 days of minting
+           storeKit 0.0%  jobFee 4.7%  imbue 3.2%  temper 0.9%  carry 1.2%  bless 0.0%  reset 0.9%  block 0.0%  hall 0.0%
+           minted: coin 79.0%  loot 19.1%  floor 0.2%  pieces 1.8%
 
 reference, buys the hall: the reference, buying the next deed or rung whenever the purse holds it
-  day  30  sinks 92.1% of minted (coin only 114.4%)  Levels 82/80/80/79  hall rungs 34/35  purse 1.9 days of minting
-           storeKit 5.2%  jobFee 3.9%  imbue 1.3%  temper 1.4%  carry 1.1%  bless 0.0%  reset 0.8%  block 46.7%  hall 31.7%
-  day 180  sinks 89.2% of minted (coin only 110.7%)  Levels 258/257/257/257  hall rungs 35/35  purse 15.1 days of minting
-           storeKit 7.4%  jobFee 3.6%  imbue 3.4%  temper 0.6%  carry 1.2%  bless 0.0%  reset 0.7%  block 68.2%  hall 4.1%
+  day  30  sinks 91.9% of minted (coin only 116.0%)  Levels 81/81/80/80  hall rungs 34/35  purse 1.9 days of minting
+           storeKit 5.2%  jobFee 3.9%  imbue 1.5%  temper 1.6%  carry 1.1%  bless 0.0%  reset 0.8%  block 46.8%  hall 31.1%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.6%
+  day 180  sinks 87.8% of minted (coin only 110.8%)  Levels 258/258/257/257  hall rungs 35/35  purse 17.1 days of minting
+           storeKit 7.3%  jobFee 3.5%  imbue 3.4%  temper 0.6%  carry 1.1%  bless 0.0%  reset 0.7%  block 67.1%  hall 4.1%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.6%
 
 reference, works 0.8 of its day: the reference, working 0.8 of its work day (09 5.1)
-  day  30  sinks 86.0% of minted (coin only 106.8%)  Levels 85/85/85/85  hall rungs 0/35  purse 3.7 days of minting
-           storeKit 11.7%  jobFee 2.9%  imbue 1.5%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 66.7%  hall 0.0%
-  day 180  sinks 91.2% of minted (coin only 113.2%)  Levels 261/261/261/261  hall rungs 0/35  purse 12.6 days of minting
-           storeKit 11.9%  jobFee 2.8%  imbue 3.4%  temper 0.6%  carry 1.2%  bless 0.0%  reset 0.7%  block 70.6%  hall 0.0%
+  day  30  sinks 84.8% of minted (coin only 107.1%)  Levels 85/85/85/85  hall rungs 0/35  purse 4.0 days of minting
+           storeKit 11.5%  jobFee 2.8%  imbue 1.7%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 65.6%  hall 0.0%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.7%
+  day 180  sinks 89.7% of minted (coin only 113.3%)  Levels 261/261/261/261  hall rungs 0/35  purse 14.7 days of minting
+           storeKit 11.7%  jobFee 2.8%  imbue 3.4%  temper 0.6%  carry 1.1%  bless 0.0%  reset 0.7%  block 69.5%  hall 0.0%
+           minted: coin 79.2%  loot 19.1%  floor 0.0%  pieces 1.6%
 
 full day, store-fed: the full day, no kit trades: every use bought at the store
-  day  30  sinks 96.1% of minted (coin only 118.8%)  Levels 85/85/85/83  hall rungs 0/35  purse 1.0 days of minting
-           storeKit 28.4%  jobFee 0.0%  imbue 1.4%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 63.0%  hall 0.0%
-  day 180  sinks 99.2% of minted (coin only 122.7%)  Levels 261/261/260/249  hall rungs 0/35  purse 1.1 days of minting
-           storeKit 28.3%  jobFee 0.0%  imbue 3.3%  temper 0.6%  carry 1.1%  bless 0.0%  reset 0.7%  block 65.1%  hall 0.0%
+  day  30  sinks 95.9% of minted (coin only 120.5%)  Levels 85/85/85/84  hall rungs 0/35  purse 1.1 days of minting
+           storeKit 27.9%  jobFee 0.0%  imbue 1.6%  temper 1.4%  carry 1.2%  bless 0.0%  reset 0.7%  block 63.1%  hall 0.0%
+           minted: coin 77.8%  loot 18.8%  floor 1.7%  pieces 1.6%
+  day 180  sinks 99.3% of minted (coin only 124.7%)  Levels 261/261/260/254  hall rungs 0/35  purse 1.1 days of minting
+           storeKit 27.9%  jobFee 0.0%  imbue 3.3%  temper 0.6%  carry 1.1%  bless 0.0%  reset 0.7%  block 65.7%  hall 0.0%
+           minted: coin 77.9%  loot 18.8%  floor 1.7%  pieces 1.6%
 
 mix 6 h: 09 5.1 mix: 6 h a hero (SPECULATIVE)
-  day  30  sinks 79.3% of minted (coin only 97.5%)  Levels 54/54/54/54  hall rungs 34/35  purse 5.8 days of minting
-           storeKit 8.3%  jobFee 3.2%  imbue 0.0%  temper 0.7%  carry 0.5%  bless 0.0%  reset 0.8%  block 0.0%  hall 65.8%
-  day 180  sinks 27.5% of minted (coin only 33.8%)  Levels 150/150/150/150  hall rungs 35/35  purse 105.6 days of minting
-           storeKit 8.3%  jobFee 3.2%  imbue 1.8%  temper 0.7%  carry 1.3%  bless 0.1%  reset 0.8%  block 0.0%  hall 11.3%
+  day  30  sinks 79.1% of minted (coin only 97.9%)  Levels 54/54/54/54  hall rungs 34/35  purse 5.8 days of minting
+           storeKit 8.2%  jobFee 3.2%  imbue 0.4%  temper 0.7%  carry 0.5%  bless 0.0%  reset 0.8%  block 0.0%  hall 65.3%
+           minted: coin 77.0%  loot 18.6%  floor 3.8%  pieces 0.7%
+  day 180  sinks 27.1% of minted (coin only 33.9%)  Levels 150/150/150/150  hall rungs 35/35  purse 106.4 days of minting
+           storeKit 8.1%  jobFee 3.2%  imbue 1.8%  temper 0.7%  carry 1.3%  bless 0.1%  reset 0.7%  block 0.0%  hall 11.1%
+           minted: coin 76.1%  loot 18.4%  floor 3.7%  pieces 1.8%
 
 mix 2 h: 09 5.1 mix: 2 h a hero (SPECULATIVE)
   day  30  sinks 74.2% of minted (coin only 89.8%)  Levels 31/31/31/31  hall rungs 16/35  purse 7.4 days of minting
            storeKit 7.7%  jobFee 3.0%  imbue 0.0%  temper 0.0%  carry 0.0%  bless 0.0%  reset 1.1%  block 0.0%  hall 62.4%
-  day 180  sinks 52.2% of minted (coin only 63.2%)  Levels 79/79/79/79  hall rungs 35/35  purse 77.3 days of minting
-           storeKit 7.7%  jobFee 3.0%  imbue 0.8%  temper 0.7%  carry 1.0%  bless 0.0%  reset 1.1%  block 0.0%  hall 37.9%
+           minted: coin 72.1%  loot 17.4%  floor 10.6%  pieces 0.0%
+  day 180  sinks 51.7% of minted (coin only 63.4%)  Levels 79/79/79/79  hall rungs 35/35  purse 77.6 days of minting
+           storeKit 7.6%  jobFee 3.0%  imbue 1.0%  temper 0.7%  carry 1.0%  bless 0.0%  reset 1.0%  block 0.0%  hall 37.3%
+           minted: coin 71.0%  loot 17.1%  floor 10.4%  pieces 1.4%
 
 THE SERVER on 09 5.1's mix (20% reference, 50% at 6 h, 30% at 2 h; SPECULATIVE):
-  day  30  sinks 80.2% of minted
-  day 180  sinks 58.8% of minted
+  day  30  sinks 79.6% of minted
+  day 180  sinks 57.9% of minted

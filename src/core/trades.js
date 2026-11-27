@@ -35,7 +35,8 @@
 //
 // PURE ESM, dual-runtime. No clock, no Math.random: the dice are src/core/rng.js from the job's seed.
 // ════════════════════════════════════════════════════════════════════════
-import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate, KIT_RECIPES, faceOf, streamFaceOf } from '../data/trades.js';
+import { TRADE_LEVERS, BORROWED, TRADES, KINDS, RAW_UNIT_OF, LINE_SHARE, validate, KIT_RECIPES, IMBUE_JOBS, faceOf, streamFaceOf } from '../data/trades.js';
+import { IMBUE } from '../data/imbue-rules.js';
 import { STORE_KIT } from '../data/store-kit.js';
 import { GEAR_STEPS, DANGER } from '../data/danger.js';
 import { wage, powSquare } from '../data/wage.js';
@@ -132,6 +133,60 @@ export function tradeCatalogue(kinds = KINDS, levers = TRADE_LEVERS, lines = LIN
       hunted: Object.freeze(k.hunted.map((h) => Object.freeze({ stream: h.stream, face: streamFaceOf(h.stream, r.band), pm: h.pm }))) });
   });
   return Object.freeze({ rawUh, refineUh, kinds: Object.freeze(out), recipes: Object.freeze(recipes), named: Object.freeze(named) });
+}
+
+/* ── THE JOB RECIPES (lane/k1-job-slice, backend-architect, 2026-11-26; 09 sections 4.9 and 6) ─────────────────────────────────────
+   What hr_trade_job_start sells, one row a recipe, generated into hr_trade_recipes by tools/gen-trades.mjs: the named kit recipes
+   (KIT_RECIPES, resolved as `named`) and the imbuement jobs (src/data/trades.js IMBUE_JOBS), each with its inputs as WHOLE GOODS a set
+   (one attempt spends one set). A material or a part is the catalogue's count of its band's face. A HUNTED input is permille of an
+   hour-unit of its stream (09 4.8); an hour-unit of a stream is as many goods as 21's imbuement takes of it for the hour-units the
+   catalogue gives it (IMBUE.parts rare parts for its rare_part share, IMBUE.remains Remains for its remains share), so the imbuement's
+   own set is exactly imbueRecipe's (5 parts, 4 Remains) and a rune's 0.15 hour-units of Remains is one bone (rounded, never under one).
+   JUDGMENT (CONFLICTS 2026-11-26 k1-job-slice): a stream no imbuement names has no rule yet, and a recipe that needs one is not sold. */
+
+/** Whole goods of a hunted stream in one set, for `pm` permille of an hour-unit (null: no rule for the stream). */
+export function huntedUnits(stream, pm, cat = null) {
+  const c = cat || tradeCatalogue();
+  const ref = (c.kinds.imbuement && c.kinds.imbuement.hunted || []).find((h) => h.stream === stream);
+  const count = stream === 'rare_part' ? IMBUE.parts : stream === 'remains' ? IMBUE.remains : null;
+  if (!ref || !count || !(ref.pm > 0) || !(pm > 0)) return null;
+  return Math.max(1, Math.round((pm * count) / ref.pm));
+}
+
+/** Every recipe a job may run, frozen: { id, kind, trade, stage, band, name, rung, R, face, inputs: { item: n }, imbue }. A recipe whose
+    face or any input has no named good is left out (it ships with its face). */
+export function jobRecipes(cat = null) {
+  const c = cat || tradeCatalogue();
+  const out = [];
+  const row = (id, kind, band, name, rung, face, inputs, imbue) => {
+    const k = c.kinds[kind];
+    if (!face || Object.keys(inputs).some((i) => !i || i === 'null' || !(inputs[i] > 0))) return;
+    out.push(Object.freeze({ id, kind, trade: k.trade, stage: k.stage, band, name, rung, R: rungLevel(rung), face,
+      inputs: Object.freeze(inputs), imbue: imbue || null }));
+  };
+  for (const n of c.named) {
+    const inputs = {};
+    let ok = true;
+    for (const i of n.inputs) { if (!i.face) ok = false; else inputs[i.face] = (inputs[i.face] || 0) + i.n; }
+    for (const h of n.hunted) {
+      const u = huntedUnits(h.stream, h.pm, c);
+      if (!h.face || !u) ok = false; else inputs[h.face] = (inputs[h.face] || 0) + u;
+    }
+    if (ok) row(n.id, n.kind, n.band, n.name, n.rung, n.face, inputs, null);
+  }
+  const imb = c.kinds.imbuement;
+  for (const j of IMBUE_JOBS) {
+    if (!imb) break;
+    const inputs = {};
+    let ok = true;
+    for (const h of imb.hunted) {
+      const face = h.stream === 'rare_part' ? j.part : streamFaceOf(h.stream, j.band);
+      const u = huntedUnits(h.stream, h.pm, c);
+      if (!face || !u) ok = false; else inputs[face] = (inputs[face] || 0) + u;
+    }
+    if (ok) row(j.id, 'imbuement', j.band, j.name, imb.opens, j.face, inputs, j.imbue);
+  }
+  return Object.freeze(out);
 }
 
 /** THE TEMPER KIT a Temper rank on a piece of item Level `itemLevel` takes (21 section 2.2, lane/tp-im-steps): its band's face of the

@@ -31,6 +31,7 @@ import { STORE_KIT } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 import { IMBUE, IMBUE_SLOTS } from './imbue-rules.js';
 import { TEMPER_STEPS, TEMPER_KITS, TEMPER_KIT_NEW } from './temper.js';
+import { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId } from './job-faces.js';
 
 export const TRADE_LEVERS = Object.freeze({
   /* 09 4.3: the two lines the store never sells (the meal and charge shares live in STORE_KIT.lineShare). The four sum to one */
@@ -80,7 +81,8 @@ export const BORROWED = Object.freeze({
 });
 
 /* THE TEN TRADES (09 section 1; 20 section 1.4 for what v0.3.0 opens). `tool` is the working name of its tool (09 3.7). `was` names the
-   live skill a renamed trade replaces (09 2.2, 2.9), for the job slice that moves company_trades onto these ids. */
+   live skill a renamed trade replaces (09 2.2, 2.9): the cut that lights the job slice deletes that skill, and nothing carries over (09 4.11:
+   one town work, its XP in company_trade_xp on 09 4.5's table, every company's trades at Level 1). */
 export const TRADES = Object.freeze({
   mining: Object.freeze({ name: 'Mining', stage: 'gather', tool: 'pick', ships: 'v030' }),
   woodcutting: Object.freeze({ name: 'Woodcutting', stage: 'gather', tool: 'axe', ships: 'v030' }),
@@ -277,18 +279,31 @@ export const KIT_FACES = Object.freeze({
      and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
   temper_kit: TEMPER_KITS,
 });
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones']) });
+/* THE HUNTED STREAMS' FACES (STREAM_FACES: Remains a band, lane/k1-job-slice's call) and THE IMBUEMENT JOBS (IMBUE_JOBS, one Artificing
+   job an imbuement) live in ./job-faces.js, so the item table reads them without loading this catalogue; re-exported here. */
+export { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId };
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
 export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', ...TEMPER_KIT_NEW });
+
+/** THE JOB'S DOORS for catalogue-coherence (data only, no counts): one row a job recipe, { id, trade, output, inputs: [item ids] }, the
+    output its face and the inputs the faces of its parts, materials and hunted streams at its band (src/core/trades.js jobRecipes is the
+    same list with counts). A face that is not named (null) is left in as null, so the guard sees the hole. */
+export function jobFaces() {
+  const out = KIT_RECIPES.map((r) => {
+    const k = KINDS[r.kind];
+    const ins = [...(k.parts || []), ...(k.from || []).map((m) => m.kind)].map((kind) => faceOf(kind, r.band));
+    const hunt = (k.hunted || []).map((h) => streamFaceOf(h.stream, r.band));
+    return Object.freeze({ id: r.id, trade: k.trade, output: faceOf(r.kind, r.band), inputs: Object.freeze([...ins, ...hunt]) });
+  });
+  for (const j of IMBUE_JOBS) out.push(Object.freeze({ id: j.id, trade: KINDS.imbuement.trade, output: j.face, inputs: Object.freeze([j.part, streamFaceOf('remains', j.band)]) }));
+  return Object.freeze(out);
+}
 
 /** A recipe's id: its kind and its band ('arrow_b0'). Derived, never typed. */
 export const recipeId = (kind, band) => kind + '_b' + band;
 /** The item a kind is at `band` (null: no face named yet). */
 export const faceOf = (kind, band) => (KIT_FACES[kind] && KIT_FACES[kind][band]) || null;
-/** The item a hunted stream drops at `band` (null: none named). */
-export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;
-
 const kitRow = (kind, band, name) => Object.freeze({ id: recipeId(kind, band), kind, band, name });
 
 /* THE SAMPLE: Mining, Smithing, Woodcrafting, Cooking, Runecutting, one each, band 0. The arrowhead and the arrow are 09 3.3's chain 1

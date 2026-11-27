@@ -164,6 +164,14 @@
 /* the plan's rows under the points (plan.js), set off by one steel rule */
 .rdw-plan { margin-top: 10px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--steel-sep); }
 .rdw-planned { color: var(--gold-3); }
+.rdw-none-tip { margin-top: 2px; color: var(--ink-2); }
+/* the map's key (card.js KEY): one crossroads in each state, drawn by the map's own classes, set off by one steel rule */
+.rdw-key { margin-top: 12px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--steel-sep); }
+.rdw-key .hs-sub { margin: 0 0 4px; }
+.rdw-key ul { margin: 0; padding: 0; list-style: none; }
+.rdw-key li { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: var(--t-micro); color: var(--ink-2); }
+.rdw-key-mark { flex: none; display: block; }
+.rdw-key .rdm-n { cursor: default; }
 .rdw-card .hh-intent-msg { margin-top: 8px; }
 
 /* ── Phone, landscape: the sheet is the whole width, the map fills it, the card slides in over the map's right edge (18 section 6) ── */

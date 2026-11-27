@@ -60,16 +60,26 @@ export function planFor(tl, plan, id, pick, suggestPlan) {
   return { nodes, why: bad.length ? words(bad[0].why) : '' };
 }
 
-/** The card's plan rows when no stone is picked: the plan's ground, what it still needs, Spend on plan and Clear plan. */
-export function patchPlanNone(box, tl, plan, pending) {
+/**
+ * The card's plan rows when no stone is picked: the plan's ground (or None), what it still needs, its next step (`stepName`, the
+ * card's name for plan.step), Spend on plan and Clear plan.
+ */
+export function patchPlanNone(box, tl, plan, pending, stepName = '') {
   const has = !!plan.draft && plan.left > 0;
-  attr(box, 'hidden', plan.draft ? null : '');
-  if (!plan.draft) return;
+  attr(box, 'hidden', tl ? null : '');
   const r = box.querySelectorAll('.rdw-row');
   text(r[0].querySelector('span'), t('talents.plan_label'));
-  text(r[0].querySelector('b'), plan.ground && own(HUNT_INDEX, plan.ground) ? HUNT_INDEX[plan.ground].name : '');
+  /* no plan saved: the row says so (a far stone's Plan route makes one), or that the hero has no planned hunt to keep one for */
+  text(r[0].querySelector('b'), !plan.ground ? t('talents.plan_no_ground') : !plan.draft ? t('talents.plan_none')
+    : own(HUNT_INDEX, plan.ground) ? HUNT_INDEX[plan.ground].name : '');
+  attr(r[1], 'hidden', plan.draft ? null : '');
+  attr(r[2], 'hidden', has && stepName ? null : '');
+  attr(box.querySelector('.rdw-do'), 'hidden', plan.draft ? null : '');
+  if (!plan.draft) return;
   text(r[1].querySelector('span'), t('talents.plan_to_go'));
   text(r[1].querySelector('b'), has ? t('talents.n_points', { count: plan.left }) : t('talents.plan_done'));
+  text(r[2].querySelector('span'), t('talents.plan_next'));
+  text(r[2].querySelector('b'), has ? stepName : '');
   const pay = box.querySelector('[data-hs-act="rd-plan-pay"]');
   text(pay, t('talents.plan_spend'));
   prop(pay, 'hidden', !has);

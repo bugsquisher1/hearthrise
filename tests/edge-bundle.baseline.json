@@ -535,14 +535,14 @@
         "why": "lane/b1-work-blocks merged after lane/designer-pity's ceiling: src/data/work-day.js reads the bought work block from src/data/time-blocks.js (TIME_BLOCKS.work, the one row; its WORK_BLOCK_RULED copy retired), so the edge now packs time-blocks.js (+10,745 B, no other new file); +10,034 B over the set's ceiling, measured on the merged set 723e91713"
       },
       {
-        "bytes": 3949667,
+        "bytes": 3931473,
         "on": "2026-11-27",
-        "why": "lane/signatures-batch-2: 14 batch-2 Signature rows and the reaction pieces they play (a cast's and a shell's moments, a status's reach, fixed tick and patch, cast again, burst, reflect, Blunted and Kindled), with their comments; no new module reached"
+        "why": "lane/k1-job-slice +5,125 B: src/data/job-faces.js (the hunted streams' faces and the imbuement jobs) and the made imbuements' item rows in items.js"
       },
       {
-        "bytes": 3948303,
+        "bytes": 3953436,
         "on": "2026-11-27",
-        "why": "cut locked in (1364 bytes)"
+        "why": "lane/signatures-batch-2: 14 batch-2 Signature rows and the reaction pieces they play (a cast's and a shell's moments, a status's reach and fixed tick, burst, reflect, a boon's strength, Blunted and Kindled), with their comments; no new module reached"
       }
     ]
   }

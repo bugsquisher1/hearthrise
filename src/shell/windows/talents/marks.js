@@ -47,11 +47,14 @@ export function bracketsOf(r) {
 /**
  * PLACE THE LABELS. `labels`: [{ id, x, y, w, h, tries: [[dx, dy, anchor]...], pri, block?, force? }] in screen px (x, y the anchor
  * point, `w` its measured width, `h` its line height); `obstacles`: [[x0, y0, x1, y1]...]. A label with block false is drawn wherever
- * its first spot is and covers nothing (a watermark); one with force (a country's name, Havora) is never dropped: when every spot is
- * taken it stands at its first, and keeps its room from the labels after it. Returns { id: [x, y, anchor] | null }.
+ * its first spot is and covers nothing; one with force (a country's name, Havora) is never dropped: when every spot is
+ * taken it stands at its first, and keeps its room from the labels after it. A label with `within` [x0, y0, x1, y1] takes only a spot
+ * whose box lies inside it (a watermark kept whole on the stage). `taken`, when given, receives every box placed (obstacles first), so a
+ * later pass can keep off them. Returns { id: [x, y, anchor] | null }.
  */
-export function placeLabels(labels, obstacles) {
-  const placed = obstacles.slice();
+export function placeLabels(labels, obstacles, taken = null) {
+  const placed = taken || [];
+  placed.push(...obstacles);
   const hit = (b) => placed.some((o) => !(b[2] < o[0] || b[0] > o[2] || b[3] < o[1] || b[1] > o[3]));
   const out = {};
   for (const L of labels.slice().sort((a, b) => a.pri - b.pri)) {
@@ -60,7 +63,8 @@ export function placeLabels(labels, obstacles) {
       const x = L.x + dx, y = L.y + dy, x0 = anchor === 'middle' ? x - L.w / 2 : anchor === 'end' ? x - L.w : x;
       return { at: [x, y, anchor], b: [x0 - 2, y - L.h * 0.8, x0 + L.w + 2, y + L.h * 0.25] };
     };
-    let got = L.tries.map(boxOf).find((t) => L.block === false || !hit(t.b)) || null;
+    const inside = (b) => !L.within || (b[0] >= L.within[0] && b[1] >= L.within[1] && b[2] <= L.within[2] && b[3] <= L.within[3]);
+    let got = L.tries.map(boxOf).find((t) => inside(t.b) && (L.block === false || !hit(t.b))) || null;
     if (!got && L.force && L.tries.length) got = boxOf(L.tries[0]);
     if (!got) continue;
     out[L.id] = got.at;

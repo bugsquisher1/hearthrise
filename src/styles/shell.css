@@ -198,6 +198,10 @@
 .hs-coach-off:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 /* The block rule's one offer (time-offer-card.js): no fold, its facts one to a line under the words, its answers left, Not now quiet at the right. */
 .hs-pointer.is-offer:not(.is-min) { padding-right: 12px; }
+/* ITS THREE ANSWERS ON ONE LINE (lane/roads-polish 2026-11-26: at the tips' 260 px Not now wrapped to a line of its own): the offer is a
+   decision, so it stands wide enough for both choices and Not now, in the fallback faces too (tests/_test-fonts.mjs), in town and docked in
+   the hunt's column (hud-room.js dockTownCoach and dockCoach read the card's own width). The phone's own width is in its block below. */
+.hs-pointer.is-offer:not(.is-min), .hs-widget.is-hunt-topbar.is-coach-docked > .hs-pointer.is-offer:not(.is-min) { width: 400px; }
 .hs-coach-sub { display: block; margin-top: 2px; font-size: var(--t-micro); color: var(--ink-3); }
 .hs-coach-say { color: var(--ink); }
 .hs-coach-answers { justify-content: flex-start; flex-wrap: wrap; }
@@ -568,6 +572,9 @@
   .hs-launchers > .hs-pointer::before { display: none; }
   /* Open, it runs from the left edge to just short of the hero's column: wide words, few lines. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }
+  /* the block offer's three answers on one line (above): as wide as the room short of the hero's column allows; under the hunt bar, its width */
+  .hs-launchers > .hs-pointer.is-offer:not(.is-min):not([data-anchor="action_bar"]) { width: min(400px, calc(50vw - 56px)); right: calc(100vw - 8px - min(400px, calc(50vw - 56px))); }
+  .hs-widget > .hs-pointer.is-offer:not(.is-min) { width: min(400px, 100%); }
   .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 12px); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
   .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-foot) { display: none; }

@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "e515933433abda27",
+ "authored": "30e9cb9ca2341fda",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 244,
+  "levers": 245,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -82,12 +82,12 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 48,
+   "economy": 49,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
-   "global": 130,
+   "global": 131,
    "archetype": 32,
    "content": 52,
    "exception-intentional": 19,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 38,
+   "not-playable:outside-hunt": 39,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 42,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 135,
+   "asserted": 136,
    "mentioned only": 90,
    "none": 19
   },
@@ -117,10 +117,10 @@
   }
  },
  "census": {
-  "bindings": 769,
-  "typed": 17579,
-  "files": 263,
-  "lever": 332,
+  "bindings": 770,
+  "typed": 17583,
+  "files": 264,
+  "lever": 333,
   "notLever": 437,
   "unclaimed": 0
  },
@@ -984,7 +984,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -3235,7 +3235,7 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/conditions.mjs"
     ],
-    "mentionCount": 33,
+    "mentionCount": 34,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3895,7 +3895,7 @@
      "tests/hunt-core/conditions.mjs",
      "tests/hunt-core/effect-readers.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7275,7 +7275,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 51,
+    "mentionCount": 52,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7363,7 +7363,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 52,
+    "mentionCount": 53,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8429,7 +8429,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8598,7 +8598,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8679,7 +8679,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11548,7 +11548,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 128,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11563,7 +11563,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11571,7 +11571,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11595,7 +11595,7 @@
    "sites": [
     {
      "file": "src/data/items.js",
-     "line": 26,
+     "line": 28,
      "text": "export const ITEMS={",
      "binding": "ITEMS"
     }
@@ -11646,7 +11646,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 128,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11664,7 +11664,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 441,
       "distinct": 37,
       "low": 1,
@@ -11672,7 +11672,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 225,
       "distinct": 63,
       "low": 1,
@@ -11759,7 +11759,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11834,7 +11834,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11933,7 +11933,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12236,7 +12236,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 14,
+    "mentionCount": 15,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12311,7 +12311,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12387,7 +12387,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13537,9 +13537,10 @@
     "mentions": [
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/damage.mjs",
+     "tests/hunt-live.mjs",
      "tests/supplies-catalogue.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13802,7 +13803,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 126,
+    "mentionCount": 128,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13820,7 +13821,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13828,7 +13829,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 771,
+      "rows": 778,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -15136,6 +15137,52 @@
    "evidence": "MEASURED (lane/econ-levers 2026-11-22, v1-climb.mjs Muster Barrows from a held start, 6 seeds x 8 h, seeds 1000-1005: tools/balance-program/redesign/econ/after-muster-L60.json): the Steady four's kit 0.26 of its gross (4,168 of 16,276), Careful 0.22, Bold 0.28; was 2.04 (9,804 of 4,797) before"
   },
   {
+   "id": "econ.piece-value",
+   "category": "economy",
+   "name": "What a Trait piece is worth, and what the store pays for one",
+   "sites": [
+    {
+     "file": "src/data/piece-price.js",
+     "line": 23,
+     "text": "export const PIECE_VALUE = Object.freeze({ sharePm: 100, rankValuePm: 250, floorSharePm: 250 });",
+     "binding": "PIECE_VALUE"
+    }
+   ],
+   "definition": "V = sharePm / 1000 x the rarity's hunted hours (drop-hours.js) x wage(item Level) x (1 + rankValuePm / 1000 x (top rank - 1)), a Very Rare read by its best Trait; the store pays the piece's own floorSharePm x V (src/core/piece-value.js pieceStoreBid): a Muster Rare at item Level 60 sells for 16,365 (1.0 hour of wage), a Very Rare at 80 with ranks I and II for 221,575",
+   "range": "13-market section 5: pieceShare 0.1, traitRankValue 0.25 (starting values). floorSharePm 250, search 200 to 400 (12-targets 8.7: the market's lowest piece price, 0.25 V). The sale is outside the store's stack budget (a piece's supply is the drop hours, proven on the server), with a 20 a UTC day security fuse. SQL twin hr_piece_store_bid (1072, generated by tools/gen-piece-value.mjs)",
+   "touches": "gold minted by selling Trait pieces to the store (dark until trait_pieces); the floor under the market's piece prices (13-market 3.2)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/piece-verbs-db.mjs",
+      "what": "PV-3: every piece's section price is the core twin; the sale pays exactly it",
+      "reads": [
+       "pieceStoreBid"
+      ]
+     }
+    ],
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a sale in town, never read by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "MEASURED (lane/designer-calls-1127, tools/balance-program/redesign/sinks/ledger.mjs, every Rare not carried sold at rank II): piece sales are 1.6% of what the reference mints and the ledger reads 86.3% by day 180 (87.8% with the hall); 4.4% and 83.8% with the Very Rare and the Signature (--all-rarities). At the stack floor 0.4: 2.6% and 85.4%, 6.9% and 81.6%"
+  },
+  {
    "id": "econ.ammo-floor",
    "category": "economy",
    "name": "A store charge's floor under its crafted partner",
@@ -15301,19 +15348,19 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 37,
+     "line": 38,
      "text": "lineShare: Object.freeze({ draught: 0.2, imbuement: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 40,
+     "line": 41,
      "text": "stageShare: Object.freeze({ gather: 0.5, refine: 0.2, make: 0.3 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 43,
+     "line": 44,
      "text": "rungs: Object.freeze({ count: 10, span: 10 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15363,25 +15410,25 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 45,
+     "line": 46,
      "text": "yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 47,
+     "line": 48,
      "text": "quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 49,
+     "line": 50,
      "text": "speedAt99: 1.25,",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 57,
+     "line": 58,
      "text": "masteryCap: 3,",
      "binding": "TRADE_LEVERS"
     }
@@ -15433,13 +15480,13 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 52,
+     "line": 53,
      "text": "table: Object.freeze({ hoursTo99: 1000, curve: 1.045, xpPerHour: 3600, maxLevel: 99 }),",
      "binding": "TRADE_LEVERS"
     },
     {
      "file": "src/data/trades.js",
-     "line": 55,
+     "line": 56,
      "text": "xp: Object.freeze({ windowLevels: 20, floor: 0.25 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15489,7 +15536,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 59,
+     "line": 60,
      "text": "jobFee: 0.25,",
      "binding": "TRADE_LEVERS"
     }
@@ -15537,7 +15584,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 62,
+     "line": 63,
      "text": "store: Object.freeze({ lagSteps: 20, floorShare: 0.4, budgetHours: 1 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15593,7 +15640,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 65,
+     "line": 66,
      "text": "tool: Object.freeze({ hours: 12, lifeRung: 0.25, work: 1.0 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15642,7 +15689,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 68,
+     "line": 69,
      "text": "cover: Object.freeze({ common_part: 1.25, remains: 1.5, rare_part: 1.0, scrap: 1.2 }),",
      "binding": "TRADE_LEVERS"
     }
@@ -15690,7 +15737,7 @@
    "sites": [
     {
      "file": "src/data/trades.js",
-     "line": 153,
+     "line": 155,
      "text": "export const KINDS = Object.freeze({ ...BASE_KINDS, ...RUNE_KINDS, ...TOOL_KINDS });",
      "binding": "RUNE_KINDS"
     }
@@ -18436,7 +18483,6 @@
    "keys": [
     "belowPm",
     "capMs",
-    "capPm",
     "clockMs",
     "ms",
     "n",
@@ -20819,6 +20865,15 @@
     "townWageShare"
    ],
    "typed": 8,
+   "bindings": 1
+  },
+  "src/data/piece-price.js#PIECE_VALUE": {
+   "pin": "count",
+   "keys": [
+    "floorSharePm",
+    "rankValuePm"
+   ],
+   "typed": 2,
    "bindings": 1
   },
   "src/data/work-day.js#WORK_DAY": {

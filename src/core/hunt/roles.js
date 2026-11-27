@@ -35,6 +35,7 @@ import { anyMark, markedAt } from './marks.js';
 import { foesOf, engagedMonstersOf, livingHeroesOf } from './unit-index.js';
 import { sideOf, isHero } from './sides.js';
 import { rangeOf, placeShooter } from './shooters.js';
+import { pinsOf } from './monster-roles.js';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -340,8 +341,14 @@ function inBand(d2, want) {
   return 100 * d2 >= Math.max(0, lo) * Math.max(0, lo) && 100 * d2 <= hi * hi;
 }
 
-/* Ranged (RO-04..08): a spot at `dist` from its OWN target, claimed once, held with hysteresis. */
+/* HELD IN MELEE: a monster beside hero `h` has it as its target (`by`: only a monster it accepts). It is in contact, as a Melee hero is. */
+const heldInMelee = (h, mons, by) => mons.some((m) => m.target === h.id && cheb(m, h) <= 1 && (!by || by(m)));
+
+/* Ranged (RO-04..08): a spot at `dist` from its OWN target, claimed once, held with hysteresis.
+   THE CLOSE (12-targets 8.9.1): held in melee by a role that pins (monster-roles.js pinsOf: a brute, a swarm, a warder, on the scale), it
+   fights where it was caught, as under a mark (stepOff): it gives up its spot and walks to no other. A stalker it walks clear of, as before. */
 function rangedPos(inst, h, mons, marked) {
+  if (heldInMelee(h, mons, (m) => pinsOf(inst, m))) { clearGoal(h); h.spot = null; return; }
   if (!Number.isInteger(h.target)) return;
   if (kites(h)) { keepDistance(inst, h, mons, marked); return; }
   if (!h.chase) { clearGoal(h); return; }
@@ -436,7 +443,7 @@ function stepOff(inst, h, mons, marked) {
   if (!marked(end[0], end[1])) return false;
   /* HELD IN MELEE (a monster beside it has it as its target): it is in contact, as a Melee hero is, and holds ("step off
      when no monster is holding them in melee", the design's rule as the wiki prints it). */
-  if (mons.some((m) => m.target === h.id && cheb(m, h) <= 1)) return false;
+  if (heldInMelee(h, mons)) return false;
   const pocket = (unitById(inst, h.target) || mons[0]).pocket;
   h.spot = null;
   goToNearest(inst, h, (x, y) => !marked(x, y) && standable(inst, h, pocket, x, y));

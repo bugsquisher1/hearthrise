@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "7d1153354bd14910",
+ "authored": "b297eb7a7c970dbb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17542,
+  "typed": 17543,
   "files": 263,
   "lever": 324,
   "notLever": 432,
@@ -8073,7 +8073,7 @@
     {
      "file": "src/data/danger.js",
      "line": 252,
-     "text": "mosslight_glade: ground({ refStep: 50, floorStep: 0, topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
+     "text": "mosslight_glade: ground({ refStep: 60, floorStep: 0, topStep: 115, refKillsHead: 140, refHeld: 55, coinPm: 7900, formulaStep: 70, gearLevel: tierLevel(1), ladderTier: 2, traits: traitPool('mosslight_glade'), entryLevel: 16, refLevel: 23, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8097,7 +8097,7 @@
     {
      "file": "src/data/danger.js",
      "line": 258,
-     "text": "krells_hold: ground({ refStep: 20, floorStep: 0, topStep: 120, coinPm: 4000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
+     "text": "krells_hold: ground({ refStep: 40, floorStep: 0, topStep: 115, coinPm: 3100, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8109,7 +8109,7 @@
     {
      "file": "src/data/danger.js",
      "line": 263,
-     "text": "ox_road: ground({ refStep: 90, floorStep: 0, topStep: 175, coinPm: 2500, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
+     "text": "ox_road: ground({ refStep: 100, floorStep: 0, topStep: 170, refKillsHead: 125, refHeld: 95, coinPm: 2400, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8206,7 +8206,7 @@
     {
      "file": "src/data/danger.js",
      "line": 236,
-     "text": "hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 645, refKillsHead: 130, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
+     "text": "hasks_ford: ground({ refStep: 590, floorStep: 535, topStep: 640, refKillsHead: 135, refHeld: 595, coinPm: 6600, rowsKillsHead: 235, gearLevel: tierLevel(2), ladderTier: 3, traits: traitPool('hasks_ford'), entryLevel: 45, refLevel: 52, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -8496,24 +8496,24 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 89,
+     "line": 95,
      "text": "shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 91,
+     "line": 97,
      "text": "caster: Object.freeze({ name: 'Caster', reach: 'back', range: 4, splash: Object.freeze({ r: 1, pm: 500 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 97,
+     "line": 103,
      "text": "stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',",
      "binding": "MONSTER_ROLES"
     }
    ],
-   "definition": "a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded front hero) and keeps to it while no Challenge holds it; a Challenge holds it heldPm of its hold (absent: all); its largest blow is maxHitPm of its row (absent: all); a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target",
+   "definition": "a monster row names a role; on the scale its reach picks whom it aims at (front row nearest, back row farthest, the least max HP, the least crowded front hero) and keeps to it while no Challenge holds it; a Challenge holds it heldPm of its hold (absent: all); its largest blow is maxHitPm of its row (absent: all); a role with a range shoots from that many tiles on a row with none of its own; a splash lands pm permille of the blow on each hero within r tiles of the target; a role that pins (brute, swarm, warder) holds a ranged hero it stands beside, on it, where it was caught, and a reach with no hero in its row takes every row by its own order (the close, 12-targets 8.9.1)",
    "range": "range 0 or MONSTER_RANGE (2 to 6); splash r 1 or more, pm 1 to 1000; heldPm and maxHitPm 0 to 1000. Content the designer owns (04 section 6: \"six role rows\"); the optimizer never moves it",
    "touches": "who takes the damage (V3: the front seat's share) and so which lineup holds deepest on a mix; MEASURED tools/balance-program/redesign/w2/summary.txt",
    "outcomes": [
@@ -8550,7 +8550,7 @@
     "asserts": [
      {
       "file": "tests/hunt-core/monster-roles.mjs",
-      "what": "reach, redive, range, splash, play",
+      "what": "reach, redive, close, range, splash, play",
       "reads": [
        "MONSTER_ROLES"
       ]
@@ -8585,37 +8585,37 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 87,
+     "line": 93,
      "text": "armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 90,
+     "line": 96,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.012, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 93,
+     "line": 99,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 96,
+     "line": 102,
      "text": "armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 98,
+     "line": 104,
      "text": "armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),",
      "binding": "MONSTER_ROLES"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 102,
+     "line": 112,
      "text": "armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,",
      "binding": "MONSTER_ROLES"
     }
@@ -8694,8 +8694,8 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 103,
-     "text": "mend: Object.freeze({ seconds: 1.2, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
+     "line": 113,
+     "text": "mend: Object.freeze({ seconds: 0.6, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),",
      "binding": "MONSTER_ROLES"
     }
    ],
@@ -8760,7 +8760,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 140,
+     "line": 150,
      "text": "encounterPerHero: 2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -8825,13 +8825,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 142,
+     "line": 152,
      "text": "pull: Object.freeze({ killMult: 1 }),",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 143,
+     "line": 153,
      "text": "boss: Object.freeze({ killMult: 8 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8891,7 +8891,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 145,
+     "line": 155,
      "text": "windupScale: Object.freeze({ size: 1, every: 1 }),",
      "binding": "MONSTER_FORMULA"
     }
@@ -8954,7 +8954,7 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 146,
+     "line": 156,
      "text": "blowCap: 0.2,",
      "binding": "MONSTER_FORMULA"
     }
@@ -9017,13 +9017,13 @@
    "sites": [
     {
      "file": "src/data/monster-roles.js",
-     "line": 148,
+     "line": 158,
      "text": "hit: 0.7, heroHit: 0.85, defPerLevel: 0.08, takePm: 450, fightShare: 0.6,",
      "binding": "MONSTER_FORMULA"
     },
     {
      "file": "src/data/monster-roles.js",
-     "line": 149,
+     "line": 159,
      "text": "dps: Object.freeze([[52, 14.1], [60, 27], [175, 26]].map((r) => Object.freeze(r))),",
      "binding": "MONSTER_FORMULA"
     }
@@ -9847,7 +9847,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 88,
+     "distinct": 77,
      "low": 0.06,
      "high": 1
     }
@@ -10083,7 +10083,7 @@
       "trophy"
      ],
      "rows": 314,
-     "distinct": 95,
+     "distinct": 93,
      "low": 0.0005,
      "high": 0.05
     }

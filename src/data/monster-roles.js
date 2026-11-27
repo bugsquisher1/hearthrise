@@ -26,6 +26,10 @@
 //             (monsters.js monsterRangeOf); a role's range plays only on a row with none. Inside MONSTER_RANGE.
 //   splash    and on whom: a blow that also lands on every other hero within `splash.r` tiles of its target (Chebyshev) at `splash.pm`
 //             permille of the blow, each its own roll against that hero (damage.js resolveAttacks). Absent: one target.
+//   pins      THE CLOSE (12-targets 8.9.1, the front seat): true, a ranged hero it stands beside and is on fights where it was caught
+//             (src/core/hunt/roles.js rangedPos), and with no hero in its row a reach takes every row (monster-roles.js reachPick). A front
+//             seat who stands between keeps it off the back row. A stalker, shooter or caster has none: a ranged hero walks clear of it.
+//             Three mages and a healer earned 1.24 to 1.75x the mixed four before, 0.67 to 1.11x with it (lineup-v4, lane/front-seat)
 //   maxHitPm    and how hard: its largest blow is this share of its row's at the step (absent: all of it). A role that reaches the back
 //             row is sized against the back row: a Wight's full blow, written for a front in heavy armor, took a medium-armored bow
 //             from over the Steady line to dead in one blow (4 deaths in 32 Steady days, every one a Wight on the bow; RD-Q3 a: Careful
@@ -83,7 +87,7 @@ export const ROWS = Object.freeze(['front', 'back']);
 const windup = (row) => Object.freeze({ ...row, element: row.element === undefined ? null : row.element });
 
 export const MONSTER_ROLES = Object.freeze({
-  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: shields, armor',
+  brute: Object.freeze({ name: 'Brute', reach: 'front', range: 0, pins: true, targets: 'Targets: front row', answer: 'Countered by: shields, armor',
     armor: 0.5, secondsToKill: 6, pressure: 0.03, windupShare: 0.28, windupSize: 0.13,
     windup: windup({ n: 'Heavy Blow', shape: 'cone', len: 2, range: 1, windupMs: 1600 }) }),
   shooter: Object.freeze({ name: 'Shooter', reach: 'back', range: 5, targets: 'Targets: back row (ranged)', answer: 'Countered by: Challenge, back-row armor',
@@ -92,7 +96,7 @@ export const MONSTER_ROLES = Object.freeze({
     targets: 'Targets: back row (ranged, area)', answer: 'Countered by: focus fire, healing',
     armor: 0.05, secondsToKill: 3.5, pressure: 0.02, windupShare: 0.6, windupSize: 0.11,
     windup: windup({ n: 'Hex', shape: 'group', range: 6, windupMs: 2000 }) }),
-  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor',
+  swarm: Object.freeze({ name: 'Swarm', reach: 'spread', range: 0, pins: true, targets: 'Targets: front row (spreads out)', answer: 'Countered by: area damage, armor',
     armor: 0.1, secondsToKill: 2.5, pressure: 0.024, windupShare: 0, windupSize: 0 }),
   stalker: Object.freeze({ name: 'Stalker', reach: 'weakest', range: 0, heldPm: 500, maxHitPm: 400, targets: 'Targets: lowest max health', answer: 'Countered by: Challenge, healing',
     armor: 0.05, secondsToKill: 3.5, pressure: 0.011, windupShare: 0, windupSize: 0 }),
@@ -102,7 +106,7 @@ export const MONSTER_ROLES = Object.freeze({
      in a pull, so at 1.2 s each undid 15% of the company's damage and a Grave Guard took 69 s to drop. Its reference four killed 93 a head
      an hour against the pay's 120 and earned 0.73x the hours table. At 0.6 s it kills 114 and earns 0.96x (MEASURED, held-four, 3 seeds x 2 h).
      A mend slows a kill and still says "kill him first". It never sets a ground's pace a quarter under the table */
-  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, targets: 'Targets: front row', answer: 'Countered by: focus fire',
+  warder: Object.freeze({ name: 'Warder', reach: 'front', range: 0, pins: true, targets: 'Targets: front row', answer: 'Countered by: focus fire',
     armor: 0.35, secondsToKill: 5, pressure: 0.014, windupShare: 0, windupSize: 0,
     mend: Object.freeze({ seconds: 0.6, everyS: 8, spell: windup({ n: 'Rally', shape: 'mend', range: 4, windupMs: 1600 }) }) }),
 });

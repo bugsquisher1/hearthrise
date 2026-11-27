@@ -49,6 +49,9 @@ export function rowOf(u) {
   return r && r.melee === false ? 'back' : 'front';
 }
 
+/** Does monster `m`'s role PIN a ranged hero it holds in melee (its row's `pins`; roles.js rangedPos)? Never off the scale. */
+export const pinsOf = (inst, m) => { const r = roleOf(inst, m); return !!r && r.pins === true; };
+
 /** The tiles a role shoots from on this instance (0: beside its target, or off the scale). */
 export const roleRange = (inst, m) => { const r = roleOf(inst, m); return r ? r.range : 0; };
 
@@ -75,19 +78,23 @@ const fullHold = (inst, m) => !!inst && inst.world.units.some((h) => h.id === m.
 
 /**
  * WHOM ROLE `role`'S REACH TAKES for monster `m`: the first living enemy hero inside its pack's area by the reach's order (BEFORE),
- * kept to its row when the reach names one. Null when none matches (the caller aims as it always did). Pure.
+ * kept to its row when the reach names one. Null when no hero stands in its area (the caller aims as it always did). Pure.
+ * THE CLOSE (12-targets 8.9.1): a reach with no hero of its row in its area takes every row by its own order, never the puller by default,
+ * so a four with no front seat takes the brutes and the swarm on its cloth (a back reach takes the farthest, as a shooter always did).
  */
 export function reachPick(inst, m, role) {
   const cmp = role && BEFORE[role.reach] ? BEFORE[role.reach](inst, m) : null;
   if (!cmp) return null;
   const keep = ROW_OF_REACH[role.reach] || null;
-  let best = null;
+  let best = null, any = null;
   for (const h of inst.world.units) {
     if (!isHero(h) || !h.alive || !isEnemy(m, h) || !inArea(inst, m.pocket, h.x, h.y)) continue;
+    if (!any || cmp(h, any) < 0) any = h;
     if (keep && rowOf(h) !== keep) continue;
     if (!best || cmp(h, best) < 0) best = h;
   }
-  return best ? best.id : null;
+  const pick = best || any;
+  return pick ? pick.id : null;
 }
 
 /**
@@ -97,6 +104,8 @@ export function reachPick(inst, m, role) {
  * the hero that is, once one stands in its area: a front or back reach when its target is out of that row, a stalker when a hero with
  * less max HP than its target is there. A swarm keeps whom it was given (its count would turn it back and forth). Off the scale, held,
  * or nothing better: null. Pure.
+ * THE CLOSE: a front reach with nobody of its row in its area keeps a hero it stands beside, else runs to the nearest. A back reach with no
+ * back row keeps its target.
  */
 export function reaimOf(inst, m) {
   const role = roleOf(inst, m);
@@ -106,8 +115,8 @@ export function reaimOf(inst, m) {
   const cur = inst.world.units.find((u) => u.id === m.target && u.alive && isHero(u));
   if (!cur) return pick;
   const keep = ROW_OF_REACH[role.reach];
-  if (keep) return rowOf(cur) === keep ? null : pick;
   const p = inst.world.units.find((u) => u.id === pick);
+  if (keep) return rowOf(cur) === keep ? null : rowOf(p) === keep || (keep === 'front' && cheb(m, cur) > 1) ? pick : null;
   return p.maxHp < cur.maxHp ? pick : null;
 }
 

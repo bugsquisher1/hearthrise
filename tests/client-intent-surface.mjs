@@ -150,6 +150,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  /* THE TRAIT PIECES (1072-piece-verbs.sql; src/session/piece-intents.js): a piece is a row the server owns, named by its id */
+  hr_piece_wear: 'one of the account\'s Trait pieces onto this hero in town; the server re-proves the piece and the slot (piece-intents.js wearPiece)',
+  hr_piece_sell: 'the store buys one free Trait piece at the price the pieces section showed; refuses quote_changed (piece-intents.js sellPiece)',
   /* The factions (2027-04-22-faction-standing.sql, behind the `factions` switch 2027-04-23-faction-section.sql): a slot, a side or a piece
      id and a fresh key, never a number; the server reads the Krell count, standing, swap time and cooldown itself. Moves no value. */
   hr_faction_join: 'join a side once, after the server counted this hero\'s Krell kill (faction-intents.js joinFaction)',

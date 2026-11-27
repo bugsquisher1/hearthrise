@@ -548,6 +548,11 @@
         "bytes": 3959122,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: 16 move Signature reaction rows and their engine pieces (signature-rules, reactions); lane/piece-gear-fixes: upgrade-pick weighs a piece's Traits"
+      },
+      {
+        "bytes": 3960090,
+        "on": "2026-11-27",
+        "why": "lane/designer-sig-metric: new tips for Signatures #3, #9 and #21 and the re-sized rows in src/data/signatures.js, which the engine carries"
       }
     ]
   }

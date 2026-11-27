@@ -19,15 +19,14 @@
 // keyed halls stay reachable beside it, and an opened pack's own hall opens with it (a hall pays like its ground: Krell's
 // tier-7 prize was off the ladder whenever a staged ground was graded, until lane/a-grader-uniques).
 //
-// `uniques` (lane/a-grader-uniques, brought onto v0.2.139 by lane/d-late-items-rescue; the armor and weapon lines past Dawnsteel):
-// past tier 7 the gear is unique pieces, not a ladder (Tyler 2026-11-14), so a hero dressed off the ladder alone stops getting
-// better at 88. With `uniques` each slot takes the best piece of its family the hero can get at its Level: the ladder's, any
-// other gettable row of the same family (slot, weight or weapon kind), and the STAGED GEAR rows (STAGED_GEAR below: hidden rows
-// a design lane measured and has not shipped), each gettable where its own row says it drops, as a staged ground is with
-// `openAlso`. Best is the higher tier, then more of the family's number (armor, or on a graded ground a piece's score there,
-// armor-power.mjs, the armor line's own measure; a shield's guard; a weapon's power on the graded ground, weapon-power.mjs, the
-// weapon line's own measure, or its attack and strength off a ground), then an attribute that answers this ground (a resistance
-// to an element cast here, a bane of a class that lives here, + the style's own skill), then the ladder's own piece. A staged
+// `uniques` (lane/a-grader-uniques, brought onto v0.2.139 by lane/d-late-items-rescue): each slot takes the best piece of its family
+// the hero can get at its Level, not the ladder's alone: the ladder's, any other gettable row of the same family (slot, weight or
+// weapon kind: a named piece, a special-attribute piece), and the STAGED GEAR rows (STAGED_GEAR below: hidden rows a design lane
+// measured and has not shipped), each gettable where its own row says it drops, as a staged ground is with `openAlso`. Best is the
+// higher tier, then more of the family's number (armor; a shield's guard; a weapon's attack and strength), then an attribute that
+// answers this ground (a resistance to an element cast here, a bane of a class that lives here, + the style's own skill), then the
+// ladder's own piece. (The armor and weapon lines past Dawnsteel and their power reads retired with 12-targets 8.8: on 8.3 every
+// ground's ceiling is its base tier's formula piece, and a named piece is that piece plus its rule, 28-named-pieces.md 2.7.) A staged
 // row is put into the engine's ITEMS as it would ship (both module instances, the edge's and src/core's), so its armor and its
 // attribute reach the fight through the hooks the live settle uses (member.js memberSide -> combat.js equipmentStats,
 // mitigation.js, the unit's resistPm); `engineView` reads that, and `uniquesIn` says, per piece, whether its attribute reaches
@@ -39,11 +38,9 @@
 // the 90th alone (Appendix A Finding 2). So past the ladder the kit wears what a ground or a boss drops (and a staged row whose home is
 // built), never a Hearth Chest piece (the Tower's weapons, the Catacombs' armor: chests.js HEARTH_CHEST_KEYS). `chest: true` lets them
 // back in, for the grader's printed what-if row (grade.mjs --uniques prints which chest piece each way would swap in). A staged row
-// whose source is `planned` (a Morrow grid cell on a ground or boss not built yet, staged/morrow-grid.js) drops nowhere, so no kit wears it.
+// whose source is `planned` (a ground or boss not built yet) drops nowhere, so no kit wears it.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { weaponPower } from './weapon-power.mjs';
-import { armorPower, loadArmorPower } from './armor-power.mjs';
 import { STYLES } from './styles.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 
@@ -56,9 +53,7 @@ const fileUrl = (root, p) => pathToFileURL(join(p.startsWith('tools/') ? TOOLS_R
    design lanes' sample shape). A row whose id is already in ITEMS has shipped: the shipped row stands and the staged one is not read.
    One line per catalogue; the next design lane's hidden rows join here. */
 export const STAGED_GEAR = Object.freeze([
-  Object.freeze(['tools/balance-sim/staged/armor-line.js', 'LINE_SAMPLE']),
   Object.freeze(['src/data/special-attributes.js', 'SPECIAL_SAMPLE']),
-  Object.freeze(['tools/balance-sim/staged/weapon-line.js', 'WEAPON_SAMPLE']),
 ]);
 
 /* The combat skill each role fights with (a `<skill>Plus` field's skill that answers the style, combat.js SKILL_PLUS_FIELDS). */
@@ -154,15 +149,6 @@ export async function loadGear(root) {
   /* THE HEARTH CHEST'S PIECES (chests.js HEARTH_CHEST_KEYS: the Tower keys' weapons, the Catacomb keys' armor): worn only with `chest` */
   const { HEARTH_CHEST_KEYS } = await import(u('src/data/chests.js') + v);
   const CHEST_IDS = new Set(HEARTH_CHEST_KEYS.flatMap((k) => [...Object.values(k.weapons || {}), ...Object.values(k.armor || {})]));
-  /* THE WEAPON LINE'S MEASURE (weapon-power.mjs, lane/d-weapon-line): a weapon's power on the ground being graded, the engine's own rolls
-     over its spawn, so the grader picks the weapon the guard (tests/weapon-line.mjs) holds under the line */
-  const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
-    combat: await import(u('src/core/combat.js')), deriveProfile: MEMBER.deriveProfile, skillXpForLevel: (await import(u('src/core/xp.js'))).skillXpForLevel,
-    line: await import(fileUrl(root, 'tools/balance-sim/staged/weapon-line.js')) });
-  /* THE ARMOR LINE'S MEASURE (armor-power.mjs, lane/d-armor-line-v2): a piece's score on the graded ground, so the grader wears the piece the
-     guard (tests/armor-line.mjs) holds under the line */
-  const APL = await loadArmorPower(root);
-  const AP = armorPower(APL.mods), AP_WEIGHTS = new Set(Object.keys(APL.line.LINE_BASE)), AP_CACHE = new Map();
   const staged = new Map();
   for (const [file, name] of STAGED_GEAR) {
     const cat = (await import(fileUrl(root, file)))[name] || {};
@@ -229,30 +215,10 @@ export async function loadGear(root) {
     return n;
   };
   const tierOf2 = (it) => Number(it && it.tier) || 1;
-  /* A WEAPON'S NUMBER ON A GROUND (lane/d-weapon-line): past Dawnsteel a weapon spends one budget its own way (more accuracy, more damage,
-     a critical chance, a bane), so attack plus damage no longer ranks it. On a graded ground a weapon's number is its power there at the
-     hero's Level (weapon-power.mjs score: the mean of its pace and its safety), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
-     spellbook, the family's number as before */
-  /* A PIECE OF ARMOR'S NUMBER ON A GROUND (lane/d-armor-line-v2): past Dawnsteel a piece spends one budget its own way (more armor and a
-     lighter swing, less armor and an element, dodge over crit), so armor alone no longer ranks it. On a graded ground a piece of a weight
-     the line knows ranks by its score there at the hero's Level (armor-power.mjs scoreOnDawn: the mean of its pace and safety worn in
-     untempered Dawnsteel, its slot's Dawnsteel piece 1.000), to a thousandth; anywhere else its armor as before */
-  const armorScoreOf = (it, L, gid) => {
-    let m = AP_CACHE.get(it);
-    if (!m) AP_CACHE.set(it, (m = new Map()));
-    const k = L + '|' + gid;
-    if (!m.has(k)) m.set(k, AP.scoreOnDawn(it, gid, L, false));
-    return m.get(k);
-  };
-  const rankOf = (it, L, gid) => {
-    if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.score(it, gid, L); if (p !== null) return Math.round(p * 10); }
-    if (ARMOUR_SLOT_KEYS.includes(it.slot) && AP_WEIGHTS.has(it.armourClass) && gid && Number.isFinite(L)) { const p = armorScoreOf(it, L, gid); if (p !== null) return Math.round(p * 1000); }
-    return powerOf(it);
-  };
   /* rank: tier, the family's number, an attribute that answers the ground, the ladder's own piece, the id (a total order: no tie is left to the sort) */
-  const better = (asks, role, onLadder, L, gid) => (a, b) => {
+  const better = (asks, role, onLadder) => (a, b) => {
     const A = rowOf(a), B = rowOf(b);
-    return (tierOf2(B) - tierOf2(A)) || (rankOf(B, L, gid) - rankOf(A, L, gid)) || (answers(B, asks, role) - answers(A, asks, role))
+    return (tierOf2(B) - tierOf2(A)) || (powerOf(B) - powerOf(A)) || (answers(B, asks, role) - answers(A, asks, role))
       || ((onLadder.has(b) ? 1 : 0) - (onLadder.has(a) ? 1 : 0)) || (a < b ? -1 : a > b ? 1 : 0);
   };
   /** The best piece of `ladderIds`' family a hero of `role` can get at Level L, beside the ladder's own pick (null: none). */
@@ -270,7 +236,7 @@ export async function loadGear(root) {
     const ids = familyIds(ladderPick ? [ladderPick, ...ladderIds] : ladderIds).filter(can);
     if (ladderPick && !ids.includes(ladderPick)) ids.push(ladderPick);
     if (!ids.length) return null;
-    return ids.sort(better(ctx.asks, role, onLadder, L, ctx.ground))[0];
+    return ids.sort(better(ctx.asks, role, onLadder))[0];
   };
 
   /**

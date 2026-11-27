@@ -116,6 +116,10 @@ export default definePack({
     tail_spur: { n: 'Tail Spur', icon: '🦴', v: 266, raw: true, part: true },
     fire_gland: { n: 'Fire Gland', icon: '🔥', v: 272, raw: true, part: true },
     stolen_fleece: { n: 'Stolen Fleece', icon: '🐑', v: 280, raw: true, part: true },
+    /* THE ROOST'S NAMED PIECE (28-named-pieces.md 2.7): Cobalt's plate legs (`statsAs`) and less fire, the Crag Wyvern's Fire Breath. Its Rare
+       row waits for the Roost's art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
+    burnt_crag_leg_plates: { n: 'Burnt Crag Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',
+      resistPm: { ember: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'cobalt_platelegs' },
   },
   itemText: {
     eggshell: 'A piece of wyvern eggshell as thick as a roof tile. The fledglings kick them off the ledges',
@@ -123,6 +127,7 @@ export default definePack({
     tail_spur: 'The bony spur off a Bull Wyvern\'s tail. He swings it at anyone who stands too close',
     fire_gland: 'The sack in a wyvern\'s throat that the fire comes out of. It\'s still warm',
     stolen_fleece: 'Brood Wyverns line their nests with wool. This came off one of Morrow\'s sheep',
+    burnt_crag_leg_plates: 'They came off the Burnt Crag black, and the wyverns\' fire never got through them',
   },
   /* THE ROOST'S TWO (src/data/monster-spells.js rows; numbers start from rows that already play: the Rat King's Tail Lash at Lash Sweep's
      strength as a ring, and Rake the Coals' cone). Measured with the ground on the grade, not tuned one at a time. */

@@ -80,8 +80,11 @@ export const FORMULA_IO = Object.freeze({
   'C-REGEN': f(['src/core/hunt/pull-cycle.js#tickHeroes'], ['+hero.maxHp', '+flame.rate', '-heal.cut'], ['hero.regen'], { as: { hp: 'hero.regen', maxHp: 'hero.maxHp' } }),
   // ── combat: the monster's blow and the hero's armor ──
   'C-MON-BLOW': f(['src/core/combat.js#monsterMaxHit,COMBAT_BALANCE.monsterAttackDamageScale,COMBAT_BALANCE.monsterDamageScaleByTier'], ['+mon.atk', ['+tier.dmg', 'the tier\'s dial multiplies atk before this is called (src/data/hunt-tiers.js atTier)']], ['mon.maxHit'], { as: { atk: 'mon.atk' } }),
-  'C-MON-TOHIT': f(['src/core/combat.js#monsterCombatRolls,monsterAccuracy,monsterAim', RATIO], ['+mon.aim', '-hero.skill', '-gear.guard', ['+tier.dmg', 'the tier\'s dial multiplies aim before this is called']], ['mon.hitChance'],
-    { as: { accuracy: 'mon.hitChance', toHitRatio: 'mon.hitChance', heldToHit: 'mon.hitChance', TO_HIT: 'mon.hitChance' }, skip: { maxHit: 'monsterCombatRolls returns the largest blow beside the chance: C-MON-BLOW computes it', monsterMaxHit: 'the same' } }),
+  'C-MON-TOHIT': f(['src/core/combat.js#monsterAccuracy,monsterAim', RATIO], ['+mon.aim',
+    ['-hero.skill', 'the hero\'s defence is passed in: src/core/member.js heroSnapshot `def` (Defense, worn + Defense, guardB)'],
+    ['-gear.guard', 'the same `def`: guardB, the guard of gear outside the armor weights'],
+    ['+tier.dmg', 'the tier\'s dial multiplies aim before this is called']], ['mon.hitChance'],
+    { as: { accuracy: 'mon.hitChance', toHitRatio: 'mon.hitChance', heldToHit: 'mon.hitChance', TO_HIT: 'mon.hitChance' } }),
   'C-ARMOR-CHAIN': f(['src/core/mitigation.js#curve,NO_MITIGATION,mitigationOf,mitigationFor,mitigate'], ['+gear.armor', '-mon.level', ['-tier.dmg', 'the tier\'s dial raises the Level armor reads'], ['+hero.resist', 'the resistance is one step of the chain, passed in as the element\'s permille'], '+hero.steady'], ['hero.mitigation'],
     { as: { level: 'mon.level' } }),
   'C-RESIST-HERO': f(['src/core/elements.js#resistProfile,heroElementPermille', 'src/core/combat.js#resistOf'], [['+gear.special', 'resistPm is an attribute a worn piece carries']], ['hero.resist', ['status.wither', 'a Necrotic hit lands Withered']]),

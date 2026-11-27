@@ -13,7 +13,7 @@
 //                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   ... [--uniques]                                                                each hero in the best piece it can get per slot, the
 //                                                                                   staged gear catalogues' hidden rows included (gear.mjs
-//                                                                                   uniques: the armor and weapon lines past Dawnsteel); cells of their own.
+//                                                                                   uniques: named and special pieces off the ladder); cells of their own.
 //                                                                                   Ground and boss drops only (row 1f); the report prints
 //                                                                                   each way's Hearth Chest swap as a what-if row
 //   ... [--uniques --chest]                                                        the what-if played: the Hearth Chest's pieces worn too
@@ -597,14 +597,14 @@ if (isMain(import.meta.url)) {
     let refused = false;
     try { gradeCells(synthSet(), { ...SHEET, rules: [...SHEET.rules, { id: 'a-profit-floor', metric: 'margin', min: 0.25, binding: true }] }, flat); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
     if (!refused) bad.push('a sheet with a profit rule (margin >= +25%) was not refused as a profit rule');
-    /* THE UNIQUES KIT (uniques-proof.mjs): a staged unique's armor and attribute reach the live settle's member, and each planted defect is caught */
+    /* THE UNIQUES KIT (uniques-proof.mjs): a worn staged row's attribute reaches the live settle's member, the report says so honestly, and each planted defect is caught */
     const gearLib = await loadGear(ROOT);
     const proof = proveUniques(gearLib);
     if (proof.length) bad.push('the uniques kit: ' + proof.join('; '));
     for (const m of UNIQUES_MUTANTS) if (!proveUniques(gearLib, m).length) bad.push('uniques mutant ' + m + ' was not caught');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
     console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the party lines bind Dangerous and Deadly (a four under the hero alone, a Deadly four past the contract ceiling) and never Normal, the needs-a-Healer scope holds, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused; '
-      + 'a unique\'s armor and attribute reach the engine, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
+      + 'a worn staged attribute reaches the engine and the report says so, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');

@@ -579,7 +579,7 @@ The 8-cell dominance count can't tell a strong Trait from the only live Trait in
 | 1. Wears Cobalt plate from the Roost | `cobalt_helm`, `cobalt_platebody`, `cobalt_platelegs`, item Level 140, worn from 130 (`gear-stats.generated.js`); the Roost's base is Cobalt 140 (8.3) | Yes, staged ground |
 | 2. Enters the Flooded Wing at 150 | Its band is 150-170, base Wolfram 160, worn from 150 (8.4) | Yes, staged ground |
 | 3. A Wolfram plate piece drops and replaces the Cobalt one | `wolfram_platebody` defense 164 against Cobalt's 143 | Yes |
-| 4. Keeper Dunn drops the Keeper's Leg Plates | A Wolfram leg plate (defense 116) that takes 10% off ice, the answer to his Snuff the Candles | After the systems lane moves the row in with the wings' art |
+| 4. Keeper Dunn drops the Keeper's Leg Plates | A Wolfram leg plate (defense 116) that takes 10% off ice, the answer to his Snuff the Candles | The row is built (`keepers_leg_plates`, lane/retire-dawnsteel-lines). It drops once its Rare row on Dunn lands with the wings' art |
 | 5. A Rare drops on a Wolfram base with one of the wings' Traits | `danger.js` the wings' `traits: traitPool(...)` | Dark until `trait_drops` lights |
 
 ## 9. Sinks priced in wage hours, and the gold ledger (2026-11-26, designer, lane/sn-sinks; 20 lane SN and gate 7)

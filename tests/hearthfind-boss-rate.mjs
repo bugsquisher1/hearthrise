@@ -55,7 +55,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import {
-  playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
+  playerCombatRolls, weaknessInfo, equipmentStats,
   COMBAT_BALANCE, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
 import { xpForLevel, skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
@@ -110,7 +110,6 @@ function measure(monsterId) {
       eq, equipment: EQUIPMENT, items: KIT, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE,
     }),
-    monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
     botdFor: () => ({ killBonuses: () => ({ dropMult: 1, xpMult: 1 }) }),
     /* FED. The only fx handler: heal to full below half. Deliberately not a

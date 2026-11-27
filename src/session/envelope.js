@@ -32,6 +32,7 @@
 //      refusalBody, security review C2), so a tab that was behind shows the
 //      server's stacks and gold, never the ones it sent the refused press on.
 //      One that carries none (a shape, a rate limit, no character) is no news.
+//   E8 a DELTA frame is made whole on the last frame's own copy, or not at all (frameOfDelta).
 // ════════════════════════════════════════════════════════════════════════
 
 import { residueOf } from './residue.js';
@@ -95,6 +96,21 @@ export function frameEnvelope(current, msg) {
   if (msg.frame === current.version) return { verdict: 'duplicate', env: null };
   if (msg.frame < current.version) return { verdict: 'reorder', env: null };
   return { verdict: 'fresh', env: msg.env };
+}
+
+/**
+ * E8 A DELTA frame ({t:'delta', frame, base, env}; supabase/migrations/1076-frame-delta.sql hr_frame_delta) carries only
+ * the sections that moved since the server's last frame on this topic, at version `base`. It is whole again ONLY on that
+ * frame's own copy: `held` is the last whole envelope the push itself gave (a frame, or a delta made whole), never a load
+ * or an answer (those are projections of their own moment). Returns the whole frame {t:'state', frame, env} to judge as E2,
+ * or null when `held` is not the copy it was cut from (the caller asks for a whole frame: hr_frame_rebase). Pure.
+ * @param {object|null} held  the last frame's whole envelope
+ * @param {object} msg        the broadcast payload
+ */
+export function frameOfDelta(held, msg) {
+  if (!isObj(msg) || msg.t !== 'delta' || !isVersion(msg.frame) || !isVersion(msg.base) || msg.base >= msg.frame || !isObj(msg.env)) return null;
+  if (!isObj(held) || held.version !== msg.base) return null;
+  return { t: 'state', frame: msg.frame, env: Object.assign({}, held, msg.env) };
 }
 
 /** The record with one residue field replaced (display state only; the version does not move). */

@@ -465,10 +465,10 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
 /* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
-const READ_LAST = '1071-trait-pieces.sql';   // (restated whole there, lane/t1-traits-drop: 1053-lever-gates.sql's read and 1056's splice, plus the worn Traits)
-/* ...and its last author once a PATCH counts: the same file (1056-danger-scale.sql's splice of the frozen stance was folded into 1071's whole
+const READ_LAST = '1076-personal-loot.sql';   // (restated whole there, lane/p1: 1071-trait-pieces.sql's body with 1074-inner-flame-luck.sql's splice folded in, plus PERSONAL-LOOT)
+/* ...and its last author once a PATCH counts: the same file (1074-inner-flame-luck.sql's splice of the flame fuel was folded into 1076's whole
    restatement, and nothing splices it since). When this names READ_LAST, a plant there is flagged by neither reading. */
-const READ_PATCH_LAST_INSTANCE = '1071-trait-pieces.sql';
+const READ_PATCH_LAST_INSTANCE = '1076-personal-loot.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }

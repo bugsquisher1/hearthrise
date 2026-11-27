@@ -160,7 +160,8 @@ const MUTANTS = [
   ['a tier that does not ship is an item', 'CA1', (d) => { d.now = ['bronze']; return d; }],
   ['a tier that ships is no item', 'CA1', (d) => { delete d.items.coffer_guards_helm; return d; }],
   ['a shipped tier leaves the list and stays an item', 'CA1', (d) => { d.now = ['bronze', 'silver', 'gold']; return d; }],
-  ['a shipped piece worn from its twin Level', 'CA1', (d) => { d.items.coffer_guards_helm.reqLv = 90; return d; }],
+  /* read off the shipped row, never a typed Level: the typed 90 became the gold tier's true wear once the tiers were re-cut (item Level 100), and the mutant planted nothing */
+  ['a shipped piece worn a Level off its item Level less wearAhead', 'CA1', (d) => { d.items.coffer_guards_helm.reqLv += 1; return d; }],
   ['a shipped piece is not its generated row', 'CA1', (d) => { d.items.tinkers_kettle.defB += 1; return d; }],
   ['a row takes an item\'s id', 'CA1', (d) => { row(d, 'tinkers_kettle').id = 'iron_helm'; return d; }],
   ['a row takes an item\'s name', 'CA1', (d) => { row(d, 'ratters_hood').name = 'Iron Helm'; return d; }],
@@ -194,8 +195,12 @@ function mutate() {
   const clean = problems(DATA(), catacombArmorItems, files);
   if (clean.length) { console.error('catacomb-armor --mutate: the clean arm is RED, so no mutant proves anything:\n  ' + clean.join('\n  ')); return 1; }
   let escaped = 0;
+  const cleanJson = JSON.stringify(DATA());
   for (const [name, rule, plant, fileFn, gen] of MUTANTS) {
-    const got = problems(plant(DATA()), gen || catacombArmorItems, fileFn ? fileFn(files) : files);
+    const planted = plant(DATA());
+    /* a data mutant whose plant leaves the data as shipped proves nothing (a typed value the data has since moved onto): an escape, never a quiet catch */
+    if (!fileFn && !gen && JSON.stringify(planted) === cleanJson) { console.log('  ESCAPED ' + rule + '  ' + name + '  (its plant changes nothing: the data already holds it)'); escaped++; continue; }
+    const got = problems(planted, gen || catacombArmorItems, fileFn ? fileFn(files) : files);
     const caught = got.some((x) => x.startsWith(rule + ' '));
     console.log((caught ? '  caught  ' : '  ESCAPED ') + rule + '  ' + name + (caught ? '' : '  (got: ' + (got[0] || 'nothing') + ')'));
     if (!caught) escaped++;

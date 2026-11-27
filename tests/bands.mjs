@@ -40,7 +40,8 @@
 //         the floor cut two tiers back (arriving depth 9) and on a reading whose middle is the anchor refStep (8). Nothing here caps a
 //         company: these read measured holds, they never hold a step back (Tyler 2026-11-23)
 //   BD-10 THE SUPPLY GATES KEEP THEIR LEVEL (the designer's ruling 29 section 7 item 10): every tier of core-model.js SUPPLY_GATES is the
-//         Level the reference four's measured old career (tools/balance-sim/skill-lines.json 'party', as measured) first reached the old gate
+//         Level the reference four's measured old career (tools/balance-sim/skill-lines-geometric.json 'party', as measured, frozen when the
+//         live lines moved onto the Level clock) first reached the old gate
 //         (1 / 15 / 30 / 45 / 60 / 75 / 88): Melee on the hammer, Ranged on the bow, Magic on the mage; a rune's item gate and its spell
 //         version read that row, and the store prices it at the made-at Level, never the gate
 // ════════════════════════════════════════════════════════════════════════
@@ -275,7 +276,10 @@ for (const [id, pin] of Object.entries(PINS)) {
 
 /* BD-10 */
 {
-  const OLD = [1, 15, 30, 45, 60, 75, 88], snap = SL.loadLines();
+  /* the OLD careers (tools/balance-sim/skill-lines-geometric.json, frozen): the live snapshot is re-measured on the Level clock (lane/refhero-recut,
+     12-targets 8.5 item 2), and the gates keep the Levels those careers gave them, so they read the measurement they were derived from */
+  const OLD = [1, 15, 30, 45, 60, 75, 88], snap = SL.loadLines(join(ROOT, 'tools', 'balance-sim', 'skill-lines-geometric.json'));
+  ok(!!snap && SL.madeOn(snap) === 'geometric' && SL.madeOn(SL.loadLines()) === 'time', 'BD-10 the gates\' provenance is not the frozen geometric careers beside a live snapshot on the clock');
   const firstAt = (style, k, n) => { for (let L = 1; L <= 1000; L++) if (SL.skillsAt(snap, 'party', style, L, SL.AS_MEASURED)[k] >= n) return L; return null; };
   for (const [k, style] of [['melee', 'hammer'], ['ranged', 'bow'], ['magic', 'mage']]) {
     CM.SUPPLY_GATES[k].forEach((g, i) => ok(g === firstAt(style, k, OLD[i]), 'BD-10 ' + k + ' tier ' + (i + 1) + ' gates at ' + g + ', the ' + style + ' career reached ' + OLD[i] + ' at Level ' + firstAt(style, k, OLD[i])));

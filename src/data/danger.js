@@ -197,7 +197,10 @@ export const DANGER_GROUNDS = Object.freeze({
        catacomb_flooded_wing    LOW 165: 367.4 (361)             MID 175: 438.9 BIS 185: 503.7   floor 370 -> 350, top 510 -> 505, BIS died once
      Every fresh four now reads depth 2 (its lowest seed at depth 1 to 2); the MID four depth 11 to 16.
      Krell's Hold and Pyre Field died on Steady in their old rows (2026-11-22); on the monster formula neither does, in any of their band and
-     C-target cells (lane/scale-grounds-2, grounds/ and grounds/c-targets/), and Pyre Field drops its one base, rune. */
+     C-target cells (lane/scale-grounds-2, grounds/ and grounds/c-targets/), and Pyre Field drops its one base, rune.
+     EVERY BAND RE-CUT ON THE CLOCK'S REFERENCE HERO (lane/refhero-recut, 2026-11-27; 12-targets 8.5 item 2): src/data/to-hit.js REF_HERO is
+     the careers played on the Level clock (gen-ref-hero), so every formula monster's aim and evasion moved, and each band and coin level here
+     is re-measured on it (tools/new-ground.mjs --hold-level --hours 10, 4 seeds, the coin read back as played; tests/danger-band-pins.json). */
   /* muster_barrows ON THE FORMULA (lane/tuning-pass, 2026-11-23; 29-tuning-pass.md): its four rows carry roles, and on the formula the
      Steady four held with no death, a kit share of 0.28, the front 0.78 of the damage and a gear tier 1.1 to 1.7 depths each way.
      EVERY SCALE GROUND ON THE FORMULA (lane/monster-roles-ford-wings, 2026-11-23; 29-tuning-pass.md section 6): the Ford's four rows and the

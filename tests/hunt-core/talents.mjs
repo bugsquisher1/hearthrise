@@ -382,6 +382,22 @@ const cases = {
     /* the healer's own Greater Mend keeps its own 2 s clock and its own rate */
     const own = play(['greater_mend', 'mend'], true);
     if (!own.casts.some((c) => c[0] === 2000 && c[1] === 'greater_mend') || own.casts[0][3] !== A.greater_mend.magicXpMult) return 'the native Greater Mend took the borrow\'s rules: ' + JSON.stringify(own.casts);
+    /* A BORROWED CHALLENGE (-30%): a sword takes what is on the healer, never what is on the tank (no tank's seat: the overflow), and holds
+       it 70% as long; a sword with no borrow takes nothing */
+    const taunt = (lend) => {
+      const sw = H(M, 1, 5, 3, 'melee_dps'), tk = H(M, 2, 3, 3, 'tank'), hl = H(M, 3, 9, 3, 'healer');
+      if (lend) TR.syncTalents(sw, S.heroSetup({ weaponType: 'sword', options: {}, bar: null, borrowed: [{ move: 'challenge', penaltyPm: 300 }] }), 60);
+      const onHealer = E(M, 4, 0, 6, 3, 3), onTank = E(M, 5, 0, 4, 3, 2);
+      const inst = fight(M, [sw, tk, hl, onHealer, onTank], { leader: 2 });
+      inst.heroes = { 1: barOf(M, ['challenge']) };
+      M.abilities.castAbilities(inst, sc2(M, 1));
+      return { onHealer, onTank };
+    };
+    const lt = taunt(true), plain = taunt(false);
+    const want = Math.floor((M.roleData.CHALLENGE.holdMs * 700) / 100000) * 100;
+    if (lt.onHealer.target !== 1 || lt.onHealer.holdMs !== want) return 'a borrowed Challenge did not take the healer\'s monster for ' + want + ' ms: ' + lt.onHealer.target + ' ' + lt.onHealer.holdMs;
+    if (lt.onTank.target !== 2) return 'a borrowed Challenge took a monster off the tank';
+    if (plain.onHealer.target !== 3) return 'a sword with no borrow Challenged';
     /* THE ROADS' PATH: a build's town lends Shelter to a healer, lent there too */
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter' };
     const built = S.heroSetup({ weaponType: 'staff', options: { role: 'healer' }, bar: null, talents: b, level: 20 });
@@ -448,7 +464,7 @@ const mutants = [
   { name: 'a wave-3 road left off the map', case: 'whole-map', edits: [['src/data/talents.js', "  club: Object.freeze(['turning_cut', 'stagger']),", "  club: Object.freeze(['turning_cut']),"]] },
   { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },
   { name: 'the cast path reads the shared rows', case: 'engine-rows', edits: [['src/core/hunt/abilities.js', '  const ABILITIES = rowsFor(hero);\n', '']] },
-  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = tauntHold(k); }', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }']] },
+  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'row.holdPm) / 100000) * 100) : tauntHold(k);', 'row.holdPm) / 100000) * 100) : CHALLENGE.holdMs;']] },
   { name: 'a conditional row always holds', case: 'engine-rows', edits: [[TR, '  for (const r of when) if (holds(inst, u, r.when)) (out || (out = rows.slice())).push(r);', '  for (const r of when) (out || (out = rows.slice())).push(r);']] },
   { name: 'the auras forget the hero\'s rows', case: 'engine-rows', edits: [['src/core/hunt/auras.js', ' ? withTalentRows(inst, unit, auras) : auras;', ' ? auras : auras;']] },
   { name: 'the member drops the build (the settle never grants it)', case: 'real-settle-both-paths', edits: [['src/core/member.js', "        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),\n", '']] },
@@ -460,6 +476,10 @@ const mutants = [
   { name: 'the target rule reads the holder\'s reach', case: 'borrow-rules', edits: [['src/core/hunt/cast-targets.js', '(Number.isInteger(row.reach) ? Math.max(1, row.reach) : Math.max(1, int(h && h.range) || 1))', 'Math.max(1, int(h && h.range) || 1)']] },
   { name: 'the conditions read the holder\'s reach', case: 'borrow-rules', edits: [['src/core/hunt/conditions.js', 'reaches(cx.inst, cx.u, slotReach(cx), a)', 'reaches(cx.inst, cx.u, cx.h && cx.h.range, a)']] },
   { name: 'a borrowed move keeps its native unlock', case: 'borrow-rules', edits: [[TR, '  if (row.unlock !== undefined) delete o.unlock;\n', '']] },
+  { name: 'a borrowed Challenge taunts only from a tank', case: 'borrow-rules', edits: [['src/core/hunt/targeting.js', 'if ((!isTank(k) && !(row && row.lent === true)) || !k.alive) return [];', 'if (!isTank(k) || !k.alive) return [];']] },
+  { name: 'a borrowed Challenge holds its whole time', case: 'borrow-rules', edits: [[TR, '  if (row.target === \'taunt\' && mod.penaltyPm > 0) o.holdPm = 1000 - mod.penaltyPm;\n', '']] },
+  { name: 'the bar asks a tank\'s Challenge', case: 'borrow-rules', edits: [['src/core/hunt/abilities.js', "    case 'taunt': return challengeable(inst, hero, row).length ? hero : null;", "    case 'taunt': return challengeable(inst, hero).length ? hero : null;"]] },
+  { name: 'the taunt forgets its row', case: 'borrow-rules', edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u, row); break;", "    case 'taunt': challengeFrom(inst, sc, u); break;"]] },
   { name: 'a borrow handed whole is not lent', case: 'borrow-rules', edits: [[TR, '    const lent = lentModsOf(null, hero && hero.borrowed, hero && hero.lentPm);', '    const lent = null;']] },
   { name: 'a build\'s borrow is not lent', case: 'borrow-rules', edits: [[TR, '  const mods = lentModsOf(g.mods, hero.borrowed, hero.lentPm);', '  const mods = g.mods;']] },
   { name: 'heroSetup drops a handed price', case: 'borrow-rules', edits: [['src/core/hunt-spawn.js', '&& Number.isInteger(b.penaltyPm) && b.penaltyPm > 0 && b.penaltyPm < 1000) lentPm[b.move] = b.penaltyPm;', '&& false) lentPm[b.move] = b.penaltyPm;']] },

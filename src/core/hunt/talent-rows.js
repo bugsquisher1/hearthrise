@@ -23,6 +23,8 @@
 //   reach     an ally heal or ward reaches as far as its native weapon's role (the healer's 7 tiles), in the target rule (cast-targets.js
 //             reachOf) and the "lowest ally" its conditions read (conditions.js allyOf), never the holder's 1 tile
 //   gate      its opening Level (src/core/talents.js borrowBand opensAt, the Roads' price) is its gate: its native skill's `unlock` is lifted
+//   taunts    a borrowed Challenge taunts from any seat (targeting.js challengeable), its hold x its price (`holdPm`); a seat that is no
+//             tank never holds the lap (holderTank), so it takes only what is on a hero that is no tank, the overflow
 //   withTalentRows(inst, u, rows)   the hero's conditional rows that hold now, appended to the party's aura rows on it: auras.js
 //                            auraRowsOn calls it, so danger.js powerPm reads both at every blow through its one call (no new seam there)
 //
@@ -66,34 +68,33 @@ const scaled = (n, f) => Math.max(1, Math.floor((n * f) / 1000000));
 const scaleBase = (b, f) => (Array.isArray(b) ? Object.freeze(b.map((x) => scaled(x, f))) : Number.isInteger(b) ? scaled(b, f) : b);
 const manaOf = (m, mod) => Math.max(0, Math.round((m * (1000 + (mod.manaPm || 0))) / 1000) + (mod.mana || 0));
 
-/* THE REACH OF A DISCIPLINE'S OWN ROLE: the range of the role its first role key plays (hunt-roles.js ROLE_KEYS: restoration is the staff's
-   healer, 7 tiles), the tiles a borrowed ally heal or ward of that discipline reaches (lend) */
+/* a discipline's own reach: the range of the role its first role key plays (hunt-roles.js ROLE_KEYS: restoration, the healer's 7 tiles) */
 const NATIVE_REACH = Object.freeze(Object.values(ROLE_KEYS).reduce((o, k) => {
   if (!Object.prototype.hasOwnProperty.call(o, k.discipline) && HUNT_ROLES[k.roles[0]]) o[k.discipline] = HUNT_ROLES[k.roles[0]].range;
   return o;
 }, {}));
-/* the clock a borrowed heal shares and the Magic rate a borrowed spell pays (BORROW_RULES: Mend's) */
 const LENT_CLOCK = BORROW_RULES.clock;
 const LENT_RATE = ABILITIES[BORROW_RULES.rate] ? ABILITIES[BORROW_RULES.rate].magicXpMult : 0;
 
-/* 17 SECTION 3'S RULES on `o`, the borrowed `row` as its borrower casts it (the header's A BORROWED MOVE): its heal on the clock it shares,
-   its Magic at that rate, its native reach for an ally row, no native unlock. A pure write on the copy moddedRow freezes. */
-function lend(o, row) {
+/* THE HEADER'S A BORROWED MOVE on `o`, the copy of `row` moddedRow freezes */
+function lend(o, row, mod) {
+  o.lent = true;
   if (heals(row) && row.id !== LENT_CLOCK && !Array.isArray(row.replaces)) o.replaces = Object.freeze([LENT_CLOCK]);
   if (row.magicXpMult > 0) o.magicXpMult = LENT_RATE;
   const reach = row.target === 'ally' ? NATIVE_REACH[row.disciplines[0]] : undefined;
   if (Number.isInteger(reach)) o.reach = reach;
   if (row.unlock !== undefined) delete o.unlock;
+  /* a taunt: from any seat (targeting.js challengeable reads `lent`), its hold at its price (holdPm; whole at no penalty) */
+  if (row.target === 'taunt' && mod.penaltyPm > 0) o.holdPm = 1000 - mod.penaltyPm;
 }
 
-/* lentModsOf's answers, by the grants' modifier object (none: LENT_NONE), then the list it was handed */
+/* lentModsOf's answers, by the grants' modifier object (none: LENT_NONE), then the list */
 const LENT = new WeakMap();
 const LENT_NONE = new Map();
 /**
- * THE BORROWED MOVES' MODIFIERS: `mods` (src/core/talents.js grantsOf `mods`, null for a hero with no build) with every move of `borrowed`
- * (the hero's borrow list, hunt-spawn.js heroSetup) marked `lent`, and a move handed with its penalty (`pens` { id: permille }, the Lab's
- * seam: a borrow handed whole) priced there when the grants price it nowhere. `mods` itself (or null) with nothing borrowed, so a hero
- * that borrows nothing reads exactly as before. Frozen, and the same object for the same inputs (rowsFor caches on it).
+ * THE BORROWED MOVES' MODIFIERS (the header): `mods` (grantsOf's, null with no build) with every move of `borrowed` marked `lent`, and a
+ * handed price (`pens` { id: permille }) where the grants price none. `mods` itself (or null) with nothing borrowed. Frozen and the same
+ * object for the same inputs (rowsFor caches on it).
  */
 export function lentModsOf(mods, borrowed, pens) {
   const ids = Array.isArray(borrowed) ? borrowed.filter((id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(ABILITIES, id)) : NONE;
@@ -140,7 +141,7 @@ export function moddedRow(row, mod) {
   if (mod.overShieldPm) o.overShieldPm = Math.max(0, (row.overShieldPm || 0) + mod.overShieldPm);
   if (mod.solo && row.party === true) delete o.party;
   /* A BORROWED MOVE (mod.lent: lentModsOf): 17 section 3's rules (the header) */
-  if (mod.lent === true) lend(o, row);
+  if (mod.lent === true) lend(o, row, mod);
   /* THE PIECES (MOD_FX): carried on the row as `fx`, read where the cast lands (abilities.js, heal-rules.js) */
   let fx = null;
   for (const k of MOD_FX) if (mod[k] !== undefined) (fx || (fx = {}))[k] = mod[k];

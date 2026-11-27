@@ -628,6 +628,11 @@
         "bytes": 3913022,
         "on": "2026-11-27",
         "why": "lane/designer-bd9: all 16 grounds' re-cut tops in src/data/danger.js, which the engine carries"
+      },
+      {
+        "bytes": 3921986,
+        "on": "2026-11-27",
+        "why": "lane/e5-borrowing (19 L6): the borrow engine in talent-rows.js (lend, lentModsOf: a heal on Mend's clock, Magic at Mend's rate, native reach, no native unlock), a lent Challenge from any seat in targeting.js, the slot's reach in conditions.js, heroSetup's priced seam, BORROW_RULES and the re-measured heal values in data/talents.js"
       }
     ]
   }

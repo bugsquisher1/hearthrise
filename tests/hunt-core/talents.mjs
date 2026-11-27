@@ -150,7 +150,11 @@ const cases = {
     const sh = T.borrowBand('shelter', 'border');
     /* the table on one method (lane/roads-v0-remeasure, 18 section 7): Shelter 1.4 free at a border, opening at the floor */
     if (!sh || sh.penaltyPm !== 0 || sh.opensAt !== 20) return 'Shelter at a border: ' + JSON.stringify(sh);
-    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered before V4 (measured past the last band)';
+    /* (lane/e5-borrowing: under the heal rule a sword with no healer still reads +40.3 held, past the last band, so it stays unoffered) */
+    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered though measured past the last band';
+    /* the borrowed Circle of Renewal on Mend's clock (2.0): free at a border, opening at 30 */
+    const cr = T.borrowBand('circle_of_renewal', 'border');
+    if (!cr || cr.penaltyPm !== 0 || cr.opensAt !== 30) return 'Circle of Renewal at a border: ' + JSON.stringify(cr);
     if (T.borrowBand('protective_ward', 'havora') !== null) return 'Protective Ward is offered at Havora';
     if (T.borrowBand('protective_ward', 'border').opensAt !== 140 || T.borrowBand('fireball', 'border').opensAt !== 60) return 'the table\'s Levels moved';
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter', havora: 'use_fireball' };
@@ -168,7 +172,8 @@ const cases = {
   /* EVERY TOWN LENDS A MEASURED MOVE (lane/roads-borrow-values; 17 section 3): a hero spends a point on a border town to reach its hybrid,
      so a town move with no measured V0 is a point that buys nothing. Every move a town names has a measured value (validate refuses a row
      that is not one), every town lends at least one move at a border, and a pick that lends nothing (no band: Greater Mend past the last
-     one until V4) is refused not_offered at the spend, before the points (the server's order), and in a saved build */
+     one, under the heal rule too: lane/e5-borrowing) is refused not_offered at the spend, before the points (the server's order), and in a
+     saved build */
   'town-values': (M) => {
     const TD = M.TD, T = M.T;
     const towns = TD.TALENT_NODES.filter((n) => n.kind === 'border');

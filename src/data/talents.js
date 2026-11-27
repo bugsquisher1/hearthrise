@@ -52,6 +52,7 @@
 
 import { POWER_LEDGER } from './power-ledger.js';
 import { STATUSES } from './statuses.js';
+import { RUNE_FAMILIES } from './runes.js';
 
 const isStatus = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(STATUSES, id);
 
@@ -730,10 +731,17 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
    a monster's blow a shell the hero cast took, what it took and from whom; `burst` an explosion on a kill; `reflect` what a shell took,
    back on its dealer; `pw` a boon's strength; `marked` the moment's monster carries a live Mark; a status's `r` (every monster that near
    the hero) and `pm` (a fixed tick of the moment's damage); a shield's `capPm`) */
-export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb']);
+export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb',
+  /* (lane/signatures-batch-3) a pull begins: the pack turns on the party (pull-cycle.js startPull), its monsters the moment's */
+  'pull']);
 export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect']);
 const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
-  'pw', 'marked']);
+  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every']);
+/* WHERE A DOER LANDS (`to`), by doer (lane/signatures-batch-3): a heal to 'self' (pm of its max health), the 'lowest' ally (pm of the moment's
+   amount), the moment's hero ('target': pm of its max health) or each living hero of the party ('party': pm of each one's max health); mana
+   to the moment's hero ('target': pm of the moment's amount); a boon to the wearer ('self') or each living hero of the party ('party') */
+const REACT_TO = Object.freeze({ heal: ['self', 'lowest', 'target', 'party'], mana: ['target'], boon: ['self', 'party'] });
+const FAMILIES = Object.freeze(Object.keys(RUNE_FAMILIES));
 /* the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen): pm fields ramp, the rest whole */
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
@@ -758,7 +766,10 @@ export function reactProblems(e, moves = null) {
   if (e.pw !== undefined && !(e.do === 'boon' && Number.isInteger(e.pw) && e.pw > 0 && e.pw <= 5000)) out.push('pw is a boon\'s strength, permille 1..5000');
   if (e.marked !== undefined && e.marked !== true) out.push('marked is true or absent');
   if (e.of !== undefined && (typeof e.of !== 'string' || (moves && !moves.includes(e.of)))) out.push('a reaction reads the moments of a live move (of)');
-  if (e.to !== undefined && !['self', 'lowest'].includes(e.to)) out.push('a reaction lands to self or lowest');
+  if (e.to !== undefined && !(REACT_TO[e.do] || []).includes(e.to)) out.push('a ' + e.do + ' lands to ' + (REACT_TO[e.do] || ['nowhere']).join(' or '));
+  for (const k of ['single', 'boss', 'alone']) if (e[k] !== undefined && e[k] !== true) out.push(k + ' is true or absent');
+  if (e.family !== undefined && !FAMILIES.includes(e.family)) out.push('a reaction reads the moments of a rune family (family)');
+  if (e.every !== undefined && !(Number.isInteger(e.every) && e.every >= 2 && e.every <= 100)) out.push('every is a count of moments 2..100');
   if (e.do === 'status' && !isStatus(e.status)) out.push('a status reaction names a status');
   for (const k of ['ms', 'capMs', 'clockMs']) if (e[k] !== undefined && !(Number.isInteger(e[k]) && e[k] > 0 && e[k] % 100 === 0)) out.push(k + ' is a whole number of 100 ms steps');
   if ((e.do === 'reset' || e.do === 'echo') && !e.ms) out.push('a ' + e.do + ' names its ms');

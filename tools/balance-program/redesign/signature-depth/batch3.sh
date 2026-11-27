@@ -41,3 +41,22 @@ run b3-roost-crossbow   wyvern_roost 140 $C
 run b3-slake-mixed      the_slake 57 $X
 run b3-krell-mixed      krells_hold 97 $X
 run b3-hask-mixed       hasks_ford 52 $X
+# ── the rows on their best cells (the size bar): a seat's reference company with the row worn, against its plain four above. The tank's
+#    rows read on Muster Barrows, its one ground with room over the plain four (batch2.sh); every other seat's on Muster too, a scale ground
+#    each seat hunts, its home's reading second where the home is on the scale ──
+run b3-muster-pavise     muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
+run b3-muster-boots      muster_barrows 60 $T --signatures night_carters_boots,-,-,-
+run b3-muster-chain      muster_barrows 60 $X --signatures -,-,-,lock_keepers_chain
+run b3-muster-bracers    muster_barrows 60 $X --signatures -,-,-,greened_bracers
+run b3-muster-thrower    muster_barrows 60 $X --signatures -,-,-,throwers_ring
+run b3-muster-leech      muster_barrows 60 $X --signatures -,-,-,vault_leech_ring
+run b3-muster-key        muster_barrows 60 $X --signatures -,-,-,the_cellar_key
+run b3-muster-stoker     muster_barrows 60 $X --signatures -,-,stokers_ring,-
+run b3-muster-tooth      muster_barrows 60 $X --signatures -,bulls_tooth,-,-
+run b3-muster-signet     muster_barrows 60 $X --signatures -,drowned_signet,-,-
+run b3-muster-claw       muster_barrows 60 $A --signatures fledgling_claw,-,-,-
+run b3-slake-waders      the_slake 57 sword --signatures slake_waders
+# (the coin pieces: their rule moves the supply bill and next to nothing in the fight, so the bar reads their coin a hero-hour beside pace)
+run b3-muster-candle     muster_barrows 60 $X --signatures -,-,the_cold_candle,-
+run b3-muster-riverstone muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
+run b3-muster-mitts      muster_barrows 60 $T --signatures teamsters_mitts,-,-,-

@@ -140,6 +140,50 @@ const sizeOf = (d) => (!d ? 'owed' : d.m > HI ? (d.se > SE_MAX ? 'over, se ' + d
   : d.m < LO ? (d.m + d.se < LO ? 'UNDER (raise or reshape)' : d.se > SE_MAX ? 'under, se ' + d.se.toFixed(1) + ': more seeds' : 'UNDER (raise or reshape)')
   : d.se > SE_MAX ? 'in band, se ' + d.se.toFixed(1) + ': more seeds' : 'in band');
 
+/* BATCH 3 (lane/signatures-batch-3, batch3.sh): [name, [best ground, plain, worn], [second ground, plain, worn] | null], each against its
+   plain four played again on this tree (the b3 plains). COIN: the coin pieces' rule moves the supply bill, so a row prints the store bill
+   a hero-hour (gold.storePerHeroH) and the kit's charge (runes) and drink lines beside its pace; means over the seeds (v1-climb keeps no
+   per-seed coin), never the size bar (15 "Decision: the scale a Signature is sized on": coin is the market's) */
+const ROWS3 = [
+  ['#1 Bannerman\'s Pavise (tank)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-pavise'], null],
+  ['#19 Lock-Keeper\'s Chain (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-chain'], ['The Slake', 'b3-slake-mixed', 'b3-slake-chain']],
+  ['#20 Greened Bracers (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-bracers'], ['The Slake, its home', 'b3-slake-mixed', 'b3-slake-bracers']],
+  ['#22 Slake Waders (a lone sword)', ['The Slake, its home', 'b3-slake-lone', 'b3-slake-waders'], ['Muster Barrows', 'b3-muster-lone', 'b3-muster-waders']],
+  ['#24 Stoker\'s Ring (mage)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-stoker'], ['Pyre Field, its home', 'b3-pyre-mixed', 'b3-pyre-stoker']],
+  ['#26 Thrower\'s Ring (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-thrower'], ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b3-carters-thrower']],
+  ['#28 Vault Leech Ring (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-leech'], ['Pyre Field', 'b3-pyre-mixed', 'b3-pyre-leech']],
+  ['#29 Fledgling Claw (axes)', ['Muster Barrows', 'b3-muster-axes', 'b3-muster-claw'], null],
+  ['#31 The Cellar Key (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-key'], ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b3-carters-key']],
+  ['#38 Drowned Signet (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-signet'], ['Hask\'s Ford', 'b3-hask-mixed', 'b3-hask-signet']],
+  ['#42 Night Carter\'s Boots (tank)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-boots'], null],
+  ['#43 Bull\'s Tooth (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-tooth'], ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b3-roost-tooth']],
+  ['#25 The Cold Candle (mage, coin)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-candle'], null],
+  ['#27 Riverstone Earrings (healer, coin)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-riverstone'], null],
+  ['#33 Teamster\'s Mitts (tank, coin)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-mitts'], null],
+];
+/* THE SHAPES TRIED on a batch-3 row that missed (a temporary id on a scratch copy, b3v-*): [label, plain, worn] */
+const VARIANTS3 = [];
+if (BATCH === '3') {
+  const coin = (p, s) => { const d = (f) => Math.round(f(s) - f(p)); return 'store ' + sgn(d((c) => c.gold.storePerHeroH.mean)).replace('.0', '') + ', runes ' + sgn(d((c) => c.kit.charge)).replace('.0', '') + ', drink ' + sgn(d((c) => c.kit.drink)).replace('.0', ''); };
+  console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Coin a hero-hour (worn - plain) | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const [name, best, other] of ROWS3) {
+    const read = (x) => { if (!x) return { g: '(none read)', owed: true, none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
+    const B = read(best), O = read(other);
+    const size = B.owed ? 'owed' : sizeOf(B.q);
+    const spread = B.owed || !B.q ? 'owed' : B.q.m < LO ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'
+      : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+    console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), B.owed ? 'owed' : show(B.h, true), B.owed ? 'owed' : show(B.q),
+      B.owed ? '' : pct(B.s.killsPerH, B.p.killsPerH), B.owed ? '' : coin(B.p, B.s), O.g, O.owed ? (O.none ? '' : 'owed') : show(O.q), size, spread].join(' | ') + ' |');
+  }
+  if (VARIANTS3.length) console.log('\n| Shape tried | Held delta (se, seeds) | Pace steps (se) | Size bar | Kills/h |\n|---|---|---|---|---|');
+  for (const [name, a, b] of VARIANTS3) {
+    const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+    console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : p && s ? 'no pay window' : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+  }
+  process.exit(0);
+}
+
 if (BATCH !== '2') {
   console.log('| Signature | Ground | Plain held | Held delta (se) | Pace steps (se) | Size bar | Level XP/h | Coin/h | Kills/h | Deaths |');
   console.log('|---|---|---|---|---|---|---|---|---|---|');

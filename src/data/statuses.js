@@ -182,6 +182,10 @@ export const STATUSES = Object.freeze({
   /* KINDLED (15 #16 Lamplighter's Robe: "your next Fireball or Frost Lance deals 30% more damage"): spent on that cast; 30 s to use it */
   kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,
     castOf: Object.freeze(['fireball', 'frost_lance']) }),
+  /* STEEPED (15 #20 Greened Bracers, lane/signatures-batch-3: "Green Sickness: your next Greater Mend heals 30% more"): Kindled's key, a
+     healer's next cast raised, spent on it; 30 s to use it */
+  steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,
+    castOf: Object.freeze(['greater_mend']) }),
 });
 
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */

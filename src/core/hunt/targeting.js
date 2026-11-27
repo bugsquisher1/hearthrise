@@ -278,7 +278,7 @@ export function challengeFrom(inst, sc, k) {
   const took = challengeable(inst, k);
   for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
-  if (took.length) queueOn(inst, k, 'taunt', { n: took.length });
+  if (took.length) queueOn(inst, k, 'taunt', { n: took.length, list: took });
   return took.length;
 }
 

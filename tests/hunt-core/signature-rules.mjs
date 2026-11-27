@@ -53,7 +53,7 @@
 //   dark              SIGNATURE_RULES.live is false and no src or server file but the engine's three readers names `wornSignature`; a hero
 //                     with none writes no field (the switch off plays as before: engine-parity holds with no re-pin)
 //
-// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/core/hunt/abilities.js src/core/hunt/status.js src/data/statuses.js
+// mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/core/hunt/abilities.js src/core/hunt/status.js src/data/statuses.js src/core/hunt/targeting.js src/core/hunt/pull-cycle.js
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -81,6 +81,9 @@ async function load(root) {
   M.MON = await imp('src/data/monsters.js');
   M.HG = await imp('src/data/hunt-grounds.js');
   M.CH = await imp('src/data/chests.js');
+  M.RQ = await imp('src/core/hunt/react-queue.js');
+  M.STS = await imp('src/core/hunt/status.js');
+  M.RF = await imp('src/data/runes.js');
   return M;
 }
 
@@ -129,9 +132,22 @@ const cases = {
     /* BATCH 2 (15 "Batch 2": #1 to #23 less the sample and #8; #1 dropped, #19 and #20 wait on a cell where mana binds, #22 is batch 3's) */
     const BATCH_2 = ['ossuary_helm', 'grave_guards_mail', 'charred_sabre', 'pikemans_gauntlets', 'floodwater_hatchets', 'coal_runners_bow',
       'provosts_longbow', 'wyvern_barb_crossbow', 'hall_fire_wand', 'catacomb_shroud', 'lamplighters_robe', 'bargemans_pole', 'drovers_hat', 'ferry_pennies'];
+    /* BATCH 3 (15 "Decision: count and size": the runes, procs, low health, utility and alone rows, #19 and #20's new rules, the Challenge's;
+       the auras, the pair, the mana-cost rows, #40 and #41 are batch 4's, 15 "Batch 3, measured") */
+    const BATCH_3 = ['bannermans_pavise', 'lock_keepers_chain', 'greened_bracers', 'slake_waders', 'stokers_ring', 'throwers_ring', 'the_cold_candle',
+      'fledgling_claw', 'riverstone_earrings', 'vault_leech_ring', 'the_cellar_key', 'teamsters_mitts', 'drowned_signet', 'night_carters_boots', 'bulls_tooth'];
     const ids = Object.keys(M.SG.SIGNATURES);
-    if (ids.join() !== SAMPLE.concat(BATCH_2).join()) return 'the Signatures are ' + ids + ', not the ruled sample and batch 2';
+    if (ids.join() !== SAMPLE.concat(BATCH_2, BATCH_3).join()) return 'the Signatures are ' + ids + ', not the ruled sample and batches 2 and 3';
     if (BATCH_2.length + 1 > 20) return 'batch 2 is ' + (BATCH_2.length + 1) + ' rows, over the 20 a batch may hold (CLAUDE.md section 10)';
+    if (BATCH_3.length > 20) return 'batch 3 is ' + BATCH_3.length + ' rows, over the 20 a batch may hold (CLAUDE.md section 10)';
+    /* a rune Signature names a family (CC-5), and a rule that is no reaction reads it: a rune it saves, a stack cap it raises */
+    const fams = Object.keys(M.RF.RUNE_FAMILIES);
+    for (const [id, s] of Object.entries(M.SG.SIGNATURES)) {
+      if (s.family !== undefined && !fams.includes(s.family)) return id + ': rune family ' + s.family;
+      if (s.saves && !(s.saves.family === s.family && Number.isInteger(s.saves.every) && s.saves.every >= 2)) return id + ': saves ' + JSON.stringify(s.saves);
+      if (s.stackPlus && !(M.ST.STATUSES[s.stackPlus.status] && Number.isInteger(s.stackPlus.n) && s.stackPlus.n >= 1 && s.stackPlus.n <= 3)) return id + ': stackPlus ' + JSON.stringify(s.stackPlus);
+      if (!s.reacts.length && !s.saves && !s.stackPlus) return id + ': a Signature with no rule';
+    }
     const slots = new Set(Object.values(M.ITEMS).map((it) => it.slot).filter(Boolean)), kinds = new Set(Object.values(M.ITEMS).map((it) => it.weaponType).filter(Boolean));
     const keys = new Set(M.CH.HEARTH_CHEST_KEYS.map((k) => k.id));
     const nums = new Set();
@@ -537,6 +553,250 @@ const cases = {
     if (stacksOf(a, 'blunted').length) return 'a Mend begun at ' + (u.hp - 100) / 10 + '% (over the 45% line) Blunted';
     return null;
   },
+  /* ── BATCH 3 ── */
+  'taunt-armor-break': (M) => {
+    /* #1 Bannerman's Pavise: the monsters a Challenge takes off an ally lose a quarter of their armor; one already on the tank is not taunted */
+    const k = H(M, 1, 12, 3, 'tank'), o = H(M, 2, 11, 5, 'mage'), a = E(M, 10, 0, 13, 4, 2), b = E(M, 11, 0, 12, 4, 2), held = E(M, 12, 0, 13, 3, 1);
+    const inst = fight(M, [k, o, a, b, held], { leader: 1 });
+    wear(M, k, 'bannermans_pavise');
+    const sc = sc2(M, 61);
+    const took = M.targeting.challengeFrom(inst, sc, k); M.RX.drainReactions(inst, sc);
+    if (took !== 2) return 'CONTROL: the Challenge took ' + took + ' (want the two on the mage)';
+    const ab = [a, b, held].map((m) => stacksOf(m, 'armor_break').length);
+    if (ab.join() !== '1,1,0') return 'Armor Break on the two taunted and the one already held: ' + ab + ' (want 1,1,0)';
+    if (M.SE.effectPm(a, 'armorPm') !== -250) return 'Armor Break keeps ' + M.SE.effectPm(a, 'armorPm') + ' permille of armor off, not 250';
+    return null;
+  },
+  'near-fall-ready': (M) => {
+    /* #19 Lock-Keeper's Chain: an ally crossing its near-fall line readies Spring Tide, once a 30 s clock */
+    const g = H(M, 1, 10, 3, 'healer'), a = H(M, 2, 12, 3, 'mage', { hp: 1000, maxHp: 1000 }), m = E(M, 10, 0, 13, 3, 2);
+    const inst = fight(M, [g, a, m]);
+    wear(M, g, 'lock_keepers_chain');
+    const sc = sc2(M, 62);
+    at(inst, sc, 1000);
+    g.cds = { spring_tide: 61000 };
+    blowAt(M, inst, sc, m, a, 100); M.RX.drainReactions(inst, sc);
+    if (g.cds.spring_tide !== 61000) return 'a blow that left the ally at 90% readied Spring Tide';
+    blowAt(M, inst, sc, m, a, 850); M.RX.drainReactions(inst, sc);
+    if (g.cds.spring_tide !== 1000) return 'an ally crossing its near-fall line left Spring Tide at ' + g.cds.spring_tide + ' (want now, 1000)';
+    a.hp = 1000; g.cds = Object.assign({}, g.cds, { spring_tide: 90000 });
+    at(inst, sc, 30900);
+    blowAt(M, inst, sc, m, a, 950); M.RX.drainReactions(inst, sc);
+    if (g.cds.spring_tide !== 90000) return 'Spring Tide readied again inside its 30 s clock';
+    a.hp = 1000;
+    at(inst, sc, 31000);
+    blowAt(M, inst, sc, m, a, 950); M.RX.drainReactions(inst, sc);
+    if (g.cds.spring_tide !== 31000) return 'Spring Tide not readied after its 30 s clock: ' + g.cds.spring_tide;
+    return null;
+  },
+  'cast-steeped': (M) => {
+    /* #20 Greened Bracers: a Green Sickness cast Steeps its caster, and its next Greater Mend casts 30% stronger and spends it */
+    const play = (worn) => {
+      const g = H(M, 1, 10, 3, 'healer', { mana: 2000, maxMana: 2000, maxHit: 60 }), a = H(M, 2, 11, 3, 'tank', { hp: 100, maxHp: 5000 });
+      const m = E(M, 10, 0, 12, 3, 2, { hp: 90000, maxHp: 90000 }), n = E(M, 11, 0, 12, 4, 2, { hp: 90000, maxHp: 90000 });
+      const inst = fight(M, [g, a, m, n]);
+      inst.heroes = { 1: entry(M, ['green_sickness'], 8) };
+      g.target = 10;
+      if (worn) wear(M, g, 'greened_bracers');
+      const sc = sc2(M, 63);
+      M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
+      const steeped = stacksOf(g, 'steeped').length, onMonster = stacksOf(m, 'steeped').length;
+      inst.heroes = { 1: entry(M, ['greater_mend'], 8) }; g.cds = {}; g.lanes = {};
+      M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
+      const cast = (id) => sc.events.filter((e) => e.type === 'cast' && e.ability === id);
+      return { steeped, onMonster, spent: stacksOf(g, 'steeped').length, gs: cast('green_sickness').length, power: cast('greater_mend').map((e) => e.power) };
+    };
+    const w = play(true), p = play(false);
+    if (w.gs !== 1 || p.gs !== 1 || w.power.length !== 1 || p.power.length !== 1 || !(p.power[0] > 0)) return 'CONTROL: the casts ' + JSON.stringify([w, p]);
+    if (w.steeped !== 1 || w.onMonster || p.steeped) return 'Steeped after Green Sickness: on the caster ' + w.steeped + ', on its monster ' + w.onMonster + ' (plain ' + p.steeped + ')';
+    if (w.power[0] !== Math.floor((p.power[0] * 1300) / 1000)) return 'the next Greater Mend cast at ' + w.power[0] + ' (want 30% over ' + p.power[0] + ')';
+    if (w.spent) return 'Steeped was not spent on the Greater Mend';
+    return null;
+  },
+  'alone-kill-heal': (M) => {
+    /* #22 Slake Waders: a kill heals a hero hunting alone 4% of its max health; the same kill with an ally in the world heals nothing */
+    const play = (withAlly) => {
+      const u = H(M, 1, 12, 3, 'melee_dps', { hp: 500, maxHp: 1000 }), m = E(M, 10, 0, 13, 3, 1, { hp: 5, maxHp: 50 });
+      const inst = fight(M, withAlly ? [u, H(M, 2, 10, 6, 'healer'), m] : [u, m]);
+      wear(M, u, 'slake_waders');
+      const sc = sc2(M, 64);
+      blowAt(M, inst, sc, u, m, 50, 'basic'); M.RX.drainReactions(inst, sc);
+      return u.hp;
+    };
+    const alone = play(false), party = play(true);
+    if (alone !== 540) return 'a kill alone left the hero at ' + alone + ' (want 500 + 4% of 1000)';
+    if (party !== 500) return 'a kill with an ally in the world healed the hero to ' + party;
+    return null;
+  },
+  'fire-on-chill': (M) => {
+    /* #24 Stoker's Ring: a Fire rune spell's hit on a chilled monster lands a second hit of 20% of it a sub-step later; an Ice spell's, or
+       a Fire spell's on an unchilled monster, nothing */
+    const u = H(M, 1, 8, 3, 'mage'), cold = E(M, 10, 0, 13, 3, 1, { hp: 9000, maxHp: 9000 }), warm = E(M, 11, 0, 13, 4, 1, { hp: 9000, maxHp: 9000 });
+    const inst = fight(M, [u, cold, warm]);
+    wear(M, u, 'stokers_ring');
+    cold.statuses = [{ s: 'chill', src: 1, left: 3000, next: 0, scale: 1000 }];
+    const sc = sc2(M, 65);
+    blowAt(M, inst, sc, u, warm, 500, 'fireball'); blowAt(M, inst, sc, u, cold, 500, 'frost_lance'); M.RX.drainReactions(inst, sc);
+    if (stacksOf(warm, 'echo').length || stacksOf(cold, 'echo').length) return 'a Fireball on an unchilled monster, or an Ice spell on a chilled one, echoed';
+    blowAt(M, inst, sc, u, cold, 500, 'fireball'); M.RX.drainReactions(inst, sc);
+    const e = stacksOf(cold, 'echo');
+    if (e.length !== 1 || e[0].amt !== 100) return 'a Fireball on a chilled monster: ' + JSON.stringify(e) + ' (want one echo of 20% of 500)';
+    return null;
+  },
+  'rune-save': (M) => {
+    /* #25 The Cold Candle: every third Ice rune spell buys no rune (its cast says which rune it saved); a plain mage buys all three */
+    const play = (worn) => {
+      const u = H(M, 1, 10, 3, 'mage', { mana: 9000, maxMana: 9000, maxHit: 60 }), m = E(M, 10, 0, 14, 3, 1, { hp: 90000, maxHp: 90000 });
+      const inst = fight(M, [u, m]);
+      inst.heroes = { 1: entry(M, ['frost_lance'], 8) };
+      u.target = 10;
+      if (worn) wear(M, u, 'the_cold_candle');
+      const sc = sc2(M, 66);
+      const purse = [];
+      for (let i = 0; i < 3; i++) { u.cds = Object.fromEntries(Object.entries(u.cds || {}).filter(([k]) => k.startsWith('~'))); u.lanes = {}; M.abilities.castAbilities(inst, sc); purse.push(inst.heroes[1].hs.purse); }
+      const casts = sc.events.filter((e) => e.type === 'cast' && e.ability === 'frost_lance');
+      return { gold: casts.map((e) => e.gold), saved: casts.map((e) => e.saved || null), purse };
+    };
+    const w = play(true), p = play(false);
+    if (p.gold.length !== 3 || !p.gold.every((g) => g > 0)) return 'CONTROL: the plain mage\'s casts cost ' + JSON.stringify(p.gold);
+    if (w.gold.join() !== [p.gold[0], p.gold[1], 0].join()) return 'the Candle\'s three casts cost ' + w.gold + ' (want ' + p.gold[0] + ', ' + p.gold[1] + ', 0)';
+    if (!w.saved[2] || w.saved[0] || w.saved[1]) return 'the saved rune: ' + JSON.stringify(w.saved);
+    if (w.purse[2] !== w.purse[1]) return 'the third cast spent ' + (w.purse[1] - w.purse[2]) + ' gold';
+    return null;
+  },
+  'shell-break-heal': (M) => {
+    /* #26 Thrower's Ring: a shell the wearer cast breaking heals its hero 6% of that hero's max health; another hero's shell nothing */
+    const g = H(M, 1, 10, 3, 'healer'), a = H(M, 2, 12, 3, 'tank', { hp: 500, maxHp: 1000 }), q = H(M, 3, 11, 5, 'mage'), m = E(M, 10, 0, 13, 3, 2);
+    const inst = fight(M, [g, a, q, m]);
+    wear(M, g, 'throwers_ring');
+    const sc = sc2(M, 67);
+    a.shield = 30; a.shieldBy = 3;
+    blowAt(M, inst, sc, m, a, 50); M.RX.drainReactions(inst, sc);
+    if (a.hp !== 480) return 'another hero\'s shell breaking healed: ' + a.hp;
+    a.shield = 30; a.shieldBy = 1;
+    blowAt(M, inst, sc, m, a, 50); M.RX.drainReactions(inst, sc);
+    if (a.hp !== 520) return 'the wearer\'s shell breaking left its hero at ' + a.hp + ' (want 480 - 20 + 6% of 1000)';
+    return null;
+  },
+  'heal-mana': (M) => {
+    /* #27 Riverstone Earrings: a Water rune heal gives the hero it heals mana of 10% of the HP it landed; Mend (no rune) none */
+    const g = H(M, 1, 10, 3, 'healer'), a = H(M, 2, 11, 3, 'mage', { hp: 100, maxHp: 1000, mana: 0, maxMana: 1000 });
+    const inst = fight(M, [g, a]);
+    wear(M, g, 'riverstone_earrings');
+    const sc = sc2(M, 68);
+    M.HR.landHeal(g, a, 300, sc, false, M.AD.ABILITIES.mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
+    if (a.mana) return 'a Mend gave mana';
+    M.HR.landHeal(g, a, 250, sc, false, M.AD.ABILITIES.greater_mend, false, { inst, fx: null }); M.RX.drainReactions(inst, sc);
+    if (a.mana !== 25) return 'a Greater Mend that landed 250 gave ' + a.mana + ' mana (want 10%, 25)';
+    return null;
+  },
+  'sickness-passes': (M) => {
+    /* #28 Vault Leech Ring: a monster dying with the wearer's Sickness passes it, time left, to the nearest monster */
+    const g = H(M, 1, 10, 3, 'healer'), k = H(M, 2, 12, 3, 'tank');
+    const dead = E(M, 10, 0, 13, 3, 2, { hp: 5, maxHp: 50 }), near = E(M, 11, 0, 14, 3, 2), far = E(M, 12, 0, 18, 3, 2);
+    const inst = fight(M, [g, k, dead, near, far]);
+    wear(M, g, 'vault_leech_ring');
+    dead.statuses = [{ s: 'sickness', src: 1, left: 2500, next: 0, scale: 1000 }];
+    const sc = sc2(M, 69);
+    blowAt(M, inst, sc, k, dead, 50, 'basic'); M.RX.drainReactions(inst, sc);
+    const got = stacksOf(near, 'sickness');
+    if (got.length !== 1 || got[0].src !== 1 || got[0].left !== 2500 || stacksOf(far, 'sickness').length) return 'the Sickness after its monster died: ' + JSON.stringify([near.statuses, far.statuses]);
+    return null;
+  },
+  'bleed-six': (M) => {
+    /* #29 Fledgling Claw: the wearer's sixth Bleed lands on a monster at five; a plain hero's stays at five, and no landing goes past six */
+    const play = (worn) => {
+      const u = H(M, 1, 12, 3, 'melee_dps', { maxHit: 50 }), o = H(M, 2, 11, 3, 'ranger', { maxHit: 50 }), m = E(M, 10, 0, 13, 3, 1, { hp: 90000, maxHp: 90000 });
+      const inst = fight(M, [u, o, m]);
+      if (worn) wear(M, u, 'fledgling_claw');
+      const sc = sc2(M, 70);
+      const lay = (by) => M.STS.applyStatus(inst, m, M.ST.STATUSES.bleed, { u: by.id, maxHit: 50, runeTier: 1 }, sc);
+      for (let i = 0; i < 5; i++) lay(o);
+      const five = stacksOf(m, 'bleed').length;
+      lay(u); const six = stacksOf(m, 'bleed').length;
+      lay(u); lay(o); const after = stacksOf(m, 'bleed').length;
+      return { five, six, after };
+    };
+    const w = play(true), p = play(false);
+    if (w.five !== 5 || p.five !== 5) return 'CONTROL: five stacks laid read ' + w.five + ', ' + p.five;
+    if (w.six !== 6 || w.after !== 6) return 'the wearer\'s Bleeds on a monster at five: ' + w.six + ', then ' + w.after + ' (want 6, 6)';
+    if (p.six !== 5) return 'a plain hero\'s Bleed went past five: ' + p.six;
+    return null;
+  },
+  'every-fifth-death': (M) => {
+    /* #31 The Cellar Key: every fifth monster that dies (whoever's blow) heals each living hero of the wearer's party 3% of its own max */
+    const g = H(M, 1, 10, 3, 'healer', { hp: 500, maxHp: 1000 }), k = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 2000 });
+    const ms = [0, 1, 2, 3, 4].map((i) => E(M, 10 + i, 0, 13, 3 + i, 2, { hp: 1, maxHp: 1 }));
+    const inst = fight(M, [g, k, ...ms]);
+    wear(M, g, 'the_cellar_key');
+    const sc = sc2(M, 71);
+    for (const m of ms.slice(0, 4)) { blowAt(M, inst, sc, k, m, 5, 'basic'); M.RX.drainReactions(inst, sc); }
+    if (g.hp !== 500 || k.hp !== 1000) return 'four deaths healed: ' + g.hp + ', ' + k.hp;
+    blowAt(M, inst, sc, k, ms[4], 5, 'basic'); M.RX.drainReactions(inst, sc);
+    if (g.hp !== 530 || k.hp !== 1060) return 'the fifth death left the party at ' + g.hp + ', ' + k.hp + ' (want 3% of each one\'s max: 530, 1060)';
+    return null;
+  },
+  'kill-mana': (M) => {
+    /* #33 Teamster's Mitts: a kill gives the wearer 2% of its max mana; a hit that does not kill nothing */
+    const u = H(M, 1, 12, 3, 'tank', { mana: 0, maxMana: 500 }), m = E(M, 10, 0, 13, 3, 1, { hp: 100, maxHp: 100 });
+    const inst = fight(M, [u, m]);
+    wear(M, u, 'teamsters_mitts');
+    const sc = sc2(M, 72);
+    blowAt(M, inst, sc, u, m, 40, 'basic'); M.RX.drainReactions(inst, sc);
+    if (u.mana) return 'a hit that did not kill gave ' + u.mana + ' mana';
+    blowAt(M, inst, sc, u, m, 90, 'basic'); M.RX.drainReactions(inst, sc);
+    if (u.mana !== 10) return 'a kill gave ' + u.mana + ' mana (want 2% of 500)';
+    return null;
+  },
+  'boss-low-party': (M) => {
+    /* #38 Drowned Signet: a hit that leaves a boss under 25% makes every living hero of the party Emboldened at 1.5 times its row for 10 s,
+       once a boss; a monster that is no boss nothing */
+    const r = H(M, 1, 10, 3, 'ranger'), k = H(M, 2, 12, 3, 'tank'), dead = H(M, 3, 11, 5, 'mage', { alive: false, hp: 0 });
+    const boss = E(M, 10, 0, 13, 3, 2, { kind: 'captain_hask', hp: 1000, maxHp: 1000 }), mob = E(M, 11, 0, 13, 4, 2, { hp: 1000, maxHp: 1000 });
+    const inst = fight(M, [r, k, dead, boss, mob]);
+    if (M.MONSTERS[boss.kind].boss !== true || M.MONSTERS[mob.kind].boss === true) return 'CONTROL: the fixture\'s boss ' + boss.kind + ' and monster ' + mob.kind;
+    wear(M, r, 'drowned_signet');
+    const sc = sc2(M, 73, 1000);
+    blowAt(M, inst, sc, r, mob, 800, 'basic'); M.RX.drainReactions(inst, sc);
+    if (stacksOf(r, 'emboldened').length) return 'a monster that is no boss, under 25%, Emboldened the party';
+    blowAt(M, inst, sc, r, boss, 700, 'basic'); M.RX.drainReactions(inst, sc);
+    if (stacksOf(r, 'emboldened').length) return 'a boss at 30% Emboldened the party';
+    blowAt(M, inst, sc, r, boss, 100, 'basic'); M.RX.drainReactions(inst, sc);
+    for (const h of [r, k]) {
+      const s = stacksOf(h, 'emboldened');
+      if (s.length !== 1 || s[0].left !== 10000 || M.SE.effectPm(h, 'dealtPm') !== 150) return 'hero ' + h.id + ' after the boss fell under 25%: ' + JSON.stringify(h.statuses);
+    }
+    if (stacksOf(dead, 'emboldened').length) return 'a fallen hero was Emboldened';
+    r.statuses = []; k.statuses = [];
+    blowAt(M, inst, sc, r, boss, 10, 'basic'); M.RX.drainReactions(inst, sc);
+    if (stacksOf(r, 'emboldened').length) return 'the same boss Emboldened the party twice';
+    return null;
+  },
+  'pull-chill': (M) => {
+    /* #42 Night Carter's Boots: a pull's start Chills every monster of its pack for 3 s, none outside it (the seam, startPull: real-settle) */
+    const k = H(M, 1, 12, 3, 'tank'), a = E(M, 10, 0, 18, 3, 1), b = E(M, 11, 0, 19, 4, 1), c = E(M, 12, 0, 13, 4, 1);
+    const inst = fight(M, [k, a, b, c]);
+    wear(M, k, 'night_carters_boots');
+    const sc = sc2(M, 74);
+    M.RQ.queueOn(inst, k, 'pull', { list: [a, b], n: 2 }); M.RX.drainReactions(inst, sc);
+    const got = [a, b, c].map((m) => stacksOf(m, 'chill').map((s) => s.left).join('/') || '-');
+    if (got.join() !== '3000,3000,-') return 'Chill after a pull of two: ' + got + ' (want 3000,3000,-)';
+    return null;
+  },
+  'single-carry': (M) => {
+    /* #43 Bull's Tooth: a single-target move's kill carries its overkill to the nearest monster; an area or line move's kill carries nothing */
+    const r = H(M, 1, 10, 3, 'ranger');
+    const f1 = E(M, 10, 0, 13, 3, 1, { hp: 100, maxHp: 1000 }), n1 = E(M, 11, 0, 14, 3, 1, { hp: 5000, maxHp: 5000 });
+    const f2 = E(M, 12, 0, 13, 8, 1, { hp: 100, maxHp: 1000 }), n2 = E(M, 13, 0, 14, 8, 1, { hp: 5000, maxHp: 5000 });
+    const inst = fight(M, [r, f1, n1, f2, n2]);
+    wear(M, r, 'bulls_tooth');
+    const sc = sc2(M, 75);
+    blowAt(M, inst, sc, r, f2, 400, 'raking_shot'); M.RX.drainReactions(inst, sc);
+    if (n2.hp !== 5000) return 'a line move\'s kill carried ' + (5000 - n2.hp);
+    blowAt(M, inst, sc, r, f1, 400, 'precision_shot'); M.RX.drainReactions(inst, sc);
+    if (n1.hp !== 4700) return 'a Precision Shot that killed for 300 past the HP it took carried ' + (5000 - n1.hp) + ' (want 300)';
+    return null;
+  },
   'real-settle': async (M) => {
     const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
     const P = await loadPlay(M.root);
@@ -544,8 +804,11 @@ const cases = {
     const SIG = ['cairn_belt', 'lurchers_collar', 'the_wood_book', 'brewers_apron'];
     /* batch 2's on the same four: the Saber's Blunted on a Flame Strike's target, the Longbow's cuts, the Wand's bursts, the Hat's reflected blows */
     const SIG2 = ['charred_sabre', 'provosts_longbow', 'hall_fire_wand', 'drovers_hat'];
+    /* batch 3's: the Boots' Chill on a pull's pack, the Tooth's carried overkill, the Ring's echo on a chilled monster, the Key's party heal */
+    const SIG3 = ['night_carters_boots', 'bulls_tooth', 'stokers_ring', 'the_cellar_key'];
     const go = (sig, windowMs) => {
-      const seen = { boon: 0, bleed: 0, blunted: 0, reflect: 0, burst: 0 };
+      const seen = { boon: 0, bleed: 0, blunted: 0, reflect: 0, burst: 0, pullChill: 0, carry: 0, echo: 0, key: 0 };
+      let pullAt = null;
       const r = P.run('muster_barrows', 60, four, { spanMs: 900000, windowMs, secret: '-4611686018427387904', options: () => ({ risk: 'steady', danger: 570 }),
         equipment: (role, i, L) => ({ ...P.kitFor(L, role), ...(role === 'ranger' ? { ammo: 'steel_arrows' } : {}) }),
         bag: (role) => (role === 'ranger' ? { steel_arrows: { loaded: 400 } } : {}),
@@ -567,6 +830,12 @@ const cases = {
           if (e.type === 'status_on' && e.status === 'blunted') seen.blunted++;
           if (e.type === 'dmg' && e.ability === 'reflect') seen.reflect++;
           if (e.type === 'dmg' && e.ability === 'burst') seen.burst++;
+          /* (no move of this bar Chills: a Chill at a pull's own instant is the Boots') */
+          if (e.type === 'pull') pullAt = e.atMs;
+          if (e.type === 'status_on' && e.status === 'chill' && e.atMs === pullAt) seen.pullChill++;
+          if (e.type === 'dmg' && e.ability === 'carry') seen.carry++;
+          if (e.type === 'dmg' && e.ability === 'echo') seen.echo++;
+          if (e.type === 'heal' && e.ability === 'the_cellar_key') seen.key++;
         } } });
       return { sig: JSON.stringify({ t: r.totals, x: r.heroXp, seen }), seen };
     };
@@ -580,6 +849,11 @@ const cases = {
     if (!closed2.seen.blunted || !closed2.seen.reflect || !closed2.seen.burst) return 'batch 2 on the real settle: ' + JSON.stringify(closed2.seen);
     if (plain.sig === closed2.sig) return 'the four with batch 2\'s Signatures played exactly the hunt of the four with none';
     if (closed2.sig !== viewed2.sig) return 'batch 2\'s Signatures settled in 10-minute and 100-second windows played two hunts';
+    if (plain.seen.pullChill || plain.seen.carry || plain.seen.echo || plain.seen.key) return 'a four with no Signature played batch 3\'s: ' + JSON.stringify(plain.seen);
+    const closed3 = go(SIG3, 600000), viewed3 = go(SIG3, 100000);
+    if (!closed3.seen.pullChill || !closed3.seen.carry || !closed3.seen.echo || !closed3.seen.key) return 'batch 3 on the real settle: ' + JSON.stringify(closed3.seen);
+    if (plain.sig === closed3.sig) return 'the four with batch 3\'s Signatures played exactly the hunt of the four with none';
+    if (closed3.sig !== viewed3.sig) return 'batch 3\'s Signatures settled in 10-minute and 100-second windows played two hunts';
     return null;
   },
   dark: (M) => {
@@ -619,6 +893,8 @@ const ST = 'src/core/hunt/status.js';
 const HRL = 'src/core/hunt/heal-rules.js';
 const SG = 'src/data/signatures.js';
 const STD = 'src/data/statuses.js';
+const TG = 'src/core/hunt/targeting.js';
+const PC = 'src/core/hunt/pull-cycle.js';
 const mutants = [
   { name: 'a list plays its last Signature', case: 'worn-signature', edits: [[SR, '.filter((id) => own(SIGNATURES, id)).slice(0, SIGNATURE_RULES.perHero);', '.filter((id) => own(SIGNATURES, id)).reverse();']] },
   { name: 'no Signature plays at all', case: 'worn-signature', edits: [['src/data/signatures.js', '  perHero: 1,', '  perHero: 0,']] },
@@ -626,7 +902,7 @@ const mutants = [
   { name: 'a boundary adds the rows again', case: 'worn-signature', edits: [[SR, '.filter((r) => r.sig !== true)', '.filter(() => true)']] },
   { name: 'the Roads\' rows go with the Signature', case: 'worn-signature', edits: [[SR, '    u.reacts = rest && rest.length ? rest.concat(signatureReacts(id)) : signatureReacts(id);', '    u.reacts = signatureReacts(id);']] },
   { name: 'a line-less hp_below passes the check', case: 'rows', edits: [['src/data/talents.js', "  if (e.on === 'hp_below' && e.belowPm === undefined) out.push('hp_below names its line (belowPm)');\n", '']] },
-  { name: 'the line is read when the queue drains, not as the blow lands', case: 'low-health-shield', edits: [[RQ, ' && holdsNow(row, ctx, inst.atMs)) (inst.reactQ', ') (inst.reactQ']] },
+  { name: 'the line is read when the queue drains, not as the blow lands', case: 'low-health-shield', edits: [[RQ, ' && holdsNow(row, ctx, inst.atMs) && holdsToo(inst, u, row, ctx)) (inst.reactQ', ' && holdsToo(inst, u, row, ctx)) (inst.reactQ']] },
   { name: 'the hero\'s own health is never queued', case: 'low-health-shield', edits: [[DM, "  if (target.alive) queueOn(inst, target, 'hp_below', { t: target });\n", '']] },
   { name: 'a death is the killer\'s only', case: 'pass-on-death', edits: [[DM, "for (const h of rs) queueOn(inst, h, 'death',", "for (const h of rs) if (h === source) queueOn(inst, h, 'death',"]] },
   { name: 'a Mark moves onto a marked monster', case: 'pass-on-death', edits: [[RX, '(o) => !(int(o.markUntil) > sc.atMs)', '() => true']] },
@@ -634,8 +910,8 @@ const mutants = [
   { name: 'a passed status loses its scale', case: 'pass-on-death', edits: [[RX, 'st.left = was.left; st.scale = was.scale;', 'st.left = was.left;']] },
   { name: 'has is never read', case: 'reset-from-move', edits: [[RQ, "(row.has === undefined || carries(ctx.t, row.has))", 'true']] },
   { name: 'ready waits out the cooldown', case: 'reset-from-move', edits: [[RX, '  u.cds = Object.assign({}, u.cds, { [move]: atMs });', '  u.cds = Object.assign({}, u.cds, { [move]: readyAt(u.cds, move) });']] },
-  { name: 'a cast heal queues no moment', case: 'heal-boon', edits: [[HRL, "  if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id, was });\n", '']] },
-  { name: 'a boon keeps the row\'s own time', case: 'heal-boon', edits: [[RX, '    if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;\n    return true;\n  },\n});', '    return true;\n  },\n});']] },
+  { name: 'a cast heal queues no moment', case: 'heal-boon', edits: [[HRL, "  if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id, was, dmg: landed });\n", '']] },
+  { name: 'a boon keeps the row\'s own time', case: 'heal-boon', edits: [[RX, '  if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;\n  return true;\n}', '  return true;\n}']] },
   /* ── batch 2: each row's case, its mutant ── */
   { name: 'a Blunted swing is never spent', case: 'first-blow-half', edits: [[DM, '      spendOnce(u, sc);\n      continue;', '      continue;']] },
   { name: 'Blunted cuts nothing', case: 'first-blow-half', edits: [[STD, 'dealtPm: -500, once: true', 'dealtPm: -1, once: true']] },
@@ -659,13 +935,33 @@ const mutants = [
   { name: 'the Shroud Chills instead', case: 'hit-silence', edits: [[SG, "do: 'status', status: 'silenced', ms: 3000", "do: 'status', status: 'chill', ms: 3000"]] },
   { name: 'a Kindled cast is not raised', case: 'break-kindle', edits: [[AB, 'const raise = spendCastPm(u, row.id, sc);', 'const raise = 0;']] },
   { name: 'Kindled is never spent', case: 'break-kindle', edits: [[ST, '  unit.statuses = list.filter((s) => s !== spent);\n', '']] },
-  { name: 'a heal reads its line after the heal', case: 'heal-guard', edits: [[HRL, '{ t, ability: row.id, was }', '{ t, ability: row.id }']] },
-  { name: 'a boon ignores its strength', case: 'heal-guard', edits: [[RX, '    if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;\n', '']] },
+  { name: 'a heal reads its line after the heal', case: 'heal-guard', edits: [[HRL, '{ t, ability: row.id, was, dmg: landed }', '{ t, ability: row.id, dmg: landed }']] },
+  { name: 'a boon ignores its strength', case: 'heal-guard', edits: [[RX, '  if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;\n', '']] },
   { name: 'a shell\'s blow queues nothing', case: 'absorb-reflect', edits: [[DM, "  if (Number.isInteger(shellBy) && r.absorbed > 0 && isHero(target) && isMonster(source)) queueOn(inst, unitById(inst, shellBy), 'absorb', { t: target, src: source, dmg: r.absorbed });\n", '']] },
   /* (lane/designer-sig-metric) the Hat at the 50% that read 19.6 pace steps, over the band */
   { name: 'the Hat sends back half', case: 'absorb-reflect', edits: [[SG, "reacts: [{ on: 'absorb', do: 'reflect', pm: 250 }]", "reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }]"]] },
   { name: 'a status ignores its reach', case: 'low-mend-blunt', edits: [[RX, 'const list = Number.isInteger(row.r) ?', 'const list = false ?']] },
   { name: 'the Pennies\' line at half health', case: 'low-mend-blunt', edits: [[SG, "belowPm: 450, do: 'status', status: 'blunted', r: 1 }", "belowPm: 500, do: 'status', status: 'blunted', r: 1 }"]] },
+  /* ── batch 3: each row's case, its mutant (a new piece's seam or filter, else the row itself) ── */
+  { name: 'a taunt names no monsters', case: 'taunt-armor-break', edits: [[TG, "queueOn(inst, k, 'taunt', { n: took.length, list: took })", "queueOn(inst, k, 'taunt', { n: took.length })"]] },
+  { name: 'the Chain has no clock', case: 'near-fall-ready', edits: [[SG, "move: 'spring_tide', clockMs: 30000 }", "move: 'spring_tide' }"]] },
+  { name: 'a self boon lands on the cast\'s monster', case: 'cast-steeped', edits: [[SG, "do: 'boon', to: 'self', status: 'steeped' }", "do: 'boon', status: 'steeped' }"]] },
+  { name: 'alone is never read', case: 'alone-kill-heal', edits: [[RQ, '(row.alone !== true || aloneIn(inst, u))', 'true']] },
+  { name: 'family is never read', case: 'fire-on-chill', edits: [[RQ, '(row.family === undefined || familyOf(ctx.ability) === row.family)', 'true']] },
+  { name: 'a saved rune is paid anyway', case: 'rune-save', edits: [[AB, '  if (save && save.drop) pick = Object.assign({}, pick, { lines: pick.lines.slice(1), saved: pick.lines[0].id });\n', '']] },
+  { name: 'the Candle\'s count is never kept', case: 'rune-save', edits: [[AB, '  if (save) u.cds = Object.assign({}, u.cds || {}, { [save.key]: save.count });\n', '']] },
+  { name: 'the Thrower\'s Ring heals its wearer', case: 'shell-break-heal', edits: [[SG, "do: 'heal', to: 'target', pm: 60 }", "do: 'heal', to: 'self', pm: 60 }"]] },
+  { name: 'a heal moment carries no amount', case: 'heal-mana', edits: [[HRL, 'was, dmg: landed });', 'was });']] },
+  { name: 'the Vault Leech Ring passes a Bleed', case: 'sickness-passes', edits: [[SG, "{ on: 'death', do: 'pass', what: 'sickness' }", "{ on: 'death', do: 'pass', what: 'bleed' }"]] },
+  { name: 'a raised stack cap is never read', case: 'bleed-six', edits: [[ST, '    else if (before < row.maxStacks + stackPlus(inst, row, src)) list.push(fresh());\n', '']] },
+  { name: 'every is never counted', case: 'every-fifth-death', edits: [[RX, '    if (c !== 0) return;\n', '']] },
+  { name: 'a party heal lands on the wearer only', case: 'every-fifth-death', edits: [[RX, "for (const t of row.to === 'party' ? partyOf(inst, u) : [ctx.t])", 'for (const t of [u])']] },
+  { name: 'the Mitts pay on a hit', case: 'kill-mana', edits: [[SG, "{ on: 'kill', do: 'mana', pm: 20 }", "{ on: 'hit', do: 'mana', pm: 20 }"]] },
+  { name: 'boss is never read', case: 'boss-low-party', edits: [[RQ, '(row.boss !== true || bossOf(inst, ctx.t))', 'true']] },
+  { name: 'the Signet has no clock', case: 'boss-low-party', edits: [[SG, "pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }", 'pw: 1500, ms: 10000 }']] },
+  { name: 'a moment\'s monsters are never read', case: 'pull-chill', edits: [[RX, '    : Array.isArray(ctx.list) ? ctx.list : [ctx.src || ctx.t];', '    : [ctx.src || ctx.t];']] },
+  { name: 'a pull queues nothing', case: 'real-settle', edits: [[PC, "  if (rs.length) { const list = packMonsters(inst, p); for (const h of rs) queueOn(inst, h, 'pull', { list, n: list.length }); }\n", '']] },
+  { name: 'single is never read', case: 'single-carry', edits: [[RQ, '(row.single !== true || singleOf(ctx.ability))', 'true']] },
   { name: 'the settle never syncs the Signature', case: 'real-settle', edits: [['src/core/combat-sim.js', '  syncSignature(u, m.hero);', '  void syncSignature;']] },
   { name: 'the member drops the Signature', case: 'real-settle', edits: [['src/core/member.js', "        ...(typeof h.wornSignature === 'string' && h.wornSignature ? { wornSignature: h.wornSignature } : {}),\n", '']] },
   { name: 'Signatures switched on', case: 'dark', edits: [['src/data/signatures.js', '  live: false,', '  live: true,']] },

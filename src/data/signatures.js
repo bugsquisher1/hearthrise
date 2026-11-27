@@ -31,7 +31,9 @@
 //   #18 Brewer's Apron          healer    a timed party damage buff          heal (of Circle of Renewal) -> boon Emboldened, 4 s
 // BATCH 2 (15 "Batch 2": the rest of the move Signatures, #1 to #23 less the sample and #8, which waits on Stagger's branch rows; the
 // readings are 15 "Batch 2, measured", each row's number the one that read inside the size bar or the doc's starting value):
-//   #1  Bannerman's Pavise      tank      taunt -> Blunted on each monster taken (its next blow at half)
+//   #1  Bannerman's Pavise      tank      DROPPED (15 "Batch 2, measured"): its moment, a taunt, is about 9 Challenges and 13 monsters an
+//                                         hour for the reference tank, which holds its pulls without one (-0.2, se 2.9; +0.5 pinned on its home);
+//                                         its piece, Blunted on the monsters a taunt took, stays in the engine (#23 and #4 lay Blunted)
 //   #2  Ossuary Helm            tank      cast (of Frost Slam) -> shield 2% x each monster it Chills, at most 10% (CUT from 3% and 15%: +15.8 read over the band)
 //   #3  Grave Guard's Mail      tank      RESHAPED (a readied Challenge read -1.9: the reference tank casts it 9 times an hour): shield_break
 //                                         (a shell the wearer cast: the shield discipline casts only Shelter's) -> Guarded at three times
@@ -95,10 +97,6 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'heal', of: 'circle_of_renewal', do: 'boon', status: 'emboldened', ms: 4000 }] }),
 
   /* ── BATCH 2 (lane/signatures-batch-2) ── */
-  bannermans_pavise: sig({ id: 'bannermans_pavise', n: 1, name: 'Bannerman\'s Pavise', slot: 'shield', move: 'challenge',
-    home: { kind: 'monster', id: 'bannerman' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'Challenge: the first blow from each monster you taunt lands at half damage',
-    reacts: [{ on: 'taunt', do: 'status', status: 'blunted' }] }),
   ossuary_helm: sig({ id: 'ossuary_helm', n: 2, name: 'Ossuary Helm', slot: 'helmet', move: 'frost_slam',
     home: { kind: 'monster', id: 'bone_wall' }, best: { seat: 'tank', ground: 'krells_hold' },
     tip: 'Frost Slam: gain a shield of 2% of max health for each monster it Chills (up to 10%)',

@@ -16,7 +16,7 @@
 //                     moves its Mark, time left, to the nearest engaged monster not marked; an unmarked death moves nothing; it moves a
 //                     status the wearer laid (a Bleed, scale and time)
 // BATCH 2 (one case a row, each with its mutant):
-//   first-blow-half   #1 Bannerman's Pavise: a Challenge lays Blunted on each monster it takes (not one it did not); that monster's next
+//   first-blow-half   the taunt piece (a planted row: #1 as written, dropped): a Challenge lays Blunted on each monster it takes (not one it did not); that monster's next
 //                     swing lands half of what the same swing lands without it, and the stack is spent on it
 //   cast-count-shield #2 Ossuary Helm: a Frost Slam that Chills 3 shields the wearer 6% of max health, one that Chills 6 holds at 10%;
 //                     another move's cast nothing
@@ -127,8 +127,8 @@ const cases = {
   rows: (M) => {
     const moves = Object.keys(M.AD.ABILITIES);
     const SAMPLE = ['cairn_belt', 'barrow_knights_blade', 'lurchers_collar', 'the_wood_book', 'brewers_apron'];
-    /* BATCH 2 (15 "Batch 2": #1 to #23 less the sample and #8; #19 and #20 wait on a cell where mana binds, #22 is batch 3's) */
-    const BATCH_2 = ['bannermans_pavise', 'ossuary_helm', 'grave_guards_mail', 'charred_sabre', 'pikemans_gauntlets', 'floodwater_hatchets', 'coal_runners_bow',
+    /* BATCH 2 (15 "Batch 2": #1 to #23 less the sample and #8; #1 dropped, #19 and #20 wait on a cell where mana binds, #22 is batch 3's) */
+    const BATCH_2 = ['ossuary_helm', 'grave_guards_mail', 'charred_sabre', 'pikemans_gauntlets', 'floodwater_hatchets', 'coal_runners_bow',
       'provosts_longbow', 'wyvern_barb_crossbow', 'hall_fire_wand', 'catacomb_shroud', 'lamplighters_robe', 'bargemans_pole', 'drovers_hat', 'ferry_pennies'];
     const ids = Object.keys(M.SG.SIGNATURES);
     if (ids.join() !== SAMPLE.concat(BATCH_2).join()) return 'the Signatures are ' + ids + ', not the ruled sample and batch 2';
@@ -272,7 +272,8 @@ const cases = {
       const a = E(M, 10, 0, 13, 3, 2, { maxHit: 400 }), b = E(M, 11, 0, 13, 4, 2, { maxHit: 400 }), far = E(M, 12, 0, 30, 9, 2, { maxHit: 400 });
       /* (off the Danger scale: a fixture world's pull has no low line yet, so on it every swing reads as a fall back) */
       const inst = fight(M, [k, o, a, b, far], { leader: 1, risk: null });
-      if (worn) wear(M, k, 'bannermans_pavise');
+      /* (a planted row: the Pavise as written, dropped from the data; its piece, a status on each monster a taunt took, stays) */
+      if (worn) k.reacts = [{ kind: 'react', id: 'taunt_blunt_test', on: 'taunt', do: 'status', status: 'blunted' }];
       const sc = sc2(M, 41);
       M.targeting.challengeFrom(inst, sc, k); M.RX.drainReactions(inst, sc);
       for (const m of [a, b, far]) m.swingLeftMs = 0;
@@ -562,10 +563,10 @@ const cases = {
     const P = await loadPlay(M.root);
     const four = ['tank', 'ranger', 'mage', 'healer'];
     const SIG = ['cairn_belt', 'lurchers_collar', 'the_wood_book', 'brewers_apron'];
-    /* batch 2's on the same four: the Pavise's Blunted on each monster taunted, the Longbow's cuts, the Wand's bursts, the Hat's reflected blows */
-    const SIG2 = ['bannermans_pavise', 'provosts_longbow', 'hall_fire_wand', 'drovers_hat'];
+    /* batch 2's on the same four: the Sabre's Blunted on a Flame Strike's target, the Longbow's cuts, the Wand's bursts, the Hat's reflected blows */
+    const SIG2 = ['charred_sabre', 'provosts_longbow', 'hall_fire_wand', 'drovers_hat'];
     const go = (sig, windowMs) => {
-      const seen = { boon: 0, bleed: 0, blunted: 0, reflect: 0 };
+      const seen = { boon: 0, bleed: 0, blunted: 0, reflect: 0, burst: 0 };
       const r = P.run('muster_barrows', 60, four, { spanMs: 900000, windowMs, secret: '-4611686018427387904', options: () => ({ risk: 'steady', danger: 570 }),
         equipment: (role, i, L) => ({ ...P.kitFor(L, role), ...(role === 'ranger' ? { ammo: 'steel_arrows' } : {}) }),
         bag: (role) => (role === 'ranger' ? { steel_arrows: { loaded: 400 } } : {}),
@@ -574,6 +575,8 @@ const cases = {
         bar: () => [{ action: { type: 'ability', id: 'circle_of_renewal' }, conditions: [], join: 'and' },
           /* (and wards the hurt: the reference bar casts no Protective Ward, which Drover's Hat reads) */
           { action: { type: 'ability', id: 'protective_ward' }, conditions: [{ op: 'lt', value: 95, metric: 'ally_hp_pct', subject: 'lowest' }], join: 'and' },
+          /* (and the tank strikes with Flame Strike, which the Charred Sabre reads) */
+          { action: { type: 'ability', id: 'flame_strike' }, conditions: [], join: 'and' },
           ...P.refBar('muster_barrows')],
         onWindow: (out) => { for (const e of out.events || []) {
           if (e.type === 'status_on' && e.status === 'emboldened') seen.boon++;
@@ -581,17 +584,18 @@ const cases = {
           if (e.type === 'status_on' && e.status === 'bleed') seen.bleed++;
           if (e.type === 'status_on' && e.status === 'blunted') seen.blunted++;
           if (e.type === 'dmg' && e.ability === 'reflect') seen.reflect++;
+          if (e.type === 'dmg' && e.ability === 'burst') seen.burst++;
         } } });
       return { sig: JSON.stringify({ t: r.totals, x: r.heroXp, seen }), seen };
     };
     const plain = go(null, 600000), closed = go(SIG, 600000), viewed = go(SIG, 100000);
-    if (plain.seen.boon || plain.seen.bleed || plain.seen.blunted || plain.seen.reflect) return 'a four with no Signature played one: ' + JSON.stringify(plain.seen);
+    if (plain.seen.boon || plain.seen.bleed || plain.seen.blunted || plain.seen.reflect || plain.seen.burst) return 'a four with no Signature played one: ' + JSON.stringify(plain.seen);
     if (!closed.seen.boon) return 'Brewer\'s Apron never gave its boon on the real settle';
     if (!closed.seen.bleed) return 'Lurcher\'s Collar never laid a Bleed on the real settle: ' + JSON.stringify(closed.seen);
     if (plain.sig === closed.sig) return 'the four with Signatures played exactly the hunt of the four with none';
     if (closed.sig !== viewed.sig) return 'the same Signatures settled in 10-minute and 100-second windows played two hunts';
     const closed2 = go(SIG2, 600000), viewed2 = go(SIG2, 100000);
-    if (!closed2.seen.blunted || !closed2.seen.reflect) return 'batch 2 on the real settle: ' + JSON.stringify(closed2.seen);
+    if (!closed2.seen.blunted || !closed2.seen.reflect || !closed2.seen.burst) return 'batch 2 on the real settle: ' + JSON.stringify(closed2.seen);
     if (plain.sig === closed2.sig) return 'the four with batch 2\'s Signatures played exactly the hunt of the four with none';
     if (closed2.sig !== viewed2.sig) return 'batch 2\'s Signatures settled in 10-minute and 100-second windows played two hunts';
     return null;

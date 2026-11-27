@@ -151,7 +151,7 @@ READINGS_PENDING
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
 Challenge: the first blow from each monster you taunt lands at half damage
 Best for: Tank
-Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. Measure in batch 2 on the line as built.
+Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. (Dropped 2026-11-26, batch 2: the reference tank holds its pulls without a Challenge, about 9 casts and 13 monsters taunted an hour on Muster, so the rule had no moment to pay on: -0.2 (2.9) on Muster, +0.5 on its home, where the tank four sits at the top. A Challenge Signature needs a moment the tank meets. Its piece, Blunted, went to #4 and #23.)
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
 Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
@@ -462,13 +462,13 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Ends a wind-up | Stagger (wave 3) | Its own key. A wind-up ends once |
 | Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
 | Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
-| Blunted (a monster's next blow) | #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| Blunted (a monster's next blow) | #4, #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
 | Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |
 | Healing done | Healing Traits, #45, healing branches | Add |
 | Mana back | #19, #20, #27, #33, #34, Lasting Ward, Arcane Barrier's refund | Add |
-| Free casts and cooldown resets | #4, #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
+| Free casts and cooldown resets | #5, #10, #11, #14, #32 | A free cast or reset can't set off another one |
 
 ## New engine pieces needed
 

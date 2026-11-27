@@ -26,7 +26,8 @@
 //                     another move's cast nothing
 //   ready-power       #5 Pikeman's Gauntlets: a Flame Strike hit makes Power Strike ready; another move's hit nothing
 //   cast-poison       #7 Floodwater Hatchets: a Rend lays Poison ticking 20% of the whole cast's damage over 6 s, a fixed tick
-//   marked-bleed      #9 Lurcher's Collar (re-written): a hit on a marked monster lays a Bleed stack, not on an unmarked one, once a 4 s clock
+//   marked-bleed      #9 Lurcher's Collar (re-written; its clock 2 s, lane/designer-sig-metric: 4 s read 4.2 pace steps, 2 s 9.3): a hit
+//                     on a marked monster lays a Bleed stack, not on an unmarked one, once a 2 s clock
 //   kill-ready-clock  #10 Coal Runner's Bow: a Flame Volley kill makes Flame Volley ready, then not again inside 10 s
 //   reset-two         #11 Provost's Longbow: a Precision Shot hit takes 1 s off Flame Volley and 1 s off Raking Shot
 //   hit-poison        #12 Wyvern Barb Crossbow: a Raking Shot hit lays Poison ticking 20% of that hit over 6 s
@@ -37,8 +38,8 @@
 //                     the one after casts plain
 //   heal-guard        #17 Bargeman's Pole: a Greater Mend on a hero under half its health as it begins (healed past the line or not) Guards it -15%
 //                     taken for 4 s; one on a hero over the line nothing
-//   absorb-reflect    #21 Drover's Hat: a monster's blow the wearer's shell takes lands half of what it took back on that monster, exact;
-//                     another hero's shell nothing
+//   absorb-reflect    #21 Drover's Hat (cut to 25%, lane/designer-sig-metric: 50% read 19.6 pace steps): a monster's blow the wearer's
+//                     shell takes lands a quarter of what it took back on that monster, exact; another hero's shell nothing
 //   low-mend-blunt    #23 Ferry Pennies (reshaped): a Mend begun under 45% (healed past it or not) Blunts every monster next to the wearer
 //                     (its next blow at half), none further; a Mend begun over the line, or another heal, nothing
 //   reset-from-move   The Wood Book: any Frost Lance hit makes Hoarfrost ready now, another move's nothing; the has filter (a planted
@@ -382,12 +383,12 @@ const cases = {
     if (stacksOf(plain, 'bleed').length) return 'a hit on an unmarked monster laid a Bleed';
     blowAt(M, inst, sc, r, mk, 5, 'basic'); M.RX.drainReactions(inst, sc);
     if (stacksOf(mk, 'bleed').length !== 1 || stacksOf(mk, 'bleed')[0].src !== 1) return 'a hit on the marked monster: ' + JSON.stringify(mk.statuses);
-    at(inst, sc, 4900);
+    at(inst, sc, 2900);
     blowAt(M, inst, sc, r, mk, 5, 'precision_shot'); M.RX.drainReactions(inst, sc);
-    if (stacksOf(mk, 'bleed').length !== 1) return 'a second Bleed inside the 4 s clock';
-    at(inst, sc, 5000);
+    if (stacksOf(mk, 'bleed').length !== 1) return 'a second Bleed inside the 2 s clock';
+    at(inst, sc, 3000);
     blowAt(M, inst, sc, r, mk, 5, 'basic'); M.RX.drainReactions(inst, sc);
-    if (stacksOf(mk, 'bleed').length !== 2) return 'no second Bleed after the 4 s clock: ' + stacksOf(mk, 'bleed').length;
+    if (stacksOf(mk, 'bleed').length !== 2) return 'no second Bleed after the 2 s clock: ' + stacksOf(mk, 'bleed').length;
     return null;
   },
   'kill-ready-clock': (M) => {
@@ -513,9 +514,9 @@ const cases = {
     if (m.hp !== 1000) return 'another hero\'s shell sent a blow back';
     a.shield = 100; a.shieldBy = 1;
     blowAt(M, inst, sc, m, a, 60); M.RX.drainReactions(inst, sc);
-    if (m.hp !== 970) return 'the wearer\'s shell took 60 and sent back ' + (1000 - m.hp) + ' (want half, 30)';
+    if (m.hp !== 985) return 'the wearer\'s shell took 60 and sent back ' + (1000 - m.hp) + ' (want a quarter, 15)';
     blowAt(M, inst, sc, m, a, 100); M.RX.drainReactions(inst, sc);
-    if (m.hp !== 950) return 'the shell took its last 40 and sent back ' + (970 - m.hp) + ' (want 20: only what it took)';
+    if (m.hp !== 975) return 'the shell took its last 40 and sent back ' + (985 - m.hp) + ' (want 10: only what it took)';
     return null;
   },
   'low-mend-blunt': (M) => {
@@ -555,6 +556,9 @@ const cases = {
           { action: { type: 'ability', id: 'protective_ward' }, conditions: [{ op: 'lt', value: 95, metric: 'ally_hp_pct', subject: 'lowest' }], join: 'and' },
           /* (and the tank strikes with Flame Strike, which the Charred Sabre reads) */
           { action: { type: 'ability', id: 'flame_strike' }, conditions: [], join: 'and' },
+          /* (and the mage opens on Fireball, whose kills the Hall Fire Wand reads: on the reference bar a Fireball kill in 15 minutes was
+             luck, and the Hat cut to 25% (lane/designer-sig-metric) played a hunt with none) */
+          { action: { type: 'ability', id: 'fireball' }, conditions: [], join: 'and' },
           ...P.refBar('muster_barrows')],
         onWindow: (out) => { for (const e of out.events || []) {
           if (e.type === 'status_on' && e.status === 'emboldened') seen.boon++;
@@ -645,7 +649,9 @@ const mutants = [
   { name: 'a cast tallies no damage', case: 'cast-poison', edits: [[AB, '    if (tally) tally.dmg += r.dmg;\n', '']] },
   { name: 'the Hatchets read each hit, not the cast', case: 'cast-poison', edits: [[SG, "{ on: 'cast', of: 'rend',", "{ on: 'hit', of: 'rend',"]] },
   { name: 'marked is never read', case: 'marked-bleed', edits: [[RQ, '  && (row.marked !== true || markedAt(ctx.t, atMs));', '  && true;']] },
-  { name: 'the Collar has no clock', case: 'marked-bleed', edits: [[SG, "status: 'bleed', clockMs: 4000 }", "status: 'bleed' }"]] },
+  { name: 'the Collar has no clock', case: 'marked-bleed', edits: [[SG, "status: 'bleed', clockMs: 2000 }", "status: 'bleed' }"]] },
+  /* (lane/designer-sig-metric) the Collar at the 4 s clock that read 4.2 pace steps, under the band */
+  { name: 'the Collar\'s clock at 4 s', case: 'marked-bleed', edits: [[SG, "status: 'bleed', clockMs: 2000 }", "status: 'bleed', clockMs: 4000 }"]] },
   { name: 'the Coal Runner\'s Bow has no clock', case: 'kill-ready-clock', edits: [[SG, "move: 'flame_volley', clockMs: 10000 }", "move: 'flame_volley' }"]] },
   { name: 'the Longbow cuts only Flame Volley', case: 'reset-two', edits: [[SG, ",\n      { on: 'hit', of: 'precision_shot', do: 'reset', move: 'raking_shot', ms: 1000, capMs: 4000 }", '']] },
   { name: 'a status with pm lands its row\'s own tick', case: 'hit-poison', edits: [[RX, '  if (row.pm) {\n    const ms = row.ms', '  if (false) {\n    const ms = row.ms']] },
@@ -656,6 +662,8 @@ const mutants = [
   { name: 'a heal reads its line after the heal', case: 'heal-guard', edits: [[HRL, '{ t, ability: row.id, was }', '{ t, ability: row.id }']] },
   { name: 'a boon ignores its strength', case: 'heal-guard', edits: [[RX, '    if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;\n', '']] },
   { name: 'a shell\'s blow queues nothing', case: 'absorb-reflect', edits: [[DM, "  if (Number.isInteger(shellBy) && r.absorbed > 0 && isHero(target) && isMonster(source)) queueOn(inst, unitById(inst, shellBy), 'absorb', { t: target, src: source, dmg: r.absorbed });\n", '']] },
+  /* (lane/designer-sig-metric) the Hat at the 50% that read 19.6 pace steps, over the band */
+  { name: 'the Hat sends back half', case: 'absorb-reflect', edits: [[SG, "reacts: [{ on: 'absorb', do: 'reflect', pm: 250 }]", "reacts: [{ on: 'absorb', do: 'reflect', pm: 500 }]"]] },
   { name: 'a status ignores its reach', case: 'low-mend-blunt', edits: [[RX, 'const list = Number.isInteger(row.r) ?', 'const list = false ?']] },
   { name: 'the Pennies\' line at half health', case: 'low-mend-blunt', edits: [[SG, "belowPm: 450, do: 'status', status: 'blunted', r: 1 }", "belowPm: 500, do: 'status', status: 'blunted', r: 1 }"]] },
   { name: 'the settle never syncs the Signature', case: 'real-settle', edits: [['src/core/combat-sim.js', '  syncSignature(u, m.hero);', '  void syncSignature;']] },

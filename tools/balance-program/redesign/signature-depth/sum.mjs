@@ -36,6 +36,8 @@ const PAIRS = [
   ['Lurcher\'s Collar (bow)', 'Pyre Field', 'pyre-mixed', 'pyre-collar'],
   ['The Wood Book (mage)', 'Muster Barrows', 'muster-mixed', 'muster-wood-book'],
   ['Brewer\'s Apron (healer)', 'Muster Barrows', 'muster-mixed', 'muster-apron'],
+  /* (lane/designer-sig-metric: the Apron at the size bar's 12 seeds, against batch 2's plain mixed four; the current tree replays it exactly) */
+  ['Brewer\'s Apron (healer), 12 seeds', 'Muster Barrows', 'b2-muster-mixed', 'b2m-muster-apron'],
 ];
 /* batch 2: [name, [best ground, plain, worn], [second ground, plain, worn]] */
 const ROWS2 = [
@@ -49,17 +51,18 @@ const ROWS2 = [
   ['#4 Charred Sabre (sword) RESHAPED', ['Pyre Field', 'b2-pyre-sword', 'b2v-pyre-sabre-target-blunt'], ['Muster Barrows', 'b2-muster-sword', 'b2v-muster-sabre-target-blunt']],
   ['#5 Pikeman\'s Gauntlets (sword)', ['Pyre Field', 'b2-pyre-sword', 'b2-pyre-gauntlets'], ['Muster Barrows', 'b2-muster-sword', 'b2-muster-gauntlets']],
   ['#7 Floodwater Hatchets (axes)', ['Flooded Wing', 'b2-flood-axes', 'b2-flood-hatchets'], ['Muster Barrows', 'b2-muster-axes', 'b2-muster-hatchets']],
-  ['#9 Lurcher\'s Collar (bow)', ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-collar'], ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-collar']],
+  ['#9 Lurcher\'s Collar (bow) CLOCK 2 s', ['Muster Barrows', 'b2-muster-mixed', 'b2m-muster-collar2s'], ['Pyre Field', 'b2-pyre-mixed', 'b2m-pyre-collar2s']],
   ['#10 Coal Runner\'s Bow (bow)', ['Ox Road', 'b2-ox-mixed', 'b2-ox-coalbow'], ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-coalbow']],
   ['#11 Provost\'s Longbow (bow)', ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-longbow'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-longbow']],
   ['#12 Wyvern Barb Crossbow (crossbow)', ['Wyvern Roost', 'b2-roost-crossbow', 'b2-roost-barb'], ['Pyre Field', 'b2-pyre-crossbow', 'b2-pyre-barb']],
   ['#13 Hall Fire Wand (mage)', ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-wand'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-wand']],
-  ['#15 Catacomb Shroud (mage)', ['Bone Wing', 'b2-bone-mixed', 'b2-bone-shroud'], ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-shroud']],
+  /* (on pace steps the Shroud's best cell is Krell's Hold, where Pyre Priests cast: its Silence stops them, kills +6.9%) */
+  ['#15 Catacomb Shroud (mage)', ['Krell\'s Hold', 'b2-krell-mixed', 'b2-krell-shroud'], ['Bone Wing', 'b2-bone-mixed', 'b2-bone-shroud']],
   /* (the mage takes 0.1% of the damage on Muster and 12% on Pyre Field: its barrier breaks only where it is hit) */
   ['#16 Lamplighter\'s Robe (mage)', ['Pyre Field', 'b2-pyre-mixed', 'b2-pyre-robe'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-robe']],
   /* (the low-health lines reshaped to where Steady meets them: it falls back at 25%, and Bold pins the Slake's four at its top) */
   ['#17 Bargeman\'s Pole (healer) RESHAPED, CUT', ['Muster Barrows', 'b2-muster-mixed', 'b2v-muster-pole15'], ['The Slake (at -20%: the cut only lowers it)', 'b2-slake-mixed', 'b2-slake-pole50']],
-  ['#21 Drover\'s Hat (healer)', ['Ox Road', 'b2-ox-mixed', 'b2-ox-hat'], ['Muster Barrows', 'b2-muster-mixed', 'b2-muster-hat']],
+  ['#21 Drover\'s Hat (healer) CUT to 25%', ['Ox Road', 'b2-ox-mixed', 'b2m-ox-hat25'], ['Muster Barrows', 'b2-muster-mixed', 'b2m-muster-hat25']],
   ['#23 Ferry Pennies (tank) RESHAPED', ['Muster Barrows', 'b2-muster-tank', 'b2v-muster-pennies-blunt45'], ['(the tank\'s others pinned or unsettled)', 'b2-none', 'b2-none']],
 ];
 /* THE SHAPES TRIED on a row that missed its band (b2v-*: a variant row played as a temporary id on a scratch snapshot, taken out before
@@ -91,6 +94,18 @@ const VARIANTS = [
   ['#17 Bargeman\'s Pole, under half: Guarded -20% 4 s (the Slake)', 'b2-slake-mixed', 'b2-slake-pole50'],
   ['#17 Bargeman\'s Pole, under half: Guarded -15% 4 s (Muster)', 'b2-muster-mixed', 'b2v-muster-pole15'],
   ['#17 Bargeman\'s Pole, under 40%: Guarded -20% 4 s (Muster)', 'b2-muster-mixed', 'b2v-muster-pole40'],
+  /* (lane/designer-sig-metric: the rows as they stood before the re-read on pace steps) */
+  ['#9 Lurcher\'s Collar, a Bleed stack once every 4 s (Muster)', 'b2-muster-mixed', 'b2-muster-collar'],
+  ['#12 Wyvern Barb Crossbow, Poison 35% of the hit (Wyvern Roost)', 'b2-roost-crossbow', 'b2m-roost-barb35'],
+  ['#21 Drover\'s Hat, 50% back (Ox Road)', 'b2-ox-mixed', 'b2-ox-hat'],
+  ['#21 Drover\'s Hat, 50% back (Muster)', 'b2-muster-mixed', 'b2-muster-hat'],
+];
+/* THE LUCK CEILING'S TOP (19 V10's stand-in while the kit sampler is owed): the tank four with every Trait made for its seat at rank III
+   (--traits lucky), then those and the biggest in-band Signature, against the plain four. Bar: at most the gear slice, 20 pace steps */
+const LUCKY = [
+  ['tank four, every tank Trait at rank III (Muster)', 'b2-muster-tank', 'b2m-muster-tank-lucky'],
+  ['tank four, those Traits and Ferry Pennies (Muster)', 'b2-muster-tank', 'b2m-muster-tank-lucky-pennies'],
+  ['Ferry Pennies on top of the lucky Traits (Muster)', 'b2m-muster-tank-lucky', 'b2m-muster-tank-lucky-pennies'],
 ];
 /* (the home ground pinned: the tank four at Hask's Ford's top; printed under the table as the reading of why the tank reads elsewhere) */
 const PINNED = [['#1 Bannerman\'s Pavise on Hask\'s Ford, its home', 'b2-ford-tank', 'b2-ford-pavise', 655]];
@@ -149,7 +164,12 @@ for (const [name, best, other] of ROWS2) {
 console.log('\n| Shape tried | Held delta (se, seeds) | Pace steps (se) | Size bar | Kills/h |\n|---|---|---|---|---|');
 for (const [name, a, b] of VARIANTS) {
   const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
-  console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+  console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : p && s ? 'no pay window' : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+}
+console.log('\n| Luck ceiling (V10 stand-in) | Held delta (se, seeds) | Pace steps (se) | Gear slice (20) |\n|---|---|---|---|');
+for (const [name, a, b] of LUCKY) {
+  const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+  console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : 'owed', !q ? '' : q.m <= 20 ? 'inside' : q.m - q.se <= 20 ? 'inside within its se' : 'OVER'].join(' | ') + ' |');
 }
 for (const [name, a, b, top] of PINNED) {
   const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null;

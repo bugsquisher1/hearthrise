@@ -1,0 +1,34 @@
+
+V1 on muster_barrows (12 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       681.6 +- 8        0.6  47.7    87    8.6    1.3       2     51.5      0     0  1 (0/0/1)                       4  {"hold":3071,"climb":1771,"fall":91}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady        0.94x  sd 0.03  n 12  window 4 h  seeds 0.97 0.87 0.92 0.99 0.93 0.92 0.94 0.97 0.95 0.97 0.95 0.92
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 15528 +- 245  income 17909 +- 323  store 5168  kit share 0.29 (meal 342, drink 1988, charge 1266, shot 1571)  loot by band: common 301, uncommon 147, scarce 1933, other 0  n 12
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles tank, bow, mage, healer
+  base:steady       tank 0.929  bow 0.065  mage 0.001  healer 0.005
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       tank dps 11.71 land 57.42% hit 32.51 (6322/h) | bow dps 18.81 land 87.02% hit 28.19 (511.25/h) | mage dps 23.54 land 84.99% hit 24.15 (8.25/h) | healer dps 11.17 land 89.83% hit 56 (18.92/h)
+                    barrow_pikeman(swarm) 181.9/h 35 s 600 | cairn_wight(stalker) 85.1/h 36.1 s 275 | muster_knight(brute) 85.1/h 49.2 s 820 | captain_hask(brute) 7.1/h 149.6 s 2651
+                    broke off by: fall:barrow_pikeman@0 56, fall:muster_knight@0 32, fall:cairn_wight@0 2, fall:captain_hask@0 1
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 74.9 (depth 17)  free 86  spell 865  food 48  taken 19.4 pm/s
+
+the worn Traits (--traits lucky, lane/traits-in-engine): by seat, each Trait's hold share of its own channel's events (rank 3; party-wide ones on every hero they reach)
+  base:steady       tank    blows 214796, struck 348439, heals 9293 | first_rank 0.212, numbed 0.14, bailey_stand 0.083, paupers_share 0.033, tarred_through 0.008, last_file 0.004, banded_oath 0
+  base:steady       bow     blows 319576, struck 42708, heals 0 | slack_water 0.374, soft_scale 0.274, slate_hand 0.152, lookouts_promise 0.033, floodmark 0.016, bottom_of_the_quiver 0
+  base:steady       mage    blows 349802, struck 672, heals 0 | file_breaker 0.402, lime_pit 0.325, full_wick 0.001
+  base:steady       healer  blows 223615, struck 1654, heals 147316 | dunns_warning 0.162, keepers_carry 0.055, crag_shelter 0.045, pyre_tender 0, empty_wagon 0, carters_flight 0, behind_the_bar 0, full_cellar 0
+
+wall 287 s

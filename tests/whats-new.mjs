@@ -8,7 +8,7 @@
 //   node tests/whats-new.mjs            the guard (WN-ONCE on the replayed chain)
 //   node tests/whats-new.mjs --mutate   every planted defect (in a temp copy of src) must turn its arm red
 //
-// mutant-anchors: src/app/whats-new.js src/data/whats-new.js
+// mutant-anchors: src/app/whats-new.js src/data/whats-new.js src/styles/app.css
 // ci-step: db-replay | What's new - one card an account, the fresh line for a returning account
 // ci-run: node tests/whats-new.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
@@ -20,6 +20,7 @@
 //   WN-ONCE   THE REAL SERVER (PGlite, hr_account_coach): a returning account signs in and the characters screen shows the card with its
 //             fresh line; Got it marks it read; A RELOAD (a new AccountCoach, the server read again) and A SECOND DEVICE show nothing;
 //             another account still sees it; a coach the server will not read shows no card (never on every sign-in)
+//   WN-LOOK   Got it is a thumb's press on a phone (min-height var(--tap) in app.css's phone block; visual read 2026-11-26: 30 px)
 // Exit: 0 green · 1 a red arm or an escaped mutant · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -103,6 +104,13 @@ const ARMS = {
     return p;
   },
 
+  'WN-LOOK': async (base) => {
+    /* Got it is a thumb's press on a phone, as every other press on the account screens is (src/styles/app.css, the phone block) */
+    const css = readFileSync(join(base, 'src/styles/app.css'), 'utf8');
+    const q = '@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {';
+    const blocks = css.split(q).slice(1).map((b) => b.slice(0, b.indexOf('\n}')));
+    return blocks.some((b) => /\.whats-new-ok\s*\{[^}]*min-height:\s*var\(--tap\)/.test(b)) ? [] : ['Got it is under a thumb\'s press on a phone'];
+  },
   'WN-ONCE': async (base, db) => {
     const p = [];
     const { paintWhatsNew } = await imp(base, 'src/app/whats-new.js'), { AccountCoach } = await imp(base, 'src/session/account-coach.js');
@@ -147,6 +155,7 @@ async function runArms(base, db) {
 const src = (f) => readFileSync(join(ROOT, f), 'utf8');
 const swap = (f, from, to) => { const s = src(f); if (s.split(from).length !== 2) throw new Error(`mutant anchor not found once in ${f}: ${from.slice(0, 60)}`); return { [f]: s.replace(from, to) }; };
 const MUTANTS = [
+  { arm: 'WN-LOOK', why: 'Got it shrinks to a line of text on a phone', over: () => swap('src/styles/app.css', '  .whats-new-ok { min-height: var(--tap); }\n', '') },
   { arm: 'WN-ONCE', why: 'Got it marks nothing', over: () => swap('src/app/whats-new.js', "    coach.mark('read', [card.card]);\n", '') },
   { arm: 'WN-ONCE', why: 'a coach that cannot be read still shows the card', over: () => swap('src/app/whats-new.js', 'if (!ok || !box.isConnected) return false;', 'if (!box.isConnected) return false;') },
   { arm: 'WN-CARD', why: 'a read card shows again', over: () => swap('src/app/whats-new.js', "if (!row || (read && typeof read.has === 'function' && read.has(row.card))) return null;", 'if (!row) return null;') },

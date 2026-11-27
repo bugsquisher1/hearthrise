@@ -105,7 +105,10 @@
 
 /* ── Find talent and the filters, over the map's top left ── */
 .rdw-stage:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.rdw-tools { position: absolute; left: 8px; top: 8px; z-index: 1; display: flex; align-items: flex-start; gap: 6px; pointer-events: none; }
+/* one plate in the map's corner, so no stone or label shows through between the presses (visual read 2026-11-26: "Shield Priest"
+   and "Hold Fast" peeked out between Vows, Crossroads and Towns); the found list hangs under it and never stretches it */
+.rdw-tools { position: absolute; left: 0; top: 0; z-index: 1; display: flex; align-items: flex-start; gap: 6px; padding: 6px; background: var(--bg-1);
+  box-shadow: 2px 2px 0 var(--steel-sep); pointer-events: none; }
 .rdw-tools > * { pointer-events: auto; }
 .rdw-findbox { position: relative; width: 200px; }
 .rdw-find { box-sizing: border-box; width: 100%; min-height: 32px; padding: 0 8px; border: 1px solid var(--line-soft); border-radius: 0;
@@ -113,12 +116,13 @@
 .rdw-find::placeholder { color: var(--ink-3); }
 .rdw-find:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 /* the rows run wider than the box (a name never cut), the name first, what it belongs to after it */
-.rdw-found { width: 300px; margin: 2px 0 0; padding: 4px 0; list-style: none; background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.rdw-found { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; width: 300px; margin: 0; padding: 4px 0; list-style: none; background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--steel-sep); }
 .rdw-found:empty, .rdw-found-none:empty { display: none; }
 .rdw-hit { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px; text-align: left; }
 .rdw-hit b { flex: none; font-weight: 700; }
 .rdw-hit small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-micro); color: var(--ink-3); }
-.rdw-tools .rdw-found-none { margin: 2px 0 0; padding: 4px 8px; background: var(--bg-2); }
+.rdw-tools .rdw-found-none { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; margin: 0; padding: 4px 8px; white-space: nowrap; background: var(--bg-2); }
 .rdw-filter { min-height: 32px; }
 
 /* ── Country view's list: each country and its owned count, a press that flies there ── */
@@ -172,7 +176,8 @@
   .rdw-mapbox { position: absolute; inset: 0; }
   .rdw-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 70%); box-sizing: border-box; padding: 8px 10px; z-index: 1;
     background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
-  .rdw.is-picked:not([data-tier="country"]) .rdw-card, .rdw.is-sheet:not([data-tier="country"]) .rdw-card { transform: none; }
+  /* the band's Plan opens the sheet in every view, Country too (visual read 2026-11-26: pressed there, it lit and showed nothing) */
+  .rdw.is-picked:not([data-tier="country"]) .rdw-card, .rdw.is-sheet .rdw-card { transform: none; }
   .rdw-band .rdw-sheet-open { display: inline-block; }
   .rdw-countries:not([hidden]) { display: block; }
   /* Country view on a phone names the countries in its list: the map's own names would stack on a map this small */
@@ -180,8 +185,8 @@
   .rdw-x { min-height: var(--tap); }
   .rdw-opt .hh-tool, .rdw-take, .rdw-plan .hh-tool, .rdw-plan-go { min-height: var(--tap); }
   /* Find talent and the filters: beside Country view's list, never under it */
-  .rdw-tools { left: 6px; top: 6px; }
-  .rdw[data-tier="country"] .rdw-tools { left: 204px; }
+  .rdw-tools { padding: 4px; }
+  .rdw[data-tier="country"] .rdw-tools { left: 198px; }
   .rdw-findbox { width: 160px; }
   .rdw-find, .rdw-filter { min-height: var(--tap); }
 }

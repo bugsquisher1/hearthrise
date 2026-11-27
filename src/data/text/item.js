@@ -12,6 +12,8 @@ export const ITEM_TEXT = Object.freeze({
   rarity_rare: 'Rare',
   rarity_very_rare: 'Very Rare',
   rarity_signature: 'Signature',
+  /* the tooltip's head over a Signature's one fixed rule (src/data/signatures.js tip) */
+  sig_rule: 'Effect',
   type_weapon: 'Weapon',
   type_armor: 'Armor',
   type_jewelry: 'Jewelry',

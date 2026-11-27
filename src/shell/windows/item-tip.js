@@ -12,7 +12,7 @@
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { whole, gold } from '../../render/format.js';
 import { itemName } from '../widgets/bits.js';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords, possiblePerksOf } from '../item-lore.js';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords, possiblePerksOf, signatureRuleOf } from '../item-lore.js';
 import { t } from '../../render/player-text.js';
 import { statLines, compare } from '../bag-model.js';
 import { standingOf } from '../item-standing.js';
@@ -31,7 +31,7 @@ const GAP = 10;
  *   features: the server switches on for the hero's account (character-sections.js featuresOf), so a use behind one is named only there
  *   piece: the bag's piece row when it holds one (src/shell/item-standing.js), for its step: a Rare or Signature names it
  */
-function tipHtml(id, o) {
+export function tipHtml(id, o) {
   const opt = o || {};
   /* a Rare or Signature piece's name in its frame's colour, its step named after the kind (src/shell/item-standing.js) */
   const std = standingOf(opt.piece || id);
@@ -39,6 +39,9 @@ function tipHtml(id, o) {
     + '<span class="hw-tip-kind">' + esc(kindWords(id, opt.piece)) + '</span>';
   const fl = flavourOf(id);
   if (fl) h += '<i class="hw-tip-flavour">' + esc(fl) + '</i>';
+  /* a Signature is its one fixed rule: the tooltip names it under the kind line (visual read 2026-11-26: it named none) */
+  const rule = signatureRuleOf(id, opt.piece);
+  if (rule) h += '<p class="hw-tip-line hw-tip-rule"><small>' + esc(t('item.sig_rule')) + '</small>' + esc(rule) + '</p>';
   /* The ladder's numbers and the piece's own attribute (a resistance, a bane) in the engine's numbers, one list (designer re-read 2026-11-11:
      the Bramble Blade's tip said only +2/+2; its bane was a line of its own until lane/a-compare-lines put it with the stats and the compare). */
   const stats = statLines(id);

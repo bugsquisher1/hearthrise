@@ -31,7 +31,8 @@ const BOTTOM_BAR = 'bc';
 const HUNT_BAR = 'hunt-topbar';
 /* On a phone the analyzer ends this far over the action bar (hunt.css's phone cap, 100vh - 219px under a 103 px hunt bar foot) */
 const PHONE_BAR_GAP = 2;
-/* The least room the hunt's coach card docks into (its title, three lines and its foot), and the card's width (shell.css .hs-pointer). */
+/* The least room the hunt's coach card docks into (its title, three lines and its foot), and a tip's width (shell.css .hs-pointer) when the
+   card's own is not measured (the block offer stands wider). */
 const COACH_MIN_ROOM = 120;
 const COACH_WIDE = 260;
 /* The town card's tip stands at least this far in from its corners (shell.css: a 12 px notch, clear of the frame's corner stud). */
@@ -210,12 +211,14 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
       const col = shown.filter(inCol).map(rel);
       const left = col.length ? Math.min(...col.map((q) => q.left)) : gap;
       const top = col.length ? Math.max(...col.map((q) => q.top + q.height)) + gap : hb.top;
-      const bars = barsAtHome().filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left);
+      /* the card's own width (the block offer stands wider than a tip, shell.css .is-offer) */
+      const cw = card.offsetWidth || COACH_WIDE;
+      const bars = barsAtHome().filter((q) => q.left < left + cw && q.left + q.width > left);
       /* whatever else stands in the column is the card's floor: a window, Chat at its home among them, a panel the player moved there, the players-online line. The card never
          lies on or behind one, and the game never moves Chat for it (D-1 1.3 rule 5): with no room over Chat the card folds to its title under the hunt bar (is-coach-tight). */
       const online = screenHud.querySelector('[data-hs-widget="online"]:not(.is-under-dock)');
       const wins = shown.filter((e) => !inCol(e)).concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')), online && online.offsetWidth ? [online] : []).map(rel)
-        .filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
+        .filter((q) => q.left < left + cw && q.left + q.width > left && q.top + q.height > top);
       const floor = Math.min(bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight, ...wins.map((q) => q.top)) - gap;
       if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
       else tight = true;

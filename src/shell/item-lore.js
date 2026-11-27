@@ -117,6 +117,15 @@ export function kindWords(id, piece) {
   return typeWord(it.type, 'item.type_item');
 }
 
+/**
+ * A Signature's one fixed rule (src/data/signatures.js `tip`) for the item `id` or the bag's `piece` whose Signature it is, or '' for
+ * anything else. The tooltip carries it: a Signature is its rule.
+ */
+export function signatureRuleOf(id, piece) {
+  const sid = Object.hasOwn(SIGNATURES, id) ? id : piece && typeof piece.signature === 'string' && Object.hasOwn(SIGNATURES, piece.signature) ? piece.signature : null;
+  return sid ? SIGNATURES[sid].tip || '' : '';
+}
+
 /** Where it comes from, in plain words. */
 export function sourcesOf(id, serverOffers) {
   const r = index().get(id);
@@ -258,6 +267,11 @@ const jobListWords = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(',
 /** What it is for, in plain words. `features`: the server switches on for the hero's account (character-sections.js featuresOf), so a
     use behind a switch (a boss drop's guarantee, jewelry.js JEWEL_GUARANTEES) is named only where the bench offers it. */
 export function usesOf(id, features = []) {
+  /* a Signature (no catalogue row) is worn, never shop stock: its slot, not "Shop won't buy it" (visual read 2026-11-26) */
+  if (!ITEMS[id] && Object.hasOwn(SIGNATURES, id)) {
+    const meta = EQUIP_SLOT_META[SIGNATURES[id].slot];
+    return [t('item.worn_in', { slot: ((meta && meta.label) || SIGNATURES[id].slot).toLowerCase() })];
+  }
   const it = ITEMS[id] || {};
   const r = index().get(id);
   const out = [];

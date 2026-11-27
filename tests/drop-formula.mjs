@@ -28,7 +28,7 @@
 // ci-step: economy-selftests | Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
 // ci-run: node tests/drop-formula.mjs
 //
-// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js
+// mutant-anchors: src/core/trait-roll.js, src/core/drop-rate.js, src/core/hunt-rewards.js, src/core/action-rules.js, src/data/grounds/muster_barrows/pack.js, src/app/game-modules.js, supabase/functions/hr-accrue/hunt-settle.js, supabase/functions/hr-accrue/tick.js
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -50,6 +50,8 @@ async function load(root) {
   M.PACKS = (await imp('src/data/grounds/index.js')).GROUND_PACKS;
   M.LB = await imp('src/data/loot-bands.js');
   M.SESSION_DEPTH = existsSync(join(root, 'src/session/danger-sections.js')) ? (await imp('src/session/danger-sections.js')).depthOf : null;
+  /* the edge's gate (only where the planted tree carries the edge: DF-6's edge mutants plant it) */
+  M.HS = existsSync(join(root, 'supabase/functions/hr-accrue/hunt-settle.js')) ? await imp('supabase/functions/hr-accrue/hunt-settle.js') : null;
   return M;
 }
 
@@ -138,7 +140,16 @@ const CASES = {
     for (const src of new Set(Object.values(T).map((t) => t.source))) for (const s of Object.keys(G.traitSlots)) {
       for (const [a, b] of M.TR.veryRarePairs(T, G.veryRareBanned, src, s)) if (a === b || T[a].key === T[b].key || T[a].slot !== s || T[b].slot !== s || (T[a].source !== src && T[b].source !== src)) return 'veryRarePairs(' + src + ', ' + s + ') allows ' + a + '+' + b;
     }
+    /* (lane/t1-traits-drop) the base rule on a planted ground (every shipped cell already drops one item Level): the ground's base item
+       Level only, and every piece of the slot when none sits at it */
+    {
+      const planted = { route: [], pockets: {}, drops: [{ id: 'mithril_sword' }, { id: 'rune_sword' }, { id: 'mithril_belt' }] };
+      const at60 = M.DR.traitBasesOf(planted, G.traitSlots, 60), at7 = M.DR.traitBasesOf(planted, G.traitSlots, 7);
+      if (JSON.stringify(at60) !== JSON.stringify({ belt: ['mithril_belt'], weapon: ['mithril_sword'] })) return 'traitBasesOf at the base Level: ' + JSON.stringify(at60);
+      if (JSON.stringify(at7.weapon) !== JSON.stringify(['mithril_sword', 'rune_sword'])) return 'traitBasesOf with no piece at the Level: ' + JSON.stringify(at7);
+    }
     /* shape, on fast hours (the Lab's dial) so thousands of pieces land */
+    const seenBase = new Set();
     for (const gid of Object.keys(M.D.DANGER_GROUNDS)) {
       const g = M.grounds.HUNT_GROUNDS[gid];
       if (!g) continue;
@@ -166,6 +177,12 @@ const CASES = {
             if (row.maxRank >= 3 && depth >= G.rankDepths[2]) { ranked += 1; if (t.rank === 3) tops += 1; }
           }
           if (pc.iL !== row.gearLevel) return gid + ': a piece at item Level ' + pc.iL + ', not the ground\'s ' + row.gearLevel;
+          /* (lane/t1-traits-drop) the base is a piece the ground drops in that slot at its base item Level, and the step is the swing's */
+          const bases = M.DR.traitBasesOf(g, G.traitSlots, row.gearLevel)[pc.slot] || [];
+          if (!bases.includes(pc.base)) return gid + ': a ' + pc.slot + ' piece on base ' + pc.base + ', not one the ground drops there (' + bases.join(', ') + ')';
+          if (M.ITEMS[pc.base].iL !== row.gearLevel && bases.some((b) => M.ITEMS[b].iL === row.gearLevel)) return gid + ': base ' + pc.base + ' is off the ground\'s item Level';
+          if (pc.step !== step) return gid + ': a piece found at step ' + step + ' says ' + pc.step;
+          seenBase.add(gid + ':' + pc.slot + ':' + pc.base);
         }
         if (ranked > 200) {
           const share = (1000 * tops) / ranked;
@@ -173,6 +190,9 @@ const CASES = {
         }
       }
     }
+    /* every base of Muster's weapon cell lands (the base is drawn, not the first in the list) */
+    const mw = M.DR.traitBasesOf(M.grounds.HUNT_GROUNDS.muster_barrows, G.traitSlots, M.D.DANGER_GROUNDS.muster_barrows.gearLevel).weapon || [];
+    if (mw.length < 2 || mw.some((b) => !seenBase.has('muster_barrows:weapon:' + b))) return 'Muster\'s weapon bases landed ' + mw.filter((b) => seenBase.has('muster_barrows:weapon:' + b)).length + ' of ' + mw.length;
     /* luck lifts the top rank, never past its cap */
     const wing = 'catacomb_flooded_wing', wrow = M.D.DANGER_GROUNDS[wing];
     const lucky = sampler(M, wing, wrow.topStep, { hours: { rare: 0.01, very_rare: 1e9 }, luckPm: 5000 });
@@ -233,11 +253,17 @@ const CASES = {
     if (JSON.stringify(forgot.found) === f) return 'pity dropped at every window found the same pieces: the carry is never read';
     if (none.rest !== one.rest) return 'the roll moved the hunt itself (a draw off the roller\'s own streams, or a write it should not make)';
     if (one.found.some((p) => p.ground !== 'muster_barrows' || !Number.isFinite(p.atMs) || !Number.isInteger(p.unit))) return 'a piece without its ground, kill time or hero';
+    /* (lane/t1-traits-drop) the kill that made it: the dead monster's unit, never the hero's, and no hero lands one kill twice */
+    if (one.found.some((p) => !Number.isInteger(p.kill) || p.kill === p.unit || typeof p.base !== 'string' || !Number.isInteger(p.step))) return 'a piece without its kill, base or step';
+    if (new Set(one.found.map((p) => p.key + ':' + p.atMs + ':' + p.kill)).size !== one.found.length) return 'one kill made two pieces for one hero';
     return null;
   },
   'DF-6'(M) {
     if (M.GS.GEAR_STEPS.traitsLive !== false) return 'GEAR_STEPS.traitsLive is ' + M.GS.GEAR_STEPS.traitsLive + ': Traits are dark until wave 4';
-    const allowed = new Set(['src/core/trait-roll.js', 'src/core/combat-sim.js', 'src/core/hunt-rewards.js']);
+    /* (lane/t1-traits-drop) the settle hands the roll only when the server's read says its `trait_drops` switch is on (1071-trait-pieces.sql,
+       off at apply; tests/trait-pieces-db.mjs plays both), so the two edge files that build and pass it join the engine's readers */
+    const allowed = new Set(['src/core/trait-roll.js', 'src/core/combat-sim.js', 'src/core/hunt-rewards.js',
+      'supabase/functions/hr-accrue/hunt-settle.js', 'supabase/functions/hr-accrue/accrue-hunt.js']);
     /* the generated preload list (tests/module-preload.mjs --write) names every module of the game half, the roller among them (combat-sim
        reaches it): a name to preload, never an import that could hand a roll, so it may name the file (as GS-6 lets it name gear-steps.js)
        and is still held to traitDrops */
@@ -259,6 +285,14 @@ const CASES = {
       const code = strip(text);
       if (/\btraitDrops\b/.test(code)) return rel + ' names traitDrops: it hands the settle a Trait roll while Traits are dark';
       if (rel !== PRELOAD_LIST && /trait-roll\.js/.test(code)) return rel + ' imports the Trait roller';
+    }
+    /* the edge's gate: a read whose instance does not say trait_drops true hands no roll, whatever its members carry */
+    if (M.HS) {
+      const ms = [{ key: 'a:0', _drops: { pity: { rare: 3, very_rare: 9 }, luck_pm: 200 } }];
+      for (const inst of [{}, { trait_drops: false }, { trait_drops: 'true' }, { trait_drops: 1 }]) if (M.HS.traitDropsOf(inst, ms) !== null) return 'the edge hands a roll on ' + JSON.stringify(inst);
+      const on = M.HS.traitDropsOf({ trait_drops: true }, ms);
+      if (!on || on.pity['a:0'].rare !== 3 || on.luckPm['a:0'] !== 200 || on.found.length) return 'CONTROL: a lit read handed ' + JSON.stringify(on);
+      if (M.HS.traitsFor(on, 'a:0') !== null) return 'a window that found nothing and moved no pity proposes traits';
     }
     /* the made piece (drop-hours.js made, the rule as data until the bench verb lands): its slots are the bench's, never a dropped slot, and
        its part names an item field the scale grounds' parts carry */
@@ -295,11 +329,20 @@ const MUTANTS = [
   { name: 'a Very Rare pair of one key', case: 'DF-4', edits: [['src/core/trait-roll.js', "if (a !== b && traits[a].key !== traits[b].key && !banned.includes(tag)) seen.add(tag);", 'if (a !== b && !banned.includes(tag)) seen.add(tag);']] },
   { name: 'a rank past the ground\'s top', case: 'DF-4', edits: [['src/core/trait-roll.js', 'if (depth >= d && i + 1 <= maxRank) top = i + 1;', 'if (depth >= d) top = i + 1;']] },
   { name: 'the slot from the whole pool, not the dropped cells', case: 'DF-4', edits: [['src/core/trait-roll.js', 'const slots = traitSlotsDropped(ground, GEAR_STEPS.traitSlots);', 'const slots = Object.keys(GEAR_STEPS.traitSlots);']] },
-  { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs)', 'ctx.rng, atMs)']] },
+  { name: 'the roll draws on the kill\'s r stream', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId)', 'ctx.rng, atMs, monId)']] },
+  /* (lane/t1-traits-drop) the base, the step and the kill a piece carries to the server */
+  { name: 'the base is always the slot\'s first', case: 'DF-4', edits: [['src/core/trait-roll.js', 'base: pick(list, rng), traits,', 'base: list[0], traits,']] },
+  { name: 'the base from any slot\'s pieces, off the ground\'s item Level', case: 'DF-4', edits: [['src/core/drop-rate.js', '    if (it.iL === gearLevel) (at[s] || (at[s] = new Set())).add(r.id);\n', '']] },
+  { name: 'the piece forgets its step', case: 'DF-4', edits: [['src/core/trait-roll.js', 'traits, ground: ground.id, step, depth,', 'traits, ground: ground.id, step: 0, depth,']] },
+  { name: 'the kill that made it is not named', case: 'DF-5', edits: [['src/core/hunt-rewards.js', 'ctx.traitDrops.rngOf(ids[i]), atMs, monId)', 'ctx.traitDrops.rngOf(ids[i]), atMs)']] },
   { name: 'pity kept on the swing, not carried', case: 'DF-5', edits: [['src/core/trait-roll.js', 'pity: drops.pity || (drops.pity = {}),', 'pity: {},']] },
   { name: 'a server file hands the settle a roll', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', 'export const traitDrops = null;\nexport const SEED_DOMAIN =']] },
   { name: 'another module names the roller', case: 'DF-6', edits: [['src/core/action-rules.js', 'export const SEED_DOMAIN =', "export const ROLLER = './trait-roll.js';\nexport const SEED_DOMAIN ="]] },
   { name: 'the preload list hands the settle a roll', case: 'DF-6', also: ['src/app'], edits: [['src/app/game-modules.js', 'export const GAME_MODULES =', 'export const traitDrops = null;\nexport const GAME_MODULES =']] },
+  /* (lane/t1-traits-drop) the edge's gate, and the scan past the two edge files that may name the roll */
+  { name: 'the edge hands a roll with the switch off', case: 'DF-6', also: ['supabase/functions/hr-accrue'], edits: [['supabase/functions/hr-accrue/hunt-settle.js', "  if (!inst || inst.trait_drops !== true) return null;\n", '']] },
+  { name: 'the edge hands a roll on a truthy switch', case: 'DF-6', also: ['supabase/functions/hr-accrue'], edits: [['supabase/functions/hr-accrue/hunt-settle.js', "  if (!inst || inst.trait_drops !== true) return null;", '  if (!inst || !inst.trait_drops) return null;']] },
+  { name: 'another edge file hands the settle a roll', case: 'DF-6', also: ['supabase/functions/hr-accrue'], edits: [['supabase/functions/hr-accrue/tick.js', 'export function parseTickBytes(bytes) {', 'export const traitDrops = null;\nexport function parseTickBytes(bytes) {']] },
 ];
 
 async function main() {

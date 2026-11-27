@@ -780,12 +780,14 @@ async function forged(boot) {
       await strikes(room);
     }
     if (await pool(db, w) !== wPool1 || await purse(db, w) !== 200000 - FEE || (await bagOf(db, [w])).length) bad.push('BD-FORGED a refused win moved the pool, the purse or the bag');
-    /* the same window, a forged stamina number on it: it lands, and the pool is one more fight down, nothing else */
+    /* the same window, a forged stamina number on it: it lands, and the pool is one more fight down, nothing else (lane/t1-traits-drop: a
+       forged win that LANDED above ended the fight, so there is no window left to read: say so, never throw away the findings above) */
     const plan = await M.HS.readHuntSettle({ exec, user: w, slot: 0, atMs: anchorMs + WINDOW }, 'tick');
-    const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
-    p.commit.members[0].hunt.stamina = 43200000;
-    const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
-    if (!res || res.ok !== true) bad.push('BD-FORGED a win with a forged stamina number was refused: ' + JSON.stringify(res).slice(0, 220));
+    const p = plan.answer ? null : await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+    if (p) p.commit.members[0].hunt.stamina = 43200000;
+    const res = p ? await M.HS.commitHuntSettle(exec, { ...p.commit, project: null }) : null;
+    if (!p) bad.push('BD-FORGED no window to settle after the forged wins (' + plan.answer.reason + '): one of them landed');
+    else if (!res || res.ok !== true) bad.push('BD-FORGED a win with a forged stamina number was refused: ' + JSON.stringify(res).slice(0, 220));
     else {
       if (await pool(db, w) !== wPool1 - STAM) bad.push('BD-FORGED the engine\'s stamina number moved the pool: ' + await pool(db, w) + ', want ' + (wPool1 - STAM));
       const s = (await q(db, 'select call_fight, call_won, ended_at from public.hunt_sessions where user_id = $1 and hunt_id = $2', [w, KING.hunt]))[0];
@@ -883,7 +885,8 @@ const MUTANTS = [
   { name: 'a death beside the win goes on to the next fight', fn: FN.plan, find: "where e.value->'hunt'->'ended'->>'reason' is distinct from 'boss_felled'", repl: "where e.value->'hunt'->'ended'->>'reason' is null", arm: 'forged', want: /BD-LOSS/ },
   { name: 'the second fight\'s limit runs from the first', fn: FN.read, find: 'coalesce(p_s.fight_from, p_s.hunt_from)', repl: 'p_s.hunt_from', arm: 'series', want: /BD-LIMIT2|THREW/ },
   { name: 'the second fight\'s limit is proved from the first', fn: FN.settle, find: 'and v_end_at >= coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) - c_skew)', repl: 'and v_end_at >= v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) - c_skew + interval \'1 hour\')', arm: 'series', want: /BD-LIMIT2|THREW/ },
-  { name: 'the next fight keeps the fight\'s record', fn: FN.inst, find: 'update public.hunt_session_tally t set fight = null\n        from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null and t.session_id = h.id and t.fight is not null;', repl: 'null;', arm: 'series', want: /BD-LOSS|BD-LIMIT2/ },
+  /* (lane/t1-traits-drop: 1071-trait-pieces.sql restated the settle whole and clears each session's record by its own id) */
+  { name: 'the next fight keeps the fight\'s record', fn: FN.inst, find: '        update public.hunt_session_tally t set fight = null where t.session_id = v_sid and t.fight is not null;', repl: '        null;', arm: 'series', want: /BD-LOSS|BD-LIMIT2/ },
   { name: 'a win pays off his table', fn: FN.pays, find: "or (e.value #>> '{}')::int > coalesce((v_drops->>e.key)::int, 0)", repl: '', arm: 'forged', want: /BD-FORGED/ },
   { name: 'drops with no kill', fn: FN.pays, find: "and not (v_win and k = 'items')", repl: "and k <> 'items'", arm: 'forged', want: /BD-FORGED/ },
   { name: 'two kills in one window', fn: FN.pays, find: "if v_kills > 1 then return 'progress:ev:kill_monster'; end if;", repl: '', arm: 'forged', want: /BD-FORGED/ },

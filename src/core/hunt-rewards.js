@@ -149,7 +149,7 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
     payDrops(present, ids, lead, row, ctx, world, atMs);
     /* THE TRAIT ROLL (src/core/trait-roll.js; DARK: only when the server hands the window one, which no caller does while
        GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves. */
-    if (ctx.traitDrops && (!pay || pay.drops)) present.forEach((m, i) => rollKillFor(ctx.traitDrops, m.key, ids[i], present.length, ctx.traitDrops.rngOf(ids[i]), atMs));
+    if (ctx.traitDrops && (!pay || pay.drops)) present.forEach((m, i) => rollKillFor(ctx.traitDrops, m.key, ids[i], present.length, ctx.traitDrops.rngOf(ids[i]), atMs, monId));
   }
   for (const m of present) countKill(m, kind, !pay || pay.bestiary);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero

@@ -762,6 +762,7 @@
   "tower_progress",
   "tower_runs",
   "town_works_gifts",
+  "trait_pieces",
   "world_finds"
  ],
  "_player_value_tables_why": [
@@ -1481,7 +1482,7 @@
   },
   "hr_flags": {
    "class": "operator_tunable",
-   "replay": 9,
+   "replay": 12,
    "wiped_at_cutover": false,
    "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value RECORDS town_presence = FALSE, AND THAT IS THE LIVE TRUTH TODAY (Security F2, 2026-09-13): production has the flag OFF, because 2026-09-13-town-presence-on.sql is STAGED. An earlier revision of this entry recorded TRUE - the state the apply will land in - which is the same class of mistake apply-order-honesty exists to catch: a deployment record that describes a future. A CHAIN REBUILD does produce TRUE (the ON file is in `order`), so the repo and production diverge on this one row until the Coordinator applies it - that is a KNOWN, NAMED window, not drift, and `expected_after` records what to move it to and how. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare per lane C after the flip, and again if an operator ever uses the one-statement kill switch (2026-09-13-town-presence-off.sql). Only `key` and `enabled` are compared - the projection is built from the keys recorded here - so `note` and `updated_at` drift freely and cannot make this check permanently red.",
    "live_value": {
@@ -1956,6 +1957,41 @@
    "replay": 15,
    "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned. 15 IN THE REPLAY SINCE 2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql added the six staged faction looks (hr_outfits.pieces; lane/c-faction-outfit-path). STAGED, NOT APPLIED: production stays at 9 until the Coordinator applies it. Updated BY HAND, not --write (this row only)."
   },
+  "hr_piece_bases": {
+   "class": "seeded",
+   "replay": 125,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): the bases a ground drops in each Trait slot at its base item Level. Empty, every found piece is refused (piece_base). Rebuilt from repo, never restored."
+  },
+  "hr_piece_depths": {
+   "class": "seeded",
+   "replay": 100,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): the first step of each depth on a ground that rolls a rank. Empty, every found piece is refused (piece_depth). Rebuilt from repo, never restored."
+  },
+  "hr_piece_fixed": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): the named pieces that always carry a Trait (traits.js fixedOn). Empty, a worn named piece plays no Trait. Rebuilt from repo, never restored."
+  },
+  "hr_piece_grounds": {
+   "class": "seeded",
+   "replay": 11,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): each open scale ground's rank ceiling and base item Level. Empty, nothing may land (traits_ground). Rebuilt from repo, never restored."
+  },
+  "hr_piece_rules": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): the Trait roll's rules (ranks, rank depths, Traits a rarity, banned pairs, the per-window fuse). Empty, every found piece is refused (catalogue_missing). Rebuilt from repo, never restored."
+  },
+  "hr_piece_signatures": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): every Signature's equip slot. Rebuilt from repo, never restored."
+  },
+  "hr_piece_traits": {
+   "class": "seeded",
+   "replay": 40,
+   "note": "Generated catalogue (1071-trait-pieces-catalogue.generated.sql, tools/gen-trait-pieces.mjs from src/data): every Trait's slot, key, home ground and scope. Empty, every found piece is refused (piece_traits). Rebuilt from repo, never restored."
+  },
   "hr_players_online_cache": {
    "class": "operational",
    "note": "2026-11-07-players-online.sql, one row seeded; 2027-05-05-players-online-by-activity.sql: the total and its seven lines by activity, written once a world tick fire by hr_players_online_refresh (hr_tick_cron_run) from hunt_sessions, player_state and character_presence, read by the social poll. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the poll answers no count until the first fire, 10 s later."
@@ -2172,6 +2208,11 @@
    "replay": 202,
    "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
+  "hr_temper_kits": {
+   "class": "seeded",
+   "replay": 6,
+   "note": "Generated catalogue (1069-gear-phase-b-flame-temper-catalogue.generated.sql, tools/gen-flame-temper.mjs from src/data/temper.js TEMPER_KITS; lane/tp-server-1): the Temper kit (Tempering Salts) of each band, one a band, item_id unique. Empty, every Temper rank refuses kits_owed (never sold for gold alone); rebuilt from repo, never restored."
+  },
   "hr_temper_rules": {
    "class": "seeded",
    "replay": 1,
@@ -2358,12 +2399,12 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 120,
+   "replay": 60,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 52,
+   "replay": 40,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {
@@ -2709,6 +2750,12 @@
    "class": "restore_only",
    "wiped_at_cutover": true,
    "note": "SHARED VALUE. One row per Town Works project that has a gift: its total and when it finished (2027-03-04-town-works.sql). Written only by hr_town_works_give under the project's key. Lost, the Weighhouse goes back to its stakes and a server's gold is forgotten; town_works_gifts can only partly rebuild it, as a deleted account's gifts leave the plaque and stay in the building. No row reads as 0, so the wipe's truncate needs no reseed."
+  },
+  "trait_pieces": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "replay": 0,
+   "note": "PLAYER VALUE (1071-trait-pieces.sql, 12-targets 8.6): every Trait and Signature piece an account owns (base, Traits and ranks, where found, the kill that made it, who wears it), tradeable. Written only by the settle's land (hr_trait_pieces_land); own-read RLS, no client write. A rebuild returning it EMPTY loses every piece every player found: restore it. Dark until trait_drops flips."
   },
   "world_finds": {
    "class": "restore_only",

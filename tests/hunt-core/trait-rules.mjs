@@ -20,7 +20,7 @@
 //                    hands a hero a worn Trait); a hero with none writes no field and its rows come back untouched (the switch off plays
 //                    as before: engine-parity holds with no re-pin)
 //
-// mutant-anchors: src/core/hunt/trait-rules.js src/core/hunt/amount.js src/core/hunt/damage.js src/core/hunt/abilities.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/render/source-names.js src/hunt-view/combat-log.js src/data/gear-steps.js tools/balance-program/trait-kits.mjs
+// mutant-anchors: src/core/hunt/trait-rules.js src/core/hunt/amount.js src/core/hunt/damage.js src/core/hunt/abilities.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/render/source-names.js src/hunt-view/combat-log.js src/data/gear-steps.js tools/balance-program/trait-kits.mjs supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -302,7 +302,9 @@ const cases = {
   },
   dark: (M) => {
     if (M.GS.GEAR_STEPS.traitsLive !== false) return 'GEAR_STEPS.traitsLive is ' + M.GS.GEAR_STEPS.traitsLive + ': worn Traits are dark until wave 4';
-    const allowed = new Set(['src/core/hunt/trait-rules.js', 'src/core/hunt-spawn.js', 'src/core/member.js']);
+    /* (lane/t1-traits-drop) the settle's projection hands it, the server's own read only (hr_hunt_instance_read `worn_traits`, null while
+       the server's `trait_pieces` switch is off: 1071-trait-pieces.sql, tests/trait-pieces-db.mjs), so the edge file joins the engine's readers */
+    const allowed = new Set(['src/core/hunt/trait-rules.js', 'src/core/hunt-spawn.js', 'src/core/member.js', 'supabase/functions/hr-accrue/hunt-settle.js']);
     const strip = (x) => x.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const walk = (abs, rel, out) => {
       if (!existsSync(abs)) return out;
@@ -315,6 +317,9 @@ const cases = {
     const files = [...walk(join(M.root, 'src'), 'src', []), ...walk(join(M.root, 'supabase', 'functions'), 'supabase/functions', [])];
     if (files.length < 50) return 'CONTROL: ' + files.length + ' files read';
     for (const [rel, text] of files) if (!allowed.has(rel) && /\bwornTraits\b/.test(strip(text))) return rel + ' names wornTraits: it hands a hero a worn Trait while Traits are dark';
+    /* the settle hands only the read's own field, never a list of its own making */
+    const settle = files.find(([rel]) => rel === 'supabase/functions/hr-accrue/hunt-settle.js');
+    if (settle && /\bwornTraits\b/.test(strip(settle[1])) && !/_wornTraits: Array\.isArray\(m\.worn_traits\) && m\.worn_traits\.length \? m\.worn_traits : null,/.test(settle[1])) return 'hunt-settle.js hands worn Traits that are not the server read\'s worn_traits';
     /* none worn: no field, the rows untouched (no copy), the event carries nothing */
     const u = heroU('tank');
     M.TRR.syncTraits(u, { wornTraits: [{ id: 'last_file', rank: 1 }] });
@@ -359,6 +364,9 @@ const mutants = [
   { name: 'Traits switched on', case: 'dark', edits: [['src/data/gear-steps.js', '  traitsLive: false,', '  traitsLive: true,']] },
   { name: 'the settle hands a hero its worn Traits', case: 'dark', edits: [['src/core/combat-sim.js', '  syncTraits(u, m.hero);', '  syncTraits(u, { wornTraits: m.hero.wornTraits });']] },
   { name: 'a hero whose Traits went keeps its rules', case: 'dark', edits: [[TR, '  else if (u.traitRules !== undefined) delete u.traitRules;', '  else if (u.traitRules !== undefined) void 0;']] },
+  /* (lane/t1-traits-drop) the scan still bites past the settle's projection, and the projection hands the read's own field */
+  { name: 'another server file hands worn Traits', case: 'dark', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'export function accrueHunt(inp) {', 'export const wornTraits = null;\nexport function accrueHunt(inp) {']] },
+  { name: 'the settle hands worn Traits of its own making', case: 'dark', edits: [['supabase/functions/hr-accrue/hunt-settle.js', '_wornTraits: Array.isArray(m.worn_traits) && m.worn_traits.length ? m.worn_traits : null,', "_wornTraits: [{ id: 'last_file', rank: 3 }],"]] },
 ];
 
 /* the suite: cases on the repo, each mutant on a planted copy must be caught (h1's rule) */

@@ -47,9 +47,9 @@
       },
       {
         "modules": 13,
-        "gzipBytes": 205954,
-        "on": "2026-11-26",
-        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 a594fab1a: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.4 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+        "gzipBytes": 205956,
+        "on": "2026-11-27",
+        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
       }
     ],
     "town": [
@@ -373,9 +373,15 @@
       },
       {
         "modules": 25,
-        "gzipBytes": 976842,
+        "gzipBytes": 975714,
         "on": "2026-11-26",
-        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 a594fab1a: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.4 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+        "why": "lane/t1-traits-drop: the Trait roller draws a piece's base (src/core/trait-roll.js, drop-rate.js traitBasesOf) in the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 977017,
+        "on": "2026-11-27",
+        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
       }
     ]
   }

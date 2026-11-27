@@ -58,6 +58,7 @@
       "party_invites",
       "party_notices",
       "party_people",
+      "pieces",
       "place",
       "premium",
       "presence",
@@ -119,5 +120,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-23"
+  "generatedAt": "2026-11-26"
 }

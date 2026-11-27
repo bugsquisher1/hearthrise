@@ -122,7 +122,24 @@ MEASURED on `set/v0.2.144` aa36ac9f9, the lane's harness cell (`signature-depth/
 
 **Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with a mutant: 25 cases, 47 mutants caught) and on the real settle (both paths: 10-minute and 100-second windows play one hunt). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is COMPUTED only.
 
-READINGS_PENDING
+MEASURED on `lane/signatures-batch-2` (engine on `set/v0.2.144` be079455d, no hunt engine change merged since), `tools/balance-program/redesign/signature-depth/batch2.sh` and `sum.mjs --batch 2`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, held from hour 4), paired against the same four with none on the same seeds. A reshaped row's shapes were played as temporary ids on a scratch copy of the tree and taken out (the reports `b2v-*`). A move the played bars never cast (Frost Slam, Shelter) is on the tank's bar in both arms.
+
+TABLE_PENDING
+
+**Where a Signature can show at all (read before the 12 seeds, 2 seeds a cell).**
+
+- The tank four sits at the top of Hask's Ford (654.5 of 655 at Level 52, 643.5 at 45), Pyre Field (116.8 of 120) and the Bone Wing (602.9 of 605), and on Krell's Hold it never falls back (it takes 99.7% of the blows, 0 falls an hour, so its held step is a climb still running: the Helm's 12 seeds read -54 to +38). Muster Barrows is the tank's one ground with room over the plain four. A tank Signature buys no held step on the others, so its spread bar holds by construction (COMPUTED from the pin read, not played per row).
+- Steady falls back at 25% health. A rule that waits for a hero under 30% or 20% seldom meets one (Ferry Pennies under 20% met its Mend about once an hour: +0.3). On Bold the Slake's four sits at its top (140 of 140), so Bold is no cell either. The low-health lines were raised to where Steady meets them.
+- The reference tank holds its pulls without the Challenge: about 9 casts and 13 monsters taunted an hour on Muster. A rule on the taunt has no moment, and one that readies the Challenge gives back a move nobody needed.
+- The mage takes 0.1% of the blows on Muster and 12% on Pyre Field, so a rule on its barrier breaking reads only where it is hit.
+
+**What the readings say.**
+
+- **A rule that keeps a hero alive reads; a rule that adds damage does not.** Every shield, Guarded or Blunted read in band or over. Every rule that only adds damage read near 0 or below with Level XP up 1 to 9% (the Hat's reflected blows +0.5 held, XP +8.8%). The held step is the front's health over a pull, and a faster kill of a pull already held buys little of it (the sample's Blade read the same). Held to 10 +- 3, the pool would turn defensive. The damage rows are kept dark as built, their readings here, and the metric is the designer's call (CONFLICTS 2026-11-26, options there). A row was reshaped only where its own move has a defensive form that reads (the Sabre's Flame Strike).
+- **Mana does not bind on the held step.** The healer on the Slake given 30% of its max mana on every heal it lands (a probe row, 6 seeds, paired against the plain four's first 6 seeds) read -0.7 (se 2.2) held while its four's drink bill fell from 2,587 to 679 coin a hero-hour (`b2p-slake-mana`). Batch 2 writes no mana Signature: #19 Passing Bell and #20 Greened Bracers wait for a cell where mana binds, or for a size bar that reads coin.
+- **Repetition, audited.** Blunted carries two rows (#4 on a Flame Strike's target, #23 round a Mend under 45%), Guarded two (#3 on a broken shell's hero, #17 on a Greater Mend's low target), Poison two (#7 on Rend, #12 on Raking Shot). Different seats, moves and moments, one status each. The designer judges whether the pool reads as variety.
+- **The luck ceiling (V10).** The kit sampler is still owed (04 section 10). COMPUTED bound only: Traits picked for the ground added 12 to 14 own steps (12-targets 8.2, the Muster reading pinned at its top), a Signature at most 13 here, together at most 27 own steps against the gear slice's 20 power steps at about 1.42 own steps a power step (about 28). Inside, but the Trait reading and the Signature readings are on different fours. No row turns on before the sampler reads them together.
+- **Rows that changed here** (the designer keeps, re-words or re-shapes each): #2 Ossuary Helm cut to 2% a monster up to 10%; #3 Grave Guard's Mail, #4 Charred Sabre, #17 Bargeman's Pole and #23 Ferry Pennies reshaped; #9 Lurcher's Collar re-written; #10 Coal Runner's Bow and #12 Wyvern Barb Crossbow reshaped off the Roads' options before any reading; #1 Bannerman's Pavise dropped.
 
 ## How Signatures work
 

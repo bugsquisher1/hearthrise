@@ -17,6 +17,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { sourceQuery } from './lib/version-stamp.mjs';
+import { wholeViewOrRerun, foldedPacks } from './pack/whole.mjs';
+import { packIds, GROUNDS_DIR } from './pack/files.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* lane/gear-phase-b (2026-11-23) moved it here: the step tiers' 124 pieces join hr_item_levels. A forward file carrying 1063 (STAGED) whole: its rows
@@ -669,12 +671,27 @@ async function selftest() {
   plant('a carry with no price', (d) => { d.danger = { ...base.danger, CARRY: { ...base.danger.CARRY, hoursPerStepPm: 0 } }; });
   plant('slot weights off 1000', (d) => { d.danger = { ...base.danger, GEAR_STEPS: { ...base.danger.GEAR_STEPS, slotPm: { ...base.danger.GEAR_STEPS.slotPm, weapon: 300 } } }; });
   const sql = buildSql(rowsOf(base));
+  /* the whole view: a pack this file does not fold (staged, or not shipped before it) puts no item Level in it */
+  const levels = sql.split('insert into public.hr_item_levels')[1].split(';')[0];
+  const folded = foldedPacks(OUT_NAME);
+  let unfolded = 0;
+  for (const id of packIds().filter((p) => !folded.includes(p))) {
+    const pack = (await import(pathToFileURL(join(GROUNDS_DIR(), id, 'pack.js')).href)).default;
+    const worn = Object.entries((pack && pack.items) || {}).filter(([, it]) => it && it.slot && it.slot !== 'ammo').map(([it]) => it);
+    unfolded += worn.length;
+    const leak = worn.find((it) => levels.includes('(' + lit(it) + ', '));
+    if (leak) bites.push(leak + ' of the unfolded pack ' + id + ' has an item Level (no hr_items row serves it)');
+  }
+  if (!unfolded) bites.push('no unfolded pack carries a worn piece: the whole-view bite is proved by nothing');
   for (const v of 'abcdefghijklmnopqrst') if (!new RegExp('VERIFY\\(' + v + '\\)').test(sql)) bites.push('VERIFY(' + v + ') is not in the file');
   if (bites.length) { console.error('gen-flame-temper --selftest FAILED:\n  ' + bites.join('\n  ')); process.exit(1); }
   console.log('gen-flame-temper --selftest: 14 refusals bite, 20 verifications pinned');
 }
 
-if (isMain(import.meta.url)) {
+/* THE WHOLE VIEW (lane/flame-temper-shipped-packs, 2026-11-27): hr_item_levels is a whole rewrite, so it names the base and the FOLDED ground
+   packs only (tools/pack/whole.mjs), the item set the items catalogue serves. Read off every pack, a staged pack's wearables (the Catacomb and
+   Roost pieces) got item Levels with no hr_items row under them, as gen-tally-tasks' tier book did (lane/ci-reds-1127b). */
+if (isMain(import.meta.url) && wholeViewOrRerun(import.meta.url, OUT_NAME)) {
   if (process.argv.includes('--selftest')) await selftest();
   else {
     const sql = await generate();

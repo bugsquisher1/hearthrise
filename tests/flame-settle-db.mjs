@@ -31,13 +31,22 @@ import { bootReplay, closeReplays } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { plant } from './hunt-core/fixtures/h1.js';
 import { FLAME_FUEL } from '../src/data/inner-flame.js';
+import { DANGER_GROUNDS } from '../src/data/danger.js';
+import { GROUND_PACKS } from '../src/data/grounds/index.js';
+import { foldedPacks } from '../tools/pack/whole.mjs';
+import { OUT_NAME as FLAME_OUT } from '../tools/gen-flame-temper.mjs';
 
 const MUSTER = 'muster_barrows';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const HELD = 20;
 const START_MPTS = 12000;
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
-const FUEL = FLAME_FUEL.map((r) => r.item);
+/* the fuel the server holds: 1069 (tools/gen-flame-temper.mjs) renders the whole view, the scale grounds of the packs it folds, so a
+   staged pack's Remains (the Roost's dragon bones and scale) burn only once that pack ships (lane/flame-temper-shipped-packs) */
+const FOLDED = new Set(foldedPacks(FLAME_OUT));
+const SERVED_DROPS = new Set(GROUND_PACKS.filter((p) => FOLDED.has(p.id) && Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id))
+  .flatMap((p) => Object.values(p.monsters || {}).flatMap((m) => (m.drops || []).map((d) => d.id))));
+const FUEL = FLAME_FUEL.map((r) => r.item).filter((item) => SERVED_DROPS.has(item));
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 const exec = (db) => async (text, params) => { await db.exec('set role hr_engine'); try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); } };
 

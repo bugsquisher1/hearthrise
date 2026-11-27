@@ -628,6 +628,11 @@
         "bytes": 3913022,
         "on": "2026-11-27",
         "why": "lane/designer-bd9: all 16 grounds' re-cut tops in src/data/danger.js, which the engine carries"
+      },
+      {
+        "bytes": 3915321,
+        "on": "2026-11-27",
+        "why": "lane/worn-imbues: the worn-imbue projection reaches the engine (hunt-settle.js memberInput _wornImbues/_readAtMs, heroSetup readAtMs) and a worn imbuement runs out at one instant on both doors (src/core/imbue.js wornImbuesOf untilMs + imbuesAt, combat-sim.js syncUnit atMs); +2299 B, all of it this diff's code and its comments"
       }
     ]
   }

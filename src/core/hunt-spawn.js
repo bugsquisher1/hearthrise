@@ -67,8 +67,7 @@ export function heroSetup(o) {
      SIGNATURE_RULES.live is false (tests/hunt-core/signature-rules.mjs dark) */
   const sg = wornSignatureOf(o.wornSignature);
   /* THE IMBUEMENTS IT WEARS (src/core/imbue.js): the server's projection of hero_worn_imbue, [{ id, band, msLeft }], one a kind, each to
-     the server instant it runs out (`readAtMs`, the hunt session's settled_to the read stood at, plus its msLeft). DARK: nothing hands one
-     while the `imbuements` switch is off; the Lab and the tests do (with no readAtMs: it lasts the span) */
+     readAtMs + msLeft. DARK: nothing hands one while the `imbuements` switch is off; the Lab and the tests do (no readAtMs: the span) */
   const imb = wornImbuesOf(o.wornImbues, o.readAtMs);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
   /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */

@@ -183,9 +183,8 @@ function syncUnit(u, m, roles, atMs) {
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
-  /* THE IMBUEMENTS it wears, the same (src/core/imbue.js: amount.js reads them as consumable rows): never persisted, none while dark. Each
-     stands until its server instant (imbuesAt: untilMs, the hero's settled_to + ms_left at the read), so one that runs out mid-hunt leaves
-     the fight on the same boundary however the windows are cut */
+  /* THE IMBUEMENTS it wears, the same (src/core/imbue.js: amount.js reads them as consumable rows): never persisted, none while dark;
+     each to its run-out instant (imbuesAt), one boundary however the windows are cut */
   const imb = imbuesAt(m.hero.wornImbues, atMs);
   if (imb) u.imbues = imb; else if (u.imbues !== undefined) delete u.imbues;
   syncSignature(u, m.hero);             // THE SIGNATURE it plays, after the Roads' reactions (signature-rules.js): none while dark

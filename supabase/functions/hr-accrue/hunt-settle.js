@@ -780,10 +780,9 @@ function memberInput(m, inst, perks) {
        drops an unknown id or rank (trait-rules.js wornTraitsOf, signature-rules.js wornSignatureOf); a read without them wears nothing */
     _wornTraits: Array.isArray(m.worn_traits) && m.worn_traits.length ? m.worn_traits : null,
     _wornSignature: typeof m.worn_signature === 'string' && m.worn_signature ? m.worn_signature : null,
-    /* THE IMBUEMENTS IT WEARS (1077-worn-imbues.sql, hr_hunt_instance_read `worn_imbues`, hr_worn_imbues_of): the server's own
-       hero_worn_imbue rows on a worn piece, [{ id, band, msLeft }]; null while the switch imbuements is off. msLeft counts from this
-       member's session settled_to (`_readAtMs`), so heroSetup turns it into the instant it runs out (src/core/imbue.js wornImbuesOf) and the
-       fight drops it there, viewed or closed alike; heroSetup drops an unknown id, a spent one and a second of a kind */
+    /* THE IMBUEMENTS IT WEARS (1077-worn-imbues.sql, hr_hunt_instance_read `worn_imbues`): the server's own hero_worn_imbue rows on a worn
+       piece, [{ id, band, msLeft }], null while dark. msLeft counts from this session's settled_to (`_readAtMs`): heroSetup makes it the
+       instant it runs out (src/core/imbue.js wornImbuesOf), the same on both doors */
     _wornImbues: Array.isArray(m.worn_imbues) && m.worn_imbues.length ? m.worn_imbues : null,
     _readAtMs: nowMs,
     /* WHAT ITS TRAIT ROLL READS (hr_hunt_instance_read `drops`, hr_trait_drops_of): its pity by rarity and its company flame's luck as its

@@ -23,7 +23,7 @@
 | System | In v0.3.0 | Status | Notes |
 |---|---|---|---|
 | **Wave 1: side seam, Danger scale, power step, climb and fall back, causes, report** | Yes | **BUILT on Muster Barrows.** Not on any other ground | Missing: every other ground on the scale (R10) and the tier path removed. L10 (gold follows depth) is still open |
-| **The 10 h day and bought hunting blocks** | Yes | BUILT (1058) | 2 blocks a day, ×1.5. Bought work blocks: DESIGNED |
+| **The 10 h day and bought hunting blocks** | Yes | BUILT (1058) | 2 blocks a day, ×1.5. Bought work blocks (4 a day) and the standing rule: STAGED (B1: 1071, 1072) |
 | **Wave 2: monster roles and rows** | Yes | BUILT as a sample (Muster, Krell Lookout) | Every monster needs a role. Caster and Warder have no body yet |
 | **Wave 2: depth pay** | Yes | BUILT on Muster | Goes to every ground with R10 |
 | **Wave 2: personal loot** | Yes | DESIGNED (02 package 4) | Per-hero drop rates: NOT DESIGNED |
@@ -33,7 +33,7 @@
 | **Traits dropping** | Yes, on open grounds | Data BUILT and hidden (`traits.js`, 40 rows). Roll, engine and screens DESIGNED | 15 Traits roll in v0.3.0 (Muster 6, Pyre Field 4, Krell's Hold 5). The other 25 roll when their ground opens |
 | **Very Rare (two Traits)** | **No**, next patch | DESIGNED | See section 2 |
 | **Signatures** | Yes, **23 of 46** | DESIGNED (15) | Every Signature whose home is open in v0.3.0, except the loot hooks and #30 (it waits on Brand). List in 1.3 |
-| **Wage and economy** | Yes | Wage, store prices and block prices BUILT. The rest DESIGNED | Still to do: store priced at the buyer's step, uses under 1 gold, an equal charge bill per style, bought work blocks, sinks priced in wage hours |
+| **Wage and economy** | Yes | Wage, store prices and block prices BUILT. The rest DESIGNED | Still to do: store priced at the buyer's step, uses under 1 gold, an equal charge bill per style, sinks priced in wage hours. Bought work blocks STAGED (B1) |
 | **Crafted kit basics** | Yes: **the kit trades** | Company trades BUILT (R12 slice 1). Recipes on hours of work DESIGNED (09) | Decided in 1.4 |
 | **Inner Flame as luck** | Yes | Fuels and the burn BUILT (old). Luck DESIGNED (02 2b). Room curve NOT DESIGNED | |
 | **Temper** | Yes, rebuilt on steps | DESIGNED (19 L11). Today's `temper.js` is the old 1% rungs | Needs a Smithing Temper kit (Tyler 11-05) |
@@ -169,7 +169,7 @@ For each step: what the player holds and can reach from earlier steps only, plus
 | Risk | The Hunts card for the first party ground | The plan, for every ground |
 | Burn or keep remains | The default stoke rule | The plan |
 | What the company works | The rest plan | The plan |
-| Buying a Hunting block | Offered on the return card | A standing "buy up to N" rule in the plan (B1) |
+| Buying a Hunting block | Offered once by the coach card when the purse holds 3 days of pay (12-targets 9.3; H1 paints it) | The standing rule, off by default: `hero_time_rules`, set by the card's answer or `hr_time_auto_set`, bought by the server's sweep (B1, 1071 STAGED). Town work has the same rule |
 
 ---
 

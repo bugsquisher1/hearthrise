@@ -18,6 +18,8 @@
 .rdw-stat { margin: 0; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
 .rdw-stat b { margin-left: 6px; color: var(--ink); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .rdw-gap { flex: 1 1 auto; }
+/* the phone's Plan press (the sheet with nothing picked): the desktop's card always stands beside the map */
+.rdw-band .rdw-sheet-open { display: none; }
 .rdw-tiers { margin-bottom: 0; border-bottom: 0; }
 .rdw-main { flex: 1 1 auto; height: 640px; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 10px; }
 
@@ -40,6 +42,8 @@
 .rdm-e.is-vow { stroke: var(--steel-edge); stroke-width: 2; }
 .rdm-e.is-border { stroke: var(--steel-edge); stroke-width: 2; }
 .rdm-e.is-owned { stroke: var(--gold); stroke-dasharray: none; }
+/* the plan's roads (plan.js, the server's saved build): a dotted gold-3 line under the route preview's dashes */
+.rdm-e.is-plan { stroke: var(--gold-3); stroke-dasharray: 2 4; }
 .rdm-e.is-route { stroke: var(--gold-2); stroke-width: 3; stroke-dasharray: 7 5; }
 
 /* stones: the four states */
@@ -50,6 +54,9 @@
 .rdm-n.is-route .rdm-f { fill: var(--gold-bg); stroke: var(--gold-2); stroke-width: 2; }
 .rdm-n.is-owned .rdm-f { fill: var(--gold); stroke: var(--gold-2); }
 .rdm-n.is-rank.is-locked .rdm-f { stroke: var(--steel-edge); stroke-width: 1; }
+/* Planned (a stone of the plan the hero does not hold yet): the floor's dark inside a gold-3 ring, quieter than the route's wash */
+.rdm-n.is-plan:not(.is-owned) .rdm-f { fill: var(--bg-0); stroke: var(--gold-3); stroke-width: 2; }
+.rdm-n.is-plan:not(.is-owned) .rdm-od { fill: var(--gold-3); }
 .rdm-dot { fill: var(--steel); }
 .rdm-n.is-open .rdm-dot { fill: var(--ink); }
 .rdm-n.is-owned .rdm-dot { fill: var(--bg-0); }
@@ -91,6 +98,33 @@
 .rdm[data-tier="country"] :is(.rdm-e.is-side, .rdm-e.is-vow) { display: none; }
 .rdm[data-tier="node"] .rdm-post { display: inline; }
 
+/* ── the filters (find.js, 18 section 3): their kinds stay bright, everything else dims to 35%, at any tier; Vows shows every vow ── */
+.rdm.is-filtered :is(.rdm-n, .rdm-e) { opacity: .35; }
+.rdm.is-f-vow .rdm-n.is-vow, .rdm.is-f-crossroads :is(.rdm-n.is-crossroads, .rdm-n.is-hybrid, .rdm-n.is-crossing), .rdm.is-f-town .rdm-n.is-border { opacity: 1; }
+.rdm[data-tier="country"].is-f-vow .rdm-n.is-vow { display: inline; }
+
+/* ── Find talent and the filters, over the map's top left ── */
+.rdw-stage:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+/* one plate in the map's corner, so no stone or label shows through between the presses (visual read 2026-11-26: "Shield Priest"
+   and "Hold Fast" peeked out between Vows, Crossroads and Towns); the found list hangs under it and never stretches it */
+.rdw-tools { position: absolute; left: 0; top: 0; z-index: 1; display: flex; align-items: flex-start; gap: 6px; padding: 6px; background: var(--bg-1);
+  box-shadow: 2px 2px 0 var(--steel-sep); pointer-events: none; }
+.rdw-tools > * { pointer-events: auto; }
+.rdw-findbox { position: relative; width: 200px; }
+.rdw-find { box-sizing: border-box; width: 100%; min-height: 32px; padding: 0 8px; border: 1px solid var(--line-soft); border-radius: 0;
+  background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-micro); }
+.rdw-find::placeholder { color: var(--ink-3); }
+.rdw-find:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+/* the rows run wider than the box (a name never cut), the name first, what it belongs to after it */
+.rdw-found { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; width: 300px; margin: 0; padding: 4px 0; list-style: none; background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--steel-sep); }
+.rdw-found:empty, .rdw-found-none:empty { display: none; }
+.rdw-hit { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; min-height: 30px; padding: 0 8px; text-align: left; }
+.rdw-hit b { flex: none; font-weight: 700; }
+.rdw-hit small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-micro); color: var(--ink-3); }
+.rdw-tools .rdw-found-none { position: absolute; left: 0; top: calc(100% + 2px); z-index: 1; margin: 0; padding: 4px 8px; white-space: nowrap; background: var(--bg-2); }
+.rdw-filter { min-height: 32px; }
+
 /* ── Country view's list: each country and its owned count, a press that flies there ── */
 .rdw-countries { position: absolute; left: 0; top: 0; bottom: 0; width: 196px; margin: 0; padding: 8px 12px; list-style: none; overflow-y: auto;
   box-sizing: border-box; background: var(--fill-1); box-shadow: 2px 0 0 var(--steel-sep); }
@@ -127,6 +161,9 @@
 .rdw-do .hs-note { margin: 0; }
 .rdw-step { margin-top: 6px; }
 .rdw-none { padding-top: 4px; }
+/* the plan's rows under the points (plan.js), set off by one steel rule */
+.rdw-plan { margin-top: 10px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--steel-sep); }
+.rdw-planned { color: var(--gold-3); }
 .rdw-card .hh-intent-msg { margin-top: 8px; }
 
 /* ── Phone, landscape: the sheet is the whole width, the map fills it, the card slides in over the map's right edge (18 section 6) ── */
@@ -139,11 +176,18 @@
   .rdw-mapbox { position: absolute; inset: 0; }
   .rdw-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(300px, 70%); box-sizing: border-box; padding: 8px 10px; z-index: 1;
     background: var(--bg-2); box-shadow: -2px 0 0 var(--steel-btn); transform: translateX(105%); transition: transform 120ms ease-out; }
-  .rdw.is-picked:not([data-tier="country"]) .rdw-card { transform: none; }
+  /* the band's Plan opens the sheet in every view, Country too (visual read 2026-11-26: pressed there, it lit and showed nothing) */
+  .rdw.is-picked:not([data-tier="country"]) .rdw-card, .rdw.is-sheet .rdw-card { transform: none; }
+  .rdw-band .rdw-sheet-open { display: inline-block; }
   .rdw-countries:not([hidden]) { display: block; }
   /* Country view on a phone names the countries in its list: the map's own names would stack on a map this small */
   .rdm[data-tier="country"] .rdl-country { display: none; }
   .rdw-x { min-height: var(--tap); }
-  .rdw-opt .hh-tool, .rdw-take { min-height: var(--tap); }
+  .rdw-opt .hh-tool, .rdw-take, .rdw-plan .hh-tool, .rdw-plan-go { min-height: var(--tap); }
+  /* Find talent and the filters: beside Country view's list, never under it */
+  .rdw-tools { padding: 4px; }
+  .rdw[data-tier="country"] .rdw-tools { left: 198px; }
+  .rdw-findbox { width: 160px; }
+  .rdw-find, .rdw-filter { min-height: var(--tap); }
 }
 @media (prefers-reduced-motion: reduce) { .rdw-card { transition: none; } }

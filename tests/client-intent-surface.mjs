@@ -142,7 +142,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_party_leave_together_set: 'this hero\'s own "Leave if anyone leaves the hunt or dies", a yes/no; no other hero is named (party-intents.js setLeaveTogether; 2026-12-18-party-leave-together.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server’s own QUOTE (refused quote_changed otherwise), never a price of its own. */
-  hr_time_buy: 'buy the next 2 h hunting block (kind `hunt`) at the quoted price; the server counts the day\'s blocks, prices x1.5 each and refuses past two (CharacterSession.buyTime; 1058-hunting-blocks.sql)',
+  hr_time_buy: 'buy the next 2 h block of bought time at the quoted price: `hunt` (stamina, two a day) or `work` (town work today, four a day, refused day_ending); the server counts the day\'s blocks and prices x1.5 each (CharacterSession.buyTime; 1058-hunting-blocks.sql, 1071-work-blocks.sql)',
+  hr_time_auto_set: 'a SETTING: the hero\'s standing rule, buy up to N blocks of a kind a UTC day (0 = off, the default); the server\'s sweep buys them (time-intents.js setTimeRule; 1071-work-blocks.sql)',
+  hr_time_offer_answer: 'a SETTING: the account\'s one answer to the block-rule card; a choice sets every hero\'s rule, 0 is Not now (time-intents.js answerTimeOffer; 1071-work-blocks.sql)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
@@ -184,6 +186,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_talent_spend: 'one Talent point on one Roads node, a node id and an option id or none; the server checks path, pick, points and slots against its catalogue (talent-intents.js spendTalent)',
   hr_talent_spend_suggested: 'every Talent point left on the server\'s suggested road for the worn weapon, a plan word; never a vow (talent-intents.js spendSuggested)',
   hr_talent_build_save: 'a saved build (a plan, past the Level allowed) for one ground: a ground id and node ids with their picks, checked whole against the server catalogue; spends nothing. A pasted share code lands here (talent-intents.js saveBuild, plan-share.js)',
+  /* 1069-talent-standing-rule.sql: the standing rule, a setting */
+  hr_talent_auto_set: 'the hero\'s "Spend as suggested" setting, a plan word or null (off); on spends every point left along the server\'s suggested road, never a vow (talent-intents.js setTalentAuto)',
   hr_farm_tend: 'harvest every ready plot, plant it again and water the field in one press at the farm_tend bill’s gold; the server plans, compares and refuses quote_changed (farm-tend.js tendField)',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): catalogue ids only; the server counts the kills, prices the reward and picks the piece. */
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql): a catalogue id, the price the player saw and a fresh key; the server re-quotes and charges. */

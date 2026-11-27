@@ -58,6 +58,7 @@ import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js';
 import { t } from '../../render/player-text.js';
 import { heroGroundOf } from '../widgets/first-target.js';
+import { workBlocksPaneHtml, patchWorkBlocksPane, actTimeRule } from './time-rule-pane.js';
 import { GATHER_COUNTS, GATHER_COUNT_DEFAULT, JOB_NEXTS, JOB_NEXT_DEFAULT } from '../../data/hunt-after.js';
 import { heldStep } from '../launcher-coach.js';
 
@@ -268,6 +269,8 @@ export function renderWork() {
     + '<p class="hs-note hw-work-end" role="status"></p>'
     /* THE WORK DAY AND THE COMPANY'S TRADES (1059-company-trades.sql): today's town work left, and whose Levels the ledger shows. */
     + '<p class="hs-note hw-work-day" role="status"></p>'
+    /* BOUGHT TOWN WORK AND ITS "BUY DAILY" RULE (1071-work-blocks.sql; ./time-rule-pane.js) */
+    + workBlocksPaneHtml()
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Pick a skill to gather or craft</p>'
     + '<p class="hs-note hw-work-company">' + esc(t('work.company_trades')) + '</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head">'
@@ -303,6 +306,7 @@ renderWork.patch = function patchWork(body, ctx) {
   const dayEl = root.querySelector('.hw-work-day');
   text(dayEl, !day ? '' : day.leftMs > 0 ? t('work.day_left', { left: hoursWords(day.leftMs), cap: hoursWords(day.capMs) }) : t('work.day_done'));
   cls(dayEl, 'is-off', !day);
+  patchWorkBlocksPane(root, ctx, sc);
   /* The line: what runs now, from the server's pointer, with its Stop (its pending part marked: town-ticker.js). */
   const line = nowParts(cs);
   const now = root.querySelector('.hw-work-now');
@@ -436,6 +440,7 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
   if (action === 'work-back') { sc.skill = null; sc.msg = ''; repage(); return true; }
   if (action === 'work-stop') { if (workOf(cs)) stopWork(cs, send); return true; }
   if (action.indexOf('hallmark-') === 0) return actHallmarkPane(ctx, action, el, sc, repaint);
+  if (action.indexOf('wblock-') === 0 || action === 'time-rule') return actTimeRule(ctx, action, el, sc, repaint);
   if (action === 'work-n') {
     const id = el.getAttribute('data-id');
     const raw = el.getAttribute('data-n');

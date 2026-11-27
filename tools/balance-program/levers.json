@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "a7165a205bde2eb2",
+ "authored": "e515933433abda27",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 241,
+  "levers": 244,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -82,12 +82,12 @@
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 45,
+   "economy": 48,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
-   "global": 127,
+   "global": 130,
    "archetype": 32,
    "content": 52,
    "exception-intentional": 19,
@@ -98,7 +98,7 @@
    "not-playable:dead": 8,
    "patch": 78,
    "not-playable:player-policy": 2,
-   "not-playable:outside-hunt": 35,
+   "not-playable:outside-hunt": 38,
    "not-playable:harness-fixed": 6,
    "not-playable:not-in-runs": 42,
    "variant": 5,
@@ -106,7 +106,7 @@
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 132,
+   "asserted": 135,
    "mentioned only": 90,
    "none": 19
   },
@@ -118,10 +118,10 @@
  },
  "census": {
   "bindings": 769,
-  "typed": 17570,
-  "files": 264,
-  "lever": 331,
-  "notLever": 438,
+  "typed": 17579,
+  "files": 263,
+  "lever": 332,
+  "notLever": 437,
   "unclaimed": 0
  },
  "problems": [],
@@ -7275,7 +7275,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 50,
+    "mentionCount": 51,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7363,7 +7363,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 51,
+    "mentionCount": 52,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7793,7 +7793,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7872,7 +7872,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7948,7 +7948,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8017,7 +8017,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 23,
+    "mentionCount": 24,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10913,7 +10913,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 60,
+    "mentionCount": 61,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11548,7 +11548,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 126,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11646,7 +11646,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 126,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11859,25 +11859,25 @@
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 88,
+     "line": 91,
      "text": "conditionalStepsMax: 20,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 89,
+     "line": 92,
      "text": "traitAverageSharePm: 500,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 90,
+     "line": 93,
      "text": "dominanceMaxPm: 400,",
      "binding": "GEAR_STEPS"
     },
     {
      "file": "src/data/gear-steps.js",
-     "line": 91,
+     "line": 94,
      "text": "rankDepths: Object.freeze([1, 8, 15]),",
      "binding": "GEAR_STEPS"
     }
@@ -12088,43 +12088,43 @@
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 53,
+     "line": 55,
      "text": "chDigits: 3,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 56,
+     "line": 58,
      "text": "rare: Object.freeze({ everyHours: 40, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 57,
+     "line": 59,
      "text": "very_rare: Object.freeze({ everyHours: 400, band: Object.freeze([300, 600]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 58,
+     "line": 60,
      "text": "signature: Object.freeze({ everyHours: 45, band: Object.freeze([30, 60]) }),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 63,
+     "line": 65,
      "text": "depthPm: Object.freeze([1000, 3000]),",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 64,
+     "line": 66,
      "text": "topRankPm: 500,",
      "binding": "DROP_HOURS"
     },
     {
      "file": "src/data/drop-hours.js",
-     "line": 65,
+     "line": 67,
      "text": "topRankMaxPm: 800,",
      "binding": "DROP_HOURS"
     }
@@ -12152,9 +12152,10 @@
     ],
     "mentions": [
      "tests/content-coherence.mjs",
-     "tests/drop-formula.mjs"
+     "tests/drop-formula.mjs",
+     "tests/trait-pieces-db.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13006,9 +13007,10 @@
      "tests/hearth-moods.mjs",
      "tests/hunt-sessions-settle.mjs",
      "tests/inner-flame.mjs",
-     "tests/town-shows.mjs"
+     "tests/town-shows.mjs",
+     "tests/trait-pieces-db.mjs"
     ],
-    "mentionCount": 7,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13201,7 +13203,7 @@
    "sites": [
     {
      "file": "src/data/gear-steps.js",
-     "line": 114,
+     "line": 117,
      "text": "export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });",
      "binding": "CARRY"
     }
@@ -13259,13 +13261,13 @@
    "sites": [
     {
      "file": "src/data/party.js",
-     "line": 37,
+     "line": 41,
      "text": "pityGrowPm: 4000,",
      "binding": "PERSONAL_LOOT"
     },
     {
      "file": "src/data/party.js",
-     "line": 38,
+     "line": 42,
      "text": "pityBasePm: 438,",
      "binding": "PERSONAL_LOOT"
     }
@@ -13800,7 +13802,7 @@
      "tests/alpha-windows-storage.mjs",
      "tests/alpha-windows-work.mjs"
     ],
-    "mentionCount": 125,
+    "mentionCount": 126,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14350,7 +14352,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 60,
+    "mentionCount": 61,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14639,7 +14641,7 @@
    "sites": [
     {
      "file": "src/data/time-blocks.js",
-     "line": 39,
+     "line": 51,
      "text": "priceHourPm: 2000,",
      "binding": "TIME_BLOCKS"
     }
@@ -14668,9 +14670,10 @@
     ],
     "mentions": [
      "tests/hunt-core/sewer.mjs",
-     "tests/hunting-blocks.mjs"
+     "tests/hunting-blocks.mjs",
+     "tests/work-blocks.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14681,6 +14684,167 @@
    },
    "flags": [],
    "evidence": "MEASURED (lane/w-wage 2026-11-22, tools/balance-program/redesign/w/fit.mjs: the first block costs 2.0x the gross gold its 2 h pay on Steady at Levels 60, 63 and 70)"
+  },
+  {
+   "id": "econ.work-block",
+   "category": "economy",
+   "name": "Bought town-work block price",
+   "sites": [
+    {
+     "file": "src/data/time-blocks.js",
+     "line": 56,
+     "text": "work: Object.freeze({ blockMin: 120, perDay: 4, growthNum: 3, growthDen: 2, priceHourPm: 500 }),",
+     "binding": "TIME_BLOCKS"
+    }
+   ],
+   "definition": "block n of the UTC day costs ceil(2 h x priceHourPm / 1000 x wage(levelStep(L)) x 1.5^(n - 1)) (src/core/wage.js blockPrice): 1.0, 1.5, 2.25 and 3.375 hours of the hero's wage; each adds 2 h to today's town-work cap, 4 a day, refused when today cannot use it whole",
+   "range": "04 section 11: 0.5 hours of wage a block hour (band 0.4 to 0.6); validate refuses at or under what a work-hour's goods fetch at the store's top (EARNS_PM, 0.375). RULED (Tyler 2026-11-22), not levers: 2 h a block, x1.5, 4 a day. SQL twin hr_time_block_price (1072, generated)",
+   "touches": "a gold sink and the town work past the 8 h day; the labor ratio (09 section 5.3). Left out of the gold ledger (12-targets 9.2: at store prices a rational company never buys one to make its own kit)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/work-blocks.mjs",
+      "what": "WB-DATA: 1.0 / 1.5 / 2.25 / 3.375 hours of wage on the server and in JS; WB-FOUR: four bought, the fifth refused",
+      "reads": [
+       "TIME_BLOCKS",
+       "blockPrice"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/hunt-core/sewer.mjs",
+     "tests/hunting-blocks.mjs",
+     "tests/work-blocks.mjs"
+    ],
+    "mentionCount": 3,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a block is bought in town, never by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "ASSUMED (04 section 11 starting value)"
+  },
+  {
+   "id": "econ.block-rule-reserve",
+   "category": "economy",
+   "name": "The standing block rule's purse reserve",
+   "sites": [
+    {
+     "file": "src/data/time-blocks.js",
+     "line": 84,
+     "text": "reserveHours: 20,",
+     "binding": "STANDING"
+    }
+   ],
+   "definition": "the server's standing \"buy up to N a day\" rule (1071-work-blocks.sql hr_time_auto_buy) never buys a block that would leave the account purse under reserveHours x wage(the hero's Level)",
+   "range": "12-targets 9.2: the gold ledger's reference company buys \"while the purse keeps 20 hours of wage\"; 0 to about a day of pay. Generated into hr_time_standing (1072)",
+   "touches": "how much of the minting the bought hunting blocks burn (gate 7: 70.6% of the reference at day 180)",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/work-blocks.mjs",
+      "what": "WB-RULE-WORK: a purse one gold short of the block and the reserve buys nothing",
+      "reads": [
+       "STANDING"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/conservation-fuzz.mjs",
+     "tests/death-popup.mjs",
+     "tests/hunt-core/roles.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/item-standing.mjs",
+     "tests/live-settlement.mjs",
+     "tests/recovery-relief-guard.mjs"
+    ],
+    "mentionCount": 14,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a purse rule, never read by a cell; tools/balance-program/redesign/sinks/ledger.mjs models it",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "ASSUMED (the ledger's behaviour, 12-targets 9.2)"
+  },
+  {
+   "id": "econ.block-rule-offer",
+   "category": "economy",
+   "name": "When the standing block rule is offered",
+   "sites": [
+    {
+     "file": "src/data/time-blocks.js",
+     "line": 85,
+     "text": "offerDays: 3,",
+     "binding": "STANDING"
+    }
+   ],
+   "definition": "the coach card offers the rule once, when the account purse first holds offerDays x the free hunting day x the sum of wage(Level) over the account's heroes (1071 hr_time_offer_of)",
+   "range": "12-targets 9.3: 3 days of the company's pay (the designer, 2026-11-26). Generated into hr_time_standing (1072)",
+   "touches": "when a new player first meets bought time as a standing choice; never on by default",
+   "outcomes": [],
+   "formulas": [],
+   "reach": {
+    "feeds": 0,
+    "closure": 0
+   },
+   "class": "global",
+   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
+   "tests": {
+    "asserts": [
+     {
+      "file": "tests/work-blocks.mjs",
+      "what": "WB-OFFER: none under 3 days of pay, one over it, answered once",
+      "reads": [
+       "STANDING"
+      ]
+     }
+    ],
+    "mentions": [
+     "tests/conservation-fuzz.mjs",
+     "tests/death-popup.mjs",
+     "tests/hunt-core/roles.mjs",
+     "tests/hunt-sessions-settle.mjs",
+     "tests/hunt-summary.mjs",
+     "tests/item-standing.mjs",
+     "tests/live-settlement.mjs",
+     "tests/recovery-relief-guard.mjs"
+    ],
+    "mentionCount": 14,
+    "verdict": "asserted"
+   },
+   "perturb": {
+    "kind": "not-playable",
+    "gap": "outside-hunt",
+    "note": "a coach card's trigger, never read by a cell",
+    "existingPatches": []
+   },
+   "flags": [],
+   "evidence": "ASSUMED (the designer's call, 12-targets 9.3)"
   },
   {
    "id": "econ.wage-base",
@@ -15041,7 +15205,7 @@
    "sites": [
     {
      "file": "src/data/work-day.js",
-     "line": 25,
+     "line": 27,
      "text": "freeMin: 480,",
      "binding": "WORK_DAY"
     }
@@ -15089,7 +15253,7 @@
    "sites": [
     {
      "file": "src/data/work-day.js",
-     "line": 27,
+     "line": 29,
      "text": "premiumExtraMin: 120,",
      "binding": "WORK_DAY"
     }
@@ -17056,8 +17220,8 @@
    "why": "a unit: the milliseconds in an hour (IMBUE.hours is the lever)"
   },
   {
-   "at": "src/core/personal-loot.js#UNIT",
-   "why": "a unit: hero_pity holds millionths of x"
+   "at": "src/data/party.js#PITY_UNIT",
+   "why": "a unit: hero_pity holds billionths of a find owed (the one pity, 12-targets 8.6.1)"
   },
   {
    "at": "src/core/temper-steps.js#rankQuote",
@@ -17325,11 +17489,7 @@
   },
   {
    "at": "src/data/time-blocks.js#RULED",
-   "why": "Tyler's ruled block rule of 2026-11-22 (2 h blocks, 2 a day, x1.5): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the price is the lever (econ.hunt-block)"
-  },
-  {
-   "at": "src/data/work-day.js#WORK_BLOCK_RULED",
-   "why": "Tyler's ruled bought-work shape of 2026-11-22 (2 h blocks, at most 4 a day): work-day.js validate reads it to keep the longest day under 24 h; the buy and its price are a later slice"
+   "why": "Tyler's ruled block rules of 2026-11-22 (2 h blocks, x1.5; 2 hunting and 4 town-work blocks a day): time-blocks.js validate refuses a TIME_BLOCKS row that moves them; the prices are the levers (econ.hunt-block, econ.work-block)"
   },
   {
    "at": "src/core/gold-estimate.js#roundAbout",
@@ -20611,9 +20771,21 @@
    "keys": [
     "blockMin",
     "growthNum",
+    "perDay",
     "priceHourPm"
    ],
-   "typed": 3,
+   "typed": 7,
+   "bindings": 1
+  },
+  "src/data/time-blocks.js#STANDING": {
+   "pin": "count",
+   "keys": [
+    "hunt",
+    "offerDays",
+    "reserveHours",
+    "work"
+   ],
+   "typed": 4,
    "bindings": 1
   },
   "src/data/wage.js#WAGE": {

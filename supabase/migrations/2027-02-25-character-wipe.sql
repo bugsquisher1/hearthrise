@@ -132,6 +132,9 @@ declare
     'trait_pieces',
     /* each hero's Roads build, its saved builds per hunt and their journal (1064-roads-sample.sql): earned by heroes the wipe clears */
     'hero_talents', 'hero_talent_builds', 'hero_talent_log',
+    /* each hero's standing "buy up to N blocks a day" rule and the account's one answer to its offer (1071-work-blocks.sql): a wiped
+       account starts with every rule off and is offered it again; hero_time_rules keys on player_state, so it goes in the same TRUNCATE */
+    'hero_time_rules', 'account_time_offers',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
   c_keep constant text[] := array[
@@ -152,7 +155,7 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_danger_grounds', 'hr_danger_rules', 'hr_danger_stances', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
-    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_level_costs', 'hr_talent_rules', 'hr_talent_nodes', 'hr_talent_options', 'hr_talent_suggest', 'hr_talent_open', 'hr_talent_disciplines', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_trade_kinds', 'hr_trade_levers', 'hr_trade_xp', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_time_blocks', 'hr_time_standing', 'hr_level_costs', 'hr_talent_rules', 'hr_talent_nodes', 'hr_talent_options', 'hr_talent_suggest', 'hr_talent_open', 'hr_talent_disciplines', 'hr_work_day', 'hr_store_terms', 'hr_store_grounds', 'hr_trade_kinds', 'hr_trade_levers', 'hr_trade_xp', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',

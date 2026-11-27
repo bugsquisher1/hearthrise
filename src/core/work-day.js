@@ -10,7 +10,8 @@
 // THE STATE (player_state.work_day, work_ms; the envelope's `work_day` section): the last UTC day the hero worked and the
 // ms of town work it did that day. A window [from, to] of work spends, day by day, its overlap with each UTC day; a day's
 // spend may not pass that day's cap. The cap is the hero's base day (free, or free + Premium's extra) plus, on the server's
-// today only, the work blocks bought today (`extraMs`: 0 until the later slice sells them).
+// today only, the work blocks bought today and those the hero's standing rule may still buy today (`extraMs`, the server's
+// hr_work_extra_ms, 1071-work-blocks.sql: a rule's block is charged at the settle whose work enters it, so the engine works on into it).
 //
 // THE STOP. From a window's start the hero works until the day's work is used up. If midnight comes first, the new UTC day
 // opens a fresh cap and the hero works on until that cap is used up (the day is under 24 h, src/data/work-day.js validate,

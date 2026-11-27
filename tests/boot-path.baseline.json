@@ -44,6 +44,24 @@
         "gzipBytes": 205124,
         "on": "2026-11-26",
         "why": "lane/r-ui-roads (the Roads screen, 20-v030 R-UI), measured against set/v0.2.144 beded2a5b (197.2 KB sign-in, 948.7 KB town): src/styles/roads.css loads with the page like every surface's sheet (+3.1 KB gzip to sign-in, +4.0 KB to town with the Talents door and its text rows); the map itself (src/shell/windows/talents/, 7 modules) loads by URL on the window's first open, which keeps 11.4 KB gzip off the town stage (measured eager against on need on the earlier set), and as a second bundle entry esbuild splits 1 shared chunk onto sign-in and 4 onto town"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 205956,
+        "on": "2026-11-27",
+        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 205959,
+        "on": "2026-11-27",
+        "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206436,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
       }
     ],
     "town": [
@@ -370,6 +388,24 @@
         "gzipBytes": 975714,
         "on": "2026-11-26",
         "why": "lane/t1-traits-drop: the Trait roller draws a piece's base (src/core/trait-roll.js, drop-rate.js traitBasesOf) in the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 977017,
+        "on": "2026-11-27",
+        "why": "lane/r-ui-roads-2 (the Roads screen's leftovers), measured on set/v0.2.144 be079455d: src/styles/roads.css gains Find talent, the three filters, the plan's marks and rows and the phone's Plan sheet (+0.8 KB gzip to sign-in and to town, every surface's sheet loads with the page); the town stage adds 0.5 KB for the standing-rule intent, the section reader's new fields and the new talents text rows. The map's new modules (find.js, road-plan.js) load with the map on its first open, never on the boot path"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 979471,
+        "on": "2026-11-27",
+        "why": "lane/b1-work-blocks: the Work window's block buy and the standing block rule pane (time-sections, time-intents, time-rule-pane); lane/designer-pity: the Rare base fits the finder's kind, so src/core/personal-loot.js joins the game half"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 980049,
+        "on": "2026-11-27",
+        "why": "lane/visual-read-1126: the Roads find plate, What's new and Share plan sizing, Signature names and kind line (CSS and text rows)"
       }
     ]
   }

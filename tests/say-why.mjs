@@ -227,9 +227,12 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/talents.js': [
     { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested: the line beside it says No points while the server\'s section holds none to spend (the busy line says Spending… for a press)' },
   ],
-  /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): Spend as suggested in its band and a stone's Take, each off with its line beside it */
-  'src/shell/windows/talents/index.js': [
-    { cond: 'noPoints || sc.pending', words: "t('talents.no_points')", where: 'Spend as suggested (the map band): the line beside it says No points while the server section holds none to spend' },
+  /* the Roads map (lane/r-ui-roads, src/shell/windows/talents/): a stone's Take, off with its line beside it (the band's Spend as
+     suggested is the standing rule's toggle since lane/r-ui-roads-2, off only while its press is out) */
+  /* the Roads plan (lane/r-ui-roads-2): Plan route and Spend on plan, each off with its line beside it */
+  'src/shell/windows/talents/road-plan.js': [
+    { cond: '!p.nodes || !!p.why || pending', words: "text(root.querySelector('.rdw-plan-off'), show", where: 'Plan route (the node card): the line beside it says why (Requires a planned hunt, Borrowed moves full, No free vow slot) in the server words' },
+    { cond: '!!off || pending', words: "text(box.querySelector('.rdw-plan-why'), has ? off : '')", where: 'Spend on plan (the card with nothing picked): the line beside it says No points, or Waiting for a Level while the plan\'s next stone waits on a vow slot' },
   ],
   'src/shell/windows/talents/card.js': [
     { cond: '!can || pending', words: "plain ? (can ? '' : why(problem))", where: 'Take (the node card): shown for the stone the next point could buy, its line says why it is off in the server words (No points, Requires the node before it, No free vow slot)' },
@@ -311,6 +314,11 @@ export const REASONS = Object.freeze({
     { cond: '!canStam', words: "t(purse !== null && purse < q.price ? 'shop.block_quote_short' : 'shop.block_quote'", where: 'the stamina quote line: how much more gold the next block needs' },
     { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
     { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on', { count: b.tiers.length }) : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
+  ],
+  'src/shell/windows/time-rule-pane.js': [
+    /* a bought block of town work (1071-work-blocks.sql): the quote line's words live in the text home (work.block_day_ending, block_used, block_quote_short) */
+    { cond: '!can || !!sc.wblockConfirm', words: "q.why === 'day_ending' ? t('work.block_day_ending') : t('work.block_used', { max: whole(q.perDay) })", where: 'the work block quote line: not enough of today left, all of today\'s blocks bought, or how much more gold (work.block_quote_short); off while its own confirmation is open' },
+    { cond: '!can || !!sc.wblockConfirm', words: "t(purse !== null && purse < q.price ? 'work.block_quote_short' : 'work.block_quote'", where: 'the work block quote line: how much more gold the next block needs' },
   ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },

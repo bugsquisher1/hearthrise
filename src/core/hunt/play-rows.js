@@ -2,37 +2,24 @@
 // swingRows: the rows one swing reads. PURE ESM, dual-runtime.
 
 import { HUNT_GROUNDS, monstersOn } from '../../data/hunt-grounds.js';
-import { tierRowOf, DEFAULT_TIER } from '../../data/hunt-tiers.js';
 import { MONSTERS } from '../../data/monsters.js';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../../data/scaled-hunts.js';
 import { runRulesOf } from '../../data/tower.js';
 import { formulaOn, formulaTable } from './monster-formula.js';
 import { hallTable } from './hall-formula.js';
 
 /**
- * WHAT AN INSTANCE PLAYS ON `groundId` UNDER THE SERVER'S `scale` (src/data/scaled-hunts.js; Tyler 2026-11-07 "party would scale to the
- * leader"). `scale` is { level } when the server says the leader's paid hours scale this window (hr_scaled_hunt_of: the switch on, hours
- * banked, the leader past the ground's band), else null. The SAME answer on the server's settle and the browser's live view:
- *   level     the Level the ground plays at, or null (unscaled, and a scale the data can't play is unscaled too: never half a scale)
- *   monsters  the catalogue with the ground's roster on its scaled rows, the ONE door every reader of a monster row takes (world-step.js
- *             inst.monsters, hunt-rewards.js ctx.monsters); null unscaled, so an unscaled hunt reads exactly what it always read, except
- *             on a ground with its own drop rows (groundDropsOn: the catalogue with those rows on its monsters)
- *   tierOf    a tier pick's row: unscaled, the ground's own (hunt-tiers.js); scaled, the sheet's at the scaled floor (scaledTierRow), and a
- *             pick the scaled ground doesn't offer (Deadly) plays Normal
- *   normalOf  true for a pick that plays Normal for that reason: its frozen pull goes with it (the ground as it stands)
- * THE BURNING TOWER (src/core/hunt/tower.js) is never scaled and plays Normal whatever the leader picked (one difficulty: the floor is the dial);
- * its `monsters` are the floor standing's table, which simulateHuntInstance sets on this answer floor by floor (a fresh object every call).
+ * WHAT AN INSTANCE PLAYS ON `groundId`: { monsters }, the ONE door every reader of a monster row takes (world-step.js inst.monsters,
+ * hunt-rewards.js ctx.monsters). The SAME answer on the server's settle and the browser's live view:
+ *   monsters  a keyed hall's table with its switch on (its bosses on the formula, hall-formula.js), else the catalogue with the ground's
+ *             own drop rows on its monsters (groundDropsOn: the Catacombs' wings), else null: the catalogue as written, so every other
+ *             hunt reads exactly what it always read
+ * THE BURNING TOWER (src/core/hunt/tower.js) answers null; its `monsters` are the floor standing's table, which simulateHuntInstance sets on
+ * this answer floor by floor (a fresh object every call). How hard a ground plays is its Danger scale step (danger.js dangerDial), never a
+ * row of its own here (the tier rows and the scaled hunts retired for the scale, lane/retire-tier-chain 2026-11-26).
  */
-export function huntPlayOf(groundId, scale) {
-  if (runRulesOf(groundId)) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
-  const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
-  const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
-  /* A KEYED HALL WITH ITS SWITCH ON (src/core/hunt/hall-formula.js): its bosses on the formula, through the one door (never scaled: a hall has no scale) */
-  if (level === null) return { level: null, monsters: hallTable(groundId, MONSTERS) || groundDropsOn(groundId, MONSTERS), tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
-  const scaled = Object.assign({}, MONSTERS, scaledMonsters(MONSTERS, groundId, level));
-  const monsters = groundDropsOn(groundId, scaled) || scaled;
-  const own = (id) => scaledTierRow(groundId, id, level);
-  return { level, monsters, tierOf: (id) => own(id) || tierRowOf(groundId, DEFAULT_TIER), normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };
+export function huntPlayOf(groundId) {
+  if (runRulesOf(groundId)) return { monsters: null };
+  return { monsters: hallTable(groundId, MONSTERS) || groundDropsOn(groundId, MONSTERS) };
 }
 
 /* A GROUND'S OWN DROP ROWS (src/data/hunt-grounds.js `drops`: the Catacombs' wings, src/data/catacomb-wings.js; lane/r10-more-grounds): every

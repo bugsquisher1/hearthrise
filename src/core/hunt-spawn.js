@@ -90,10 +90,8 @@ export function heroSetup(o) {
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
-    /* THE TIER (hunt-tiers.js): the one the server froze on the instance, overlaid on every member's options; an unknown id plays Normal (tierRowOf). */
-    tier: typeof opt.tier === 'string' ? opt.tier : null,
     /* THE DANGER SCALE'S PLAN (src/core/hunt/danger.js riskOf, lane/v1-climb): a risk stance and the step the hunt starts at; a stance the
-       engine does not know plays the tier. Only the party leader's counts, as for the tier. Absent on a hero whose plan names none. */
+       engine does not know plays off the scale. Only the party leader's counts. Absent on a hero whose plan names none. */
     ...(typeof opt.risk === 'string' && opt.risk ? { risk: opt.risk, danger: Number.isInteger(opt.danger) && opt.danger >= 0 ? opt.danger : 0 } : {}),
     lead: o.lead === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
@@ -152,8 +150,8 @@ function heroUnit(id, h, partyRoles, tile) {
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
  * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
  * is the density the packs spawn at (the settle's whole entering party), else the party's own.
- * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does; `o.monsters` the
- * rows they spawn from (combat-sim.js huntPlayOf: a scaled hunt's table; the catalogue when absent). `o.tower` ({ floor, atMs }: the
+ * `o.tier` (the swing's dial, src/core/hunt/dial.js: the Danger scale step's, null = the rows as written) is the dial the first packs
+ * spawn on, as every respawn does; `o.monsters` the rows they spawn from (combat-sim.js huntPlayOf; the catalogue when absent). `o.tower` ({ floor, atMs }: the
  * Burning Tower, src/core/hunt/tower.js) is the floor whose room stands first and the instant it stands (its time starts there).
  */
 export function newHuntWorld(ground, grid, party, o) {

@@ -4,8 +4,7 @@
 // Tyler 2026-11-09: every monster's stats are visible in the game, so players choose their own hunts and
 // the Hunts window only suggests by Level. The first page of the in-game wiki, laid out like an
 // encyclopedia's: the creature as the world draws it, facing front, beside its name; where it lives (each
-// ground a link back to its Hunts page); a table of how it fights on Normal, then what each harder tier
-// changes on the ground it was opened from (Tyler 2026-11-11); what a kill pays; and every drop with
+// ground a link back to its Hunts page); a table of how it fights as its ground builds it; what a kill pays; and every drop with
 // its chance per kill and what the item is for (a link where a window spends it). Facts about this
 // monster only: a line that explains how the game works is cut (Tyler 2026-11-11).
 //
@@ -24,7 +23,6 @@ import { t, hasText } from '../../render/player-text.js';
 import { headPathFor } from '../../data/monster-art.js';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js';
 import { itemIconHtml } from '../widgets/bits.js';
-import { TIER_NAME, DEFAULT_TIER } from '../../data/hunt-tiers.js';
 import { monsterFactsOf, isMet } from '../monster-facts.js';
 import { targetOf, placesParts, patchParts } from '../goto.js';
 
@@ -40,7 +38,7 @@ const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { id: null, from: null, facts: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The link that opens monster `id`'s page (src/shell/goto.js linkHtml, gotoAttr); `hunt`, the ground it was opened from, picks
-    whose harder tiers the page states (a link's `find`, taken by this page as it opens, never a row to ring). */
+    whose numbers the page states (a link's `find`, taken by this page as it opens, never a row to ring). */
 export const factsTarget = (id, hunt = null) => ({ win: WIN, tab: id, find: hunt || null });
 
 const fact = (key, label) => '<div class="mf-fact"><dt>' + esc(t(label)) + '</dt><dd data-fact="' + key + '"></dd></div>';
@@ -56,9 +54,8 @@ export function renderMonster() {
     + '<div class="mf-id"><h3 class="mf-name"></h3><p class="mf-kind"></p></div></header>'
     + head('monster.h_homes') + '<ul class="mf-homes"></ul>'
     + head('monster.h_fight') + '<dl class="mf-facts">'
-    + fact('tier', 'monster.tier') + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
+    + fact('hp', 'monster.hp') + fact('max_hit', 'monster.max_hit') + fact('swing', 'monster.swing') + fact('deals', 'monster.deals')
     + fact('weak', 'monster.weak') + fact('takes', 'monster.takes') + '</dl>'
-    + '<p class="mf-note mf-tiers"></p>'
     + head('monster.h_kill') + '<dl class="mf-facts">' + fact('xp', 'monster.xp') + fact('gold', 'monster.gold') + '</dl>'
     + head('monster.h_drops', 'mf-per') + '<ul class="mf-drops"></ul><p class="mf-note mf-nodrops"></p>'
     + '</div></article>';
@@ -77,21 +74,6 @@ const bandWord = (b) => (hasText('monster.band_' + b) ? t('monster.band_' + b) :
 function takesWords(els) {
   if (!els.length) return t('monster.takes_all');
   return listWords(els.map((e) => t(e.pct > 0 ? 'monster.el_less' : 'monster.el_more', { pct: Math.abs(e.pct), element: elWord(e.element) })), Infinity);
-}
-
-/* How much harder a tier hits, from its damage dial (permille of Normal): "17% harder", or from twice as hard up "2.7 times as hard". */
-const hitsWords = (pm) => (pm >= 2000 ? t('monster.hits_times', { times: Math.round(pm / 100) / 10 }) : t('monster.hits_pct', { pct: Math.round((pm - 1000) / 10) }));
-
-/* "On Dangerous it has 10% more Health and hits 17% harder. On Deadly …": what each harder tier raises, its dials in words; '' on a
-   ground with no harder tier. */
-function tiersWords(tiers) {
-  return tiers.map((x) => {
-    const tier = TIER_NAME[x.tier] || x.tier;
-    const hp = Math.round((x.hpPm - 1000) / 10);
-    const hits = x.dmgPm > 1000 ? hitsWords(x.dmgPm) : '';
-    if (hp > 0 && hits) return t('monster.tier_both', { tier, hp, hits });
-    return hits ? t('monster.tier_hits', { tier, hits }) : hp > 0 ? t('monster.tier_hp', { tier, hp }) : '';
-  }).filter(Boolean).join(' ');
 }
 
 /* The creature's head in its well beside the name (art brief 15, as the Tally draws it): a 32 px bust, kept per creature so a repaint with the
@@ -154,7 +136,6 @@ renderMonster.patch = function patchMonster(body, ctx) {
     },
   });
   const set = (key, words) => text(root.querySelector('[data-fact="' + key + '"]'), words);
-  set('tier', TIER_NAME[DEFAULT_TIER]);
   set('hp', whole(f.hp));
   set('max_hit', whole(f.maxHit));
   set('swing', t('monster.swing_value', { secs: f.swingMs / 1000 }));
@@ -163,7 +144,6 @@ renderMonster.patch = function patchMonster(body, ctx) {
   set('weak', weak);
   prop(root.querySelector('[data-fact="weak"]').parentElement, 'hidden', !weak);
   set('takes', takesWords(f.elements));
-  text(root.querySelector('.mf-tiers'), tiersWords(f.tiers));
   set('xp', whole(f.xp));
   set('gold', f.gold[0] === f.gold[1] ? t('monster.gold_one', { lo: whole(f.gold[0]) }) : t('monster.gold_value', { lo: whole(f.gold[0]), hi: whole(f.gold[1]) }));
   text(root.querySelector('.mf-per'), f.drops.length ? t('monster.per_kill') : '');

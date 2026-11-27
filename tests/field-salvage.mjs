@@ -49,7 +49,7 @@ import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
 import {
-  playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
+  playerCombatRolls, weaknessInfo, equipmentStats,
   DEFAULT_PROFILE,
 } from '../src/core/combat.js';
 import { xpForLevel, skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
@@ -118,7 +118,6 @@ function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
     monsters, items: ITEMS, eq, bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE }),
-    monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
     fx: { ...fx },
   };

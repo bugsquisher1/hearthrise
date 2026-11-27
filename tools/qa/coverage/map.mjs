@@ -18,7 +18,7 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../../../src/data/gathering.js'
 import { ITEMS } from '../../../src/data/items.js';
 import { OPEN_GROUNDS } from '../../../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../../../src/data/hunts.js';
-import { tiersOf } from '../../../src/data/hunt-tiers.js';
+import { tiersOf } from '../../balance-sim/tier-axis.mjs';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { SHOP_LISTED_OFFER_IDS } from '../../../src/data/supply-basics.js';

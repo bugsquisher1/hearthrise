@@ -25,7 +25,7 @@
 import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { VITALS } from '../../data/core-model.js';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js';
-import { atTier } from '../../data/hunt-tiers.js';
+import { atTier } from './dial.js';
 import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js';
 import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js';
 import { HUNT_INDEX } from '../../data/hunts.js';
@@ -68,7 +68,7 @@ const heroes = (inst) => inst.world.units.filter((u) => isHero(u));
  * swings with) of every monster on it: its ground's whole route (hunt-grounds.js monstersOn, the same for every party size
  * since 2026-11-08) plus the hunt's weighted spawns, each monster's swing or its spell's top (castsOf, while SPELL_SWITCH is live), whichever
  * is bigger. Before mitigation: a catalogue fact.
- * On `tier` (a hunt-tiers.js row), that tier's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
+ * On `tier` (a dial, src/core/hunt/dial.js), that dial's blows. { monster, name, hit } or null for an unknown hunt. The Configure action heal warning and the
  * blow-share guard (tests/hunt-core/hunt-data.mjs) both read THIS, never a copy.
  */
 export function biggestBlowOn(huntId, tier) {
@@ -95,10 +95,10 @@ function placeRow(inst, p, s, sc, add) {
   const w = inst.world;
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
   const at = freeNear(inst.grid, s.x, s.y, 3, taken);
-  /* the instance's own rows (world-step.js inst.monsters: a scaled hunt's), the catalogue for a bare caller */
+  /* the instance's own rows (world-step.js inst.monsters), the catalogue for a bare caller */
   const row = (inst.monsters || MONSTERS)[s.monster];
   if (!at || !row) return null;
-  /* THE ROW'S HEALTH ON THE HUNT'S TIER (hunt-tiers.js hpPm), the same for every party size (Tyler 2026-11-08): it pays its row's whole kill. */
+  /* THE ROW'S HEALTH ON THE SWING'S DIAL (dial.js hpPm): it pays its row's whole kill. */
   const hp = Math.max(1, atTier(row, inst.tier).hp || 1);
   const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp,
     target: null, home: add ? null : at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });

@@ -45,15 +45,15 @@ No fact is copied. The formulas and their edges stay in `formulas-architecture.j
 <!-- graph:counts -->
 | What | Count |
 |---|---|
-| Quantities on the closed list | 132 |
-| Formulas with typed reads and writes | 108 of 108 |
+| Quantities on the closed list | 131 |
+| Formulas with typed reads and writes | 107 of 107 |
 | Outcome readers (hand-declared, they stand where E14 stands) | 20 |
-| Reads declared, and how many the code shows (cited file:line) | 254, 98 derived |
-| Writes declared, and how many the code shows | 178, 131 derived |
-| Typed edges (one writes what another reads) | 346 |
-| Edges the formula register declares | 199 |
-| Calls between formula homes, read from the code | 44 |
-| Levers joined, and knobs | 245, 35 |
+| Reads declared, and how many the code shows (cited file:line) | 252, 94 derived |
+| Writes declared, and how many the code shows | 168, 117 derived |
+| Typed edges (one writes what another reads) | 327 |
+| Edges the formula register declares | 193 |
+| Calls between formula homes, read from the code | 40 |
+| Levers joined, and knobs | 237, 31 |
 | Targets joined, and how many reach a measured outcome | 100, 37 |
 <!-- /graph:counts -->
 
@@ -204,18 +204,18 @@ CAREER      over many hunts, through earned XP becoming Levels and skill, it als
 <!-- graph:match -->
 | What | Count |
 |---|---|
-| Measured movements with a direction (knob and outcome pairs) | 244 |
-| The trace called a direction | 205 (84% of them) |
-| The call matched the measurement | 197 |
-| The call was wrong | 8 |
-| The trace said mixed, unknown or nothing | 39 |
+| Measured movements with a direction (knob and outcome pairs) | 200 |
+| The trace called a direction | 165 (83% of them) |
+| The call matched the measurement | 158 |
+| The call was wrong | 7 |
+| The trace said mixed, unknown or nothing | 35 |
 | **Sign-match rate** (matched over called) | **96%** |
 <!-- /graph:match -->
 
 <!-- graph:source -->
 Measured data: sensitivity-matrix, GitHub run 44969087150,44971044252,44972398698,44976040886, tree 0,1,2,3, 68 cells, 0+4 seeds. Rule: the sensitivity lane's own rule: an effect is resolved beyond Student's t times its standard error over the seeds, and beyond half a percent.
 
-Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 214 of 245.
+Not played in that data: none. Levers with no measured knob (they wait on the sensitivity lane): 210 of 237.
 <!-- /graph:source -->
 
 **How a direction is predicted.** A quantity's depth is the fewest mechanics between the lever and it. Its predicted direction is the direction of its shortest paths. If two shortest paths disagree the answer is "mixed" and the graph does not call it. A longer path that disagrees is kept and printed as the counter-path. This is a reading of a graph. It knows directions, never sizes.
@@ -243,7 +243,6 @@ The first two rows are errors in this lane's typed rows. None is an error in the
 | `GF-c67f2d20` | heroHp on levelXpPerH: the trace predicts up (depth 5, via O-LOWHP > O-DEATHS > O-HUNTED > O-KILLS > O-XP), measured down (null cells moved, null up) |
 | `GF-4cde9193` | heroHp on lowHpP10: the trace predicts up (depth 1, via O-LOWHP), measured down (null cells moved, null up) |
 | `GF-c0e8fbd9` | heroHp on netLevelXpPerH: the trace predicts up (depth 3, via O-LOWHP > O-DEATHS > O-NETXP), measured down (null cells moved, null up) |
-| `GF-69bdef84` | tierPull on netPerH: the trace predicts up (depth 3, via C-PULL > O-KILLS > O-NET), measured down (null cells moved, null up) |
 <!-- /graph:misses -->
 
 The sixth is the swing clock on Level XP after deaths: slower swings are fewer deaths (three mechanics away) and fewer kills (four away), and the kills win.
@@ -298,7 +297,6 @@ Five of the six are the hero HP knob. The two numbers it scales (`VITALS` base H
 | `GF-d5208d21` | dead-outcome | regen declares hpUnder30 and it did not move (null of null cells past 2%) |
 | `GF-6fe3699f` | dead-outcome | regen declares killsPerH and it did not move (null of null cells past 2%) |
 | `GF-b44c5b01` | dead-outcome | storeSupplyShare declares deathsPer1000h and it did not move (null of null cells past 2%) |
-| `GF-bf6c8728` | dead-outcome | tierPull declares hoursPerLevel and it did not move (null of null cells past 2%) |
 | `GF-4564d30a` | dead-outcome | toHitBase declares dps and it did not move (null of null cells past 2%) |
 | `GF-2f01e7df` | dead-outcome | toHitBase declares hoursPerLevel and it did not move (null of null cells past 2%) |
 | `GF-7ad773ac` | dead-outcome | toHitBase declares killsPerH and it did not move (null of null cells past 2%) |
@@ -331,9 +329,6 @@ Five of the six are the hero HP knob. The two numbers it scales (`VITALS` base H
 | `soloXp` | lowHpP10, netPerH, storePerH |
 | `spellRollLow` | lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
 | `storeSupplyShare` | dps, hoursPerLevel, killsPerH, levelXpPerH, ttkS |
-| `tierDanger` | dps, hoursPerLevel, killsPerH, levelXpPerH, netPerH, ttkS |
-| `tierHp` | hpUnder30, huntedShare, lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
-| `tierXp` | lowHpP10 |
 | `weaknessDamage` | lowHpP10, netLevelXpPerH, storePerH, suppliesPerH, takenPerH |
 | `xpByLevel` | lowHpP10 |
 | `xpPerKill` | lowHpP10, netPerH, storePerH |
@@ -352,15 +347,15 @@ A ghost edge is a pair of mechanics that share a quantity or a call with no decl
 <!-- graph:findings -->
 | Kind | What it is | Count |
 |---|---|---|
-| `feeds` | ghost edge: one writes what the other reads, no declared edge | 130 |
-| `writers` | ghost edge: two mechanics write one quantity, no declared edge | 61 |
-| `carrier` | ghost edge: a declared edge with no shared quantity | 46 |
-| `call` | ghost edge: the code calls it, no declared read | 15 |
-| `lever-reader` | a lever's number is read by a formula the lever does not name | 8 |
-| `sign` | the trace's predicted direction disagrees with the measured one | 8 |
-| `undeclared-move` | a measured movement no lever declared | 75 |
+| `feeds` | ghost edge: one writes what the other reads, no declared edge | 118 |
+| `writers` | ghost edge: two mechanics write one quantity, no declared edge | 53 |
+| `carrier` | ghost edge: a declared edge with no shared quantity | 43 |
+| `call` | ghost edge: the code calls it, no declared read | 13 |
+| `lever-reader` | a lever's number is read by a formula the lever does not name | 4 |
+| `sign` | the trace's predicted direction disagrees with the measured one | 7 |
+| `undeclared-move` | a measured movement no lever declared | 61 |
 | `dead` | a played lever that moved nothing | 4 |
-| `dead-outcome` | a declared outcome that did not move | 42 |
+| `dead-outcome` | a declared outcome that did not move | 41 |
 <!-- /graph:findings -->
 
 | Kind | What it means | How to answer it |
@@ -377,48 +372,48 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 <!-- graph:ghosts -->
 | # | Id | Kind | Pair | Levers on the pair | Finding |
 |---|---|---|---|---|---|
-| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 38 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 2 | `GF-4453592c` | call | C-MON-STATS+E01+E23 / C-TIER | 38 | C-TIER reaches `STAT_FORMULA` in the home of C-MON-STATS / E01 / E23 (src/data/balance-sheet.js:513), and no quantity is declared between them (C-MON-STATS / E01 / E23 writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def, kill.xp, kill.coin) |
-| 3 | `GF-423fd87d` | carrier | C-MON-STATS / C-WEAKNESS | 26 | The register says C-MON-STATS feeds C-WEAKNESS, and C-MON-STATS writes nothing C-WEAKNESS reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 4 | `GF-67654eda` | feeds | C-MON-STATS / C-PULL | 23 | C-MON-STATS writes mon.hp and C-PULL reads it. The register holds no edge between them |
-| 5 | `GF-c8c669bb` | carrier | C-MON-STATS / C-SCALED | 21 | The register says C-MON-STATS feeds C-SCALED, and C-MON-STATS writes nothing C-SCALED reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 6 | `GF-cc24471e` | carrier | C-MON-STATS / C-ELEMENT-MON | 21 | The register says C-MON-STATS feeds C-ELEMENT-MON, and C-MON-STATS writes nothing C-ELEMENT-MON reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 7 | `GF-ac847334` | carrier | C-TIER / C-SCALED | 21 | The register says C-TIER feeds C-SCALED, and C-TIER writes nothing C-SCALED reads (C-TIER writes tier.dmg, tier.hp, tier.xp, tier.pull) |
-| 8 | `GF-6088a728` | carrier | C-MON-STATS / C-RUN-ROOM | 20 | The register says C-MON-STATS feeds C-RUN-ROOM, and C-MON-STATS writes nothing C-RUN-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 9 | `GF-88907c52` | carrier | C-MON-STATS / C-BOSS-ROOM | 20 | The register says C-MON-STATS feeds C-BOSS-ROOM, and C-MON-STATS writes nothing C-BOSS-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
-| 10 | `GF-f278d21d` | writers | C-BOSS-PHASE / C-MON-STATS | 20 | C-BOSS-PHASE and C-MON-STATS both write mon.atk, mon.aim. The register holds no edge between them |
-| 11 | `GF-12adb5f8` | feeds | C-JEWEL-PERKS / E18 | 12 | C-JEWEL-PERKS writes hero.regen and E18 reads it. The register holds no edge between them |
-| 12 | `GF-c6a7d6ac` | feeds | C-JEWEL-PERKS / C-HERO-POWER | 12 | C-JEWEL-PERKS writes hero.skill, hero.buff and C-HERO-POWER reads it. The register holds no edge between them |
-| 13 | `GF-52cf6242` | writers | C-WEAKNESS / E44 | 11 | C-WEAKNESS and E44 both write drop.chance. The register holds no edge between them |
-| 14 | `GF-5b325892` | carrier | C-BASIC-BLOW / E18 | 11 | The register says C-BASIC-BLOW feeds E18, and C-BASIC-BLOW writes nothing E18 reads (C-BASIC-BLOW writes hero.blow) |
-| 15 | `GF-a6696e80` | feeds | C-GEAR-WEAPON / C-WEAKNESS | 11 | C-GEAR-WEAPON writes gear.weapon and C-WEAKNESS reads it. The register holds no edge between them |
-| 16 | `GF-f13838cd` | feeds | P11 / E18 | 11 | P11 writes hero.maxMana and E18 reads it. The register holds no edge between them |
-| 17 | `GF-fe23c52f` | carrier | C-ARMOR-CHAIN / E18 | 11 | The register says C-ARMOR-CHAIN feeds E18, and C-ARMOR-CHAIN writes nothing E18 reads (C-ARMOR-CHAIN writes hero.mitigation) |
-| 18 | `GF-09df4953` | carrier | C-MON-BLOW / E18 | 10 | The register says C-MON-BLOW feeds E18, and C-MON-BLOW writes nothing E18 reads (C-MON-BLOW writes mon.maxHit) |
-| 19 | `GF-843e9c9d` | call | E20 / E18 | 10 | E18 reaches `consumeOrder` in the home of E20 (src/core/hunt/consumables.js:183), and no quantity is declared between them (E20 writes supplies.used) |
-| 20 | `GF-de2b29ea` | carrier | E20 / E18 | 10 | The register says E20 feeds E18, and E20 writes nothing E18 reads (E20 writes supplies.used) |
-| 21 | `GF-167b8a1b` | call | C-REGEN / E12 | 9 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:400), and no quantity is declared between them (C-REGEN writes hero.regen) |
-| 22 | `GF-2bcdd401` | feeds | C-SPELL-SHELL / E18 | 9 | C-SPELL-SHELL writes hero.manaCost and E18 reads it. The register holds no edge between them |
-| 23 | `GF-3c842d04` | feeds | P19 / C-WEAKNESS | 9 | P19 writes gear.special and C-WEAKNESS reads it. The register holds no edge between them |
-| 24 | `GF-631efa95` | feeds | C-MON-DEF / C-HERO-POWER | 9 | C-MON-DEF writes mon.defCut and C-HERO-POWER reads it. The register holds no edge between them |
-| 25 | `GF-6ee0cbba` | feeds | C-WEAKNESS / E45 | 9 | C-WEAKNESS writes drop.chance and E45 reads it. The register holds no edge between them |
-| 26 | `GF-bf3a3000` | carrier | C-HERO-POWER / P06 | 9 | The register says C-HERO-POWER feeds P06, and C-HERO-POWER writes nothing P06 reads (C-HERO-POWER writes hero.maxHit) |
-| 27 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 9 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
-| 28 | `GF-c1facf18` | feeds | C-WEAKNESS / C-HERO-TOHIT | 9 | C-WEAKNESS writes hero.weakFactor and C-HERO-TOHIT reads it. The register holds no edge between them |
-| 29 | `GF-057157d5` | feeds | E18 / O-MANAWAIT | 8 | E18 writes supplies.used and O-MANAWAIT reads it. The register holds no edge between them |
-| 30 | `GF-125608ba` | writers | C-SCALED / E01 | 8 | C-SCALED and E01 both write kill.xp. The register holds no edge between them |
-| 31 | `GF-1fdc0345` | feeds | P37 / C-HERO-POWER | 8 | P37 writes hero.skill and C-HERO-POWER reads it. The register holds no edge between them |
-| 32 | `GF-27240a11` | feeds | C-HURT / E18 | 8 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
-| 33 | `GF-6872e027` | feeds | E18 / O-SUSTAIN | 8 | E18 writes supplies.used and O-SUSTAIN reads it. The register holds no edge between them |
-| 34 | `GF-6bf926a5` | feeds | E18 / O-REGENSHARE | 8 | E18 writes supplies.used and O-REGENSHARE reads it. The register holds no edge between them |
-| 35 | `GF-78e71beb` | feeds | C-SCALED / E01 | 8 | C-SCALED writes mon.level, mon.hp and E01 reads it. The register holds no edge between them |
-| 36 | `GF-7b43ec0a` | carrier | C-PULL / E10 | 8 | The register says C-PULL feeds E10, and C-PULL writes nothing E10 reads (C-PULL writes mon.fightHp, pull.size) |
-| 37 | `GF-8bdca139` | feeds | E18 / O-STORE | 8 | E18 writes supplies.cost and O-STORE reads it. The register holds no edge between them |
-| 38 | `GF-8ef79389` | call | C-PULL / E12 | 8 | E12 reaches `startPull` in the home of C-PULL (src/core/hunt/pull-cycle.js:287), and no quantity is declared between them (C-PULL writes mon.fightHp, pull.size) |
-| 39 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
-| 40 | `GF-d078483b` | feeds | E18 / O-SUPPLIES | 8 | E18 writes supplies.used and O-SUPPLIES reads it. The register holds no edge between them |
+| 1 | `GF-273c0ab9` | carrier | C-MON-STATS / C-TIER | 34 | The register says C-MON-STATS feeds C-TIER, and C-MON-STATS writes nothing C-TIER reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 2 | `GF-423fd87d` | carrier | C-MON-STATS / C-WEAKNESS | 26 | The register says C-MON-STATS feeds C-WEAKNESS, and C-MON-STATS writes nothing C-WEAKNESS reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 3 | `GF-cc24471e` | carrier | C-MON-STATS / C-ELEMENT-MON | 21 | The register says C-MON-STATS feeds C-ELEMENT-MON, and C-MON-STATS writes nothing C-ELEMENT-MON reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 4 | `GF-67654eda` | feeds | C-MON-STATS / C-PULL | 21 | C-MON-STATS writes mon.hp and C-PULL reads it. The register holds no edge between them |
+| 5 | `GF-6088a728` | carrier | C-MON-STATS / C-RUN-ROOM | 20 | The register says C-MON-STATS feeds C-RUN-ROOM, and C-MON-STATS writes nothing C-RUN-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 6 | `GF-88907c52` | carrier | C-MON-STATS / C-BOSS-ROOM | 20 | The register says C-MON-STATS feeds C-BOSS-ROOM, and C-MON-STATS writes nothing C-BOSS-ROOM reads (C-MON-STATS writes mon.hp, mon.atk, mon.aim, mon.evasion, mon.def) |
+| 7 | `GF-f278d21d` | writers | C-BOSS-PHASE / C-MON-STATS | 20 | C-BOSS-PHASE and C-MON-STATS both write mon.atk, mon.aim. The register holds no edge between them |
+| 8 | `GF-12adb5f8` | feeds | C-JEWEL-PERKS / E18 | 12 | C-JEWEL-PERKS writes hero.regen and E18 reads it. The register holds no edge between them |
+| 9 | `GF-c6a7d6ac` | feeds | C-JEWEL-PERKS / C-HERO-POWER | 12 | C-JEWEL-PERKS writes hero.skill, hero.buff and C-HERO-POWER reads it. The register holds no edge between them |
+| 10 | `GF-52cf6242` | writers | C-WEAKNESS / E44 | 11 | C-WEAKNESS and E44 both write drop.chance. The register holds no edge between them |
+| 11 | `GF-5b325892` | carrier | C-BASIC-BLOW / E18 | 11 | The register says C-BASIC-BLOW feeds E18, and C-BASIC-BLOW writes nothing E18 reads (C-BASIC-BLOW writes hero.blow) |
+| 12 | `GF-a6696e80` | feeds | C-GEAR-WEAPON / C-WEAKNESS | 11 | C-GEAR-WEAPON writes gear.weapon and C-WEAKNESS reads it. The register holds no edge between them |
+| 13 | `GF-f13838cd` | feeds | P11 / E18 | 11 | P11 writes hero.maxMana and E18 reads it. The register holds no edge between them |
+| 14 | `GF-fe23c52f` | carrier | C-ARMOR-CHAIN / E18 | 11 | The register says C-ARMOR-CHAIN feeds E18, and C-ARMOR-CHAIN writes nothing E18 reads (C-ARMOR-CHAIN writes hero.mitigation) |
+| 15 | `GF-09df4953` | carrier | C-MON-BLOW / E18 | 10 | The register says C-MON-BLOW feeds E18, and C-MON-BLOW writes nothing E18 reads (C-MON-BLOW writes mon.maxHit) |
+| 16 | `GF-843e9c9d` | call | E20 / E18 | 10 | E18 reaches `consumeOrder` in the home of E20 (src/core/hunt/consumables.js:183), and no quantity is declared between them (E20 writes supplies.used) |
+| 17 | `GF-de2b29ea` | carrier | E20 / E18 | 10 | The register says E20 feeds E18, and E20 writes nothing E18 reads (E20 writes supplies.used) |
+| 18 | `GF-167b8a1b` | call | C-REGEN / E12 | 9 | E12 reaches `tickHeroes` in the home of C-REGEN (src/core/hunt/pull-cycle.js:400), and no quantity is declared between them (C-REGEN writes hero.regen) |
+| 19 | `GF-2bcdd401` | feeds | C-SPELL-SHELL / E18 | 9 | C-SPELL-SHELL writes hero.manaCost and E18 reads it. The register holds no edge between them |
+| 20 | `GF-3c842d04` | feeds | P19 / C-WEAKNESS | 9 | P19 writes gear.special and C-WEAKNESS reads it. The register holds no edge between them |
+| 21 | `GF-631efa95` | feeds | C-MON-DEF / C-HERO-POWER | 9 | C-MON-DEF writes mon.defCut and C-HERO-POWER reads it. The register holds no edge between them |
+| 22 | `GF-6ee0cbba` | feeds | C-WEAKNESS / E45 | 9 | C-WEAKNESS writes drop.chance and E45 reads it. The register holds no edge between them |
+| 23 | `GF-bf3a3000` | carrier | C-HERO-POWER / P06 | 9 | The register says C-HERO-POWER feeds P06, and C-HERO-POWER writes nothing P06 reads (C-HERO-POWER writes hero.maxHit) |
+| 24 | `GF-788b15e5` | writers | C-JEWEL-PERKS / C-REGEN | 9 | C-JEWEL-PERKS and C-REGEN both write hero.regen. The register holds no edge between them |
+| 25 | `GF-c1facf18` | feeds | C-WEAKNESS / C-HERO-TOHIT | 9 | C-WEAKNESS writes hero.weakFactor and C-HERO-TOHIT reads it. The register holds no edge between them |
+| 26 | `GF-057157d5` | feeds | E18 / O-MANAWAIT | 8 | E18 writes supplies.used and O-MANAWAIT reads it. The register holds no edge between them |
+| 27 | `GF-1fdc0345` | feeds | P37 / C-HERO-POWER | 8 | P37 writes hero.skill and C-HERO-POWER reads it. The register holds no edge between them |
+| 28 | `GF-27240a11` | feeds | C-HURT / E18 | 8 | C-HURT writes dmg.toHero and E18 reads it. The register holds no edge between them |
+| 29 | `GF-6872e027` | feeds | E18 / O-SUSTAIN | 8 | E18 writes supplies.used and O-SUSTAIN reads it. The register holds no edge between them |
+| 30 | `GF-6bf926a5` | feeds | E18 / O-REGENSHARE | 8 | E18 writes supplies.used and O-REGENSHARE reads it. The register holds no edge between them |
+| 31 | `GF-8bdca139` | feeds | E18 / O-STORE | 8 | E18 writes supplies.cost and O-STORE reads it. The register holds no edge between them |
+| 32 | `GF-c0593096` | writers | C-WEAKNESS / E51 | 8 | C-WEAKNESS and E51 both write drop.chance. The register holds no edge between them |
+| 33 | `GF-d078483b` | feeds | E18 / O-SUPPLIES | 8 | E18 writes supplies.used and O-SUPPLIES reads it. The register holds no edge between them |
+| 34 | `GF-ec0c8bba` | writers | P21 / P22 | 8 | P21 and P22 both write xp.share. The register holds no edge between them |
+| 35 | `GF-53404b2e` | carrier | C-GEAR-ARMOR / C-MON-TOHIT | 8 | The register says C-GEAR-ARMOR feeds C-MON-TOHIT, and C-GEAR-ARMOR writes nothing C-MON-TOHIT reads (C-GEAR-ARMOR writes gear.armor) |
+| 36 | `GF-73583d64` | feeds | E55 / E18 | 8 | E55 writes hero.leech and E18 reads it. The register holds no edge between them |
+| 37 | `GF-e5134636` | carrier | E10 / E12 | 8 | The register says E10 feeds E12, and E10 writes nothing E12 reads (E10 writes pull.rows) |
+| 38 | `GF-095e2551` | carrier | P11 / C-SPELL-HIT | 7 | The register says P11 feeds C-SPELL-HIT, and P11 writes nothing C-SPELL-HIT reads (P11 writes hero.maxHp, hero.maxMana) |
+| 39 | `GF-30a01f0b` | carrier | P03 / C-REGEN | 7 | The register says P03 feeds C-REGEN, and P03 writes nothing C-REGEN reads (P03 writes skill.cost, hero.skill) |
+| 40 | `GF-3597f539` | writers | C-WEAKNESS / E52 | 7 | C-WEAKNESS and E52 both write drop.chance. The register holds no edge between them |
 
-252 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
+227 ghost edges in all. The rest: `node tools/balance-program/graph.mjs --findings`.
 <!-- /graph:ghosts -->
 
 **Six the owners should look at first.** JUDGED, and each is a question, not a verdict.
@@ -450,7 +445,7 @@ The rank is the number of levers on the pair: the more numbers an agent can tune
 - **Rule code outside every formula's home.**
 
 <!-- graph:unhomed -->
-284 top-level bindings in 137 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, armorPm, focusPm, ...).
+274 top-level bindings in 134 files of the rule code write a field that is a quantity's token and sit in no formula's home. The largest: `src/data/grounds/krells_hold/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/unmarked_catacombs/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/wyvern_roost/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/carters_rest/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/ox_road/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/pyre_field/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/the_slake/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/grounds/muster_barrows/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/abilities.js#ABILITIES` (cdMs, mana, maxHits, magicXpMult, shieldPm, ...), `src/data/grounds/hasks_ford/pack.js#default` (pull, respawnMs, level, ch, hp, ...), `src/data/monsters.js#MONSTERS` (level, dropBonus, hp, atk, aim, ...), `src/core/combat-sim.js#syncUnit` (maxHit, def, heroLv, armorPm, focusPm, ...).
 <!-- /graph:unhomed -->
 
   These are mostly content tables (ground packs, the ability rows, the monster rows) and the plumbing that carries a hero's stats onto a unit. The check does not read them. A number added there is caught by the lever registry's check, not by this one.

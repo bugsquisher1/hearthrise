@@ -29,7 +29,6 @@ import { trainingOf as trainedBy } from '../data/training.js';
 import { endedWords as trainingEndWords } from '../shell/training-words.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { groundOfHunt } from '../data/hunt-grounds.js';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js';
 import { ITEMS } from '../data/items.js';
 import { isRareItem } from '../shell/hunt-ground-facts.js';
 import { t } from '../render/player-text.js';
@@ -192,9 +191,7 @@ export function endedSessionOf(cs) {
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
     died: int(isObj(s.tally) ? s.tally.deaths : null),
-    /* The tier it ran at, the server's (hr_hunt_view `tier`, stamped as it ended), or null. */
-    tier: typeof s.tier === 'string' ? s.tier : null,
-    /* ON THE DANGER SCALE (1057-danger-falls.sql hr_hunt_view): the Risk and step the hunt stood at as it ended, or null (open, or a tier hunt) */
+    /* ON THE DANGER SCALE (1057-danger-falls.sql hr_hunt_view): the Risk and step the hunt stood at as it ended, or null (open, or a hunt off the scale) */
     riskEnd: id(s.risk_end), dangerEnd: int(s.danger_end),
     /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
     fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
@@ -316,7 +313,7 @@ export function buildSummary(s, an, deaths, role, stop, line, report) {
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
     : countPairs(tl.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
-    id: s.id, hunt: s.hunt, tier: s.tier || null, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
+    id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
     kills: hero ? hero.kills : int(tl.kills), xp: hero ? hero.levelXp : isObj(tl.xp) ? num(tl.xp.level) : num(tl.xp), gold: hero ? hero.gold : num(tl.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */
@@ -343,10 +340,9 @@ export function buildSummary(s, an, deaths, role, stop, line, report) {
   });
 }
 
-/** The card's and the history's name for a hunt: its ground, and the tier it ran at when that was harder than Normal ("Wickstead · Dangerous"). */
+/** The card's and the history's name for a hunt: its ground. */
 export function groundTitle(s) {
-  const name = s && s.hunt && HUNT_INDEX[s.hunt] ? HUNT_INDEX[s.hunt].name : 'Hunt';
-  return s && s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier) ? name + ' (' + TIER_NAME[s.tier] + ')' : name;
+  return s && s.hunt && HUNT_INDEX[s.hunt] ? HUNT_INDEX[s.hunt].name : 'Hunt';
 }
 
 /** The list with `summary` first (replacing the same session id), bounded. */

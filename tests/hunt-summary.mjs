@@ -23,7 +23,7 @@
 //   S8  a training session's card is the skill's XP, its levels and the yard's fee (the server's last stop, the tally's XP first),
 //       never Monsters / Level XP / Gold zeros; why it ended in the Training window's words; no Hunt again
 //   S9  a climb the Burning Tower spat out (a mode whose death takes nothing) reads "Spat out", never "Died", on the card and in Earlier hunts
-//   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
+//   (S7, an ended hunt naming the tier it ran at, left with the tiers: lane/retire-tier-chain 2026-11-26; the card names the ground alone)
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
@@ -259,19 +259,6 @@ async function runTests(M) {
     eq(MD.endWords('died', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.died, 'a hunt\'s death keeps Died');
     eq(MD.endWords('died'), MD.END_WORDS.died, 'no hunt named: Died');
     eq(MD.endWords('floor_time', false, null, 'Wren', null, 'the_burning_tower'), MD.END_WORDS.floor_time, 'another Tower end keeps its own words');
-  });
-
-  await t('S7 an ended hunt names the tier it ran at, on the card and in Earlier hunts', () => {
-    /* The server's ended session (hr_hunt_view `tier`, 2027-03-16-ended-hunt-tier.sql): hunt_tier.playing is null by then. */
-    const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
-    const card = (over) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(Object.assign({ id: 'sess-t', hunt: 'wickstead', preset: 0,
-      entered_at: '2026-11-05T10:00:00Z', ended_at: '2026-11-05T10:20:00Z', end_reason: 'left', phase: 'ended', bag: [], tally: { kills: 3, xp: 30, coins: 5 } }, over))), null, [])])[0];
-    eq([card({ tier: 'dangerous' }).tier, MD.groundTitle(card({ tier: 'dangerous' }))], ['dangerous', 'Wickstead (Dangerous)'], 'a Dangerous hunt, stored and named');
-    eq(MD.groundTitle(card({ tier: 'deadly' })), 'Wickstead (Deadly)', 'a Deadly hunt');
-    eq([MD.groundTitle(card({ tier: 'normal' })), MD.groundTitle(card({})), MD.groundTitle(card({ tier: null }))], ['Wickstead', 'Wickstead', 'Wickstead'], 'Normal, or a session the server stamped none on, is the ground alone');
-    /* the residue is the player's own file: a forged tier names nothing */
-    eq([MD.groundTitle(MD.sanitizeSummaries([entry(1, { hunt: 'wickstead', tier: 'constructor' })])[0]), MD.sanitizeSummaries([entry(1, { tier: 'Deadly!' })])[0].tier],
-      ['Wickstead', null], 'a forged tier');
   });
 
   /* S8 (the designer's coherence pass 2026-11-15, walk rows 5 and 7): an hour of Defense at the yard read "You left the hunt. Monsters 0,
@@ -1069,9 +1056,6 @@ const MUTANTS = [
   { test: 'S6', file: MODEL, from: "return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason]", to: "return END_WORDS[reason]" },
   { test: 'S6', file: MODEL, from: "    forfeit: s.forfeit === true,\n", to: '' },
   { test: 'S6', file: SUMMARIES, from: "reason, forfeit: v.forfeit === true,", to: "reason," },
-  { test: 'S7', file: MODEL, from: "    tier: typeof s.tier === 'string' ? s.tier : null,\n", to: '' },
-  { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
-  { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
   { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });\n", to: '' },
   { test: 'S9', file: MODEL, from: "if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return", to: "if (false) return" },
   { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },

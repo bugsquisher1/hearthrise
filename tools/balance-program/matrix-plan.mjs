@@ -22,7 +22,7 @@ import * as STD from './standards.mjs';
 import { STYLES } from '../balance-sim/styles.mjs';
 import { compsOf, cellKey, buildCell, MAIN, readTracks } from './progression-grid.mjs';
 import { huntGrounds, bandEnds, partyComps } from './atlas/rates.mjs';
-import { lineKit } from './grid-project.mjs';
+import { tierKit } from './grid-project.mjs';
 import { RUNE_TIERS as PLAYED_RUNE_TIERS } from '../balance-sim/played.mjs';
 
 export const WAYS = Object.freeze(Object.keys(STYLES));
@@ -217,8 +217,8 @@ export function curveBand(L, g, back = 0) {
   return k < 0 ? null : Math.round(g.from * g.step ** k);
 }
 /**
- * THE GEAR CURVE (R10, proposals GR-4): from its first band a MID or BiS seat's weapon and armor are the line (grid-project.mjs lineKit:
- * the Dawnsteel row with its numbers at the band's Level), LOW one band back; shields, spellbooks, jewelry and the rest stay the kit's.
+ * THE GEAR CURVE (R10, proposals GR-4): from its first band a MID or BiS seat's weapon and armor are the formula piece (grid-project.mjs tierKit:
+ * the top named rung with every stat the gear formula's at the item Level worn from the band's Level), LOW one band back; shields, spellbooks, jewelry and the rest stay the kit's.
  * Changes `built` (a buildCell answer) in place: the seats' explicit sets, the plans' kits and the what-if items.
  */
 export function applyGearCurve(K, built, meta, g) {
@@ -229,9 +229,9 @@ export function applyGearCurve(K, built, meta, g) {
   const ARMOR = UPGRADE_CLASSES.armor;
   const items = {};
   built.cell.gearBySeat = built.cell.gearBySeat.map((gear, i) => {
-    const line = lineKit(K.LINES, STYLES[meta.styles[i]], R);
+    const line = tierKit(K.TIERS, STYLES[meta.styles[i]], R + K.TIERS.wearAhead);
     if (back) {
-      const lb = lineKit(K.LINES, STYLES[meta.styles[i]], back);
+      const lb = tierKit(K.TIERS, STYLES[meta.styles[i]], back + K.TIERS.wearAhead);
       for (const [slot, id] of Object.entries(lb.set)) if (meta.stepClass === 'weapon' ? slot === 'weapon' : ARMOR.includes(slot)) { line.set[slot] = id; line.items[id] = lb.items[id]; }
     }
     Object.assign(items, line.items);

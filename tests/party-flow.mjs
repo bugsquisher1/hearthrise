@@ -41,7 +41,8 @@
 //               live horizon (2026-10-31-live-horizon.sql: no door ends a hunt at once), and its
 //               seat goes now
 //   PF-RESTART  (#60) the real Start twice on one party instance: the second hunt plays the
-//               leader's NEW density pick and none of the first hunt's strikes
+//               server's density (0: the leader's tier pick that set it left with the tiers, 1072-retire-tier-chain.sql), never
+//               the first hunt's, and none of its strikes
 //   PF-ROLE     (2027-02-18-party-truth.sql, blind panel 2026-11-01) a seat's weapon is what it wears NOW, in the view,
 //               with no re-forming; the frozen column is gone; a swap nudges the seat-mate's open client
 //   PF-CROSS    two friends' crossing invites: a party of one gives way to a Join, its invites with it; company refuses
@@ -582,46 +583,35 @@ const ARMS = {
 
   /* #60 (P1, live 10-29): a party's instance IS its party id, reused for every hunt it starts; the restart never cleared
      the density frozen on it (nor its strikes), so a party played its FIRST hunt's pick on every later hunt and ground.
-     The real Start, twice (2027-02-10-party-instance-reset.sql): the leader picks 3 and the party hunts; the hunt ends
-     with strikes on the instance; the leader picks the ground's ceiling and starts again: the instance, and what the
-     engine reads for every member, hold the new pick and no strikes. */
+     The real Start, twice (2027-02-10-party-instance-reset.sql): the party hunts; the hunt ends with a density and strikes
+     left on the instance; the leader starts again: the instance, and what the engine reads for every member, hold the
+     server's density (0 since the tier pick retired, 1072-retire-tier-chain.sql) and no strikes. */
   'PF-RESTART': async (db) => {
     const { hunt } = await world(db);
     const p = await threeOf(db);
     const pid = await partyOf(db, A);
-    const ceiling = Number(await one(db, `select least(coalesce(public.hr_hunt_limit('density_max'), 0)::int, coalesce((select max(m) from unnest(g.density_max) m), 0), 8)
-                                           from public.hr_hunt_grounds g where g.hunt_id = $1`, [hunt]));
-    if (!(ceiling >= 4)) return [...p, `HARNESS: the ground's density ceiling ${ceiling} is under 4`];
-    /* The first pull is one tier's row and the restart's another's: a local catalogue row, each its own pull. */
-    const pick = async (n) => {
-      const tier = n === 3 ? 'dangerous' : 'deadly';
-      await db.query('insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values ($1, $2, array_fill($3::int, array[4]), 1000, 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull', [hunt, tier, n]);
-      return as(db, A, 'select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [hunt, tier, idem()]);
-    };
     const inst = async () => (await db.query('select density, refusals, hunt_id from public.hunt_instances where id = $1', [pid])).rows[0];
     const played = async () => {
       const r = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [A]);
       return ((r && r.members) || []).map((m) => m.session && m.session.options && m.session.options.density);
     };
-    if (err(await pick(3)) !== 'ok') return [...p, 'HARNESS: the leader could not pick density 3'];
     if (err(await start(db, A, hunt)) !== 'ok') return [...p, 'HARNESS: the first start was refused'];
     const first = await inst();
-    if (!first || first.density !== 3) p.push(`the first hunt froze density ${first && first.density}, the leader picked 3`);
-    /* the hunt ends with a refused window's strikes left on the instance; every seat's hunt closes */
-    await db.query('update public.hunt_instances set refusals = 4 where id = $1', [pid]);
+    if (!first || first.density !== 0) p.push(`the first hunt froze density ${first && first.density}, the server's is 0`);
+    /* the hunt ends with a density and a refused window's strikes left on the instance (a first hunt's leftovers); every seat's hunt closes */
+    await db.query('update public.hunt_instances set density = 3, refusals = 4 where id = $1', [pid]);
     for (const { id } of (await db.query('select id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid])).rows) {
       await db.query(`select public.hr_hunt_close($1::uuid, 'left', now(), true)`, [id]);
     }
     await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = any ($1::uuid[])", [U]);
     await db.query('delete from public.hr_rate_counters');
-    if (err(await pick(ceiling)) !== 'ok') return [...p, `HARNESS: the leader could not pick density ${ceiling}`];
     const s = await start(db, A, hunt);
     if (err(s) !== 'ok' || s.entered !== 3) return [...p, 'HARNESS: the restart did not walk all three in: ' + JSON.stringify(s)];
     const again = await inst();
-    if (again.density !== ceiling) p.push(`the restarted hunt plays density ${again.density}, the leader picked ${ceiling} (the first hunt's ${first && first.density} kept)`);
+    if (again.density !== 0) p.push(`the restarted hunt plays density ${again.density}, the server's is 0 (the first hunt's 3 kept)`);
     if (again.refusals !== 0) p.push(`the restarted hunt inherited ${again.refusals} strikes from the last one`);
     const eng = await played();
-    if (eng.length !== 3 || eng.some((d) => d !== ceiling)) p.push(`the engine reads density ${JSON.stringify(eng)} for the members, want ${ceiling} each`);
+    if (eng.length !== 3 || eng.some((d) => d !== 0)) p.push(`the engine reads density ${JSON.stringify(eng)} for the members, want 0 each`);
     return p;
   },
 

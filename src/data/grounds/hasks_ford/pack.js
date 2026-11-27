@@ -178,11 +178,6 @@ export default definePack({
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* BOTH HARDER TIERS CARRY MORE HP HERE: Dangerous 1150, Deadly 1250 (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17). With Turning Cut on every
-     melee weapon without a shield, Andy's four read 2.63x the pace contract on Deadly at the floor (party-tier-xp, 2 seeds x 0.5 h). Both tiers move together, so a
-     hero alone still levels faster on Deadly than on Dangerous. */
-  tierOverride: { dials: { dangerous: { hpPm: 1150 }, deadly: { hpPm: 1250 } },
-    why: 'Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick

@@ -12,7 +12,7 @@
 // EVERY KIT IS A RULE ON THE GAME'S DATA. Nobody types a kit: the three states of standards.mjs GEAR_STATES are applied to src/data through
 // tools/balance-sim/gear.mjs kitOf (the ladder, the reachable sources, the staged uniques, the Hearth Chest's pieces), the accessory rule
 // below (jewelry.js grades, reachable sources), src/core/temper-steps.js (the ranks a Level opens) and, past Level 185,
-// the projected line (grid-project.mjs). A state that cannot be built from data throws: it fails loudly.
+// the projected tier (grid-project.mjs). A state that cannot be built from data throws: it fails loudly.
 //
 //   LOW   under 15 the start kit (gear.mjs `starter`). On the ladder (to 88) every slot one tier under (tierOffset -1, only 'all'). Past it,
 //         the previous band's MID set (the day the hero walks into a new band having bought nothing). No jewelry or cloak, no rungs, the
@@ -24,7 +24,7 @@
 //         highest grade (Hallmarked, Fine, plain) whose plain piece can be got, then the larger perk pair. Rung 5 of 5 on every open ladder.
 //         Skills 10 over the line on the main skill and Defense. Linings, perks on 12 seats, worn in, jewelry tiers 4 to 7, Necrotic and
 //         Storm, faction skills: ruled, not built in the engine, listed in `projectedAdds` with their ruled budget, never played.
-//   PROJECTED (past 185) the state's set at 185 with its weapon and armor moved to the projected line: MID and BIS the band's, LOW one back.
+//   PROJECTED (past 185) the state's set at 185 with its weapon and armor the formula piece of the tier the Level wears: MID and BIS that tier, LOW one back.
 //
 // TEMPER ON STEPS (lane/tp-im-steps retired the old rungs): a state's rung count is its Temper rank on every worn gear slot, at most what
 // the Level opens (rank r at 40r), the same on a unique, a step piece or a projected one: Temper belongs to the slot, never the piece.
@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 import { GEAR_STATES, POWER_SOURCES, stretchOf } from './standards.mjs';
-import { PROJECTED, projectedBand, lineKit } from './grid-project.mjs';
+import { PROJECTED, projectedTier, tierKit } from './grid-project.mjs';
 import { loadTraitKits } from './trait-kits.mjs';
 
 export const ARMOR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
@@ -73,23 +73,25 @@ export async function loadKits(root, opts = {}) {
     const g = (o.cost || []).find((c) => c.kind === 'currency' && c.id === 'gold'), it = (o.grant || []).find((x) => x.kind === 'item' && x.amount === 1);
     if (g && it && (o.cost || []).length === 1 && !SHOP_PRICE.has(it.id)) SHOP_PRICE.set(it.id, g.amount);
   }
-  const WL = await import(u('tools/balance-sim/staged/weapon-line.js'));
-  const AL = await import(u('tools/balance-sim/staged/armor-line.js'));
-  const LINES = { WEAPON_LINE_BASE: WL.WEAPON_LINE_BASE, lineWeapon: WL.lineWeapon, LINE_BASE: AL.LINE_BASE, lineArmor: AL.lineArmor };
+  /* THE FORMULA PIECE AT ANY ITEM LEVEL (12-targets 8.3 a, 8.8; grid-project.mjs tierKit): past the named tiers a band is the same formula */
+  const GS = await import(u('src/core/gear-stats.js') + v);
+  const { GEAR_STAT_FIELDS } = await import(u('src/data/gear-profiles.js') + v);
+  const TIERS = { ladder: gear.ladder, ITEMS, statsAt: (id, iL) => GS.statsOfRow(ITEMS[id], iL, ITEMS), fields: GEAR_STAT_FIELDS, wearAhead: GEAR_STEPS.wearAhead, tierSteps: GEAR_STEPS.tierSteps };
   const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
   /* the staged grounds (built, hidden), by floor: a hero past a floor has been sent there, so its drops are reachable */
   const STAGED = Object.keys(G.HUNT_GROUNDS).filter((g) => !own(G.OPEN_GROUNDS, g)).sort((a, b) => floorOf(a) - floorOf(b));
   const stagedUpTo = (L) => STAGED.filter((g) => floorOf(g) <= L);
-  /* THE GEAR BANDS: the ladder's tiers (gear-tiers.js MATERIAL_TIERS), the unique armor bands past Dawnsteel (the armor line's, worn from
-     110, 125, 145 and 165), the projected ones */
+  /* THE GEAR BANDS: the ladder's tiers (gear-tiers.js MATERIAL_TIERS, each worn from its item Level less wearAhead), then the projected
+     tiers past 185, one every tierSteps item Levels, by the Level each is worn from (12-targets 8.3: the armor line's unique bands, 110, 125,
+     145 and 165, retired with the lines in 8.8) */
   const LADDER_BANDS = GT.MATERIAL_TIERS.map((t) => t.level).sort((a, b) => a - b);
-  const UNIQUE_BANDS = [110, 125, 145, 165];
   const LADDER_TOP = LADDER_BANDS[LADDER_BANDS.length - 1];
-  const UNIQUE_FROM = UNIQUE_BANDS[0];
+  /* from here MID wears the best ground or boss drop (a named or special piece of its family), not the ladder's piece alone */
+  const UNIQUE_FROM = 110;
   const projectedStarts = [];
-  for (let b = PROJECTED.from; b <= 400; b += PROJECTED.bandEvery) projectedStarts.push(b);
-  const BANDS = [...new Set([...LADDER_BANDS, ...UNIQUE_BANDS, ...projectedStarts])].sort((a, b) => a - b);
+  for (let iL = projectedTier(PROJECTED.from + 1, TIERS); iL - TIERS.wearAhead <= 400; iL += TIERS.tierSteps) projectedStarts.push(iL - TIERS.wearAhead);
+  const BANDS = [...new Set([...LADDER_BANDS, ...projectedStarts])].sort((a, b) => a - b);
   const bandOf = (L) => BANDS.filter((b) => b <= L).pop() || 1;
   const bandBefore = (L) => { const i = BANDS.indexOf(bandOf(L)); return i > 0 ? BANDS[i - 1] : BANDS[0]; };
   const bandAfter = (L) => BANDS.find((b) => b > L) || null;
@@ -193,15 +195,15 @@ export async function loadKits(root, opts = {}) {
     return finish({ level: L, state, style, stretch: stretch.state, label: stretch.label, ground, opts, set, reasons });
   }
 
-  /* past 185: the state's set at 185, its weapon and armor moved to the projected line (grid-project.mjs) */
+  /* past 185: the state's set at 185, its weapon and armor moved to the formula piece of the projected tier (grid-project.mjs) */
   function projectedPlan(L, state, style, ctx) {
     const at = kitFor(PROJECTED.from, state, style, { ground: PROJECTED.template, mainSkill: ctx.mainSkill });
-    const R = projectedBand(L, state === 'low' ? 1 : 0);
-    const line = lineKit(LINES, STYLES[style], R);
-    const set = { ...at.kit, ...line.set };
+    const iL = projectedTier(L, TIERS, state === 'low' ? 1 : 0);
+    const tier = tierKit(TIERS, STYLES[style], iL);
+    const set = { ...at.kit, ...tier.set };
     const reasons = { ...at.why };
-    for (const k of Object.keys(line.set)) reasons[k] = 'PROJECTED: the line at Level ' + R + ' (' + (state === 'low' ? 'one band back' : 'the band') + ')';
-    return finish({ level: L, state, style, stretch: 'PROJECTED', label: 'PROJECTED', ground: PROJECTED.template, opts: { ...at.gear }, set, reasons, whatIfItems: line.items, projectedBand: R });
+    for (const k of Object.keys(tier.set)) reasons[k] = 'PROJECTED: the formula piece at item Level ' + iL + ' (' + (state === 'low' ? 'one tier back' : 'the tier the Level wears') + ')';
+    return finish({ level: L, state, style, stretch: 'PROJECTED', label: 'PROJECTED', ground: PROJECTED.template, opts: { ...at.gear }, set, reasons, whatIfItems: tier.items, projectedBand: iL });
   }
 
   function finish(p) {
@@ -281,5 +283,5 @@ export async function loadKits(root, opts = {}) {
     return kits;
   }
 
-  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), rankGold, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, LINES, STAGED, STATES };
+  return { kitFor, mixPlan, traitPlans, shopSells: (id) => SHOP_PRICE.has(id), rankGold, kitCost, upgradeCost, priceOf, skillDeltaOf: (state, level) => skillDeltaOf(state, level, STATES), gear, ITEMS, STYLES, BANDS, bandOf, bandAfter, bandBefore, stagedUpTo, floorOf, TIERS, STAGED, STATES };
 }

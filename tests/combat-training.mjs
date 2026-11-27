@@ -281,7 +281,7 @@ const MUTANTS = [
   { name: 'the dummy falls', edits: [['src/core/hunt/damage.js', "  if (isMonster(target)) dummyStands(rowOf(inst, target.kind), target);\n", '']], want: /CT-DUMMY/ },
   { name: 'the dummy\'s blow has no floor', edits: [['src/core/hunt/damage.js', "dummyBlow(isMonster(source) ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed))", 'Math.min(target.hp, n - absorbed)']], want: /CT-DUMMY/ },
   { name: 'a training session drains stamina', edits: [['src/core/combat-sim.js', '  if (train) for (const m of members) m.hs.staminaMs = null;\n', '']], want: /CT-STAMINA/ },
-  { name: 'a pick fills the yard', edits: [['src/core/combat-sim.js', 'const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));', 'const pickOf = (ms) => (play.normalOf(tierPick(ms)) ? 0 : picker(ms));']], want: /CT-PICK/ },
+  { name: 'a pick fills the yard', edits: [['src/core/combat-sim.js', 'const pickOf = (ms) => (train || tw ? 0 : picker(ms));', 'const pickOf = (ms) => (tw ? 0 : picker(ms));']], want: /CT-PICK/ },
   { name: 'the dummy walks', edits: [['src/data/monsters.js', '  if (row && row.dummy === true) return 0;   // a training', '  // a training']], want: /CT-ROW/ },
   { name: 'the Bestiary counts the dummy', edits: [['src/data/bestiary.js', '    if (m.dummy === true) continue;\n', '']], want: /CT-ROW/ },
   { name: 'the yard stops past its last hour', edits: [['src/core/hunt/training.js', ' || hours >= TRAINING_RULES.maxHours', '']], want: /CT-STOP/ },

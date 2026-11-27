@@ -188,7 +188,9 @@ const seat = (role, skills, gear, bar, own) => Object.freeze({ role, skills, gea
     supplies (the tank's swordfish and whetstones, the Mage's Carved fire runes, the Healer's Chalked water runes and suppers), the bow
     on store arrows (562 an hour at 4 gold: mithril), the casters on store drinks and the Mage on store ice. */
 export const HEAVY_FOUR = Object.freeze({
-  hunt: 'krells_hold', tier: 'deadly', level: 80,
+  /* (its Deadly tier retired with the tier rows, lane/retire-tier-chain 2026-11-26: the four plays Krell's Hold on the Danger scale, Steady, the
+     party's default; the fixture keeps its key) */
+  hunt: 'krells_hold', level: 80,
   seats: Object.freeze([
     seat('tank', { melee: 61, defense: 60, magic: 30, ranged: 20 }, { ...ARMOR.plate6, weapon: 'ember_warhammer' },
       { magic: 30, food: 'cooked_swordfish', storeFood: 'salted_shrimp' }, { cooked_swordfish: 500, rune_whetstone: 500, etched_fire_rune: 1500 }),
@@ -203,7 +205,7 @@ export const HEAVY_FOUR = Object.freeze({
 /** THE OWN FOUR's shape at its band (balance-program ref point `ford`: Level 50, Deadly; 28's reference "Own four": a third of its
     supplies its own): tier-4 kit, the same four roles on their played bars, every kind of supply on the bar, a third of it carried. */
 export const OWN_FOUR = Object.freeze({
-  hunt: 'hasks_ford', tier: 'deadly', level: 50,
+  hunt: 'hasks_ford', level: 50,
   seats: Object.freeze([
     seat('tank', { melee: 46, defense: 45, magic: 30, ranged: 10 }, { ...ARMOR.plate4, weapon: 'mithril_warhammer' },
       { magic: 30, food: 'cooked_lobster', storeFood: 'salted_trout', storeDrink: 'thin_tomato_juice' }, { cooked_lobster: 120, steel_whetstone: 300 }),
@@ -217,7 +219,7 @@ export const OWN_FOUR = Object.freeze({
 });
 
 /**
- * One account's four heroes, dressed, barred and stocked, seated in one party on `shape.hunt` at `shape.tier` and entered.
+ * One account's four heroes, dressed, barred and stocked, seated in one party on `shape.hunt` and entered (a scale ground: Steady, the default).
  * `as(uid)` sets the caller's claim (transaction-local on the replay, session-level on tools/beta-load.mjs's PostgreSQL 17). Extra hero
  * slots are bought with gold in play: the caller opens them (hr_hero_slots.starter) while the fixture builds. Answers { slots, sids }.
  */
@@ -253,7 +255,6 @@ export async function buildFour(db, M, uid, shape, { as, gold = 2000000, name = 
   for (const s of slots.slice(1)) await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, $3::int)', [pid, uid, s]);
   await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [pid, shape.hunt]);
   await as(uid);
-  if (shape.tier) need(await ask('select public.hr_hunt_tier_set(0, $1, $2, $3::uuid)', [shape.hunt, shape.tier, crypto.randomUUID()]), 'the tier');
   const sids = [];
   if (shape.tower) {
     /* a climb starts at a landing each seat has reached (tower_progress, tests/tower-climb.mjs's `best`) */
@@ -333,7 +334,7 @@ async function townHero(db, M, base) {
 
 const KIT10 = { level: 10, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
 const KIT20 = { level: 20, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
-const TOWER_FOUR = Object.freeze({ ...HEAVY_FOUR, hunt: 'the_burning_tower', tier: null, tower: Object.freeze({ landing: 0 }) });
+const TOWER_FOUR = Object.freeze({ ...HEAVY_FOUR, hunt: 'the_burning_tower', tower: Object.freeze({ landing: 0 }) });
 export const FIXTURES = Object.freeze({
   lone_L10_meadowbrook_thicket: { door: 'closed', build: (db, M) => accountsParty(db, M, 1, 'meadowbrook_thicket', KIT10, 100) },
   party4_L20_millrace_sewer: { door: 'closed', build: (db, M) => accountsParty(db, M, 4, 'millrace_sewer', KIT20, 200) },

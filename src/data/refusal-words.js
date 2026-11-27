@@ -130,7 +130,6 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     dummy_busy: 'Dummy in use',
     bad_skill: 'Melee, Ranged, Magic or Defense only',
   }),
-  scaled_hunt_buy: Object.freeze({ quote_changed: 'Price changed, check it and buy again' }),
   /* The training items (2027-04-23-training-gear.sql). The ones with the server's numbers are src/shell/training-words.js's. */
   training_gear_buy: Object.freeze({
     quote_changed: 'Price changed',
@@ -368,11 +367,6 @@ export const REFUSAL_WORDS = Object.freeze({
   unknown_chest: 'Unknown chest',
   version_conflict: 'Hero changed, check the price and try again',
   quote_changed: 'Prices changed, check the total and try again',
-  /* Scaled hunts (2027-03-21-scaled-hunts.sql hr_scaled_hunt_buy and hr_scaled_hunt_switch; src/shell/windows/scale-pane.js). */
-  not_scalable: 'Can\'t be scaled',
-  scale_level: 'Already in this hunt\'s Level range',
-  scaled_bank_full: 'Bank full for this hunt',
-  scaled_day_limit: 'Daily limit reached, more after midnight UTC',
   offer_unsupported: 'Shop doesn\'t sell that',
   unknown_offer: 'Shop doesn\'t sell that',
   not_for_sale: 'Shop doesn\'t sell that',
@@ -533,9 +527,8 @@ export const REFUSAL_WORDS = Object.freeze({
   reforge_level: 'Requires a higher Smithing level',
   reforge_limit: 'Daily limit: 10 reforges. Resets at midnight UTC',
   unknown_reforge: 'Can\'t reforge that piece that way',
-  /* The tier picked per ground (hr_hunt_tier_set). */
+  /* A verb naming a ground the server has no row for. */
   bad_hunt: 'No monsters to set a number for',
-  bad_tier: 'Tier not open on this hunt',
   /* The stance on the Danger scale (hr_hunt_risk_set, 1056-danger-scale.sql). */
   bad_risk: 'Pick Careful, Steady or Bold',
   unknown_supply: 'Not a hunt supply',

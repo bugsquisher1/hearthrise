@@ -101,25 +101,6 @@
    "note": "XP a health point = the pace contract over the reference kill-health an hour (a lone MID hammer on Normal, measured on the matrix and fitted c x L^d), so the 15 per-ground XP fits, the floor fit and the 0.4 exponent go. Party grounds keep their type with XP a kill at two thirds of a plain kill (was 0.8)"
   },
   {
-   "id": "GR-5b",
-   "doc": [
-    "G-5",
-    "R12"
-   ],
-   "title": "One tier table for every ground",
-   "modelled": true,
-   "recommended": true,
-   "label": "COMPUTED",
-   "layer": "data",
-   "patch": "patches/one-tier-table.json",
-   "shipsWith": [
-    "GR-5"
-   ],
-   "after": [],
-   "before": [],
-   "note": "One tier table: the per-ground tier dials go (pull capacity stays, it is geography) and so does the floor-16 pull rule"
-  },
-  {
    "id": "GR-5-under-5",
    "doc": [
     "08-designer-d3.md section 2",
@@ -237,27 +218,6 @@
    "after": [],
    "before": [],
    "note": "Magic adds 0.5% max mana a level for every hero"
-  },
-  {
-   "id": "GR-27",
-   "doc": [
-    "G-27"
-   ],
-   "title": "What Dangerous brings",
-   "modelled": true,
-   "recommended": true,
-   "label": "MEASURED",
-   "layer": "data",
-   "patch": [
-    "patches/world-2b-dangerous-five.json",
-    "patches/bp-tiers-2500.json"
-   ],
-   "shipsWith": [
-    "GR-5b"
-   ],
-   "after": [],
-   "before": [],
-   "note": "Dangerous brings five (world-2b), and both harder tiers hit 2.5 times Normal on one blow dial (12-balance-pass.md 3.1, bp-tiers-2500: the pick, MEASURED on the death sample R2 and R4). The death count on each ground stays PROVISIONAL"
   },
   {
    "id": "GR-38",
@@ -407,26 +367,6 @@
     "GR-5"
    ],
    "excludesWhy": "the party-ground fit line: GR-5 brings its XP a kill to two thirds, world-1 sets the whole fit to the plain one (60 G-11 keeps the party ground)"
-  },
-  {
-   "id": "world-2",
-   "doc": [
-    "53 4.5"
-   ],
-   "title": "Dangerous brings the ground as built",
-   "modelled": true,
-   "recommended": false,
-   "label": "MEASURED",
-   "layer": "data",
-   "patch": "patches/world-2-dangerous-as-built.json",
-   "shipsWith": [],
-   "after": [],
-   "before": [],
-   "note": "Dangerous as built: superseded by world-2b (GR-27)",
-   "excludes": [
-    "GR-27"
-   ],
-   "excludesWhy": "the Dangerous row: GR-27 brings five, world-2 brings the ground as built"
   },
   {
    "id": "world-3",
@@ -1606,6 +1546,34 @@
    "ruling": "lane/econ-levers (2026-11-22): every store heal and drink is priced from wage hours (restorePrice, src/data/supply-basics.js)",
    "modelled": false,
    "reason": "superseded: the store heal price is now derived from wage hours by lane/econ-levers, so there is no typed price for patches/economy-1.json to move (its last measured reading stays in the R12 and R13 measuredOn lists)"
+  },
+  {
+   "id": "GR-5b",
+   "doc": [
+    "G-5",
+    "R12"
+   ],
+   "title": "One tier table for every ground",
+   "modelled": false,
+   "reason": "retired with the tier rows (lane/retire-tier-chain, 2026-11-26): a ground plays its Danger scale step (12-targets 8.4 item 4), so the tier dials and pulls this moved are gone"
+  },
+  {
+   "id": "GR-27",
+   "doc": [
+    "G-27"
+   ],
+   "title": "What Dangerous brings",
+   "modelled": false,
+   "reason": "retired with the tier rows (lane/retire-tier-chain, 2026-11-26): a ground plays its Danger scale step (12-targets 8.4 item 4), so the tier dials and pulls this moved are gone"
+  },
+  {
+   "id": "world-2",
+   "doc": [
+    "53 4.5"
+   ],
+   "title": "Dangerous brings the ground as built",
+   "modelled": false,
+   "reason": "retired with the tier rows (lane/retire-tier-chain, 2026-11-26): a ground plays its Danger scale step (12-targets 8.4 item 4), so the tier dials and pulls this moved are gone"
   }
  ]
 }

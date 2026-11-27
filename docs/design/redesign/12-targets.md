@@ -93,7 +93,7 @@ Every ruling below is the designer's and final. None is a money call.
 
 **So the rule is now:** ship what `src` already plays, and let the redesign replace numbers through new forward files in its own wave. The "Replaced in" column below is that plan. The edge collision is cut out of the notes, not the SQL:
 - **1016 is re-cut to "either order"**, so it no longer needs the edge first. Between its apply and the one deploy, a Level 8-20 death can be refused once and then settles on the next tick, with nothing lost. Once 1054 is in, every settle waits for the world shape anyway.
-- **1023 is re-cut to "either order"**, because scaled hunts are dark, so no scaled window can settle in between.
+- **1020, 1023 and 1031 are withdrawn (lane/retire-tier-chain, 2026-11-26).** The tier rows and scaled hunts they carried are retired, and `1072-retire-tier-chain.sql` drops their tables.
 - **1028 goes "before" the edge**, by the Coordinator's ruling: 1054 carries it whole, the two apply back to back, and the single deploy follows 1054.
 
 | File | Fate | Replaced in | Why it ships now |
@@ -106,16 +106,13 @@ Every ruling below is the designer's and final. None is a money call.
 | 1014 works-goal-sized | Keep | Wave 5 | 1043 (the Great Hearth) needs it. Stays on the Security list |
 | 1016 level-curve new player | Keep, edge re-cut to either order | Wave 1 finish (the hours table) | 1055 reads this curve (Level 9: 625 in the engine) |
 | 1017 tend the field | Keep | Not replaced | Farming in one press is the first principle at work |
-| 1020 to-hit ratio ground tiers | Keep | Wave 3 (no roll to hit) | The engine already plays it |
 | 1021 to-hit ratio hunt-sessions catalogue | Keep | Wave 3 | Carried by 1028, so by 1054 |
 | 1022 to-hit ratio hearthfind catalogue | Keep | Wave 3 | Carried by 1030 |
-| 1023 to-hit ratio scaled-hunts catalogue | Keep, edge re-cut to either order | Wave 2 (scaled hunts leave for the scale) | Carried by 1031; scaled hunts are dark |
 | 1026 job counts | Keep, re-cut in R12 (2026-11-22) | Wave 5 (company trades: 1059-company-trades) | Its engine half is in `src`, and 1040 restates `hr_apply` with it. "A job takes a count" saves repeated decisions, so it stays. R12 withdrew the THEN of hunt, its sweep and cron job (D-11) and re-derived 1040 |
 | 1027 spell-rule default bar | Keep | Wave 3 (move list) | The engine's bar already plays it |
 | 1028 spell-rule hunt-sessions catalogue | Keep, edge before, with 1054 | Wave 3 | 1054 carries it whole |
 | 1029 spell-rule rune spells | Keep | Wave 3 | Same deploy as 1028 |
 | 1030 spell-rule hearthfind catalogue | Keep | Wave 3 | Same deploy as 1028 |
-| 1031 spell-rule scaled-hunts catalogue | Keep | Wave 2 | Same deploy as 1028 |
 | 1032 approved cuts | Keep | Not replaced | Cutting the old dungeons and the scrip holds under any design. 1048 and 1051 need it |
 | 1033 approved-cuts items catalogue | Keep | Not replaced | Same cut |
 | 1034 approved-cuts tally | Keep | Not replaced | Same cut |
@@ -582,7 +579,7 @@ The 8-cell dominance count can't tell a strong Trait from the only live Trait in
 | 1. Wears Cobalt plate from the Roost | `cobalt_helm`, `cobalt_platebody`, `cobalt_platelegs`, item Level 140, worn from 130 (`gear-stats.generated.js`); the Roost's base is Cobalt 140 (8.3) | Yes, staged ground |
 | 2. Enters the Flooded Wing at 150 | Its band is 150-170, base Wolfram 160, worn from 150 (8.4) | Yes, staged ground |
 | 3. A Wolfram plate piece drops and replaces the Cobalt one | `wolfram_platebody` defense 164 against Cobalt's 143 | Yes |
-| 4. Keeper Dunn drops the Keeper's Leg Plates | A Wolfram leg plate (defense 116) that takes 10% off ice, the answer to his Snuff the Candles | After the systems lane moves the row in with the wings' art |
+| 4. Keeper Dunn drops the Keeper's Leg Plates | A Wolfram leg plate (defense 116) that takes 10% off ice, the answer to his Snuff the Candles | The row is built (`keepers_leg_plates`, lane/retire-dawnsteel-lines). It drops once its Rare row on Dunn lands with the wings' art |
 | 5. A Rare drops on a Wolfram base with one of the wings' Traits | `danger.js` the wings' `traits: traitPool(...)` | Dark until `trait_drops` lights |
 
 ## 9. Sinks priced in wage hours, and the gold ledger (2026-11-26, designer, lane/sn-sinks; 20 lane SN and gate 7)

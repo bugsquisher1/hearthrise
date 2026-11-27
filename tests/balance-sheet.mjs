@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tests/balance-sheet.mjs — THE TARGET SHEET, THE STAT FORMULA AND THE TIER TABLE HOLD THEIR OWN RULES (src/data/balance-sheet.js;
+// tests/balance-sheet.mjs — THE TARGET SHEET AND THE STAT FORMULA HOLD THEIR OWN RULES (src/data/balance-sheet.js;
 // lane/b-ground-formula, Tyler 2026-11-07 "is there a formula you can start following?"). Pure, about a second, no engine play
 // (the measured half is tools/balance-sim/sheet-check.mjs on a plan 'formula' run).
 //
@@ -16,11 +16,12 @@
 //                     to Level 400 (the 11-18 "definitely NOT intended" Defense, fixed stats against stats)
 //   every-row-rated   every monster row the engine can meet carries both ratings (aim, evasion), each at least 1
 //   ref-hero-generated  to-hit.js REF_HERO is tools/gen-ref-hero.mjs's, row for row
-//   harder-is-surer   a tier's dial (hunt-tiers.js atTier) and an enrage (boss-phases.js swingRow) raise the aim as they raise the attack
+//   harder-is-surer   a Danger step's dial (src/core/hunt/dial.js atTier) and an enrage (boss-phases.js swingRow) raise the aim as they
+//                     raise the attack
 //   blows-capped      no role's largest blow passes the sheet's regular cap at any Level (BALANCE_SHEET.blows)
 //   curves-climb      HP, XP and coin never fall as a Level rises, for every role (a scaled ground only gets harder and richer)
-//   tiers             the one table: each harder tier pulls at least as many, hits at least as hard, pays more XP, and never moves coin;
-//                     the Cellar is Normal only
+//   (the `tiers` case, the one tier table's order, retired with TIER_DIALS: a ground plays its Danger scale step, 12-targets 8.4
+//    item 4, held by tests/hunt-core/danger.mjs; lane/retire-tier-chain 2026-11-26)
 //   roster            tools/gen-ground-stats.mjs names only real monsters and real roles, and its --selftest bites
 //
 // --mutate: each case is run against a planted wrong copy and must go red.
@@ -36,7 +37,7 @@ const V = sourceQuery(ROOT);
 const REAL = await import(u('src/data/balance-sheet.js'));
 const C = await import(u('src/core/combat.js') + V);
 const TH = await import(u('src/data/to-hit.js') + V);
-const { atTier } = await import(u('src/data/hunt-tiers.js') + V);
+const { atTier } = await import(u('src/core/hunt/dial.js') + V);
 const { swingRow } = await import(u('src/core/hunt/boss-phases.js') + V);
 const { MONSTERS } = await import(u('src/data/monsters.js'));
 const GEN = await import(u('tools/gen-ground-stats.mjs'));
@@ -165,35 +166,6 @@ const CASES = {
     if (!(B.rampAt(B.STAT_FORMULA.ramp.from) === 0 && B.rampAt(B.STAT_FORMULA.ramp.to) === 1)) bad.push('the danger ramp does not run 0 to 1 over its Levels');
     return bad;
   },
-  tiers: (B) => {
-    const bad = [], T = B.TIER_DIALS;
-    if (T.normal.dmgPm !== 1000 || T.normal.hpPm !== 1000 || T.normal.xpPm !== 1000 || T.normal.pull !== 0) bad.push('Normal is not the ground as it stands');
-    let was = T.normal;
-    for (const id of ['dangerous', 'deadly']) {
-      const t = T[id];
-      /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a tier's pull is one number, for one hero or four */
-      if (!Number.isInteger(t.pull) || t.pull < 0) bad.push(id + ' pull is not one number for every group: ' + JSON.stringify(t.pull));
-      else if (t.pull < was.pull && t.pull !== 0) bad.push(id + ' pulls fewer than the tier before');
-      for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (o[id] !== undefined && !Number.isInteger(o[id])) bad.push(g + ' ' + id + ' pull is not one number for every group: ' + JSON.stringify(o[id]));
-      if (!(t.dmgPm >= was.dmgPm && t.hpPm >= was.hpPm && t.xpPm > was.xpPm)) bad.push(id + ' is not harder and better paid than the tier before');
-      if ('gpPm' in t || 'coinPm' in t) bad.push(id + ' moves coin (Tyler 2026-11-07: never)');
-      was = t;
-    }
-    if (!(B.TIER_PULL_OVERRIDES.mill_cellar && B.TIER_PULL_OVERRIDES.mill_cellar.normalOnly)) bad.push('the Mill Cellar offers a harder tier');
-    for (const [g, o] of Object.entries(B.TIER_PULL_OVERRIDES)) if (!o.why) bad.push(g + '\'s override has no reason');
-    if (bad.length) return bad; /* (tierRowFor refuses a pull a party size, so the rows below can't be read) */
-    /* the engine row a ground gets: never softer than the table, the table's own on a full ground, harder the gentler the ground */
-    for (const id of ['dangerous', 'deadly']) {
-      let above = Infinity;
-      for (let floor = 1; floor <= 60; floor++) {
-        const r = B.tierRowFor(floor, id, { tiers: T, formula: B.STAT_FORMULA });
-        if (r.dmgPm < T[id].dmgPm || r.dmgPm > above) { bad.push(id + ' on a floor-' + floor + ' ground hits ' + r.dmgPm + ' permille'); break; }
-        if (floor >= B.STAT_FORMULA.ramp.to && r.dmgPm !== T[id].dmgPm) { bad.push(id + ' on a full ground is not the table\'s ' + T[id].dmgPm); break; }
-        above = r.dmgPm;
-      }
-    }
-    return bad;
-  },
   roster: () => {
     const bad = [];
     for (const [g, rows] of Object.entries(GEN.ROSTER)) for (const [id, role] of Object.entries(rows)) {
@@ -247,10 +219,6 @@ const MUTANTS = [
   ['blows-capped', 'a regular blow of 40% of HP', () => plant({ STAT_FORMULA: { ...REAL.STAT_FORMULA, blow: { lo: 0.10, hi: 0.40 } } })],
   ['curves-climb', 'HP falling past Level 100', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, hp: spec.level > 100 ? f.hp - spec.level : f.hp }; }; return B; }],
   ['curves-climb', 'coin falling past Level 100', () => { const B = plant({}); B.formulaStats = (spec, o) => { const f = REAL.formulaStats(spec, o); return { ...f, gp: spec.level > 100 ? [f.gp[0] - 1, f.gp[1] - spec.level] : f.gp }; }; return B; }],
-  ['tiers', 'Deadly paying coin', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, deadly: { ...REAL.TIER_DIALS.deadly, gpPm: 1200 } } })],
-  ['tiers', 'Dangerous hitting softer than Normal', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, dmgPm: 900 } } })],
-  ['tiers', 'Dangerous pulling by party size again (a lone hero 3, a four 6)', () => plant({ TIER_DIALS: { ...REAL.TIER_DIALS, dangerous: { ...REAL.TIER_DIALS.dangerous, pull: [3, 5, 5, 6] } } })],
-  ['tiers', 'a ground giving a lone hero its own Deadly pull again', () => plant({ TIER_PULL_OVERRIDES: { ...REAL.TIER_PULL_OVERRIDES, wickstead: { deadly: [0, 8, 8, 8], why: 'a lone hero keeps the ground as it stands' } } })],
 ];
 
 /* a roster with one ground written by the formula, then one of its rows nudged off it, or one row left behind */

@@ -34,8 +34,6 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/data/monster-spells.js#SPELL_BOUNDS', why: 'the valid range of the MONSTER_SPELLS rows (mon.spells field 3)' },
   { at: 'src/data/shape-kinds.js#SHAPE_BOUNDS', why: 'the valid range of an area shape\'s size' },
   { at: 'src/data/catalogue-coherence.js#UNREACHABLE_CEILING', why: 'a coherence guard\'s ceiling on unreachable items' },
-  { at: 'src/data/balance-sheet.js#TIER_SIZES', why: 'the party sizes a tier row answers for (1..4): a shape' },
-  { at: 'src/data/balance-sheet.js#tierRowFor', why: 'a solver\'s search bounds (lo 1, hi 10, 60 halvings) for a gentle ground\'s tier lift' },
   /* display, words, art, UI */
   /* the share code and the What's new card (lane/wn-sh): encoding and version arithmetic, no fight, purse or clock reads them */
   { at: 'src/core/plan-code.js#**', why: 'the share code\'s format: a paste bound (8192 characters), a clamp past any Level\'s points (2000), the FNV-1a hash constants, base36 and base64 padding; a code is a convenience string the server never trusts' },

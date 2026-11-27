@@ -40,7 +40,7 @@ import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
 import { createRng } from '../src/core/rng.js';
 import {
-  playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats, DEFAULT_PROFILE,
+  playerCombatRolls, weaknessInfo, equipmentStats, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
 import { skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
@@ -102,7 +102,6 @@ function fight(monsters, monsterId) {
     monsters, items: ITEMS, eq, bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE }),
-    monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
   };
   const out = huntSpan(state, ctx, { seed: SEED, fromMs: 0, food: 'cooked_shark', foodQty: 100000 });

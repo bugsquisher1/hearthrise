@@ -23,7 +23,7 @@
 //         Sentry (through the CSP) carrying only the account id as the user
 //   OB-3  replay is off on the sign-in and characters screens and on in the game;
 //         the chat window carries the mask class
-//   OB-4  hunt_started {hunt, party_size, tier}, leave_hunt_clicked and
+//   OB-4  hunt_started {hunt, party_size} (no tier: the tiers retired), leave_hunt_clicked and
 //         hunt_ended {reason, seconds} reach PostHog with the account id
 //   OB-5  ?noanalytics=1 on hearthrise.net: no SDK loads, nothing is sent
 //   OB-6  localhost: no SDK loads, nothing is sent
@@ -344,7 +344,7 @@ async function browserChecks(overrides) {
       const cards = seen.events.filter((e) => e && e.event === 'tutorial_card' && e.properties.slot === 0);
       if (!cards.some((e) => e.properties.state === 'shown' && /^[a-z0-9_]+$/.test(e.properties.card)) || cards.some((e) => !/^(shown|done)$/.test(e.properties.state)))
         fails.push('OB-14 tutorial_card: ' + JSON.stringify(cards.map((e) => [e.properties.card, e.properties.state])));
-      if (!st || st.properties.hunt !== HUNT.hunt.hunt_id || st.properties.party_size !== HUNT.party.members.length || st.properties.tier !== (HUNT.hunt_tier ? HUNT.hunt_tier.playing : null))
+      if (!st || st.properties.hunt !== HUNT.hunt.hunt_id || st.properties.party_size !== HUNT.party.members.length || 'tier' in st.properties)
         fails.push('OB-4 hunt_started: ' + JSON.stringify(st && { hunt: st.properties.hunt, party: st.properties.party_size, tier: st.properties.tier }) + ' (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
       if (!ev('leave_hunt_clicked')) fails.push('OB-4 no leave_hunt_clicked');
       if (!en || en.properties.reason !== 'left' || en.properties.seconds !== 300) fails.push('OB-4 hunt_ended: ' + JSON.stringify(en && { reason: en.properties.reason, seconds: en.properties.seconds }));

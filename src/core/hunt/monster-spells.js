@@ -44,7 +44,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { atTier } from '../../data/hunt-tiers.js';
+import { atTier } from './dial.js';
 import { HUNT_ROLES } from '../../data/hunt-roles.js';
 import { spellOn, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js';
 import { monsterMaxHit } from '../combat.js';
@@ -148,7 +148,7 @@ function begin(inst, sc, u, id, sp) {
 function land(inst, sc, u, sp) {
   const s = castShape(u);
   const id = u.cast.s;
-  const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row (a scaled hunt's), as a swing reads it (damage.js)
+  const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row, as a swing reads it (damage.js)
   const [lo, top] = spellHit(monsterMaxHit(row), sp);
   const t = mends(sp) ? unitById(inst, u.cast.t) : null;
   /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */

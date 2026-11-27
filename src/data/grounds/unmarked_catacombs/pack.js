@@ -140,6 +140,18 @@ export default definePack({
     candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, part: true },
     /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
     live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
+    /* THE WINGS' NAMED PIECES (28-named-pieces.md 2.7): Wolfram's plain piece (`statsAs`) plus one rule that answers the wings (Lime Sack,
+       Snuff the Candles, the Carters, the Bone Walls). Each Rare row waits for the wings' art (PENDING_SOURCE); tests/gear-stats.mjs GSF-11 */
+    limewashed_plate: { n: 'Limewashed Plate', icon: '🛡️', type: 'armor', slot: 'body', armourClass: 'plate',
+      resistPm: { poison: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platebody' },
+    keepers_leg_plates: { n: 'Keeper\'s Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',
+      resistPm: { frost: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platelegs' },
+    paupers_shroud: { n: 'Pauper\'s Shroud', icon: '🧥', type: 'armor', slot: 'body', armourClass: 'cloth',
+      resistPm: { frost: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'cerecloth_body' },
+    watchmans_sword: { n: 'Watchman\'s Sword', icon: '⚔️', type: 'weapon', slot: 'weapon', weaponType: 'sword',
+      bane: { class: 'human', mult: 1.1 }, effects: ['bane'], rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_sword' },
+    dunns_mallet: { n: 'Dunn\'s Mallet', icon: '🔨', type: 'weapon', slot: 'weapon', weaponType: 'hammer', twoHanded: true,
+      bane: { class: 'construct', mult: 1.1 }, effects: ['bane'], rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_warhammer' },
   },
   itemText: {
     owing_tag: 'A wooden tag off a pauper\'s wrist. It has a name, a date, and "owed one burning"',
@@ -148,6 +160,11 @@ export default definePack({
     carters_hook: 'The hook a Night Carter drags a body with. They sold the dead up the north road by the cartload',
     candle_snuffer: 'Keeper Dunn\'s snuffer. He lights a candle for every name in the book, and snuffs them out when you come in',
     live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
+    limewashed_plate: 'It went into the ossuary wall with whoever wore it. A hundred years in the lime turned it white and sealed it against the stuff',
+    keepers_leg_plates: 'The Keepers stood their watches in the cold vaults for years, and these are lined against it',
+    paupers_shroud: 'A thin gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning, and the cold never got through',
+    watchmans_sword: 'The Havora Watch carried these against the town\'s thieves, and the Watchmen buried down here took theirs with them',
+    dunns_mallet: 'The Keepers packed the old bones into the walls with it to make room for the new dead. Keeper Dunn never put it down',
   },
   /* ON THE WINGS (lane/monster-roles-ford-wings, 2026-11-23): both wings play the monster formula, so each spell below keeps its shape and
      warning there and takes the formula's hit and cooldown (src/core/hunt/monster-formula.js); the numbers below play off the scale only. */
@@ -193,19 +210,6 @@ export default definePack({
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value
      pin is that pair's floor hour, 17,655 g a head (coin 15,642, commons 2,013, no gear), measured 2026-11-15. */
-  /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). Its own pair cell (1705) went with the one
-     table, and on the table's eight a Melee and bow pair earned 0.42 of the same heroes alone on Dangerous and 0.28 on Deadly, a tank and Healer 0.91
-     on Deadly. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.14-1.89; party-tier-xp, 2 seeds x 0.5 h), Andy's four 1.58x
-     the pace contract. Every pair still dies often on Deadly here: the price of the tier. */
-  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair kept dying' },
-  /* DEADLY IS A HEALER'S TIER HERE, AT EVERY LEVEL OF THE BAND (lane/d-late-nearmisses' call 2026-11-16, re-measured and bounded by Level on v0.2.139 by
-     lane/d-late-items-rescue, the rule lane/a-honesty-rescue set for the Barrows and the Hold: said under the first Level measured at less than one
-     death in 16 hero-hours without a Healer). MEASURED, Deadly's six, 6 seeds x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage /
-     a tank, Healer, bow and Mage, in the uniques kit the ground opens with (its own uniques: the plan, §6): 165 43.3 / 1.3, 168 34.1 / 1.0,
-     170 29.7 / 0.3, 175 22.0 / 0, 180 14.3 / 0.3, 182 10.3 / 0, 185 6.7 / 0. Never under one inside the band, so 186 (not measured past 185).
-     On the ladder kit (Dawnsteel, no uniques) even the four WITH a Healer dies over the sheet's 9 up to 177 (165 23.7, 175 10.3, 178 3.7): the
-     Vaults opens with its armor, as lane/d-late-nearmisses found. */
-  healerTiers: { deadly: 186 },
   checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655, deadlyFourNeeds: 'healer' },
   map,
 });

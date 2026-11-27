@@ -29,19 +29,11 @@
 // size is the server's seat count; the picked ground's party rule (its row's
 // forParty pocket and boss) shows on its page.
 //
-// THE TIER is chosen with the hunt, before Enter (Tyler 2026-11-04; hunt-tiers.js): Normal, Dangerous or
-// Deadly, three buttons on the picked ground's page where it offers more than Normal. It sets how many monsters
-// a pull brings and how hard they hit; there is no other dial. A press moves the choice AT ONCE, marked
-// "Saving..." (Tyler 10-20: the round trip per press was "incredibly laggy"): presses inside TIER_SAVE_MS coalesce
-// into ONE hr_hunt_tier_set carrying the last value, and the server's answer (the re-read hunt_tier) replaces the
-// draft; a refusal shows the server's value again and why. Nothing spends the draft (CLAUDE.md §6): Enter / Start
-// with party first waits for the save. The pick is the hero's own PER GROUND (remembered per hunt, never part of a
-// setup), so each page says what THAT ground's pick spawns.
-// IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20): the leader's pick holds for everyone; a member sees it
-// read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
-// member's pick (hr_hunt_tier_set `not_leader`).
+// THE RISK is chosen with the hunt, before Enter (company-pane.js: Careful, Steady or Bold on the picked ground's page, ONE
+// hr_hunt_risk_set each, the page changing only from the envelope the answer carries). IN A PARTY THE LEADER CHOOSES (Tyler
+// 2026-10-20): a member reads its leader's Risk with the picks off, and the server refuses a member's press (not_leader).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf } from '../../session/hunt-sections.js';
 import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js';
 import { wornWeightOf } from '../hunt-ground-facts.js';
 import { levelOf as levelRowOf } from '../../session/character-sections.js';
@@ -53,12 +45,9 @@ import { whole, sepHtml, withSeps } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { itemNameFor, revealInWindow } from '../widgets/bits.js';
 import { glyphSvg } from '../launcher.js';
-import { markCoachRead } from '../launcher-coach.js';
-import { runIntent, refusalText } from '../intent-words.js';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js';
-import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords, seatsOutgrown, outgrownWords } from '../hunt-list.js';
-import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js';
+import { runIntent } from '../intent-words.js';
+import { huntRows, packWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords, seatsOutgrown, outgrownWords } from '../hunt-list.js';
+import { nextStepUp } from '../../data/hunt-tutorial.js';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js';
 import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js';
@@ -72,16 +61,10 @@ import { t } from '../../render/player-text.js';
 import { trainingPhrase } from '../../session/training-sections.js';
 import { patchAfter, actAfter } from './hunt-after-pane.js';
 import { planHtml, patchPlan, actPlan, PLAN_ACTS, goAsOf, stanceHtml, patchStance } from './company-pane.js';
-import { onScale } from '../../session/danger-sections.js';
-import { patchScale, actScale, scaleTag, scalesNow } from './scale-pane.js';
 
 const SCRATCH = new WeakMap();
-/* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
-   wait, `saving` the save in flight (its promise: Enter waits on it). `paged`: on a phone, the
-   picked ground's page is open in place of the list. */
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, auto: false, pending: false, msg: '', draft: null, timer: null, saving: null, paged: false }; SCRATCH.set(cs, s); } return s; };
-/* How long a tier press waits for the next press before it saves (one intent for a run of presses). */
-const TIER_SAVE_MS = 300;
+/* `paged`: on a phone, the picked ground's page is open in place of the list. */
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, auto: false, pending: false, msg: '', paged: false }; SCRATCH.set(cs, s); } return s; };
 
 /** Pick a hunt in this character's Hunts window (the World's door does, before it opens the window). */
 export function pickHunt(cs, hunt) {
@@ -102,8 +85,6 @@ function levelOf(cs) {
   return lv ? lv.level : null;
 }
 
-const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
-
 /**
  * WHY THIS HERO'S ENTER IS OFF, or '' when it is live: a party member's belongs to its leader (the server refuses it: not_party_leader). No Level ever turns it off. Pure.
  */
@@ -114,51 +95,6 @@ export function enterOffWords(party) {
 
 /* What a warning covered: this ground and these seats (none, for a hero alone or a leader who alone stands under it). Someone who sits down under the floor afterwards has not been told. */
 const warnKey = (hunt, seats) => hunt + ':' + seats.map((s) => s.seat).join();
-
-/* The server's pick on this ground (`picks`: { [hunt]: tier }, no key = Normal), Normal if the ground no longer offers it; null = unknown (no section, or no ground). */
-function tierOf(picks, hunt) {
-  const g = groundOf(hunt);
-  if (!picks || !g) return null;
-  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;
-}
-
-/* The tier on screen: this ground's unsaved draft while there is one, else the server's. A party member's is its leader's (the party section's leader_tiers), never its own. */
-function shownTier(sc, picks, hunt, party) {
-  if (party && !party.isLeader) return tierOf(party.tiers, hunt);
-  const tier = tierOf(picks, hunt);
-  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;
-}
-
-/**
- * SAVE THE TIER DRAFT NOW: ONE hr_hunt_tier_set with its ground and value, queued behind any save in
- * flight. The answer clears the draft only if no later press replaced it; a refusal says why (the
- * server's value shows again). Answers the save's result ({ ok: true } when nothing was waiting).
- */
-function saveTier(cs, sc, repaint) {
-  clearTimeout(sc.timer);
-  sc.timer = null;
-  const d = sc.draft;
-  if (!d) return sc.saving || Promise.resolve({ ok: true });
-  const p = (sc.saving || Promise.resolve()).then(async () => {
-    let r;
-    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }
-    if (!r) r = { ok: false, error: 'network' };
-    if (sc.draft === d) { sc.draft = null; sc.msg = r.ok ? '' : refusalText(r); }
-    /* A HARDER TIER TAKEN IS THE COACH'S OFFER TAKEN (hunt-tutorial.js FIRST_DANGEROUS): recorded as its read, so going back to Normal never brings it back */
-    if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });
-    if (sc.saving === p) sc.saving = null;
-    repaint();
-    return r;
-  });
-  sc.saving = p;
-  return p;
-}
-
-/* Enter / Enter with party never goes on an unsaved tier: the draft is saved first, and a refused save refuses the start. */
-function afterTier(cs, sc, repaint, go) {
-  if (!sc.draft && !sc.saving) return go();
-  return saveTier(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
-}
 
 /* The setup Enter goes as: the one picked under Go as while the server still lists it, else the ground's own (the server's pointer,
    company-pane.js), else the one in use. */
@@ -200,11 +136,7 @@ export function renderHunts(ctx) {
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="' + t('hunts.win_list') + '"></ul>'
     /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
     + '<section class="hw-hunt-detail" aria-label="' + t('hunts.win_page') + '"><div class="hw-hd-page">' + detailHtml()
-    + '<h4 class="hw-hd-h">' + t('hunts.head_packs') + '</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
-    + '<span class="hw-tiers" role="group" aria-label="' + t('hunts.head_tiers') + '"><span class="hh-segs">'
-    + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
-    + '</span><output class="hw-tier-read"></output></span></div>'
-    + '<p class="hw-tier-note"></p>' + stanceHtml()
+    + '<h4 class="hw-hd-h">' + t('hunts.head_packs') + '</h4><div class="hw-pull"><p class="hw-hunt-facts"></p></div>' + stanceHtml()
     + '<p class="hw-hunt-pack"></p>' + goHtml() + callHtml() + hallHtml() + '</div>'
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<p class="hw-enter-why"></p>' + planHtml() + '<button type="button" class="hh-tool" data-hs-act="leave-party" hidden>' + t('controls.leave_party') + '</button>'
@@ -221,7 +153,7 @@ function lineHtml(r, glyphs) {
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">' + t('hunts.level_band', { lo: r.band[0], hi: r.band[1] }) + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
     /* a reader gets a space between the parts (it got "Level 1–8In range"); the dot never starts or ends a line (format.js sepHtml) */
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-bestline"></span></small>'
-    + '<small class="hw-hunt-tally"></small><small class="hw-hunt-scale" hidden></small><span class="hw-hunt-events"></span></span></li>';
+    + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -295,10 +227,6 @@ renderHunts.patch = function patchHunts(body, ctx) {
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));
-      /* a ground the server scales for this hero says so on its line (audit F26: no window showed scaled hunts) */
-      const scaled = scaleTag(cs, r.hunt), sl = li.querySelector('.hw-hunt-scale');
-      text(sl, scaled);
-      prop(sl, 'hidden', !scaled);
       /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
       rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
         key: (l) => l.id,
@@ -314,10 +242,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const det = root.querySelector('.hw-hunt-detail');
   prop(det, 'hidden', !r);
   if (r) patchPage(det, ctx, sc, { r, level, size, party, follower, now, bests });
-  /* An unsaved tier is marked on the status line until the server answers. */
-  const saving = !sc.pending && !!(sc.draft || sc.saving);
-  cls(root, 'is-pending', sc.pending || saving);
-  text(root.querySelector('.hh-intent-msg'), saving ? 'Saving…' : sc.msg);
+  cls(root, 'is-pending', sc.pending);
+  text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
 /* THE PICKED GROUND'S PAGE: its facts (hunt-detail.js), the warning, the pull size, what it carries, Enter. */
@@ -350,52 +276,26 @@ function patchPage(det, ctx, sc, v) {
   /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
   patchAfter(det, ctx, { off: sc.pending, now: !!now });
   patchPlan(det, ctx, { hunt: r.hunt, pending: sc.pending });
-  /* A GROUND ON THE DANGER SCALE has no tier: the stance and the depth held stand in the tier row's place (company-pane.js). */
-  const scale = onScale(r.hunt);
+  /* THE RISK on a ground of the Danger scale, and the depth this hero last held there (company-pane.js). */
   patchStance(det, ctx, { hunt: r.hunt, follower, pending: sc.pending });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending, other: !!other });
-  patchScale(det, ctx, { hunt: r.hunt, party, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
   text(enter, party && !follower ? (armed ? t('controls.enter_anyway') : t('controls.enter_with_party')) : armed ? t('controls.enter_anyway') : t('controls.enter'));
-  /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
-  for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
+  /* Enter (Go as, Find a party and Bring are patchGo's: off for a member too). */
+  for (const b of det.querySelectorAll('.hw-hd-foot button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
   /* ...and a ground this hero or a seat has outgrown (blind playthrough 2026-11-19, P1: a Level 5 leader's Enter with party stayed on for the
-     Cellar and the refusal blamed the friend), by the server's Levels, unless the server plays it scaled (its door lets that in) */
-  const grown = follower || scalesNow(cs, r.hunt) ? [] : seatsOutgrown(r, party, level);
+     Cellar and the refusal blamed the friend), by the server's Levels */
+  const grown = follower ? [] : seatsOutgrown(r, party, level);
   const off = now ? '' : enterOffWords(party) || outgrownWords(r, grown, party);
   if (off) prop(enter, 'disabled', true);
-  /* A HARDER HUNT SAYS SO AT THE PRESS: a pick kept from last time isn't on screen above a scrolled page. */
-  const pressing = huntTierOf(cs);
-  const choosing = now || off || follower || scale ? '' : tierChoiceWords(r, shownTier(sc, pressing ? pressing.picks : null, r.hunt, party) || DEFAULT_TIER, size);
-  text(det.querySelector('.hw-enter-why'), off || choosing);
+  text(det.querySelector('.hw-enter-why'), off);
   prop(det.querySelector('[data-hs-act="leave-party"]'), 'hidden', now || !follower);
-  /* This hero's tier picked per ground (hunt_tier); null = the server sent none, no choice shows. */
-  const tiers = huntTierOf(cs);
-  const tier = shownTier(sc, tiers ? tiers.picks : null, r.hunt, party);
-  /* The packs the server spawns on the shown tier (this ground's own pick). */
-  text(det.querySelector('.hw-hunt-facts'), packWords(r, tier ? tierPull(r, tier, size) : null));
-  const offered = tiersOf(groundOf(r.hunt).id);
-  /* A ground that offers only Normal has no choice to show. */
-  const choice = !scale && !!tier && offered.length > 1;
-  cls(det.querySelector('.hw-pull .hw-tiers'), 'is-on', choice);
-  prop(det.querySelector('.hw-pull .hw-tiers'), 'hidden', scale);
-  for (const b of det.querySelectorAll('.hw-tiers [data-tier]')) {
-    const id = b.getAttribute('data-tier');
-    prop(b, 'hidden', follower || !offered.includes(id));
-    attr(b, 'data-hunt', r.hunt);
-    attr(b, 'aria-pressed', String(id === tier));
-    attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
-  }
-  text(det.querySelector('.hw-tier-read'), follower && tier && !scale ? t('hunts.tier_set_by', { leader: party.leaderName || t('hunts.your_leader'), tier: TIER_NAME[tier] }) : '');
-  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
-     too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
-  const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + '\n';
-  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size, level) || (follower ? t('hunts.tier_leader_picks')
-    : size > 1 ? safe + t('hunts.tier_kept_party') : safe + t('hunts.tier_kept')));
+  /* The packs as the ground is built (on the Danger scale a pull grows with the depth the party holds: the Risk's lines say it). */
+  text(det.querySelector('.hw-hunt-facts'), packWords(r, null));
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
@@ -408,36 +308,11 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHunts.patch(body, ctx);
-  /* Scaled hunt: its slider moves on 'input' (renderHunts.events), its presses run on the status line; its refusals read refusal-words.js */
-  if (sc.pick && actScale(ctx, sc.pick, action, ev, el, repaint, (send, busy, done) => runIntent(sc, repaint, send, busy, done, cs))) return true;
   /* Presses; and the Call out slider, which answers as it moves (an `input` a step, a `change` on release: boss-call-pane.js). */
   if (ev.type !== 'click' && !(action === 'call-fights' && (ev.type === 'input' || ev.type === 'change'))) return false;
   const hunt = el.getAttribute('data-hunt');
   /* To a ground's page and back: the header's Back follows the page AT ONCE (the shell's refresh paints both), not on its next display tick. */
   const repage = () => (typeof ctx.refresh === 'function' ? ctx.refresh('hunts') : repaint());
-  if (action === 'tier') {
-    /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
-    const tiers = huntTierOf(cs);
-    const party = partyMembershipOf(cs);
-    /* A member's tier is its leader's: there is nothing to press (the server refuses it too). */
-    if (party && !party.isLeader) return true;
-    const want = el.getAttribute('data-tier');
-    const server = tierOf(tiers ? tiers.picks : null, hunt);
-    if (sc.pending || server === null || !tiersOf(groundOf(hunt).id).includes(want)) return true;
-    sc.msg = '';
-    /* Another ground's draft still waiting goes now (each ground keeps its own pick). */
-    if (sc.draft && sc.draft.hunt !== hunt) saveTier(cs, sc, repaint);
-    clearTimeout(sc.timer);
-    sc.timer = null;
-    /* Back on the server's value with nothing in flight: nothing to save. */
-    if (want === server && !sc.saving) sc.draft = null;
-    else {
-      sc.draft = { hunt, tier: want };
-      sc.timer = setTimeout(() => saveTier(cs, sc, repaint), TIER_SAVE_MS);
-    }
-    repaint();
-    return true;
-  }
   if (action === 'pick') {
     /* Another ground's page opens at its top, not where the last one was scrolled to. */
     const page = body.querySelector('.hw-hd-page');
@@ -502,7 +377,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
       return true;
     }
     sc.warned = null;
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), t('hunts.gathering', { ground: huntName(hunt) }),
+    runIntent(sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt)), t('hunts.gathering', { ground: huntName(hunt) }),
       () => t('hunts.party_on_way', { ground: huntName(hunt) }), cs).then(thenClose);
     return true;
   }
@@ -518,15 +393,15 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     }
     sc.warned = null;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), t('hunts.setting_off', { ground: huntName(hunt) }), (res) => { sc.enterMsg = t('hunts.on_way', { ground: huntName(hunt) }) + (res && res.belowRange ? '. ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
+    runIntent(sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset)), t('hunts.setting_off', { ground: huntName(hunt) }), (res) => { sc.enterMsg = t('hunts.on_way', { ground: huntName(hunt) }) + (res && res.belowRange ? '. ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
       .then(thenClose);
     return true;
   }
   return false;
 };
 
-/* The DOM events beyond click and change: the scaled hunt's hours slider and the Call out series' slider follow the thumb (scale-pane.js,
-   boss-call-pane.js; shell.js onExtra routes only the types a renderer names). */
+/* The DOM events beyond click and change: the Call out series' slider follows the thumb (boss-call-pane.js; shell.js onExtra routes only
+   the types a renderer names). */
 renderHunts.events = Object.freeze(['input']);
 
 /* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */

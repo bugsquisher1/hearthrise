@@ -11,7 +11,7 @@
 //   W2  the Hunts window draws rangeWords on every line and never disables Enter on it; the first press arms "Enter anyway" and sends
 //       nothing, the second goes (one confirm, never more); a successful enter that the server answered below_range repeats the warning
 //   W3  CharacterSession hands the server's below_range back to the window
-//   W4  the pull size says why a bigger pull matters
+//   (W4, the harder tier's note in plain words, retired with the tiers: lane/retire-tier-chain 2026-11-26, 12-targets 8.4 item 4)
 //   S1  NOTHING REFUSES A LEVEL: the newest hr_hunt_gate body (2027-02-24-risk-no-level-block.sql) never compares a Level with the floor, and the data has
 //       no margin; hr_hunt_enter_for answers below_range from hr_hunt_below_range. The executed proof is that file's own self-check in the chain replay.
 //   S2  NOTHING IN THE FIGHT READS IT (Tyler 2026-11-04: "They are just simply harder"): no gap row in the data, no Level in damage.js or combat.js; hunt-core/damage.mjs
@@ -230,10 +230,6 @@ async function run(base) {
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join('\\n'));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("text(det.querySelector('.hw-hd-who'), heroWords(r));"),
     'the Hunts line does not draw rangeWords');
-  /* W4 in plain words (Tyler 2026-11-08, the tier note "way too exact"): every harder tier's line says you can die here, Deadly's says to bring food, and the note ends on the death line. */
-  const tierData = read('src/data/hunt-tiers.js');
-  ok('W4', (tierData.match(/XP per kill/g) || []).length === 4 && (tierData.match(/Bring plenty of food/g) || []).length === 2 && /TIER_DEATH_LINE = 'Death: /.test(tierData)
-    && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n')") && win.includes('tierWords(r, tier, size, level)'),'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? t('controls.enter_anyway') : t('controls.enter')"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? '\. ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
@@ -290,7 +286,6 @@ const MUTANTS = [
   ['the warning claims a penalty again', 'src/data/text/hunts.js', "above_level: 'Higher risk, better loot'", "above_level: 'More XP and better loot, but its monsters hit harder'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
-  ['the tier says nothing of what it costs', 'src/data/hunt-tiers.js', "Most XP per kill\\nBring plenty of food' }),", "Most XP per kill' }),"],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join('\\n'));", ''],
   ['a ground names its start tiles, not the party the server allows (G3)', 'src/shell/hunt-list.js', 'heroes: PARTY.maxSize,', 'heroes: Math.min(g.start.length, PARTY.maxSize),'],
   ['the leader\'s warning names the leader too (G3)', 'src/shell/hunt-list.js', 's.seat !== party.me && Number.isInteger(s.level)', 'Number.isInteger(s.level)'],
@@ -307,7 +302,8 @@ const MUTANTS = [
      best line is 0), so ">= 0" alone changed no advice and the plant missed. It now plants the break-even line itself (Wickstead's pair at 0, BREAK_EVEN)
      with the slip, and CONTROLS below proves that line alone, read with "> 0", stays green: the red is the comparator's, not the data's. */
   ['a party suits a ground it only breaks even on (Wickstead from 8)', 'src/shell/hunt-list.js', 'return Number.isInteger(best) && best > 0;', 'return Number.isInteger(best) && best >= 0;', [BREAK_EVEN]],
-  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
+  /* the measured lines are the workbook's per-ground lines (party-class-xp.js LINE_KEYS, measured on the retired tiers: CONFLICTS 2026-11-26) */
+  ['the measure reads the plain line only (the Glade\'s best lines forgotten)', 'src/data/party-class-xp.js', 'const lines = Object.keys(Object.hasOwn(PARTY_VS_ALONE, groundId) ? PARTY_VS_ALONE[groundId] : {}).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [PLAIN_LINE].map((tier) => partyVsAlone(groundId, roles, tier))'],
   ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",

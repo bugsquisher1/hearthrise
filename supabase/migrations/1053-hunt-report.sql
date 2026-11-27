@@ -77,7 +77,7 @@ begin
     raise exception 'PRECONDITION: the hunt tally (2026-10-23-hunt-analyzer-v2.sql) is missing'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '0e0e304013e75ea2535dbb483c04d570', '309c695dc4dfc41d7cf0effe5f9b1dd1'),
-    ('public.hr_hunt_view(uuid)', 'fb665623c7255cbf62c96d00cfc2da86', 'cd3f12fac63713be3c9d853b40106784'),
+    ('public.hr_hunt_view(uuid)', 'fb665623c7255cbf62c96d00cfc2da86', '9b06a593569430f6dca6c8cc5575c08e'),
     ('public.hr_hunt_analyzer_basic(jsonb)', '5dd08adae4922c52ed813399c93da73b', '039309e15bfe6d18c2314216f7075b26')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
@@ -88,8 +88,8 @@ begin
     -- A RETRY AFTER 1062-store-step.sql finds hr_hunt_apply_member at 1062's image (restated whole with the scale's bound and this
     -- file's HUNT-REPORT lines in it, its store priced at the buyer's step): the splice below finds its marker and moves nothing.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 in ('bdf1e6f5d5bf7266b64b82b2b9f7e5c1', '209f8462d94db3fc386a12980342f2e8'))
-       and not (v_r.fn = 'public.hr_hunt_view(uuid)' and v_md5 = '32668b16635573452a939532e2c9ec9f')
+       and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 in ('bdf1e6f5d5bf7266b64b82b2b9f7e5c1', 'e3d169248d2c291574fd4d3fcd148a3f'))
+       and not (v_r.fn = 'public.hr_hunt_view(uuid)' and v_md5 = '812ab2041a78d10ad28eb9e91011b05b')
        and not (v_r.fn = 'public.hr_hunt_analyzer_basic(jsonb)' and v_md5 = '8d5fe398a14f4b44e0133e477b1ff2a4') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
@@ -274,8 +274,6 @@ begin
     'leave_at', s.leave_at, 'change_at', s.change_at, 'change_to', s.change_to,
     'ended_at', s.ended_at, 'end_reason', s.end_reason,
     'forfeit', s.forfeit,
-    -- ENDED-TIER (2027-03-16-ended-hunt-tier.sql): the tier an ended session ran at; null while open (hunt_tier.playing says it then)
-    'tier', s.tier,
     -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): a cascade end names the member whose own end at the same
     -- instant sent this hero home (its death for party_member_died), from the server's rows; else null.
     'end_by', case when s.end_reason in ('party_member_died', 'party_member_left') then (
@@ -432,12 +430,16 @@ begin
      or strpos(v_def, '''healed'', ''fight'', ''report''))') = 0 then
     raise exception 'VERIFY(d): hr_hunt_apply_member does not check and fold the report'; end if;
   if (length(v_def) - length(replace(v_def, 'update public.hunt_session_tally', ''))) / length('update public.hunt_session_tally') <> 2
-     or (length(v_def) - length(replace(v_def, 'insert into public.hunt_session_tally', ''))) / length('insert into public.hunt_session_tally') <> 1 then
+     or (length(v_def) - length(replace(v_def, 'insert into public.hunt_session_tally', ''))) / length('insert into public.hunt_session_tally') > 1 then
+    -- (at most one insert: the scaled tally span's, which 1062-store-step.sql's body no longer holds since the scaled hunts retired)
     raise exception 'VERIFY(d): hr_hunt_apply_member writes the tally in more statements than its two updates and one insert'; end if;
   if not (strpos(v_def, 'report = public.hr_hunt_report_add(t.report,') between strpos(v_def, '       set bought = case when v_cost > 0')
-            and strpos(v_def, '     where t.session_id = p_session;
+            and greatest(strpos(v_def, '     where t.session_id = p_session;
   end if;
-  -- SCALED-BEST')) then
+  -- SCALED-BEST'),
+                         strpos(v_def, '     where t.session_id = p_session;
+  end if;
+  -- MEMBER-WRITE-ONCE: written only when it moves'))) then
     raise exception 'VERIFY(d): the report is not folded inside the analyzer''s one write'; end if;
   -- (e) THE READERS, EXECUTED: a session's report reaches the `hunt` section with its shares, a session with none shows no key, and the
   --     free analyzer (verb and section) carries it in its session block.

@@ -100,7 +100,7 @@ export const FORMULAS = [
   F('C-MON-STATS', 'A monster row from its Level, role, ground floor and fit: HP = (4.95 + 1.76 x L) x role x fit, blow = a share (13.2% to 22%) of a same-Level hero\'s base HP, aim and evasion from the reference hero (lands 70%, is landed on 85%), def = 0.08 x L x role',
     ['src/data/balance-sheet.js:351-386 formulaStats', 'src/data/balance-sheet.js:128-195 STAT_FORMULA', 'src/data/balance-sheet.js:205-219 MONSTER_ROLES', 'tools/gen-ground-stats.mjs (writes the rows)'],
     'STAT_FORMULA { ramp 8..16, hit 0.40..0.70, heroHit 0.85, blow 0.132..0.22, gentleCap 0.11, hp, def, fit.party }. MONSTER_ROLES', ['C-REF-HERO', 'P-VITALS (progression: refHp)'],
-    ['C-MON-BLOW', 'C-MON-TOHIT', 'C-MON-DEF', 'C-HERO-TOHIT', 'C-RUN-ROOM', 'C-SCALED', 'P-KILL-XP (progression: xp is on the same row)', 'E-KILL-COIN (economy: gp is on the same row)'], D),
+    ['C-MON-BLOW', 'C-MON-TOHIT', 'C-MON-DEF', 'C-HERO-TOHIT', 'C-RUN-ROOM', 'P-KILL-XP (progression: xp is on the same row)', 'E-KILL-COIN (economy: gp is on the same row)'], D),
   F('C-REF-HERO', 'The reference hero a monster is written against: a measured career (the lone hammer) [Level, skill, Defense, worn accuracy] every 5 Levels to 100, sparser to 1,000, straight past it. aimFor and evasionFor invert the ratio',
     ['src/data/to-hit.js:120-168', 'tools/gen-ref-hero.mjs (generates the table)'], 'REF_HERO (generated). Worn accuracy stops at 32 from Level 90', ['P-SKILL-CURVE (progression)', 'C-GEAR-WEAPON'], ['C-MON-STATS', 'C-TIER (raisedHit)'], D),
   F('C-TIER', 'Normal, Dangerous, Deadly: a pull size and three dials. dmgPm multiplies atk, aim AND the monster\'s Level as armor reads it. hpPm its HP. xpPm its kill XP. On a gentle ground the tier first takes back the ground\'s kindness, so its dmgPm is solved per floor',
@@ -115,8 +115,6 @@ export const FORMULAS = [
     ['src/core/hunt/boss-room.js:21-32', 'src/data/boss-calls.js', 'src/data/boss-halls.js', 'src/data/balance-sheet.js:218 the boss role'], 'BOSS_CALL_RULES.limitMs 10 min. BOSS_HALL_RULES. MONSTER_ROLES.boss.floorCap 0.33', ['C-MON-STATS', 'C-BOSS-PHASE'], ['E-BOSS-PAY (economy)'], D),
   F('C-RUN-ROOM', 'A Burning Tower floor or a Catacomb room F: 5 monsters, each the stat formula at Level F on a floor-F ground, a Keeper (boss role) every 10th. Past floor 100 every blow is x1.012 a floor, compounding. Floor 300 is the last row',
     ['src/core/hunt/tower.js', 'src/data/tower.js:49-60', 'src/data/tower.js:114-124'], 'TOWER_RULES / CATACOMB_RULES { roomSize 5, landingEvery 10, floorTop 300, heat { from 100, perFloorPm 12 }, limits 3 and 10 min }', ['C-MON-STATS'], ['P-RUN-XP (progression: TOWER_PARTY_XP)', 'E-RUN-KEYS (economy)'], D + ' (rooms are picked by number, no dice)'),
-  F('C-SCALED', 'A scaled hunt: the same formula with the ground\'s floor moved to the leader\'s Level and every monster up by the same gap. Normal and Dangerous only', ['src/data/scaled-hunts.js:159-190'],
-    'SCALED_HUNTS { xpPm 730, partyPm 700, coinPm, tiers }. SCALE_EXCEPTIONS (the Thicket at half danger)', ['C-MON-STATS', 'C-TIER'], ['P-KILL-XP (progression)', 'E-SCALED-FEE (economy)'], D),
   // ── who hits whom ──
   F('C-TARGET', 'Aggro is rules, not threat numbers: a pack turns on the pull\'s leader. Challenge takes every monster within 6 tiles that is not on a tank and holds it 8 s. A Healer\'s basic draws a free monster 18% of the time. A shooter aims at the hero farthest back. A tank under 90% of the strongest tank\'s HP never takes a turn',
     ['src/core/hunt/targeting.js:164-260', 'src/data/hunt-roles.js:43-49 peel', 'src/data/hunt-roles.js:145 CHALLENGE', 'src/core/hunt/shooters.js'], 'CHALLENGE { radius 6, holdMs 8000, holderMinHpPm 900 }. Healer peel 180', ['P-VITALS (maxHp for the hold floor)'], ['who takes C-HURT', 'P-DEFENSE-XP (progression: only blows taken train it)'], 'the peel draw'),
@@ -175,8 +173,6 @@ export const EXCEPTIONS = [
     '2026-11-04 f1d68555e: one dial for everything', 4, 'C', 'formula layer: the dial moves the blow and the aim. Armor and Defense XP read the row\'s own Level. Overlap: progression lane (P-DEFENSE-XP)'),
   X('X-TOWER-HEAT', 'src/data/tower.js:57 and src/core/hunt/tower.js heatOpts', 'Past floor 100 every blow is x1.012 a floor, compounding: x10.9 by floor 300. The number moved 10 to 12 to hold a guard', '2026-11-19 b7c73732c. Tyler 2026-11-20 already DROPPED the heat patch (one Levels-per-floor row instead). Plan L18 owes it', 4, 'C', 'already ruled. Listed so it is not forgotten'),
   X('X-TOWER-TOP', 'src/data/tower.js:54 floorTop 300', 'A floor above 300 plays floor 300\'s monsters', 'the server\'s per-floor bound needs a last row', 3, 'C', 'a cap on an endless mode. Needs Tyler\'s yes or a formula that reads any floor'),
-  X('X-SCALED-THICKET', 'src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS', 'A scaled Thicket reaches only half danger', '2026-11-07: "its wolves run down a lone archer"', 4, 'C', 'a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle'),
-  X('X-SCALED-NO-DEADLY', 'src/data/scaled-hunts.js:144', 'Deadly is not offered on a scaled hunt', 'designer 2026-11-07', 3, 'C', 'a content rule. For Tyler with the scaled-hunt card'),
   X('X-SPELL-HOLDS', 'src/data/balance-sheet.js:121-123 (named there: Hot Coal, Bone Slide, Snuff the Candles)', 'Three monster spells had their multiples lowered so the +10% monster step would not pass 35% of a floor hero', '2026-11-19 lane/d-harder-monsters', 4, 'H', 'the rows were not read. If true, the 35% rule belongs in the spell formula as a bound, not in three rows'),
   // ── spells ──
   X('X-SPELL-FLOOR', 'src/data/abilities.js:356-376 (hitRange, castAmount `floored`) and src/core/hunt/status.js:69', 'The beginner\'s floor: every cast lands max(its share of the blow, its old version-I number). Past about Level 15 the share is always larger. At Level 1 a Greater Mend lands its floor of 50 on a hero with 150 HP',
@@ -239,7 +235,7 @@ export const EDGES = [
   ['C-REF-HERO', 'C-MON-STATS'], ['C-MON-STATS', 'C-MON-BLOW'], ['C-MON-STATS', 'C-MON-TOHIT'], ['C-MON-STATS', 'C-MON-DEF'], ['C-MON-STATS', 'C-HERO-TOHIT'], ['C-MON-STATS', 'C-ELEMENT-MON'], ['C-MON-STATS', 'C-WEAKNESS'],
   ['C-TIER', 'C-MON-BLOW'], ['C-TIER', 'C-MON-TOHIT'], ['C-TIER', 'C-ARMOR-CHAIN'], ['C-TIER', 'C-PULL'], ['C-MON-STATS', 'C-TIER'],
   ['C-MON-BLOW', 'C-MON-SPELL'], ['C-MON-BLOW', 'C-HURT'], ['C-MON-TOHIT', 'C-HURT'], ['C-MON-SPELL', 'C-HURT'], ['C-BOSS-PHASE', 'C-MON-BLOW'], ['C-BOSS-PHASE', 'C-MON-SPELL'],
-  ['C-MON-STATS', 'C-RUN-ROOM'], ['C-MON-STATS', 'C-SCALED'], ['C-MON-STATS', 'C-BOSS-ROOM'], ['C-TIER', 'C-SCALED'],
+  ['C-MON-STATS', 'C-RUN-ROOM'], ['C-MON-STATS', 'C-BOSS-ROOM'],
   ['C-TARGET', 'C-HURT'], ['C-LEASH', 'C-TARGET'], ['C-PULL', 'C-AREA'], ['C-SPELL-HIT', 'C-AREA'], ['C-JEWEL-PERKS', 'C-HERO-TOHIT'], ['C-JEWEL-PERKS', 'C-CRIT'], ['C-JEWEL-PERKS', 'C-CAST-POWER'],
   ['C-GEAR-ARMOR', 'C-MON-TOHIT'], ['C-GEAR-ARMOR', 'C-CRIT'], ['C-GEAR-WEAPON', 'C-HERO-TOHIT'], ['C-GEAR-WEAPON', 'C-REF-HERO'],
 ];
@@ -257,7 +253,7 @@ export const EDGES_OUT = [
   ['economy', 'C-MON-BLOW, C-ARMOR-CHAIN, C-SPELL-HEAL, C-REGEN, C-LEECH -> E-SUPPLY-USE', 'food and drink bought is damage taken less free healing. A heal spell is food not bought'],
   ['economy', 'E-RUNE-SUPPLY, BASIC_EFFECT_SHARE -> C-CAST-POWER, C-BASIC-BLOW', 'a store rune or arrow lands 75%. The default axe bar spends a 1 g rune a cast (X-REND-DEFAULT)'],
   ['economy', 'E-TEMPER-COST -> the gear part (Temper on steps). E-JEWEL-COST -> C-JEWEL-PERKS. E-FOOD -> C-BUFF-BONUS', 'gold sinks buy combat percent'],
-  ['economy', 'C-BOSS-ROOM, C-SCALED, C-RUN-ROOM -> fees, keys and what they pay', 'the modes share the monster formula and differ only in pay'],
+  ['economy', 'C-BOSS-ROOM, C-RUN-ROOM -> fees, keys and what they pay', 'the modes share the monster formula and differ only in pay'],
 ];
 
 function problems() {

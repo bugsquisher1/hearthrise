@@ -37,6 +37,12 @@
 //   TJ-RULE    the standing work rule buys for a running job (09 4.11 row 7), the browser closed: nothing for a hero with no job; the
 //              cron's sweep buys one block for a whole day's job on the day's last minutes, the job's end moves by the block, the rule's
 //              count holds, and the job lands the bought time's attempts
+//   TJ-MIDNIGHT THE UTC DAY TURNING OVER (lane/k1-server-fixes): 1073's own §9 self-check completes with the server clock pinned at
+//              23:59:58, 23:56, 21:52, 22:30, 10:00 and 00:00:02 UTC (the rehearsal's red was 23:59:58); and a job keeps the work blocks
+//              bought on its own day when it is read after midnight: a morning block carrying a job past midnight, and a job its block
+//              ran to 20:00 collected after midnight, land the same goods viewed and closed, the section's end unmoved by the date
+//   TJ-BAND    a band opens on a depth record at that band or deeper (the designer's ruling): a band 3 record opens bands 0 to 3 (a band
+//              1 job starts, a band 2 quotes), a band 1 record leaves band 3 band_locked
 //   TJ-KEY     the start pressed twice with one key is one job and one fee; the pointer cannot leave idle while a job is open (HRJ01)
 //   TJ-SURFACE anon reaches neither verb, no client reaches the settle, the sweep or the roller, and the seed never leaves the server
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
@@ -47,6 +53,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { isMain } from './_is-main.mjs';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 
@@ -486,6 +493,130 @@ const ARMS = {
     return p;
   },
 
+  /* THE UTC MIDNIGHT (lane/k1-server-fixes). (1) 1073's own §9 self-check, run on the server clock pinned at the instants of the day
+     that decide its answers: it must complete at every one, so a real apply is never refused by the hour it runs. 23:59:58 is the
+     rehearsal's red (45958061052: the job's day ends before its last minutes of work, so it runs on into the next UTC day and wants no
+     block); 21:52 is the second hour the old check read wrong (today can still use a whole block, so the rule buys it). (2) A JOB KEEPS
+     ITS OWN DAY'S BOUGHT BLOCKS AFTER MIDNIGHT: read on the next UTC day (the sweep, a Collect, the section), its stop is the day it
+     started on, that day's blocks included, the same as before midnight; both doors land the bought time's attempts */
+  async 'TJ-MIDNIGHT'(db) {
+    const p = [];
+    const text = readFileSync(join(ROOT, 'supabase', 'migrations', '1073-k1-job-slice.sql'), 'utf8').replace(/\r/g, '');
+    const s9 = text.indexOf('-- ── §9 SELF-CHECK');
+    const from = s9 < 0 ? -1 : text.indexOf('\ndo $$', s9);
+    const to = text.lastIndexOf('end $$;');
+    if (from < 0 || to < from) throw Object.assign(new Error('the §9 self-check block is not found in 1073-k1-job-slice.sql'), { harness: true });
+    const check = text.slice(from + 1, to + 'end $$;'.length);
+    for (const t of ['23:59:58', '23:56:00', '21:52:00', '22:30:00', '10:00:00', '00:00:02']) {
+      await db.query('savepoint tj_s9');
+      await pin(db, DAY + 'T' + t + 'Z');
+      try { await db.exec(check); } catch (e) { p.push('1073\'s §9 self-check run at ' + t + ' UTC raised: ' + String(e.message).split('\n')[0].slice(0, 300)); }
+      await db.query('rollback to savepoint tj_s9');
+    }
+    await lit(db);
+    const next = new Date(msOf(DAY + 'T00:00:00Z') + DAY_MS).toISOString().slice(0, 10);
+    const buyBlock = async (u) => {
+      await clear(db);
+      const wq = await one(db, "select public.hr_time_quote($1, 0, 'work')", [u]);
+      const buy = wq && wq.available ? await as(db, u, "select public.hr_time_buy('work', 0, $1::bigint, $2::uuid) as r", [wq.price, idem()]) : null;
+      return buy && buy.ok === true ? null : js(wq) + ' ' + js(buy);
+    };
+    for (const plan of [
+      /* a block bought in the morning, a whole day's job started at 15:00: midnight comes before the day's 10 h (8 free and the
+         block) are used, so the job runs on into the next UTC day's fresh cap and its whole count fits */
+      { name: 'a job the morning\'s block carries past midnight', buyAt: '09:00', startAt: '15:00', used: 0, seen: [next + 'T00:30:00Z'] },
+      /* the day used past its free hours, a block bought at the start: the day's cap ends the job an hour later, and the sweep is
+         busy until after midnight; the next day's first block, bought before the collect, is that day's and never reaches back */
+      { name: 'a job its block ran to 20:00, collected after midnight', buyAt: '19:00', startAt: '19:00', used: 9 * HOUR, seen: [], late: next + 'T00:10:00Z', nextBlock: true },
+    ]) {
+      await pin(db, at(plan.buyAt));
+      const u = await makeHero(db);
+      await setPurse(db, u, 500000000);
+      await setBank(db, u, 'shrimp', 2000);
+      if (plan.used) await db.query('update public.player_state set work_day = $2::date, work_ms = $3 where user_id = $1 and slot = 0', [u, DAY, plan.used]);
+      const why = await buyBlock(u);
+      if (why) { p.push(plan.name + ': no work block to buy: ' + why); continue; }
+      await pin(db, at(plan.startAt));
+      const count = Number((await quote(db, u, 'meal_b0', null)).count_cap);
+      const s1 = await start(db, u, 'meal_b0', count, Number((await quote(db, u, 'meal_b0', count)).fee));
+      if (!s1 || s1.ok !== true) { p.push(plan.name + ': the start answered ' + js(s1)); continue; }
+      const job = await openJob(db, u);
+      const endMs = await trueEnd(db, job);
+      const ends0 = new Date(job.ends_at).getTime();
+      if (endMs !== ends0) p.push(plan.name + ': on its own day the job ends at ' + new Date(endMs).toISOString() + ', its row says ' + job.ends_at);
+      if (!plan.used && !(endMs > msOf(next + 'T00:00:00Z'))) p.push(plan.name + ': the job ends at ' + new Date(endMs).toISOString() + ', not past midnight');
+      /* the server's reading after midnight, before the end: the same end (the section the Work window paints) */
+      for (const iso of plan.seen) {
+        await pin(db, iso);
+        const sec = await section(db, u);
+        const e1 = sec && sec.job ? new Date(sec.job.ends_at).getTime() : 0;
+        if (e1 !== ends0 || sec.job.due) p.push(plan.name + ': at ' + iso + ' the section says the job ends ' + js(sec && sec.job && sec.job.ends_at) + ' (due ' + js(sec && sec.job && sec.job.due) + '), before midnight ' + job.ends_at);
+      }
+      const want = expected(job, ends0 - new Date(job.started_at).getTime());
+      const collectAt = plan.late || new Date(ends0 + 30 * MIN).toISOString();
+      if (plan.nextBlock) {
+        await pin(db, collectAt);
+        const why2 = await buyBlock(u);
+        if (why2) p.push(plan.name + ': the next day\'s block could not be bought: ' + why2);
+      }
+      await db.query('savepoint tj_mid');
+      await pin(db, collectAt);
+      const got = await end(db, u, false);
+      const a = await landed(db, u, job);
+      await db.query('rollback to savepoint tj_mid');
+      await pin(db, collectAt);
+      const sw = await sweep(db);
+      const b = await landed(db, u, job);
+      await db.query('release savepoint tj_mid');
+      if (!got || got.ok !== true) p.push(plan.name + ': the Collect after midnight answered ' + js(got));
+      if (!sw || sw.settled !== 1) p.push(plan.name + ': the sweep after midnight answered ' + js(sw));
+      for (const [door, x] of [['viewed', a], ['closed', b]]) {
+        if (!x.result || x.result.attempts !== want.attempts || x.plain !== want.plain || x.xp !== want.xp) {
+          p.push(plan.name + ', ' + door + ': landed ' + js(x.result) + ', the job\'s own day (its bought block in it) says ' + js(want));
+        }
+      }
+      if (js(a) !== js(b)) p.push(plan.name + ': the doors differ: viewed ' + js(a) + ', closed ' + js(b));
+      if (plan.used && (!a.work || a.work.d !== DAY || a.work.ms !== String(plan.used + (ends0 - new Date(job.started_at).getTime())))) {
+        p.push(plan.name + ': the work day reads ' + js(a.work) + ', want ' + (plan.used + ends0 - new Date(job.started_at).getTime()) + ' ms on ' + DAY);
+      }
+    }
+    return p;
+  },
+
+  /* A BAND OPENS ON A DEPTH RECORD AT THAT BAND OR DEEPER (the designer, HANDOFFS 2026-11-27 designer-kit-band1 item 4): a company whose
+     only record is band 3's starts a band 1 job and quotes a band 2 one; a company whose only record is band 1's is band_locked at 3 */
+  async 'TJ-BAND'(db) {
+    const p = [];
+    await lit(db);
+    await pin(db, at('10:00'));
+    const deep = await one(db, 'select hunt_id from public.hr_trade_ground_bands where band = 3 order by hunt_id limit 1');
+    const shallow = await one(db, 'select hunt_id from public.hr_trade_ground_bands where band = 1 order by hunt_id limit 1');
+    if (!deep || !shallow) throw Object.assign(new Error('no band 1 or band 3 ground in hr_trade_ground_bands'), { harness: true });
+    const record = (u, g) => db.query('insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held) values ($1, 0, $2, 1, 10) on conflict (user_id, slot, hunt_id) do update set danger_held = 10', [u, g]);
+    const open = async (u, b) => one(db, 'select public.hr_trade_band_open($1, $2)', [u, b]);
+    const a = await makeHero(db);
+    await setPurse(db, a, 50000000);
+    await db.query('delete from public.hunt_density where user_id = $1', [a]);
+    await record(a, deep);
+    for (const [b, want] of [[0, true], [1, true], [2, true], [3, true], [4, false]]) {
+      if (await open(a, b) !== want) p.push('a band 3 record ' + (want ? 'does not open' : 'opens') + ' band ' + b);
+    }
+    await db.query("insert into public.company_trade_xp (user_id, trade_id, xp) values ($1, 'mining', (select xp from public.hr_trade_xp where level = 11))", [a]);
+    const q1 = await quote(db, a, 'ore_b1', 1);
+    const s1 = q1 && q1.ok ? await start(db, a, 'ore_b1', 1, Number(q1.fee)) : q1;
+    if (!s1 || s1.ok !== true || !(await openJob(db, a))) p.push('Mine Iron Ore (band 1) on a band 3 record answered ' + js(s1 && (s1.ok ? s1.job : s1)));
+    const q2 = await quote(db, a, 'imbuement_fire_ward', 1);
+    if (!q2 || q2.ok !== true) p.push('Make Fire Ward (band 2) on a band 3 record quotes ' + js(q2));
+    const b = await makeHero(db);
+    await setPurse(db, b, 50000000);
+    await db.query('delete from public.hunt_density where user_id = $1', [b]);
+    await record(b, shallow);
+    if (await open(b, 1) !== true || await open(b, 2) !== false) p.push('a band 1 record opens band 1 ' + (await open(b, 1)) + ', band 2 ' + (await open(b, 2)));
+    const s3 = await start(db, b, 'imbuement_fire_edge', 1, 1);
+    if (!s3 || s3.error !== 'band_locked' || s3.band !== 3) p.push('Make Fire Edge (band 3) on a band 1 record answered ' + js(s3));
+    return p;
+  },
+
   async 'TJ-KEY'(db) {
     const p = [];
     await lit(db);
@@ -555,7 +686,15 @@ const MUTANTS = [
   { arm: 'TJ-TWIN', name: 'a gathering attempt over 1000 rolls its second unit at the whole yield', fn: 'public.hr_trade_roll(text,integer,integer,boolean,integer,integer,integer,bigint,bigint)',
     find: 'if public.hr_trade_mulberry(v_a) < (v_y - 1000)::float8 / 1000::float8 then', repl: 'if public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8 then' },
   { arm: 'TJ-TWIN', name: 'the day\'s stop ignores bought work', fn: 'public.hr_trade_work_stop(uuid,integer,timestamp with time zone)',
-    find: 'v_left := greatest(0, v_base + case when v_d0 = v_tms then v_extra else 0 end', repl: 'v_left := greatest(0, v_base + case when v_d0 = v_tms then 0 else 0 end' },
+    find: 'v_x0 := case when v_d0 = v_tms then v_extra when', repl: 'v_x0 := case when v_d0 = v_tms then 0 when' },
+  { arm: 'TJ-MIDNIGHT', name: 'a job read after midnight forgets the blocks bought on its own day', fn: 'public.hr_trade_work_stop(uuid,integer,timestamp with time zone)',
+    find: 'v_x0 := case when v_d0 = v_tms then v_extra when v_d0 > v_tms or v_block is null then 0', repl: 'v_x0 := case when v_d0 = v_tms then v_extra when true then 0' },
+  { arm: 'TJ-MIDNIGHT', name: 'a past day\'s blocks are counted up to now, not to its own midnight', fn: 'public.hr_trade_work_stop(uuid,integer,timestamp with time zone)',
+    find: "and l.at < timestamptz '1970-01-01 00:00:00+00' + v_mid * interval '1 millisecond') end;", repl: ') end;' },
+  { arm: 'TJ-BAND', name: 'a band opens only on a record at exactly that band', fn: 'public.hr_trade_band_open(uuid,integer)',
+    find: 'd.danger_held is not null and g.band >= p_band);', repl: 'd.danger_held is not null and g.band = p_band);' },
+  { arm: 'TJ-BAND', name: 'a record opens the bands deeper than it', fn: 'public.hr_trade_band_open(uuid,integer)',
+    find: 'd.danger_held is not null and g.band >= p_band);', repl: 'd.danger_held is not null and g.band <= p_band);' },
   { arm: 'TJ-ORDER', name: 'a gathering hero is not busy', fn: 'public.hr_trade_job_start(integer,text,integer,bigint,uuid)',
     find: "if v_st.active_kind <> 'idle' or v_h.id is not null", repl: "if v_h.id is not null" },
   { arm: 'TJ-ORDER', name: 'every band is open', fn: 'public.hr_trade_band_open(uuid,integer)',

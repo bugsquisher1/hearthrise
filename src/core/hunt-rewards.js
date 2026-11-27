@@ -213,12 +213,15 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
    no round-robin, no rare roll and no rotation (`rareWon` is never touched), and a Rare's moment names its finder. The kill's expected
    drops are the row's in any party, so a party never drops more than its heroes would apart. Not a die is drawn on `r`. */
 function payPersonal(present, ids, row, ctx, world, atMs) {
+  /* a table with no row (an add, a mode that pays no drops) rolls nothing, and so seeds no roller's stream */
+  if (!Array.isArray(row.drops) || !row.drops.length) return;
   const by = rollersOf(ids, unitIn(world));
   const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
   for (const id of by) {
     const m = present[ids.indexOf(id)];
-    const rolled = rollDropTable(row.drops, { depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus('dropRate'), share: by.length }, ctx.lootRngOf(id));
-    for (const ev of rolled.events) giveDrop(m, id, ev, ctx, atMs);
+    /* the roller's own odds: the depth's share of the table, its weakness and its drop buff, at 1 / (the rollers) */
+    const own = { depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus('dropRate'), share: by.length };
+    for (const ev of rollDropTable(row.drops, own, ctx.lootRngOf(id)).events) giveDrop(m, id, ev, ctx, atMs);
   }
 }
 

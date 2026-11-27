@@ -122,6 +122,17 @@ async function pure(base) {
     /* a dead hero rolls nothing even with a mark */
     const dead = play(true, [{ type: 'dmg', u: 2, t: 9, amount: 1, atMs: 1 }, { type: 'dmg', u: 1, t: 9, amount: 1, atMs: 2 }, { type: 'kill', u: 1, t: 9, atMs: 5 }], false);
     if (dead.log.some((x) => x[0] === 'l:2')) out.push('PLP-2 a hero dead at the kill rolled it');
+    /* a roller on the scale reads the depth's share of the table (the swing's dial dropPm), then its 1 / n */
+    const deep = (() => {
+      const log = [], a = mk(1), b = mk(1);
+      const w = { swing: 5, rareWon: null, units: [{ id: 1, side: 'hero', alive: true, took: true }, { id: 2, side: 'hero', alive: true, took: true },
+        { id: 9, side: 'mon', kind: 'mk', alive: false, hp: 0 }] };
+      RW.rewardSwing(new Map([[1, a], [2, b]]), [{ type: 'kill', u: 1, t: 9, atMs: 10 }], w,
+        { rng: spy('r', log), monsters, tier: { dropPm: 2000 }, personal: true, lootRngOf: (u) => spy('l:' + u, log, u) });
+      return log.filter((x) => x[0] === 'l:1' && x[1] === 'chance').map((x) => x[2]);
+    })();
+    const wantDeep = monsters.mk.drops.map((row) => D.effectiveDropChance(row, { depthPm: 2000, dropMult: 1, share: 2 }));
+    if (JSON.stringify(deep) !== JSON.stringify(wantDeep) || deep[1] !== 0.4) out.push('PLP-2 a roller at double depth rolled ' + JSON.stringify(deep) + ', want ' + JSON.stringify(wantDeep));
     /* CONTROL: the party roll draws its table on r */
     const off = play(false, struck);
     if (!off.log.some((x) => x[0] === 'r' && x[1] === 'chance') || off.log.some((x) => x[0].startsWith('l:'))) out.push('PLP-2 CONTROL: the party roll did not draw its rows on r');
@@ -164,9 +175,10 @@ const MUTANTS = [
   ['a missed blow is no part', 'src/core/hunt/took-part.js', "    case 'dmg':\n    case 'miss':\n", "    case 'dmg':\n"],
   ['a kill nobody took part in rolls for nobody', 'src/core/hunt/took-part.js', '  return out.length ? out : ids;', '  return out;'],
   ['the rewards never read who took part', 'src/core/hunt-rewards.js', '    noteTookPart(ev, members, unitOf, world);\n    switch (ev.type) {', '    switch (ev.type) {'],
-  ['each roller rolls the whole row', 'src/core/hunt-rewards.js', 'share: by.length }, ctx.lootRngOf(id));', 'share: 1 }, ctx.lootRngOf(id));'],
-  ['a roller rolls on the killer\'s odds', 'src/core/hunt-rewards.js', '{ depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus(\'dropRate\'), share: by.length }', '{ depthPm, dropMult: present[0].weakness(row).dropMult, dropBuff: m.bonus(\'dropRate\'), share: by.length }'],
-  ['a roller draws on the swing\'s r', 'src/core/hunt-rewards.js', 'share: by.length }, ctx.lootRngOf(id));', 'share: by.length }, ctx.rng);'],
+  ['each roller rolls the whole row', 'src/core/hunt-rewards.js', "dropBuff: m.bonus('dropRate'), share: by.length };", "dropBuff: m.bonus('dropRate'), share: 1 };"],
+  ['a roller rolls on the killer\'s odds', 'src/core/hunt-rewards.js', 'const own = { depthPm, dropMult: m.weakness(row).dropMult,', 'const own = { depthPm, dropMult: present[0].weakness(row).dropMult,'],
+  ['a roller\'s roll ignores the depth', 'src/core/hunt-rewards.js', 'const own = { depthPm, dropMult: m.weakness(row).dropMult,', 'const own = { dropMult: m.weakness(row).dropMult,'],
+  ['a roller draws on the swing\'s r', 'src/core/hunt-rewards.js', 'rollDropTable(row.drops, own, ctx.lootRngOf(id))', 'rollDropTable(row.drops, own, ctx.rng)'],
   ['the share ignores a guarantee', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 || row.ch >= 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;'],
   ['the share divides before the cap', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 ? wholeDropChance(row, m) : row.ch >= 1 ? wholeDropChance(row, m) / share : wholeDropChance({ ...row, ch: row.ch / share }, m);'],
   ['the mark is not persisted', 'src/core/hunt/world-state.js', 'danger.PERSISTED, bossPhases.PERSISTED, tookPart.PERSISTED];', 'danger.PERSISTED, bossPhases.PERSISTED];'],

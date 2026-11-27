@@ -371,6 +371,8 @@ So a tank build and a damage build don't both just read "Depth 14":
 | **Builds like yours** | Held depth, XP an hour, healing, mana and supplies for the nearest library build on each ground | A nightly table (about 2,040 entries). Every number labeled an estimate |
 | **Details** | Exact numbers, steps and stacking keys on tooltips | No |
 
+**How a plan pays (server, `1073-talents-plan-server.sql`).** A plan is the saved build for the hunt the hero's plan sends it to. It keeps no order, so the server sets one: each point goes to the first planned node in map order that a spend would take there. Map order is the catalogue's row order, where a node always comes after the one it leaves. A choice the hero already holds at another pick stays as it is. With "Spend as suggested" on, each new Level pays the plan first and then the suggested road, viewed or not, and walks past a planned vow. **Spend on plan** pays the plan in one press and takes a planned vow once its slot is open.
+
 ## 12. How to build it
 
 1. **Engine first:** the four bar metrics (target health %, marked, Bleed stacks, last move cast), "near fall-back", the ramp and the build slice clamp, borrowed rows on the bar with the heal rule. Exact lanes: `19-power-ledger.md` section 5.

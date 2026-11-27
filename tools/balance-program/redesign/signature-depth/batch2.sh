@@ -91,3 +91,16 @@ run b2v-pyre-sabre-target-blunt  pyre_field 80 $S --signatures charred_sabre,-,-
 run b2v-muster-sabre-target-blunt muster_barrows 60 $S --signatures charred_sabre,-,-,-
 run b2v-muster-pole15            muster_barrows 60 $X --signatures -,-,-,bargemans_pole
 run b2v-muster-pennies-blunt45   muster_barrows 60 $T --signatures ferry_pennies,-,-,-
+# ── the re-read on pace steps (game designer, lane/designer-sig-metric, 2026-11-27; 15 "Batch 2, re-read on pace steps"): a row cut or
+#    raised to its band on the new bar, the sample's Apron at 12 seeds, and the luck ceiling's top (V10's stand-in: the tank four with every
+#    Trait made for its seat at rank III, then those and the biggest in-band Signature, against the plain four). A step is the row as it
+#    stood when played: b2m-ox-hat25 the Hat at 25%, b2m-roost-barb35 the Barb at 35%, b2m-muster-collar2s the Collar's clock at 2 s ──
+run b2m-ox-hat25                  ox_road 120 $X --signatures -,-,-,drovers_hat
+run b2m-muster-apron              muster_barrows 60 $X --signatures -,-,-,brewers_apron
+run b2m-roost-barb35              wyvern_roost 140 $C --signatures -,wyvern_barb_crossbow,-,-
+run b2m-muster-collar2s           muster_barrows 60 $X --signatures -,lurchers_collar,-,-
+run b2m-muster-tank-lucky         muster_barrows 60 $T --traits lucky
+run b2m-muster-tank-lucky-pennies muster_barrows 60 $T --traits lucky --signatures ferry_pennies,-,-,-
+# (the spread bar of the two rows the re-read put in band: the Hat at 25% on Muster, the Collar at 2 s on Pyre Field)
+run b2m-muster-hat25              muster_barrows 60 $X --signatures -,-,-,drovers_hat
+run b2m-pyre-collar2s             pyre_field 80 $X --signatures -,lurchers_collar,-,-

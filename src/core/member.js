@@ -387,8 +387,8 @@ export function memberSide(mi, ctx) {
       prizeFirst: mi.prizeFirst === true,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
-        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, tier: h.tier || null, lead: h.lead === true,
-        /* the Danger scale's plan (src/core/hunt/danger.js riskOf), only on a hero whose plan names one: every tier hunt's hero reads as before */
+        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
+        /* the Danger scale's plan (src/core/hunt/danger.js riskOf), only on a hero whose plan names one: a hunt off the scale reads none */
         ...(typeof h.risk === 'string' && h.risk ? { risk: h.risk, danger: Number.isInteger(h.danger) ? h.danger : 0 } : {}),
         hold: Number.isInteger(h.hold) ? h.hold : null,
         leaveTogether: h.leaveTogether === true,
@@ -511,7 +511,7 @@ const jewelSnap = (snap) => ({ ...(snap.selfHealPm ? { selfHealPm: snap.selfHeal
   ...(snap.resistPm ? { resistPm: snap.resistPm } : {}), ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds` as the instance plays them
-    (`monsters`: a scaled hunt's table, combat-sim.js huntPlayOf; the catalogue when absent). */
+    (`monsters`: the instance's table, combat-sim.js huntPlayOf; the catalogue when absent). */
 export function frozenOf(side, kinds, atMs, monsters) {
   const rows = monsters || MONSTERS;
   const m = side.member;
@@ -551,7 +551,7 @@ export function frozenOf(side, kinds, atMs, monsters) {
     shield: m.shield === true, hero: m.hero, session, lv, shots };
 }
 
-/* A monster ROW back to its kind, for a caller that hands only the row (damage.js hands its kind too: a scaled hunt's row is not the catalogue's). */
+/* A monster ROW back to its kind, for a caller that hands only the row (damage.js hands its kind too: an instance's row need not be the catalogue's). */
 const KIND_OF = new Map(Object.entries(MONSTERS).map(([k, row]) => [row, k]));
 
 /** The engine member of a frozen row (the browser's peer): its numbers, an inert fx, an unbounded purse. */

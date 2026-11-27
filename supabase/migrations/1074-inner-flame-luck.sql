@@ -2,7 +2,7 @@
 -- supabase/migrations/1074-inner-flame-luck.sql — THE INNER FLAME AS LUCK, IN THE SETTLE: the hunt's own Remains go on the company's fire
 --   by the stoke rule, the fire burns down by hunted hero-time on the window's own clock, and each hunt rolls its Rares at the flame it
 --   started with (lane/f1-inner-flame, backend-architect, 2026-11-26; docs/design/redesign/20-v030-the-roads.md section 4 Band 3 F1,
---   21-flame-temper-imbue-loot.md section 1, 12-targets.md 8.6 / 8.6.1, 19-power-ledger.md row 11, 13-security-list.md N-5 / S-28).
+--   21-flame-temper-imbue-loot.md section 1, 12-targets.md 8.6 / 8.6.1, 19-power-ledger.md row 11, 13-security-list.md N-5 / S-29).
 --
 -- STATUS: supabase/migration-notes/1074-inner-flame-luck.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): after 1063-flame-temper.sql (company_flame, the twins) and
@@ -64,7 +64,7 @@
 -- gross stays inside the kill bound or burns nothing. The fire's height is the walk's (room, decay, worth, target: the catalogue twins);
 -- the luck a hunt rolls at is frozen by the server at its start and never read from the edge. What the walk cannot re-prove is the
 -- instant of a drop inside its span (it moves which minute a unit decays from, never how many units or their worth): the same trust the
--- dice rest on. ON THE PRE-EA SECURITY LIST (13-security-list.md S-28, N-5).
+-- dice rest on. ON THE PRE-EA SECURITY LIST (13-security-list.md S-29, N-5).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes x 10 h) ────────────────────────────
 -- Dark: the read's one hr_flag_on (the instance's `flame`), one hr_flag_on at each hunt session's insert, the trigger one fewer flag read
@@ -184,7 +184,7 @@ declare
   c_claims_max constant int := 4000;   -- a fuse on a window's claim list, not a balance figure (a 10-minute window of a four drops ~80)
   v_m jsonb; v_x jsonb; v_u uuid; v_seq bigint := -1; v_from bigint; v_to bigint;
   v_items jsonb; v_kills bigint; v_sum jsonb; v_ok boolean; v_k text; v_v numeric;
-  v_spans jsonb; v_drops jsonb; v_tops jsonb; f public.company_flame%rowtype; v_keep int; v_w jsonb; v_sid text;
+  v_spans jsonb; v_drops jsonb; v_tops jsonb; f public.company_flame%rowtype; v_keep int; v_w jsonb; v_sid text; v_b jsonb;
   v_out jsonb := '{}'::jsonb; v_burnable jsonb := '{}'::jsonb; v_claims jsonb := '[]'::jsonb;
 begin
   -- INNER-FLAME (1074-inner-flame-luck.sql): called by hr_hunt_apply_instance under its locks, only when a member carries `flame`.
@@ -256,11 +256,13 @@ begin
            flame_level = (v_w->>'level')::int, updated_at = now()
      where user_id = v_u;
     if (v_w->>'units')::bigint > 0 then
-      update public.hunt_flame hf
-         set burned = public.hr_jsonb_add(hf.burned, b.value),
-             units = hf.units + (select coalesce(sum((x.value #>> '{}')::bigint), 0) from jsonb_each(b.value) x)
-        from jsonb_each(v_w->'burned') b
-       where hf.session_id = b.key::uuid;
+      -- each hunt of this company that burned, by its own session and account (tests/selfcheck-no-global-dml.mjs: declared names)
+      for v_sid, v_b in select b.key, b.value from jsonb_each(v_w->'burned') b order by b.key loop
+        update public.hunt_flame hf
+           set burned = public.hr_jsonb_add(hf.burned, v_b),
+               units = hf.units + (select coalesce(sum((x.value #>> '{}')::bigint), 0) from jsonb_each(v_b) x)
+         where hf.session_id = v_sid::uuid and hf.user_id = v_u;
+      end loop;
       v_out := v_out || (v_w->'burned');
     end if;
   end loop;

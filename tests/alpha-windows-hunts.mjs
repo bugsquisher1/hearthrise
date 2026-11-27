@@ -39,8 +39,9 @@
 //         carrier, the bests (one "No best here yet" line when none, the server's best
 //         replacing it); on the phone the list, then the page as the sheet, then back. On a scaled
 //         screen (Tyler 2026-11-16, 125 % and 150 %) a creature's bitmap is whole device px an art px,
-//         the most no bigger than x2 (2 at 125 %, 3 at 150 %), shown at exactly its own size. A harder tier a pack measured as a
-//         Healer's (healerTiers: a four with no Healer dies there under a Level) says "Recommended: Healer" under that Level, to every group
+//         the most no bigger than x2 (2 at 125 %, 3 at 150 %), shown at exactly its own size. (The pull each tier brought, its plain
+//         line and the Healer's tier left with the tiers: lane/retire-tier-chain 2026-11-26, a ground plays its Danger scale step,
+//         12-targets 8.4 item 4)
 //   AW-26 GO AS: the setups as lines (weapon, role, the bar's first four on the setup
 //         on now; a set with no setup row is not offered); Enter as the setup on now is
 //         ONE hr_hunt_enter; as another it is ONE hr_hunt_preset_apply then ONE
@@ -53,7 +54,7 @@
 //         name box; no read: there is no party finder) and Bring
 //         your heroes (open heroes in no party); a solo ground's page offers neither
 //   AW-29 the round trip: pick a ground, Enter, hunting, back in town: Hunts still holds
-//         that ground, after a close and reopen too
+//         that ground, after a close and reopen too (the scaled hunt's pane it once read left with the scaled hunts)
 //   AW-35 WHEN THE HUNT ENDS (Tyler 2026-11-15, the itinerary; src/shell/windows/hunt-after-pane.js): the Hunts page's one
 //         select lists what the server offers (a hero with no job to go back to: waiting, and each skill the yard trains),
 //         the picked one is the server's and the line under it says what it means; a change sends ONE hr_hunt_after_set
@@ -91,75 +92,9 @@ async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf, bigPullOf } = await imp('src/shell/hunt-ground-facts.js');
   const { MONSTERS } = await imp('src/data/monsters.js');
-  const { huntRows, fitWords, bestLine, bestWords, tierPull, tierWords, tierChoiceWords } = await imp('src/shell/hunt-list.js');
+  const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
   const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
   const STORE = FIXTURE.hunt_settings.store;
-  /* THE PULL EACH TIER BRINGS: Normal is the pack as built for EVERY group size (0; Tyler 2026-11-11 ONE PACK ON NORMAL, partyPull is gone), a harder tier its own row's number for the group's size, and a row of 0 the pack as built too. */
-  const rowOf = (hunt) => huntRows().find((x) => x.hunt === hunt);
-  const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
-  /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
-     (hunt-tiers.js, the build's ?v= instance), put back after, so the designer moving a number never turns a words check red. */
-  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + sourceQuery(ROOT));
-  const kept = { glade: TV.GROUND_TIERS.mosslight_glade, thicket: TV.GROUND_TIERS.meadowbrook_thicket };
-  const tierRow = (id, pull, dmgPm, hpPm, xpPm) => ({ id, pull, dmgPm, hpPm, xpPm });
-  try {
-    TV.GROUND_TIERS.mosslight_glade = { dangerous: tierRow('dangerous', [4, 5, 5, 6], 1200, 1000, 1100), deadly: tierRow('deadly', [8, 8, 8, 8], 1500, 1000, 1200) };
-    TV.GROUND_TIERS.meadowbrook_thicket = { dangerous: tierRow('dangerous', [0, 0, 0, 0], 1500, 1000, 1050), deadly: tierRow('deadly', [0, 0, 0, 0], 3000, 1000, 1080) };
-    if (tierPull(glade, 'normal', 1) !== 0) fails.push('AW-25 a lone hero moved off the room as built: ' + tierPull(glade, 'normal', 1));
-    if (tierPull(glade, 'normal', 2) !== 0 || tierPull(glade, 'normal', 4) !== 0) fails.push('AW-25 a party on Normal does not read the pack as built (Tyler 2026-11-11): ' + tierPull(glade, 'normal', 2) + ' / ' + tierPull(glade, 'normal', 4));
-    if (tierPull(glade, 'dangerous', 1) !== 4 || tierPull(glade, 'dangerous', 4) !== 6 || tierPull(glade, 'deadly', 1) !== 8 || tierPull(glade, 'deadly', 4) !== 8) fails.push('AW-25 a harder tier does not read its row');
-    if (tierPull(thicketR, 'deadly', 1) !== 0 || tierPull(thicketR, 'deadly', 4) !== 0) fails.push('AW-25 a row with no more monsters does not read the ground as it stands: ' + tierPull(thicketR, 'deadly', 1) + ' / ' + tierPull(thicketR, 'deadly', 4));
-    if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
-    /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
-       this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
-    const W = (t, k) => TV.TIER_LINES[t][k] + '\n' + TV.TIER_DEATH_LINE;
-    if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
-    if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
-    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters that hit harder') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
-    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: monsters hit much harder' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
-    /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
-    TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
-    if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
-    /* every dial at a sheet's odd multiple still reads no number, on every tier and group size */
-    TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
-    for (const r of [glade, thicketR]) for (const t of ['dangerous', 'deadly']) for (const n of [1, 2, 3, 4]) if (/\d/.test(tierWords(r, t, n) + tierChoiceWords(r, t, n))) fails.push('AW-25 a tier note carries a number: ' + tierWords(r, t, n));
-  } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }
-  /* A HEALER'S TIER (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue; the mechanism is lane/d-late-nearmisses'):
-     where a pack's healerTiers names a tier and a Level (hunt-tiers.js HEALER_TIERS, measured: a four with no Healer dies there under that Level and a four
-     with one holds), the page says "Recommended: Healer" on that tier to a hero under that Level, alone or in a party, an unknown Level too; and on no
-     other ground, tier or Level. A Deadly the grader grades with a Healer (checks.deadlyFourNeeds, the designer's Q4 2026-11-12 "bring a Healer") is
-     named, and a named Deadly is graded so: the page and the grader agree both ways. The Muster Barrows and Krell's Hold were graded so since 2026-11-12
-     and their pages never said it (each pack carries its measurement). */
-  {
-    const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
-    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + sourceQuery(ROOT));
-    let named = 0;
-    if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
-    const rows = huntRows();
-    for (const [g, row] of Object.entries(TV.HEALER_TIERS || {})) for (const [id, under] of Object.entries(row)) {
-      const pk = GROUND_PACKS.find((x) => ((x.ground && x.ground.id) || x.id) === g), hr = rows.find((r) => r.hunt === g);
-      if (!TV.tiersOf(g).includes(id)) fails.push('AW-25 ' + g + ' names ' + id + ' a Healer\'s tier, and it does not offer ' + id);
-      if (id === 'deadly' && !(pk && pk.checks && pk.checks.deadlyFourNeeds === 'healer')) fails.push('AW-25 ' + g + ' says Deadly needs a Healer, and the grader grades its four without one (checks.deadlyFourNeeds)');
-      /* the line stops inside the band, or one past its top: said at EVERY Level of the band (the Pauper Vaults, measured never under one death
-         without a Healer up to 185; lane/d-late-items-rescue) */
-      if (hr && !(under > hr.band[0] && under <= hr.band[1] + 1)) fails.push('AW-25 ' + g + '\'s Healer line stops at Level ' + under + ', outside its band ' + hr.band.join('-'));
-    }
-    for (const r of rows) for (const id of TV.tiersOf(r.hunt).filter((x) => x !== TV.DEFAULT_TIER)) {
-      const under = (TV.HEALER_TIERS[r.hunt] || {})[id] || null;
-      for (const lv of [r.band[0], r.band[1], null, ...(under ? [under - 1, under] : [])]) {
-        const want = !!under && !(Number.isInteger(lv) && lv >= under);
-        named += want ? 1 : 0;
-        for (const n of [1, 2, 4]) if (tierWords(r, id, n, lv).includes(healerLine) !== want) fails.push('AW-25 ' + r.hunt + ' ' + id + ' at Level ' + lv + ', a group of ' + n + ': the page reads "' + tierWords(r, id, n, lv) + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one there'));
-      }
-    }
-    for (const pk of GROUND_PACKS) {
-      const g = (pk.ground && pk.ground.id) || pk.id;
-      if (pk.checks && pk.checks.deadlyFourNeeds === 'healer' && !((TV.HEALER_TIERS[g] || {}).deadly)) fails.push('AW-25 ' + g + '\'s Deadly is graded with a Healer (checks.deadlyFourNeeds) and its page never says to bring one (healerTiers)');
-    }
-    if (!(TV.isHealerTier('muster_barrows', 'deadly', 59) && !TV.isHealerTier('muster_barrows', 'deadly', 60))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer up to 59 and not from 60 (its pack), and the page does not say so there');
-    if (!(TV.isHealerTier('krells_hold', 'deadly', 88) && !TV.isHealerTier('krells_hold', 'deadly', 89))) fails.push('AW-25 Krell\'s Hold\'s Deadly kills a four with no Healer up to 88 and hardly from 89 (its pack), and the page does not say so there');
-    if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
-  }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
@@ -301,47 +236,6 @@ async function huntsPure(imp) {
   /* A closed session is no hero to bring (the open one in a party is checked on the page, AW-28). */
   const me = { slot: 0, status: 'ready', read: () => null };
   if (freeHeroes(me, [me, { slot: 3, status: 'closed', read: (k) => (k === 'name' ? 'Wrenna' : null) }]).length) fails.push('AW-28 Bring your heroes offers a closed session');
-  /* AW-29 A SCALED HUNT IS FOUND ON THE HUNTS PAGE (audit F26, 2026-11-15: the data and the server existed, no window read them). The server's
-     `scaled_hunts` section (2027-03-21-scaled-hunts.sql hr_scaled_hunts_view) reads whole or not at all; the page shows the server's Level, price
-     and bank, the slider's hours capped by the bank and the day, says why Buy is off, and Buy sends the server's price an hour x the hours. No
-     section (the switch off): nothing anywhere. */
-  {
-    const SH = await imp('src/session/scaled-hunts.js');
-    const SP = await imp('src/shell/windows/scale-pane.js');
-    const H = 3600000;
-    const section = (grounds, o) => Object.assign({ min_hours: 1, max_hours: 24, bank_max_ms: 24 * H, day_max_hours: 48, today_hours: 0, playing: null, grounds }, o || {});
-    const csOf = (s, extra) => ({ slot: 0, status: 'ready', read: (k) => (k === 'scaled_hunts' ? s : extra ? extra[k] : undefined) });
-    const sewer = { level: 41, from_level: 26, price: 1640, banked_ms: 6 * H, on: true };
-    const sh = SH.scaledHuntsOf(csOf(section({ sewer_drains: sewer, mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true }, bad: { level: 5 } })));
-    if (!sh || sh.maxHours !== 24 || sh.grounds.sewer_drains.price !== 1640 || sh.grounds.mill_cellar.level !== null || sh.grounds.bad || !Object.isFrozen(sh.grounds)) fails.push('AW-29 the section reads ' + JSON.stringify(sh));
-    if (SH.scaledHuntsOf(csOf(null)) !== null || SH.scaledHuntsOf(csOf(undefined)) !== null) fails.push('AW-29 no section (the switch off) still reads as one');
-    const view = (s, hunt, o) => SP.scaleView(SH.scaledHuntsOf(csOf(s)), hunt, o);
-    const v1 = view(section({ sewer_drains: sewer }), 'sewer_drains', { hours: 4, gold: 100000 });
-    if (!v1 || v1.level !== 41 || v1.price !== 1640 || v1.max !== 18 || v1.hours !== 4 || v1.cost !== 6560 || v1.why !== null) fails.push('AW-29 a banked ground reads ' + JSON.stringify(v1));
-    const whyOf = (s, o) => { const v = view(s, 'sewer_drains', o); return v ? v.why + ':' + v.max : 'none'; };
-    const said = [whyOf(section({ sewer_drains: { ...sewer, banked_ms: 24 * H } }), { gold: 1e6 }), whyOf(section({ sewer_drains: sewer }, { today_hours: 48 }), { gold: 1e6 }),
-      whyOf(section({ sewer_drains: sewer }), { hours: 4, gold: 6559 }), whyOf(section({ sewer_drains: sewer }, { today_hours: 40 }), { hours: 20, gold: 1e6 })].join(' ');
-    if (said !== 'bank:0 day:0 gold:18 null:8') fails.push('AW-29 Buy off says ' + said + ', want bank:0 day:0 gold:18 null:8');
-    const locked = view(section({ mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true } }), 'mill_cellar');
-    if (!locked || locked.level !== null || locked.locked !== 9 || view(null, 'sewer_drains') !== null || view(section({}), 'sewer_drains') !== null) fails.push('AW-29 a ground not scaled yet reads ' + JSON.stringify(locked));
-    const tags = [SP.scaleTag(csOf(section({ sewer_drains: sewer })), 'sewer_drains'), SP.scaleTag(csOf(section({ sewer_drains: { ...sewer, on: false } })), 'sewer_drains'),
-      SP.scaleTag(csOf(section({ sewer_drains: { ...sewer, banked_ms: 0 } })), 'sewer_drains'), SP.scaleTag(csOf(null), 'sewer_drains'),
-      SP.scaleTag(csOf(section({ mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true } })), 'mill_cellar')].join('|');
-    if (tags !== 'Scaled: Level 41|Scalable|Scalable||') fails.push('AW-29 the Hunts list\'s tags read ' + JSON.stringify(tags));
-    /* the press: ONE hr_scaled_hunt_buy with whole hours and the total seen; a malformed ask never leaves */
-    const calls = [];
-    const account = { server: { rpc: async (name, args) => { calls.push([name, args]); return { ok: true, body: { ok: true, hours: args.p_hours } }; } } };
-    let loads = 0;
-    const cs = Object.assign(csOf(section({ sewer_drains: sewer })), { load: async () => { loads++; } });
-    const r = await SH.buyScaledHours(account, cs, 'sewer_drains', 4, 6560);
-    const sent = calls[0] && calls[0][1];
-    if (!r.ok || calls.length !== 1 || calls[0][0] !== 'hr_scaled_hunt_buy' || sent.p_hunt !== 'sewer_drains' || sent.p_hours !== 4 || sent.p_price !== 6560 || sent.p_slot !== 0 || !/^[0-9a-f-]{36}$/.test(sent.p_idem) || loads !== 1) {
-      fails.push('AW-29 Buy sent ' + JSON.stringify(calls) + ' -> ' + JSON.stringify(r) + ', re-read ' + loads);
-    }
-    for (const [hours, price] of [[1.5, 2460], [0, 0], [4, null]]) if ((await SH.buyScaledHours(account, cs, 'sewer_drains', hours, price)).ok || calls.length !== 1) fails.push('AW-29 a malformed Buy (' + hours + ' h, ' + price + ') was sent');
-    const sw = await SH.setScaledOn(account, cs, 'sewer_drains', false);
-    if (!sw.ok || !calls[1] || calls[1][0] !== 'hr_scaled_hunt_switch' || calls[1][1].p_on !== false) fails.push('AW-29 the switch sent ' + JSON.stringify(calls[1]));
-  }
   return fails;
 }
 
@@ -1199,13 +1093,6 @@ const MUTANTS = [
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
   /* 'hunts:' is judged by the pure Hunts rules (huntsPure) on a planted copy of src: the page runs at a 1x screen, so only the pure 125/150 % arm sees it */
-  /* A HEALER'S TIER (lane/a-honest-lines, re-landed and bounded by Level by lane/a-honesty-rescue) */
-  ['hunts: AW-25 the tier note never says a Healer\'s tier', 'src/shell/hunt-list.js', "  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];", '  const healer = [];'],
-  ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
-  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
-  ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 89 },\n', ''],
-  ['hunts: AW-25 the Pauper Vaults\' Deadly says nothing of a Healer', 'src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },\n', ''],
-  ['hunts: AW-25 a Healer line that stops past its band', 'src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },\n', '  healerTiers: { deadly: 187 },\n'],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-25 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }\n', '  .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }\n'],
   ['AW-26 the chosen setup is never put on', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (false) {'],

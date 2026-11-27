@@ -73,10 +73,9 @@ begin
     -- at 1062's image (restated whole with this file's fence in it, its store priced at the buyer's step). After
     -- 1069-skill-time-parity.generated.sql, hr_skill_level at 1069's image (restated with this file's splice (4) text in it, verbatim,
     -- and an Inner Flame branch on its own curve's index). After 1071-trait-pieces.sql, the instance read at 1071's image (restated
-    -- whole with this file's fences in it, plus the worn pieces), and after 1074-inner-flame-luck.sql the same with its `flame` key.
+    -- whole with this file's fences in it, plus the worn pieces).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae',
-                                                                              'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc'))
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9'))
        and not (v_r.fn = 'public.hr_hunt_member_read(public.hunt_sessions)' and v_md5 = '8cf75f1bce69a3273f3490e52650354c')
        and not (v_r.fn = 'public.hr_skill_level(text,bigint)' and v_md5 = 'e01730edbac721c3eb5ea4c3f32a7514') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;

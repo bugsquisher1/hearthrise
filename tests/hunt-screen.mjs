@@ -46,14 +46,8 @@
 //         server's setup until the re-read envelope; a refusal shows on its condition
 //   HS-8  IN TOWN: the bar shows (no hunt vitals, a "+" on empty slots); an empty
 //         slot is set to Salted Trout (the Food run sorted cheapest per point, its
-//         numbers the server's) IF My HP % below 60 - ONE intent; the tier buttons on the hunt picker answer on
-//         the press (Tyler 10-20, "incredibly laggy"): quick presses show
-//         the new tier at once, marked Saving..., send ONE intent with the last
-//         value (hr_hunt_tier_set, that ground only: every other line keeps its
-//         own pick), and the server's answer replaces it; the line's facts say the
-//         pull size on the tier ("6 packs of 4"); the tier note is the tier's plain
-//         line from the data and carries no number (Tyler 2026-11-08); a refused save shows the server's
-//         value again and why; after a reload both come back
+//         numbers the server's) IF My HP % below 60 - ONE intent; after a reload it comes back
+//         (the tier picker it once checked left with the tiers, 12-targets 8.4 item 4: the Risk is HS-14's)
 //   HS-9  the Hunts window follows the server's hunt: once the hero is hunting
 //         it says so, never a stale "On the way to ..." (Tyler 10-19)
 //   HS-10 a hunt that is over keeps only the way back to its summary: no Leave
@@ -74,9 +68,9 @@
 //         (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded and no widget crosses
 //         the centre two thirds of the World between the hunt bar and the action bar; Hunt details opens the folded
 //         analyzer; at 1440x900 all three start open
-//   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
-//         the leader's tier read-only ("Set by Fingerguns: Dangerous", the server's
-//         leader_tiers, per ground) with no buttons and sends nothing; the leader keeps its buttons
+//   HS-14 THE LEADER CHOOSES THE RISK (Tyler 2026-10-20; re-aimed from the retired tier picker, 12-targets 8.4 item 4): a party
+//         member's Risk picks on a ground's page (company-pane.js) are off, its line says the leader sets the Risk, and a press
+//         sends nothing; the leader's picks are on, and its press is ONE hr_hunt_risk_set naming the stance
 //   HS-15 LEAVE HUNT: the press answers at once ("Leaving…" beside the button, which is off, sent
 //         once); a number shows within about a second (from the leave's own answer, the settle after
 //         it still out): "Leaving in Ns" to the SERVER's leave_at on the server's clock (3 h ahead of
@@ -145,9 +139,8 @@ import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const { charXpForLevel, skillXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
-/* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
-const TIERS = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
-const GLADE_DANGEROUS = TIERS.GROUND_TIERS.mosslight_glade.dangerous;
+/* The Risk picker's words, never typed: HS-14 reads them from the text table (src/data/text/hunts.js). */
+const { HUNTS_TEXT } = await import(pathToFileURL(join(ROOT, 'src/data/text/hunts.js')).href);
 /* HS-23's numbers from the data, never typed: the fixture hero's 220 HP, the Sewer's biggest blow (pull-cycle.js biggestBlowOn, the warning's
    own read, the same for every party size since 2026-11-08), and a warned threshold in whole HP under it (a multiple of 5%: 11 HP a step). */
 const PULL_CYCLE = await import(pathToFileURL(join(ROOT, 'src/core/hunt/pull-cycle.js')).href);
@@ -266,10 +259,10 @@ async function driveSelfCheck() {
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, tierReply: { ok: true }, kindReply: { ok: true }, waiting: {} };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, kindReply: { ok: true }, waiting: {} };
   /* answer every held reply of a kind, and stop holding that kind */
   s.release = (kind) => {
-    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'tier') s.holdTier = false; else if (kind === 'firsts') s.holdKind = false; else s.holdOptions = false;
+    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'firsts') s.holdKind = false; else s.holdOptions = false;
     for (const go of (s.waiting[kind] || []).splice(0)) go();
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
@@ -312,12 +305,6 @@ async function stub(page, s) {
       /* the server saves what it confirms at the moment it answers (never before the gesture) */
       if (s.onOptions && s.optionsReply.ok) s.onOptions(body.p_opts);
       return json(s.optionsReply);
-    }
-    /* The tier picked per ground (hr_hunt_tier_set): held or answered like a settings save. */
-    if (name === 'hr_hunt_tier_set') {
-      if (s.holdTier) await hold(page, r, s, 'tier'); else await sleep(s.optionsDelayMs);
-      if (s.onTier && s.tierReply.ok) s.onTier(body);
-      return json(s.tierReply.ok ? Object.assign({ hunt: body.p_hunt, tier: body.p_tier }, s.tierReply) : s.tierReply);
     }
     /* The First target per ground (hr_hunt_target_kind_set, HS-29): held or answered like a settings save; the server saves it as it answers. */
     if (name === 'hr_hunt_target_kind_set') {
@@ -1904,12 +1891,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
       const want = { action: { type: 'consume', id: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
-      /* The server saves at its answer (never before the press, where a live re-read could show it early):
-         the slot as sent; a tier it saves as Dangerous on that ground, not the Deadly asked, so what shows after is the server's. */
+      /* The server saves at its answer (never before the press, where a live re-read could show it early): the slot as sent. */
       s.onOptions = (o) => {
         if (o.slots && o.slots[5]) s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
       };
-      s.onTier = (b) => { s.env.hunt_tier = { picks: Object.assign({}, s.env.hunt_tier.picks, { [b.p_hunt]: 'dangerous' }), playing: null }; };
       await page.click('.hc-foot [data-x="save"]');
       await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -1922,76 +1907,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
       if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 500));
       await page.keyboard.press('p');
-      /* The tier on the hunt picker: the press answers at once, a run of presses is ONE intent, the server's answer replaces the draft. */
-      await page.keyboard.press('h');
-      const picked = 'mosslight_glade';
-      await wait(page, () => document.querySelector('.hw-hunt[data-hunt="mosslight_glade"]'), null);
-      await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-      await wait(page, () => document.querySelector('.hw-hunt-detail .hw-tiers.is-on'), null);
-      const dRead = () => page.evaluate(() => {
-        const on = document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]');
-        return { v: on && on.getAttribute('data-tier'), pending: on && on.getAttribute('data-pending'), msg: document.querySelector('.hw-hunts .hh-intent-msg').textContent,
-          facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent, note: document.querySelector('.hw-hunt-detail .hw-tier-note').textContent, press: document.querySelector('.hw-hunt-detail .hw-enter-why').textContent };
-      });
-      /* The pick is PER GROUND: the picked ground's page reads its own pick, every other ground's page its own
-         (master-detail: each other ground is picked in turn, its page read, then the first is picked again). */
-      const otherFacts = async () => {
-        const out = [];
-        for (const h of await page.evaluate(() => [...document.querySelectorAll('.hw-hunt:not(.is-picked)')].map((li) => li.getAttribute('data-hunt')))) {
-          await page.click('.hw-hunt[data-hunt="' + h + '"]');
-          out.push(h + ': ' + await page.evaluate(() => document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent));
-        }
-        await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-        return out.join(' | ');
-      };
-      /* The server's pick of Dangerous on the Glade only. */
-      s.env.hunt_tier = { picks: { [picked]: 'dangerous' }, playing: null };
-      await pushEnvelope(page, s);
-      await wait(page, () => (document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]') || { getAttribute: () => '' }).getAttribute('data-tier') === 'dangerous', null);
-      const others0 = await otherFacts();
-      const d0 = await dRead();
-      if (d0.v !== 'dangerous') fails.push('HS-8 the tier does not show the server’s Dangerous: ' + d0.v);
-      const gdPull = GLADE_DANGEROUS.pull[0];
-      if (!new RegExp(' packs? of ' + gdPull + '[ ,]').test(d0.facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + d0.facts);
-      /* THE NOTE IS THE TIER'S PLAIN LINE (Tyler 2026-11-08 on the old numbers note: "Simplify this holy shit it's way too 'exact' it seems AI"; a ruled
-         contract change, not a loosened guard). The Glade's Dangerous brings more monsters than a lone hero's Normal, so it reads TIER_LINES.dangerous.more
-         and the one death line, word for word from the data, and no number at all: no percent, no HP, no blow (those are the wiki's). */
-      const gdLine = TIERS.TIER_LINES.dangerous.more;
-      if (d0.note !== gdLine + '\n' + TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + d0.note);
-      if (/\d/.test(d0.note)) fails.push('HS-8 the tier note carries a number: ' + d0.note);
-      /* A pick kept from last time is said at the press: the line beside Enter, the plain line's first sentence after the tier's name. */
-      if (d0.press !== 'Dangerous: ' + gdLine.split('\n')[0].replace(/^M/, 'm')) fails.push('HS-8 the line beside Enter reads: ' + d0.press);
-      if (/\d/.test(d0.press)) fails.push('HS-8 the line beside Enter carries a number: ' + d0.press);
-      /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer
-         is held while the unsaved draft is read, so a slow box cannot let it land first. */
-      s.holdTier = true;
-      const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_tier_set').length;
-      await page.evaluate(() => { for (const id of ['normal', 'deadly']) document.querySelector('.hw-hunt-detail .hw-tiers [data-tier="' + id + '"]').click(); });
-      const dMid = await dRead();
-      if (dMid.v !== 'deadly' || dMid.pending !== 'true' || !/Saving/.test(dMid.msg)) fails.push('HS-8 two quick presses did not show Deadly at once, marked unsaved: ' + JSON.stringify(dMid));
-      if (!/ packs? of 8[ ,]/.test(dMid.facts)) fails.push('HS-8 the facts line does not follow the pick: ' + dMid.facts);
-      const othersMid = await otherFacts();
-      if (othersMid !== others0) fails.push('HS-8 an unsaved pick on ' + picked + ' shows on another ground: ' + others0 + ' -> ' + othersMid);
-      await until(() => s.sent('hr_hunt_tier_set').length > sentBefore);
-      s.release('tier');
-      if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]'); return v && v.getAttribute('data-tier') === 'dangerous' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the tier did not settle on the server’s Dangerous: ' + JSON.stringify(await dRead()));
-      const dSent = s.calls.filter((c) => c.name === 'hr_hunt_tier_set').map((c) => ({ hunt: c.body.p_hunt, tier: c.body.p_tier })).slice(sentBefore);
-      if (JSON.stringify(dSent) !== JSON.stringify([{ hunt: picked, tier: 'deadly' }])) fails.push('HS-8 two quick tier presses sent ' + JSON.stringify(dSent) + ' (want ONE intent: ' + picked + ' on Deadly)');
-      if (s.calls.some((c) => c.name === 'hr_action_set_options' && c.body.p_opts && ('tier' in c.body.p_opts || 'density' in c.body.p_opts))) fails.push('HS-8 a tier went out as a setup option');
-      const dAfter = await dRead();
-      if (!new RegExp(' packs? of ' + GLADE_DANGEROUS.pull[0] + '[ ,]').test(dAfter.facts) || /Saving/.test(dAfter.msg)) fails.push('HS-8 after the save the line does not read the server’s Dangerous: ' + JSON.stringify(dAfter));
-      const others1 = await otherFacts();
-      if (others1 !== others0) fails.push('HS-8 a pick on ' + picked + ' moved another ground: ' + others0 + ' -> ' + others1);
-      if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-hunts-tier.png') });
-      /* A refused save: the server's value shows again, with the reason in words. */
-      s.tierReply = { ok: false, error: 'rate_limited' };
-      await page.evaluate(() => { document.querySelector('.hw-hunt-detail .hw-tiers [data-tier="deadly"]').click(); });
-      const refused = await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]');
-        const m = document.querySelector('.hw-hunts .hh-intent-msg').textContent;
-        return v && v.getAttribute('data-tier') === 'dangerous' && v.getAttribute('data-pending') === 'false' && m && !/Saving/.test(m); }, null);
-      if (!refused) fails.push('HS-8 a refused tier save does not show the server’s Dangerous and why: ' + JSON.stringify(await dRead()));
-      s.tierReply = { ok: true };
-      /* Reload: the slot and the tier come back from the server, nothing from the browser. */
+      /* Reload: the slot comes back from the server, nothing from the browser. */
       await page.reload({ waitUntil: BOOTED });
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
@@ -2001,59 +1917,56 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const cond = await wait(page, () => { const n = document.querySelector('.ca-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null);
         if (!slot || !cond) fails.push('HS-8 after a reload the slot or its condition is not the server’s');
         await page.keyboard.press('Escape');
-        await page.keyboard.press('h');
-        await wait(page, () => document.querySelector('.hw-hunt[data-hunt="mosslight_glade"]'), null);
-        await page.click('.hw-hunt[data-hunt="mosslight_glade"]');
-        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-tiers .hh-seg[aria-pressed="true"]'); return v && v.getAttribute('data-tier') === 'dangerous'; }, null))) fails.push('HS-8 after a reload the tier is not the server’s');
       }
       await ctx.close();
     }
 
-    { // HS-14 a party member's tier is the leader's, read-only; the leader keeps its buttons
+    { // HS-14 THE LEADER CHOOSES THE RISK: a member's picks are off and say so, a press sends nothing; the leader's are on, ONE intent a press
       const { ctx, page, s, up } = await open({ town: true });
       if (up) {
         const seat = (n, name, weapon) => ({ unit: null, seat: n, hunting: false, name, level: 20, weapon });
-        s.env.party = { id: '0a47c0de-0000-4000-a000-00000000aa01', hunt: null, max: 4, open: true, listed: false, leader: null, self: null,
-          leader_seat: 1, self_seat: 0, leader_tiers: {}, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
+        /* the server's Risk section (the plan's Steady) and a party led by the OTHER seat */
+        s.env.danger = { risk: 'steady', held: {}, playing: null };
+        s.env.party = { id: '0a47c0de-0000-4000-a000-00000000aa01', hunt: null, max: 4, open: true, leader: null, self: null,
+          leader_seat: 1, self_seat: 0, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
         await pushEnvelope(page, s);
         await page.keyboard.press('h');
-        /* The leader's picks, per ground: Dangerous on the Glade, Deadly on the Warrens. */
-        const picked = 'mosslight_glade', other = 'coppercap_warrens';
+        /* a ground of the Danger scale (src/data/danger.js DANGER_GROUNDS): its page shows the Risk */
+        const picked = 'mosslight_glade';
         await wait(page, () => document.querySelector('.hw-hunt[data-hunt="mosslight_glade"]'), null);
         await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-        /* The other ground's pick comes FIRST: a page that read one pick for every ground gives the Glade Deadly's pull, not its own Dangerous
-           (the Warrens' two harder tiers both bring 8, so only the Glade tells them apart: the CONTROL below goes red if the data stops doing so). */
-        s.env.party = Object.assign({}, s.env.party, { leader_tiers: { [other]: 'deadly', [picked]: 'dangerous' } });
-        await pushEnvelope(page, s);
-        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-tiers.is-on .hw-tier-read'); return v && /Set by .*: Dangerous/.test(v.textContent); }, null);
-        const m = await page.evaluate(() => {
-          const d = document.querySelector('.hw-hunt-detail .hw-tiers');
-          return { v: d.querySelector('.hw-tier-read').textContent, visible: [...d.querySelectorAll('[data-tier]')].filter((b) => b.offsetParent !== null).length,
-            facts: document.querySelector('.hw-hunt-detail .hw-hunt-facts').textContent };
+        const read = () => page.evaluate(() => {
+          const box = document.querySelector('.hw-hunt-detail .hw-stance');
+          return box ? { hidden: box.hidden, off: [...box.querySelectorAll('[data-risk]')].map((b) => b.disabled),
+            on: (box.querySelector('[data-risk][aria-pressed="true"]') || { getAttribute: () => null }).getAttribute('data-risk'),
+            note: box.querySelector('.hw-stance-note').textContent } : null;
         });
-        if (!shown || m.v !== 'Set by Fingerguns: Dangerous') fails.push('HS-14 a member does not see the leader\'s tier read-only: ' + JSON.stringify(m));
-        if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' tier button(s)');
-        /* The pull a pair brings on the leader's tier, from the data (balance-sheet.js moves it: the Glade's Dangerous brings 6 since 2026-11-16). */
-        const { tierRowOf, pullOfTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
-        const pullOf = (h, t) => pullOfTier(tierRowOf(h, t), 2);
-        if (pullOf(picked, 'dangerous') === pullOf(picked, 'deadly')) fails.push('HS-14 CONTROL: ' + picked + '\'s Dangerous and Deadly bring the same pull, so one pick for every ground reads true: pick grounds whose tiers differ');
-        if (!new RegExp(' packs? of ' + pullOf(picked, 'dangerous') + '[ ,]').test(m.facts)) fails.push('HS-14 a pair\'s facts line does not say the leader\'s pull: ' + m.facts);
-        /* The leader's pick is per ground too: another ground's page reads the leader's pick THERE. */
-        await page.click('.hw-hunt[data-hunt="' + other + '"]');
-        const there = await page.evaluate(() => (document.querySelector('.hw-hunt-detail .hw-hunt-facts') || {}).textContent || '');
-        await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-        if (!new RegExp(' packs? of ' + pullOf(other, 'deadly') + '[ ,]').test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
-        const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_tier_set' || c.name === 'hr_action_set_options').length;
+        const member = await wait(page, () => { const b = document.querySelector('.hw-hunt-detail .hw-stance'); return b && !b.hidden && b.querySelector('[data-risk]'); }, null);
+        const m = await read();
+        if (!member || !m || m.hidden) fails.push('HS-14 a member sees no Risk on a ground of the scale: ' + JSON.stringify(m));
+        else {
+          if (m.off.some((x) => !x)) fails.push('HS-14 a member\'s Risk picks are on: ' + JSON.stringify(m.off));
+          if (m.note !== HUNTS_TEXT.stance_leader) fails.push('HS-14 a member\'s Risk line reads "' + m.note + '", not the leader\'s');
+          if (m.on !== 'steady') fails.push('HS-14 the Risk does not show the server\'s Steady: ' + m.on);
+        }
+        const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_risk_set').length;
         const before = asks();
-        await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt-detail .hw-tiers [data-tier]')) b.click(); });
+        await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt-detail .hw-stance [data-risk]')) b.click(); });
         await page.waitForTimeout(500);
-        if (asks() !== before) fails.push('HS-14 a member\'s tier press sent an intent');
-        /* The leader (the crown passes to seat 0): its own pick and its buttons are back. */
+        if (asks() !== before) fails.push('HS-14 a member\'s Risk press sent an intent');
+        /* The leader (the crown passes to seat 0): its picks are on, and a press is ONE intent naming the stance. */
         s.env.party = Object.assign({}, s.env.party, { leader_seat: 0 });
         await pushEnvelope(page, s);
-        const lead = await wait(page, () => { const d = document.querySelector('.hw-hunt-detail .hw-tiers.is-on');
-          return d && !d.querySelector('.hw-tier-read').textContent && [...d.querySelectorAll('[data-tier]')].every((b) => b.offsetParent !== null); }, null);
-        if (!lead) fails.push('HS-14 the leader does not get its tier buttons back');
+        const lead = await wait(page, () => { const b = document.querySelector('.hw-hunt-detail .hw-stance'); return b && [...b.querySelectorAll('[data-risk]')].every((x) => !x.disabled); }, null);
+        if (!lead) fails.push('HS-14 the leader does not get its Risk picks: ' + JSON.stringify(await read()));
+        else {
+          const sentBefore = asks();
+          await page.click('.hw-hunt-detail .hw-stance [data-risk="bold"]');
+          await until(() => asks() > sentBefore);
+          await page.waitForTimeout(300);
+          const sent = s.calls.filter((c) => c.name === 'hr_hunt_risk_set').slice(sentBefore).map((c) => c.body.p_risk);
+          if (JSON.stringify(sent) !== JSON.stringify(['bold'])) fails.push('HS-14 the leader\'s Bold press sent ' + JSON.stringify(sent) + ' (want ONE hr_hunt_risk_set, bold)');
+        }
       } else fails.push('HS-14 the town did not mount');
       await ctx.close();
     }
@@ -2245,16 +2158,7 @@ const MUTANTS = [
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the comparison never shows', 'src/shell/windows/configure-action.js', '  const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];', '  const cmp = [];'],
-  ['the tier press sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
-  ['one tier pick shows on every ground', 'src/shell/windows/hunts.js', '  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;', '  const any = Object.values(picks)[0]; return g && tiersOf(g.id).includes(any) ? any : DEFAULT_TIER;'],
-  ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier && sc.draft ? sc.draft.tier : tier;'],
-  ['every tier press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveTier(cs, sc, repaint), TIER_SAVE_MS);', '      saveTier(cs, sc, repaint);'],
-  ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier;'],
-  ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
-  ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
-  ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
-  ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
-  ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],
+  ['a party member presses the Risk', 'src/shell/windows/company-pane.js', "    prop(b, 'disabled', !d || o.pending || o.follower);", "    prop(b, 'disabled', !d || o.pending);"],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = v.level;', '  const level = 24;'],

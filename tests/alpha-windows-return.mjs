@@ -18,7 +18,7 @@
 // is the harness they share (play.html with supabase-js and the REST paths stubbed, the character's envelope
 // tests/fixtures/alpha-envelope.json) and says which guard holds which window's rules.
 //
-// After a hunt: one gold press on the way home, the next buy and the first dangerous run, a seed's needs before its
+// After a hunt: one gold press on the way home, the next buy and the first Risk pick, a seed's needs before its
 // purchase, the clean return (the summary as the one notice, the card's next step, the sale in view, Services in the Shop),
 // top loot in sight, the summary's answer line, and nothing lying on the press in hand.
 //
@@ -242,40 +242,47 @@ async function checks(overrides, shots, opts) {
       }
     }
 
-    { // AW-99 THE FIRST DANGEROUS RUN (lane/a-next-steps; board 2026-11-15 F5): a Level 8 hero home in a helmet and a body piece, every other card read, meets the one
-      /* offer on the real page; in Hunts its ring stands on the Thicket's line, then on that page's Dangerous press. */
+    { // AW-99 THE FIRST RISK PICK (re-aimed from the first Dangerous run, which left with the tiers: lane/retire-tier-chain 2026-11-26,
+      /* 12-targets 8.4 item 4; hunt-tutorial.js risk_pick). A Level 8 hero home from the Sewer with no Risk picked, every other card read, meets the
+         one card in town; in Hunts its ring stands on the line of the first ground of the scale at its Level (the Thicket, band 5 to 15, from the
+         recruits' Level 5), never on the page the window opened on (the advice's); pressed, that ground's page holds after the hunt (never the
+         advice's or the list's first) and the ring moves to its Enter. */
       const TUT = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href)).HUNT_TUTORIAL;
       const L8 = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(8);
       const dressed = (e) => {
         e.state = Object.assign({}, e.state, { level_xp: L8, active_kind: 'idle', active_id: null });
         e.equipment = Object.assign({}, e.equipment, { helmet: 'bronze_helm', body: 'bronze_platebody' });
-        /* (lane/scale-early-grounds) the Thicket plays the Danger scale and no tier: the hero is back from the Sewer, a tier ground at Level 8 */
         e.hunt = Object.assign({}, e.hunt, { hunt_id: 'millrace_sewer', ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
-        e.hunt_tier = { picks: {}, playing: null };
+        /* the server's Risk section: no stance picked yet (the card's done is the server's pick, risk_set) */
+        e.danger = { risk: null, held: {}, playing: null };
         /* one hero on the account: a second past the first hour would already know (the card is `knowledge`, and the stub answers every slot with this hero) */
         e.hero_slots = [0];
       };
-      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'first_dangerous') } } });
+      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'risk_pick') } } });
       if (!up) fails.push('AW-99 the page did not mount');
       else {
-        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
         await page.waitForTimeout(300);
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
-        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → The Sewer → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
-        if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
+        if (!card || card.id !== 'risk_pick' || !/Risk/.test(card.text)) fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (shots) await shot(page, 'alpha-1440x900-first-risk');
         if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
         else {
-          await page.waitForTimeout(300);
-          const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]'))
-            .map((e) => (e.getAttribute('data-hunt') || '') + ':' + (e.getAttribute('data-tier') || '')));
-          const onLine = await ringed();
-          if (JSON.stringify(onLine) !== '["millrace_sewer:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Sewer\'s line');
-          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-hunts');
-          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="millrace_sewer"]');
           await page.waitForTimeout(400);
-          const onTier = await ringed();
-          if (JSON.stringify(onTier) !== '["millrace_sewer:dangerous"]') fails.push('AW-99 on the Sewer\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
-          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-tier');
+          /* the ring and the page it stands on: the ringed Steady press, and the ground the open page is */
+          const ringed = () => page.evaluate(() => {
+            const go = document.querySelector('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
+            return { page: go ? go.getAttribute('data-hunt') : null,
+              on: Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]')).map((e) => (e.classList.contains('hw-hunt-enter') ? 'enter:' : e.classList.contains('hw-hunt') ? 'line:' : e.className + ':') + (e.getAttribute('data-hunt') || '')) };
+          });
+          const first = await ringed();
+          if (JSON.stringify(first.on) !== '["line:meadowbrook_thicket"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(first) + ', want the Thicket\'s line');
+          if (shots) await shot(page, 'alpha-1440x900-first-risk-hunts');
+          const other = 'meadowbrook_thicket';
+          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + other + '"]');
+          await page.waitForTimeout(500);
+          const picked = await ringed();
+          if (picked.page !== other || JSON.stringify(picked.on) !== '["enter:' + other + '"]') fails.push('AW-99 a ground picked by hand reads ' + JSON.stringify(picked) + ', want ' + other + '\'s page with the ring on its Enter');
         }
         if (errors.length) fails.push('AW-99 console errors: ' + errors.join(' | ').slice(0, 300));
       }
@@ -676,7 +683,7 @@ const JUDGES = {
 };
 
 async function main() {
-  const g = { guard: GUARD, green: 'one gold press home; the next ground after one outgrown; the next buy; the first dangerous run; a seed says its needs; the clean return; top loot in sight; the summary’s answer is the press’s; nothing lies on the press in hand', pure: null, checks: checks, mutants: MUTANTS, companion: COMPANION, judges: JUDGES };
+  const g = { guard: GUARD, green: 'one gold press home; the next ground after one outgrown; the next buy; the first Risk pick; a seed says its needs; the clean return; top loot in sight; the summary’s answer is the press’s; nothing lies on the press in hand', pure: null, checks: checks, mutants: MUTANTS, companion: COMPANION, judges: JUDGES };
   if (process.argv.includes('--shard-plan')) return shardPlan(g);
   if (process.argv.includes('--mutate')) return mutate(g);
   return plain(g);

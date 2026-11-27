@@ -483,9 +483,9 @@ async function main() {
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
   await H.pinDice(db);
-  /* the XP dial's bound is read on the Thicket's tier path; the Thicket joined the Danger scale (lane/scale-early-grounds), so its scale rows
-     leave this database (tests/_tier-path.mjs) */
-  await (await import('./_tier-path.mjs')).withdrawScale(db, [GROUND]);
+  /* the XP dial's bound is read on the Thicket's rows as written (a kill's row XP, the bound the plain settle allows), so its scale rows leave
+     this database (tests/_off-scale.mjs; the re-aim onto the scale's own Level-share bound is named debt, CONFLICTS 2026-11-26) */
+  await (await import('./_off-scale.mjs')).offScale(db, [GROUND]);
   const at = (root, f) => import(pathToFileURL(join(root, f)).href + V);
   const load = async (root) => ({ ...(await H.loadEdge(root)), root, LE: await at(root, 'src/core/live-events.js'), XS: await at(root, 'src/core/hunt/xp-share.js'),
     PCX: await at(root, 'src/data/party-class-xp.js') });

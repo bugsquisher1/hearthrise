@@ -27,7 +27,8 @@
 --   hr_party_hold_set      ONE SPLICE (marker hr_party_hold_put): its update becomes the writer.
 --   hr_party_hold_clear    RESTATED (trigger, a seat emptied): through the writer.
 --   hr_hunt_instance_read  ONE SPLICE: `hold_seat` is hr_party_hold_played(p, v_i.settled_to), the window's own.
--- THE SCALE. public.hunt_scale_holds (instance_id, until, scale, at)   NEW TABLE, RLS on, no policy, no client or engine privilege:
+-- THE SCALE (RETIRED with the scaled hunts, lane/retire-tier-chain 2026-11-26: §2 is gone, 1072-retire-tier-chain.sql; as written:)
+--   public.hunt_scale_holds (instance_id, until, scale, at)   NEW TABLE, RLS on, no policy, no client or engine privilege:
 --   the instance's scale as it stood (hr_scaled_hunt_of's answer with its owner's spent_ms, or JSON null) for every window
 --   starting at or before `until`.
 --   hr_scaled_hours_hold() NEW trigger fn, BEFORE INSERT / BEFORE UPDATE (use_on moved, or banked_ms rose) on player_scaled_hours:
@@ -56,22 +57,20 @@
 do $mig$
 declare v_r record; v_md5 text;
 begin
-  if to_regprocedure('public.hr_hunt_seed_horizon(uuid)') is null or to_regclass('public.player_scaled_hours') is null
+  if to_regprocedure('public.hr_hunt_seed_horizon(uuid)') is null
      or to_regclass('public.hunt_parties') is null or to_regprocedure('public.hr_hunt_limit(text)') is null then
-    raise exception 'PRECONDITION: the seed horizon (1052), the scaled hours or the party table is missing'; end if;
+    raise exception 'PRECONDITION: the seed horizon (1052) or the party table is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_instance_read(uuid,integer)', '43c031340d414ede76522755f7060233', '01b65ee3b44238d75fefb3aaedca260d'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '43c031340d414ede76522755f7060233', '558e8c46c20b0d06bd770fa67c2ec6f9'),
     ('public.hr_party_hold_set(integer,integer,uuid)', 'ca4ce803cceb577ea8adb1e54766709c', '09b2d6618bc975ea70dd8fdcad169121'),
-    ('public.hr_party_hold_clear()', 'b7a225a8149f30dc32b573f02b2030d5', '4bc8c642106dba6846780e5808142b4f'),
-    ('public.hr_scaled_hunt_of(uuid)', '5d0b88f0d38698b777d5607af9ca9ad5', 'e409f4934708ce768b038a1086ce48db')) t(fn, pre, post) loop
+    ('public.hr_party_hold_clear()', 'b7a225a8149f30dc32b573f02b2030d5', '4bc8c642106dba6846780e5808142b4f')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     -- A RETRY AFTER 1056-danger-scale.sql (staged after this file) finds the instance read at 1056's image: this file's hold seat read
     -- already in it, plus the frozen stance in the overlay. The splice below then finds its post text and moves nothing. After
-    -- 1071-trait-pieces.sql, at 1071's image (restated whole with this file's hold seat read in it, plus the worn pieces), and after
-    -- 1074-inner-flame-luck.sql the same with its `flame` key (06fa5411).
+    -- 1071-trait-pieces.sql, at 1071's image (restated whole with this file's hold seat read in it, plus the worn pieces).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('3097347b88e3a5187f2f12cf0d7fbcae', 'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc')) then
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -136,6 +135,8 @@ revoke execute on function public.hr_party_hold_clear() from public, anon, authe
 --     2027-04-22-target-kind.sql, 1046-settle-plans.sql's two offset-0 fences). The body is the chain's with ONE change: `hold_seat`
 --     is hr_party_hold_played(p, v_i.settled_to), the window's own (it read the live p.hold_seat). §0 pins both images; §4 the post.
 --     CREATE OR REPLACE keeps its owner and grants (hr_engine executes it, §4).
+-- (lane/retire-tier-chain, 2026-11-26: no `tier`, `scale` or `scale_level` keys and no member options `tier`, folded in from
+--  1072-retire-tier-chain.sql, which drops their columns and hr_scaled_hunt_of: a staged body is edited in place)
 CREATE OR REPLACE FUNCTION public.hr_hunt_instance_read(p_user uuid, p_slot integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -152,7 +153,7 @@ begin
   -- (its options.density overlaid), the one the settle bounds count; NULL (opened before the freeze) = as stored.
   -- SETTLE-COST (2027-02-02-settle-cost.sql): each member's `state` is its ENGINE INPUTS (hr_hunt_member_state),
   -- never its whole envelope: the engine reads eleven fields of it, and nine envelopes a settle were its cost.
-  -- HUNT-TIERS (2027-02-27-hunt-tiers.sql): every member plays the tier frozen on the instance too (options.tier), beside the pull it froze with it.
+  -- RETIRE-TIER-CHAIN (1072-retire-tier-chain.sql): no tier and no scale; off the Danger scale a member plays the ground's rows as written.
   -- TARGET-KIND (2027-04-22-target-kind.sql): RESTATED WHOLE (the two splices below folded in). Each member's options carry its own
   -- First target on this ground (options.target_kind, hunt-spawn.js heroSetup), read afresh every settle, never frozen.
   -- SESSION-MODES (2027-04-23-session-modes.sql): the instance carries the session mode the server froze at its start (session_mode),
@@ -175,12 +176,8 @@ begin
     'instance', jsonb_build_object(
       'id', v_i.id, 'hunt', v_i.hunt_id, 'kind', v_i.kind, 'world', v_i.world, 'world_swing', v_i.world_swing,
       'density', v_i.density,
-      'tier', v_i.tier,
       'session_mode', v_i.session_mode,
       'tower_floor', public.hr_tower_floor_of(v_i.id),
-      -- SCALED-HUNTS (2027-03-21-scaled-hunts.sql): the server's own scale of the next window (hr_scaled_hunt_of: { level, banked_ms,
-      -- user, slot } of the leader, or null) and the Level the stored world was built on (the engine restarts a world built on another).
-      'scale', public.hr_scaled_hunt_of(v_i.id), 'scale_level', v_i.scale_level,
       -- PARTY-HOLD (2026-12-08-party-hold.sql): the seat whose tank holds every lap (hunt_parties.hold_seat), null = take turns.
       'hold_seat', (select public.hr_party_hold_played(p, v_i.settled_to) from public.hunt_parties p where p.id = v_i.id and p.closed_at is null),
       -- DEPLOY-NO-FORFEIT (2026-12-11-hunt-deploy-no-forfeit.sql): the catalogue's world shape; an engine of another proposes nothing.
@@ -204,7 +201,7 @@ begin
                  'leads', exists (select 1 from public.hunt_parties p where p.id = v_i.id and p.closed_at is null
                                     and p.leader_user = h.user_id and p.leader_slot = h.slot),
                  'session', case when v_i.density is null then mr.r
-                                 else jsonb_set(mr.r, '{options}', coalesce(mr.r->'options', '{}'::jsonb) || jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))) end,
+                                 else jsonb_set(mr.r, '{options}', coalesce(mr.r->'options', '{}'::jsonb) || jsonb_build_object('density', v_i.density)) end,
                  -- LIVE-EVENTS (2027-03-22-live-events.sql): the member's own Level XP windows from the instance's clock to an hour past now
                  -- (hr_live_xp_windows: its switches, its ground, summed and capped); [] when none, so the engine sets no hook.
                  'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour'),
@@ -241,105 +238,9 @@ begin
   end if;
 end $mig$;
 
--- ── §2 THE SCALE ─────────────────────────────────────────────────────────────
-create table if not exists public.hunt_scale_holds (
-  instance_id uuid        primary key,
-  until       timestamptz not null,
-  scale       jsonb       not null check (jsonb_typeof(scale) in ('object', 'null') and octet_length(scale::text) <= 4096),
-  at          timestamptz not null default now()
-);
-comment on table public.hunt_scale_holds is
-  'added 1053-lever-gates.sql: an open hunt instance''s scale as it stood (hr_scaled_hunt_of, with its owner''s spent_ms; JSON null = unscaled) for every window starting at or before `until` (the seed horizon when a scaled switch or hour buy landed mid-hunt). Owner-only.';
-alter table public.hunt_scale_holds enable row level security;
-revoke all on public.hunt_scale_holds from public, anon, authenticated, service_role;
-
-create or replace function public.hr_scaled_hunt_of(p_instance uuid)
-returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
-declare
-  v_i  public.hunt_instances%rowtype;
-  v_lu uuid; v_ls int; v_n int;
-  v_h  public.player_scaled_hours%rowtype;
-  v_to int;
-  v_held jsonb; v_left bigint;
-begin
-  select * into v_i from public.hunt_instances where id = p_instance;
-  if not found or not exists (select 1 from public.hr_scaled_grounds g where g.hunt_id = v_i.hunt_id) then return null; end if;
-  -- LEVER-GATES (1053-lever-gates.sql): a switch or an hour buy that landed mid-hunt plays from its seed horizon. The window starting
-  -- at the saved clock reads the scale as it stood (a hold in force), its bank less what was spent since and never above the live one.
-  select h.scale into v_held from public.hunt_scale_holds h where h.instance_id = p_instance and h.until >= v_i.settled_to;
-  if found then
-    if jsonb_typeof(v_held) <> 'object' then return null; end if;
-    select * into v_h from public.player_scaled_hours h
-     where h.user_id = (v_held->>'user')::uuid and h.slot = (v_held->>'slot')::int and h.hunt_id = v_i.hunt_id;
-    v_left := least(coalesce(v_h.banked_ms, 0),
-                    (v_held->>'banked_ms')::bigint - greatest(0, coalesce(v_h.spent_ms, 0) - coalesce((v_held->>'spent_ms')::bigint, 0)));
-    if v_left < coalesce(public.hr_hunt_limit('swing_interval_ms'), 2000) then return null; end if;
-    return jsonb_build_object('level', (v_held->>'level')::int, 'banked_ms', v_left, 'user', v_held->'user', 'slot', v_held->'slot');
-  end if;
-  if exists (select 1 from public.hunt_parties p where p.id = p_instance) then
-    select p.leader_user, p.leader_slot into v_lu, v_ls from public.hunt_parties p where p.id = p_instance and p.closed_at is null;
-    if v_lu is null or not exists (select 1 from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null
-                                                                        and h.user_id = v_lu and h.slot = v_ls) then
-      return null; end if;
-  else
-    select count(*)::int, min(h.user_id::text)::uuid, min(h.slot) into v_n, v_lu, v_ls
-      from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null;
-    if v_n <> 1 then return null; end if;
-  end if;
-  -- THE SWITCH (2027-03-21-feature-switches.sql): off for the leader's account, its banked hours are not read.
-  if not public.hr_feature_on('scaled_hunts', v_lu) then return null; end if;
-  select * into v_h from public.player_scaled_hours h where h.user_id = v_lu and h.slot = v_ls and h.hunt_id = v_i.hunt_id;
-  if not found or not v_h.use_on or v_h.banked_ms < coalesce(public.hr_hunt_limit('swing_interval_ms'), 2000) then return null; end if;
-  v_to := public.hr_scaled_level(v_i.hunt_id, public.hr_level_of(v_lu, v_ls));
-  if v_to is null then return null; end if;
-  return jsonb_build_object('level', v_to, 'banked_ms', v_h.banked_ms, 'user', v_lu, 'slot', v_ls);
-end $fn$;
-
-create or replace function public.hr_scaled_hours_hold()
-returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- LEVER-GATES (1053-lever-gates.sql): BEFORE a write that turns a hero's scaled switch or raises its bank lands, every open instance
--- the hero hunts that ground in keeps the scale as it stands now (hr_scaled_hunt_of, read before this write) until the seed horizon
--- of its open sessions. A hold still in force is only pushed later: it already keeps the scale the shown seeds were played with.
-declare v_r record; v_sc jsonb; v_spent bigint;
-begin
-  for v_r in
-    select s.instance_id as inst, max(public.hr_hunt_seed_horizon(s.id)) as until
-      from public.hunt_sessions s
-     where s.ended_at is null
-       and s.instance_id in (select x.instance_id from public.hunt_sessions x
-                              where x.user_id = new.user_id and x.slot = new.slot and x.hunt_id = new.hunt_id and x.ended_at is null)
-     group by s.instance_id
-  loop
-    -- Gone: every hold no window can still start under (its instance closed, or settled past it).
-    delete from public.hunt_scale_holds h
-     where not exists (select 1 from public.hunt_instances i where i.id = h.instance_id and h.until >= i.settled_to
-                         and exists (select 1 from public.hunt_sessions x where x.instance_id = i.id and x.ended_at is null));
-    if exists (select 1 from public.hunt_scale_holds h join public.hunt_instances i on i.id = h.instance_id
-                where h.instance_id = v_r.inst and h.until >= i.settled_to) then
-      update public.hunt_scale_holds set until = greatest(until, v_r.until) where instance_id = v_r.inst;
-    else
-      v_sc := public.hr_scaled_hunt_of(v_r.inst);
-      if v_sc is not null then
-        select h.spent_ms into v_spent from public.player_scaled_hours h
-         where h.user_id = (v_sc->>'user')::uuid and h.slot = (v_sc->>'slot')::int
-           and h.hunt_id = (select i.hunt_id from public.hunt_instances i where i.id = v_r.inst);
-        v_sc := v_sc || jsonb_build_object('spent_ms', coalesce(v_spent, 0));
-      end if;
-      insert into public.hunt_scale_holds (instance_id, until, scale) values (v_r.inst, v_r.until, coalesce(v_sc, 'null'::jsonb))
-        on conflict (instance_id) do update set until = excluded.until, scale = excluded.scale, at = now();
-    end if;
-  end loop;
-  return new;
-end $fn$;
-revoke execute on function public.hr_scaled_hours_hold() from public, anon, authenticated, service_role;
-
-drop trigger if exists hr_scaled_hours_hold_ins on public.player_scaled_hours;
-create trigger hr_scaled_hours_hold_ins before insert on public.player_scaled_hours
-  for each row execute function public.hr_scaled_hours_hold();
-drop trigger if exists hr_scaled_hours_hold_upd on public.player_scaled_hours;
-create trigger hr_scaled_hours_hold_upd before update on public.player_scaled_hours
-  for each row when (old.use_on is distinct from new.use_on or new.banked_ms > old.banked_ms)
-  execute function public.hr_scaled_hours_hold();
+-- ── §2 THE SCALE: gone (lane/retire-tier-chain, 2026-11-26) ─────────────────────────────────────────────────
+-- The scale hold (hunt_scale_holds, hr_scaled_hours_hold and its triggers, hr_scaled_hunt_of's restatement) left with the scaled hunts,
+-- folded in from 1072-retire-tier-chain.sql, which drops what the applied history made of them: a staged file is edited in place.
 
 -- ── §4 THE SELF-CHECK, BY EXECUTING IT ───────────────────────────────────────
 -- (a) the hold seat a window plays, at, before and with no horizon; (b) owner-only: no client or engine role executes a new
@@ -361,28 +262,19 @@ begin
     if exists (select 1 from pg_roles where rolname = v_role) then
       if has_function_privilege(v_role, 'public.hr_party_hold_played(public.hunt_parties,timestamp with time zone)', 'execute')
          or has_function_privilege(v_role, 'public.hr_party_hold_put(uuid,integer)', 'execute')
-         or has_function_privilege(v_role, 'public.hr_scaled_hours_hold()', 'execute')
-         or has_table_privilege(v_role, 'public.hunt_scale_holds', 'select,insert,update,delete,truncate,references,trigger') then
-        raise exception 'VERIFY(b): % reaches a lever-gates function or the scale holds', v_role; end if;
+         then
+        raise exception 'VERIFY(b): % reaches a lever-gates function', v_role; end if;
     end if;
   end loop;
-  if not (select relrowsecurity from pg_class where oid = 'public.hunt_scale_holds'::regclass) then
-    raise exception 'VERIFY(b): hunt_scale_holds has RLS off'; end if;
-  if (select count(*) from pg_trigger where tgname like 'hr_scaled_hours_hold%' and not tgisinternal) <> 2
-     or strpos(pg_get_triggerdef((select oid from pg_trigger where tgname = 'hr_scaled_hours_hold_upd')), 'new.banked_ms > old.banked_ms') = 0 then
-    raise exception 'VERIFY(b): the scaled hours triggers are not the two this file makes'; end if;
   if not has_function_privilege('hr_engine', 'public.hr_hunt_instance_read(uuid,integer)', 'execute') then
     raise exception 'VERIFY(c): the spliced instance read lost hr_engine''s EXECUTE'; end if;
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) not in ('01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae',
-                                                                                                                                       'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc')
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) not in ('558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9')
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_set(integer,integer,uuid)'::regprocedure) is distinct from '09b2d6618bc975ea70dd8fdcad169121'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure) is distinct from '4bc8c642106dba6846780e5808142b4f'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_scaled_hunt_of(uuid)'::regprocedure) is distinct from 'e409f4934708ce768b038a1086ce48db' then
-    raise exception 'VERIFY(c): a body landed off its post pin: instance_read %, hold_set %, hold_clear %, scaled_hunt_of %',
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure) is distinct from '4bc8c642106dba6846780e5808142b4f' then
+    raise exception 'VERIFY(c): a body landed off its post pin: instance_read %, hold_set %, hold_clear %',
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure),
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_set(integer,integer,uuid)'::regprocedure),
-      (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure),
-      (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_scaled_hunt_of(uuid)'::regprocedure); end if;
+      (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_party_hold_clear()'::regprocedure); end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'lever-gates: the hold seat and scaled hours play from the seed horizon, like every other lever';
+  raise notice 'lever-gates: the hold seat plays from the seed horizon, like every other lever';
 end $$;

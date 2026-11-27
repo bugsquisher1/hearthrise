@@ -24,7 +24,9 @@
 //                                  being most of a pull) at PAY.refKillsHead 120 kills a head an hour is about 108; 100 is the round start
 //   stokeBuyMax 200, stokeCapHoursPm 100   the stoke rule's clamps: Remains bought a day, and the most one unit may cost (0.1 h of wage)
 //
-// THE FUEL (21 section 1.2). Remains are the Hearth's goods (src/data/hearth.js HEARTH_FUELS items) a scale ground drops. One good a
+// THE FUEL (21 section 1.2). Remains are the goods in REMAINS below that a scale ground drops: the company flame's own list, so it
+// stands on no bench row (09 4.13 row 3: the hearth's `fuel_*` bench runs and the old Inner Flame skill XP retire with F1; HANDOFFS
+// 2026-11-27 f1-inner-flame names how). The same goods the bench burned, less the family fuels and the Tower's Cinders. One good a
 // band (13-market 2.4) is OWED: until goods carry a band, a good's band is the entry Level of the lowest scale ground whose pack drops it
 // (DANGER_GROUNDS, its pack in src/data/grounds), so a far company gets almost nothing from a new player's bones and the worth follows
 // the wage. A unit of band b burns `1 / fuelRef x min(1, (1 + powerStep) ^ (b - top))` points, `top` the company's highest hero Level.
@@ -34,7 +36,6 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HEARTH_FUELS } from './hearth.js';
 import { DANGER_GROUNDS } from './danger.js';
 import { GROUND_PACKS } from './grounds/index.js';
 
@@ -72,9 +73,13 @@ export const FLAME_LEVELS = (() => {
   return Object.freeze(out);
 })();
 
+/* THE REMAINS: the goods the company flame burns, the bones and what is left of a monster, whichever ground drops them (the header) */
+const REMAINS = Object.freeze(['bones', 'big_bones', 'dragon_bones', 'bone_chips', 'grave_dust', 'razor_claw', 'vamp_dust', 'demon_shard',
+  'wraith_veil', 'dragon_scale', 'lich_soul', 'ancient_claw', 'void_chitin']);
+
 /* THE FUEL ROWS: { item, band }, one a Remains good a scale ground drops, band the lowest such ground's entry Level (the header). */
 export const FLAME_FUEL = (() => {
-  const remains = new Set(HEARTH_FUELS.map((f) => f.item));
+  const remains = new Set(REMAINS);
   const band = new Map();
   for (const p of GROUND_PACKS) {
     const g = Object.prototype.hasOwnProperty.call(DANGER_GROUNDS, p.id) ? DANGER_GROUNDS[p.id] : null;

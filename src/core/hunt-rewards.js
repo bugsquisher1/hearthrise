@@ -39,7 +39,7 @@
 
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js';
 import { BOSS_CALL_RULES } from '../data/boss-calls.js';
-import { levelAtTier } from '../data/hunt-tiers.js';
+import { levelAtTier } from './hunt/dial.js';
 import { rollDropTable, rollPrize } from './drops.js';
 import { applyGoldFind } from './pacing.js';
 import { COMBAT_XP } from '../data/core-model.js';
@@ -165,10 +165,9 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
 /* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. */
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
   const rng = ctx.rng;
-  /* a scaled ground's row carries its loot rate (src/data/scaled-hunts.js scaledRow `lootPm`, the card's "Loot ×"); every other row none */
   /* ON THE DANGER SCALE the swing's dial carries the depth's share of the table (danger.js dangerDial dropPm: loot follows depth); off it none */
   const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
-  const rolled = rollDropTable(row.drops, { depthPm, dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm }, rng);
+  const rolled = rollDropTable(row.drops, { depthPm, dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {
@@ -228,7 +227,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
- * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
+ * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the swing's dial, src/core/hunt/dial.js: the Danger scale step's), hearthfind? (the indexed table; the catalogue's when absent),
  *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays only his drops, on his kill),
  *   prize? (a keyed hall's boss, by id: his rows are each hero's own daily roll, payPrize),
  *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js),

@@ -106,9 +106,10 @@ check(!('fourVsSolo' in PARTY), 'party-tiers: the sheet carries no Normal four m
   check(four(now) > four(was), 'seat-twins: slow seats alone lift the four against the same heroes alone (' + four(was) + ' -> ' + four(now) + ')');
   const others = (vs) => JSON.stringify(vs.filter((v) => v.rule !== 'four-xp').map((v) => [v.rule, v.key, v.value]));
   check(others(now) === others(was) && goldReport(goldRows(slowTwin)) === goldReport(goldRows(synthSet())), 'seat-twins: no other line and no printed gold moves with it');
+  /* (the quick grid's Healer seat twins on Dangerous and Deadly left with the tiers: the grid plays Normal alone, lane/retire-tier-chain 2026-11-26) */
   const qg = await buildGrid(ROOT, 'quick', { grounds: ['mosslight_glade'] }), twins = qg.filter((j) => j.grade.seatOnly);
-  check(twins.length > 0 && twins.every((j) => j.grade.comp === 'healer' && j.grade.tier !== 'normal' && j.profile === 'played' && j.id.includes(',seat,')),
-    'seat-twins: quick plays the Healer alone on Dangerous and Deadly only, played, its id saying so (' + twins.length + ')');
+  check(twins.every((j) => j.grade.comp === 'healer' && j.profile === 'played' && j.id.includes(',seat,')),
+    'seat-twins: a quick seat twin is the Healer alone, played, its id saying so (' + twins.length + ')');
 }
 
 /* THE PACE CONTRACT READS THE LONE MEDIAN ON EVERY GROUND (Coordinator ruling 2026-11-11, lane/d-solo-fifteen): the contract is fitted on lone heroes, and a four
@@ -274,8 +275,9 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   const grid = await buildGrid(ROOT, 'quick', { grounds: ['mosslight_glade'] });
   const lone = grid.filter((j) => j.grade.size === 1 && j.grade.tier === 'normal' && j.grade.gear === 'ladder');
   const party = grid.filter((j) => j.grade.size > 1), harder = grid.filter((j) => j.grade.tier !== 'normal');
+  /* (the harder tiers retired, lane/retire-tier-chain 2026-11-26: the grid builds none) */
   check(party.length > 0 && party.every((j) => j.profile === 'played' && j.grade.profile === 'played' && j.id.endsWith(',pr=played')), 'played: every party cell plays the played hero, and its id says so');
-  check(harder.length > 0 && harder.every((j) => j.profile === 'played'), 'played: every harder-tier cell plays the played hero, alone or not');
+  check(harder.length === 0, 'played: the grid builds no harder-tier cell (' + harder.length + ')');
   const plain = lone.filter((j) => j.grade.profile === 'plain'), twins = lone.filter((j) => j.grade.profile === 'played');
   check(plain.length > 0 && plain.length === twins.length && plain.every((j) => !j.profile) && twins.every((j) => j.profile === 'played'), 'played: a hero alone on Normal plays plain (' + plain.length + ') with a played twin each (' + twins.length + ')');
   check(grid.filter((j) => j.grade.gear !== 'ladder').every((j) => !j.profile && j.grade.profile === 'plain'), 'played: the practice set and the store-food cell stay plain');

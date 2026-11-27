@@ -15,11 +15,11 @@
 --   twins (internal)  the curve (yield, Fine, Master, speed, XP factor), the Level from XP, V and the job fee, the store's step, ask and bid,
 --                     the contest curve behind a band, a tool's speed, life and rent, and the job's bound; each pinned to the JS (§4).
 --   THE JOB SLICE (lane/k1-job-slice, 2026-11-26; 09 sections 4.9 and 6):
---   hr_trade_recipes  16 recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
+--   hr_trade_recipes  48 recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
 --                     trade, band, rung, opening Level, face, and inputs as whole goods a set. A recipe not here is refused bad_recipe.
 --   hr_trade_ground_bands  16 Danger scale grounds and their band (gearLevel / tierSteps): a depth record there opens its band.
 --   twins (internal)  hr_trade_band_rung (bandRung), hr_trade_mulberry (src/core/rng.js mulberry32's draw) and hr_trade_roll (settleJob, line
---                     for line), pinned EXACTLY at 77 jobs, so the server settles a job from its stored seed itself.
+--                     for line), pinned EXACTLY at 205 jobs, so the server settles a job from its stored seed itself.
 -- READERS: 1073-k1-job-slice.sql (hr_trade_job_start, its settle and the `trade_jobs` section). The live town work (hr_activities, the old
 -- rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
@@ -64,6 +64,8 @@ create table if not exists public.hr_trade_levers (
   tool_ms            bigint not null check (tool_ms >= 0),
   tool_life_rung_pm  int    not null check (tool_life_rung_pm >= 0),
   tier_steps         int    not null check (tier_steps >= 0),
+  quality_live       int    not null check (quality_live between 0 and 1),
+  crop_xp            int    not null check (crop_xp >= 0),
   power_step         float8 not null check (power_step > 0 and power_step < 0.05),
   check (at_req_pm < cap_pm and cap_pm >= 1000 and fine_top_pm >= fine_base_pm and floor_share_pm < store_ceiling_pm)
 );
@@ -117,9 +119,9 @@ comment on table public.hr_trade_ground_bands is '1063-trade-formulas-catalogue.
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 -- Upserted, never deleted and re-made: once the job slice points a row at a kind (a job, a stack), a catalogue change rewrites the kind
 -- in place, and dropping a kind something still holds is refused by its key rather than taken silently.
-insert into public.hr_trade_levers (id, rung_count, rung_span, max_level, at_req_pm, no_fail_span, cap_pm, mastery_return_pm, bench_max_pm, fine_base_pm, fine_top_pm, master_top_pm, quality_steps, speed_at99_pm, xp_window, xp_floor_pm, job_fee_pm, town_wage_share_pm, store_ceiling_pm, store_lag, floor_share_pm, store_budget_pm, tool_ms, tool_life_rung_pm, tier_steps, power_step) values
-  (true, 10, 10, 99, 750, 15, 1250, 100, 100, 100, 600, 500, 5, 1250, 20, 250, 250, 250, 1500, 20, 400, 1000, 43200000, 250, 20, '0.0035'::float8)
-on conflict (id) do update set rung_count = excluded.rung_count, rung_span = excluded.rung_span, max_level = excluded.max_level, at_req_pm = excluded.at_req_pm, no_fail_span = excluded.no_fail_span, cap_pm = excluded.cap_pm, mastery_return_pm = excluded.mastery_return_pm, bench_max_pm = excluded.bench_max_pm, fine_base_pm = excluded.fine_base_pm, fine_top_pm = excluded.fine_top_pm, master_top_pm = excluded.master_top_pm, quality_steps = excluded.quality_steps, speed_at99_pm = excluded.speed_at99_pm, xp_window = excluded.xp_window, xp_floor_pm = excluded.xp_floor_pm, job_fee_pm = excluded.job_fee_pm, town_wage_share_pm = excluded.town_wage_share_pm, store_ceiling_pm = excluded.store_ceiling_pm, store_lag = excluded.store_lag, floor_share_pm = excluded.floor_share_pm, store_budget_pm = excluded.store_budget_pm, tool_ms = excluded.tool_ms, tool_life_rung_pm = excluded.tool_life_rung_pm, tier_steps = excluded.tier_steps, power_step = excluded.power_step;
+insert into public.hr_trade_levers (id, rung_count, rung_span, max_level, at_req_pm, no_fail_span, cap_pm, mastery_return_pm, bench_max_pm, fine_base_pm, fine_top_pm, master_top_pm, quality_steps, speed_at99_pm, xp_window, xp_floor_pm, job_fee_pm, town_wage_share_pm, store_ceiling_pm, store_lag, floor_share_pm, store_budget_pm, tool_ms, tool_life_rung_pm, tier_steps, quality_live, crop_xp, power_step) values
+  (true, 10, 10, 99, 750, 15, 1250, 100, 100, 100, 600, 500, 5, 1250, 20, 250, 250, 250, 1500, 20, 400, 1000, 43200000, 250, 20, 0, 252, '0.0035'::float8)
+on conflict (id) do update set rung_count = excluded.rung_count, rung_span = excluded.rung_span, max_level = excluded.max_level, at_req_pm = excluded.at_req_pm, no_fail_span = excluded.no_fail_span, cap_pm = excluded.cap_pm, mastery_return_pm = excluded.mastery_return_pm, bench_max_pm = excluded.bench_max_pm, fine_base_pm = excluded.fine_base_pm, fine_top_pm = excluded.fine_top_pm, master_top_pm = excluded.master_top_pm, quality_steps = excluded.quality_steps, speed_at99_pm = excluded.speed_at99_pm, xp_window = excluded.xp_window, xp_floor_pm = excluded.xp_floor_pm, job_fee_pm = excluded.job_fee_pm, town_wage_share_pm = excluded.town_wage_share_pm, store_ceiling_pm = excluded.store_ceiling_pm, store_lag = excluded.store_lag, floor_share_pm = excluded.floor_share_pm, store_budget_pm = excluded.store_budget_pm, tool_ms = excluded.tool_ms, tool_life_rung_pm = excluded.tool_life_rung_pm, tier_steps = excluded.tier_steps, quality_live = excluded.quality_live, crop_xp = excluded.crop_xp, power_step = excluded.power_step;
 insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls, life_pm, final, work_uh, own_uh, inputs, hunted) values
   ('ore', 'mining', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
   ('rune_stone', 'mining', 'gather', null, 1, 'v030', null, 0, false, 70000, 70000, '{}'::jsonb, '{}'::jsonb),
@@ -161,19 +163,51 @@ insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
   ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
-delete from public.hr_trade_recipes where recipe <> all (array['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'temper_kit_b1', 'temper_kit_b2', 'temper_kit_b3', 'temper_kit_b4', 'temper_kit_b5', 'temper_kit_b6', 'imbuement_fire_ward', 'imbuement_fire_edge', 'imbuement_brute_edge', 'imbuement_life_leech', 'imbuement_mana_leech']);
+delete from public.hr_trade_recipes where recipe <> all (array['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'log_b0', 'fish_b0', 'rune_stone_b0', 'grain_b0', 'bar_b0', 'shaft_b0', 'cut_stone_b0', 'honing_stone_b0', 'drink_b0', 'temper_kit_b1', 'temper_kit_b2', 'temper_kit_b3', 'temper_kit_b4', 'temper_kit_b5', 'temper_kit_b6', 'rune_earth_b0', 'rune_water_b0', 'rune_ice_b0', 'rune_poison_b0', 'rune_rupture_b0', 'ore_b1', 'log_b1', 'fish_b1', 'grain_b1', 'bar_b1', 'shaft_b1', 'meal_b1', 'drink_b1', 'honing_stone_b1', 'arrowhead_b1', 'arrow_b1', 'bolt_b1', 'rune_earth_b1', 'rune_water_b1', 'rune_fire_b1', 'rune_ice_b1', 'rune_poison_b1', 'rune_rupture_b1', 'imbuement_fire_ward', 'imbuement_fire_edge', 'imbuement_brute_edge', 'imbuement_life_leech', 'imbuement_mana_leech']);
 insert into public.hr_trade_recipes (recipe, kind, trade, band, rung, r_level, face, name, inputs, imbue) values
   ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', 'Mine Copper Ore', '{}'::jsonb, null),
   ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', 'Forge Bronze Arrowheads', '{"bronze_bar":1}'::jsonb, null),
   ('arrow_b0', 'arrow', 'woodcrafting', 0, 1, 1, 'bronze_arrows', 'Fletch Bronze Arrows', '{"bronze_arrowheads":1,"normal_plank":1}'::jsonb, null),
   ('meal_b0', 'meal', 'cooking', 0, 1, 1, 'cooked_shrimp', 'Cook Shrimp', '{"shrimp":1}'::jsonb, null),
   ('rune_fire_b0', 'rune_fire', 'runecutting', 0, 1, 1, 'chalked_fire_rune', 'Cut Chalked Fire Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('log_b0', 'log', 'woodcutting', 0, 1, 1, 'normal_log', 'Chop Normal Logs', '{}'::jsonb, null),
+  ('fish_b0', 'fish', 'fishing', 0, 1, 1, 'shrimp', 'Catch Shrimp', '{}'::jsonb, null),
+  ('rune_stone_b0', 'rune_stone', 'mining', 0, 1, 1, 'rune_essence', 'Mine Rune Essence', '{}'::jsonb, null),
+  ('grain_b0', 'grain', 'farming', 0, 1, 1, 'turnip', 'Pull Turnips', '{}'::jsonb, null),
+  ('bar_b0', 'bar', 'smithing', 0, 1, 1, 'bronze_bar', 'Smelt Bronze Bars', '{"copper_ore":1}'::jsonb, null),
+  ('shaft_b0', 'shaft', 'woodcrafting', 0, 1, 1, 'normal_plank', 'Saw Normal Planks', '{"normal_log":1}'::jsonb, null),
+  ('cut_stone_b0', 'cut_stone', 'runecutting', 0, 1, 1, 'rune_blank', 'Cut Blank Runes', '{"rune_essence":1}'::jsonb, null),
+  ('honing_stone_b0', 'honing_stone', 'smithing', 0, 1, 1, 'coarse_whetstone', 'Grind Coarse Whetstones', '{"bronze_bar":2}'::jsonb, null),
+  ('drink_b0', 'drink', 'cooking', 0, 1, 1, 'turnip_juice', 'Press Turnip Juice', '{"turnip":1}'::jsonb, null),
   ('temper_kit_b1', 'temper_kit', 'smithing', 1, 3, 21, 'temper_salts', 'Mix Tempering Salts', '{"iron_bar":3}'::jsonb, null),
   ('temper_kit_b2', 'temper_kit', 'smithing', 2, 3, 21, 'fine_temper_salts', 'Mix Fine Tempering Salts', '{"steel_bar":3}'::jsonb, null),
   ('temper_kit_b3', 'temper_kit', 'smithing', 3, 4, 31, 'mithril_temper_salts', 'Mix Mithril Tempering Salts', '{"mithril_bar":3}'::jsonb, null),
   ('temper_kit_b4', 'temper_kit', 'smithing', 4, 5, 41, 'rune_temper_salts', 'Mix Rune Tempering Salts', '{"rune_bar":3}'::jsonb, null),
   ('temper_kit_b5', 'temper_kit', 'smithing', 5, 6, 51, 'ember_temper_salts', 'Mix Ember Tempering Salts', '{"ember_bar":3}'::jsonb, null),
   ('temper_kit_b6', 'temper_kit', 'smithing', 6, 7, 61, 'dawn_temper_salts', 'Mix Dawnsteel Tempering Salts', '{"dawn_bar":3}'::jsonb, null),
+  ('rune_earth_b0', 'rune_earth', 'runecutting', 0, 1, 1, 'chalked_earth_rune', 'Cut Chalked Earth Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_water_b0', 'rune_water', 'runecutting', 0, 1, 1, 'chalked_water_rune', 'Cut Chalked Water Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_ice_b0', 'rune_ice', 'runecutting', 0, 1, 1, 'chalked_ice_rune', 'Cut Chalked Ice Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_poison_b0', 'rune_poison', 'runecutting', 0, 1, 1, 'chalked_poison_rune', 'Cut Chalked Poison Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_rupture_b0', 'rune_rupture', 'runecutting', 0, 1, 1, 'chalked_rupture_rune', 'Cut Chalked Rupture Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('ore_b1', 'ore', 'mining', 1, 2, 11, 'iron_ore', 'Mine Iron Ore', '{}'::jsonb, null),
+  ('log_b1', 'log', 'woodcutting', 1, 2, 11, 'oak_log', 'Chop Oak Logs', '{}'::jsonb, null),
+  ('fish_b1', 'fish', 'fishing', 1, 2, 11, 'trout', 'Catch Trout', '{}'::jsonb, null),
+  ('grain_b1', 'grain', 'farming', 1, 2, 11, 'carrot', 'Pull Carrots', '{}'::jsonb, null),
+  ('bar_b1', 'bar', 'smithing', 1, 2, 11, 'iron_bar', 'Smelt Iron Bars', '{"iron_ore":1}'::jsonb, null),
+  ('shaft_b1', 'shaft', 'woodcrafting', 1, 2, 11, 'oak_plank', 'Saw Oak Planks', '{"oak_log":1}'::jsonb, null),
+  ('meal_b1', 'meal', 'cooking', 1, 2, 11, 'cooked_trout', 'Cook Trout', '{"trout":1}'::jsonb, null),
+  ('drink_b1', 'drink', 'cooking', 1, 2, 11, 'carrot_juice', 'Press Carrot Juice', '{"carrot":1}'::jsonb, null),
+  ('honing_stone_b1', 'honing_stone', 'smithing', 1, 2, 11, 'iron_whetstone', 'Grind Iron Whetstones', '{"iron_bar":2}'::jsonb, null),
+  ('arrowhead_b1', 'arrowhead', 'smithing', 1, 2, 11, 'iron_arrowheads', 'Forge Iron Arrowheads', '{"iron_bar":1}'::jsonb, null),
+  ('arrow_b1', 'arrow', 'woodcrafting', 1, 2, 11, 'iron_arrows', 'Fletch Iron Arrows', '{"iron_arrowheads":1,"oak_plank":1}'::jsonb, null),
+  ('bolt_b1', 'bolt', 'woodcrafting', 1, 2, 11, 'iron_bolts', 'Fletch Iron Bolts', '{"iron_arrowheads":1,"oak_plank":1}'::jsonb, null),
+  ('rune_earth_b1', 'rune_earth', 'runecutting', 1, 2, 11, 'scored_earth_rune', 'Cut Scored Earth Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_water_b1', 'rune_water', 'runecutting', 1, 2, 11, 'scored_water_rune', 'Cut Scored Water Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_fire_b1', 'rune_fire', 'runecutting', 1, 2, 11, 'scored_fire_rune', 'Cut Scored Fire Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_ice_b1', 'rune_ice', 'runecutting', 1, 2, 11, 'scored_ice_rune', 'Cut Scored Ice Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_poison_b1', 'rune_poison', 'runecutting', 1, 2, 11, 'scored_poison_rune', 'Cut Scored Poison Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
+  ('rune_rupture_b1', 'rune_rupture', 'runecutting', 1, 2, 11, 'scored_rupture_rune', 'Cut Scored Rupture Runes', '{"rune_blank":2,"bones":1}'::jsonb, null),
   ('imbuement_fire_ward', 'imbuement', 'artificing', 2, 1, 1, 'imbue_fire_ward', 'Make Fire Ward', '{"ford_weed":5,"bones":4}'::jsonb, 'fire_ward'),
   ('imbuement_fire_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_fire_edge', 'Make Fire Edge', '{"rake_tine":5,"razor_claw":4}'::jsonb, 'fire_edge'),
   ('imbuement_brute_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_brute_edge', 'Make Brute Edge', '{"pike_ferrule":5,"razor_claw":4}'::jsonb, 'brute_edge'),
@@ -455,7 +489,8 @@ begin
   v_r := 1 + (p_rung - 1) * c.rung_span;
   v_y := (b->>'yield_pm')::int;
   v_n := (b->>'attempts')::bigint;
-  if k.rolls is not null then
+  -- QUALITY IS DARK while quality_live is 0 (09 4.11 row 6): no good rolls it, no quality draw is made, every good is Plain
+  if k.rolls is not null and c.quality_live = 1 then
     v_fine := public.hr_trade_fine_pm(p_level, v_r)::float8 / 1000::float8;
     v_master := public.hr_trade_master_pm(p_level, v_r, p_mastery)::float8 / 1000::float8;
   end if;
@@ -483,7 +518,7 @@ begin
       v_a := mod(v_a + 1831565813, 4294967296);
       if not (public.hr_trade_mulberry(v_a) < v_y::float8 / 1000::float8) then continue; end if;
     end if;
-    if k.rolls is null then v_plain := v_plain + 1; continue; end if;
+    if k.rolls is null or c.quality_live <> 1 then v_plain := v_plain + 1; continue; end if;
     if v_master > 0 then
       v_a := mod(v_a + 1831565813, 4294967296);
       if public.hr_trade_mulberry(v_a) < v_master then v_ms := v_ms + 1; continue; end if;
@@ -1583,15 +1618,15 @@ begin
     ('fish', 3, 26, false, 0, 1000, 500, 28800000::bigint, 121::bigint, 28630::bigint, 107::bigint, 0::bigint, 28630986::bigint),
     ('log', 10, 99, true, 100, 1000, 1000, 36000000::bigint, 178::bigint, 35884::bigint, 194::bigint, 0::bigint, 35884800::bigint),
     ('bar', 1, 5, false, 0, 1000, 40, 28800000::bigint, 40::bigint, 3984::bigint, 34::bigint, 0::bigint, 3984190::bigint),
-    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 14::bigint, 3520::bigint, 10::bigint, 0::bigint, 3520959::bigint),
-    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 131::bigint, 28681::bigint, 131::bigint, 13::bigint, 28681147::bigint),
-    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 78::bigint, 21520::bigint, 72::bigint, 0::bigint, 21520540::bigint),
-    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 297::bigint, 35925::bigint, 297::bigint, 44::bigint, 35925120::bigint),
+    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 14::bigint, 3520::bigint, 13::bigint, 0::bigint, 3520959::bigint),
+    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 131::bigint, 28681::bigint, 131::bigint, 9::bigint, 28681147::bigint),
+    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 78::bigint, 21520::bigint, 74::bigint, 0::bigint, 21520540::bigint),
+    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 297::bigint, 35925::bigint, 297::bigint, 50::bigint, 35925120::bigint),
     ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 66::bigint, 17932::bigint, 65::bigint, 0::bigint, 17932076::bigint),
     ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 8::bigint, 9473::bigint, 8::bigint, 0::bigint, 14288364::bigint),
     ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 6::bigint, 2461::bigint, 5::bigint, 0::bigint, 2461539::bigint),
     ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 3::bigint, 975::bigint, 3::bigint, 0::bigint, 1471390::bigint),
-    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 38::bigint, 10625::bigint, 36::bigint, 0::bigint, 10625243::bigint)) p(k, rung, l, m, b, t, n, ms, att, xp, units, ret, spent) loop
+    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 38::bigint, 10625::bigint, 34::bigint, 0::bigint, 10625243::bigint)) p(k, rung, l, m, b, t, n, ms, att, xp, units, ret, spent) loop
     v_j := public.hr_trade_job_bound(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms);
     if v_j is null or (v_j->>'attempts')::bigint <> v_r.att or (v_j->>'xp')::bigint <> v_r.xp or (v_j->>'spent_ms')::bigint <> v_r.spent
        or (v_j->>'units_max')::bigint < v_r.units or (v_j->>'returned_max')::bigint < v_r.ret then
@@ -1605,21 +1640,53 @@ begin
       raise exception 'VERIFY(h): the bound admits % on rung % at Level %', v_r.k, v_r.rung, v_r.l; end if;
   end loop;
   -- (i) THE JOB SLICE'S ROWS: every recipe the data's, inputs as whole goods; every ground's band
-  if (select count(*) from public.hr_trade_recipes) <> 16 or (select count(*) from public.hr_trade_ground_bands) <> 16 then
+  if (select count(*) from public.hr_trade_recipes) <> 48 or (select count(*) from public.hr_trade_ground_bands) <> 16 then
     raise exception 'VERIFY(i): % recipes and % ground bands, not % and %', (select count(*) from public.hr_trade_recipes),
-      (select count(*) from public.hr_trade_ground_bands), 16, 16; end if;
+      (select count(*) from public.hr_trade_ground_bands), 48, 16; end if;
   for v_r in select * from (values
     ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', '{}'::jsonb),
     ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', '{"bronze_bar":1}'::jsonb),
     ('arrow_b0', 'arrow', 'woodcrafting', 0, 1, 1, 'bronze_arrows', '{"bronze_arrowheads":1,"normal_plank":1}'::jsonb),
     ('meal_b0', 'meal', 'cooking', 0, 1, 1, 'cooked_shrimp', '{"shrimp":1}'::jsonb),
     ('rune_fire_b0', 'rune_fire', 'runecutting', 0, 1, 1, 'chalked_fire_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('log_b0', 'log', 'woodcutting', 0, 1, 1, 'normal_log', '{}'::jsonb),
+    ('fish_b0', 'fish', 'fishing', 0, 1, 1, 'shrimp', '{}'::jsonb),
+    ('rune_stone_b0', 'rune_stone', 'mining', 0, 1, 1, 'rune_essence', '{}'::jsonb),
+    ('grain_b0', 'grain', 'farming', 0, 1, 1, 'turnip', '{}'::jsonb),
+    ('bar_b0', 'bar', 'smithing', 0, 1, 1, 'bronze_bar', '{"copper_ore":1}'::jsonb),
+    ('shaft_b0', 'shaft', 'woodcrafting', 0, 1, 1, 'normal_plank', '{"normal_log":1}'::jsonb),
+    ('cut_stone_b0', 'cut_stone', 'runecutting', 0, 1, 1, 'rune_blank', '{"rune_essence":1}'::jsonb),
+    ('honing_stone_b0', 'honing_stone', 'smithing', 0, 1, 1, 'coarse_whetstone', '{"bronze_bar":2}'::jsonb),
+    ('drink_b0', 'drink', 'cooking', 0, 1, 1, 'turnip_juice', '{"turnip":1}'::jsonb),
     ('temper_kit_b1', 'temper_kit', 'smithing', 1, 3, 21, 'temper_salts', '{"iron_bar":3}'::jsonb),
     ('temper_kit_b2', 'temper_kit', 'smithing', 2, 3, 21, 'fine_temper_salts', '{"steel_bar":3}'::jsonb),
     ('temper_kit_b3', 'temper_kit', 'smithing', 3, 4, 31, 'mithril_temper_salts', '{"mithril_bar":3}'::jsonb),
     ('temper_kit_b4', 'temper_kit', 'smithing', 4, 5, 41, 'rune_temper_salts', '{"rune_bar":3}'::jsonb),
     ('temper_kit_b5', 'temper_kit', 'smithing', 5, 6, 51, 'ember_temper_salts', '{"ember_bar":3}'::jsonb),
     ('temper_kit_b6', 'temper_kit', 'smithing', 6, 7, 61, 'dawn_temper_salts', '{"dawn_bar":3}'::jsonb),
+    ('rune_earth_b0', 'rune_earth', 'runecutting', 0, 1, 1, 'chalked_earth_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_water_b0', 'rune_water', 'runecutting', 0, 1, 1, 'chalked_water_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_ice_b0', 'rune_ice', 'runecutting', 0, 1, 1, 'chalked_ice_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_poison_b0', 'rune_poison', 'runecutting', 0, 1, 1, 'chalked_poison_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_rupture_b0', 'rune_rupture', 'runecutting', 0, 1, 1, 'chalked_rupture_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('ore_b1', 'ore', 'mining', 1, 2, 11, 'iron_ore', '{}'::jsonb),
+    ('log_b1', 'log', 'woodcutting', 1, 2, 11, 'oak_log', '{}'::jsonb),
+    ('fish_b1', 'fish', 'fishing', 1, 2, 11, 'trout', '{}'::jsonb),
+    ('grain_b1', 'grain', 'farming', 1, 2, 11, 'carrot', '{}'::jsonb),
+    ('bar_b1', 'bar', 'smithing', 1, 2, 11, 'iron_bar', '{"iron_ore":1}'::jsonb),
+    ('shaft_b1', 'shaft', 'woodcrafting', 1, 2, 11, 'oak_plank', '{"oak_log":1}'::jsonb),
+    ('meal_b1', 'meal', 'cooking', 1, 2, 11, 'cooked_trout', '{"trout":1}'::jsonb),
+    ('drink_b1', 'drink', 'cooking', 1, 2, 11, 'carrot_juice', '{"carrot":1}'::jsonb),
+    ('honing_stone_b1', 'honing_stone', 'smithing', 1, 2, 11, 'iron_whetstone', '{"iron_bar":2}'::jsonb),
+    ('arrowhead_b1', 'arrowhead', 'smithing', 1, 2, 11, 'iron_arrowheads', '{"iron_bar":1}'::jsonb),
+    ('arrow_b1', 'arrow', 'woodcrafting', 1, 2, 11, 'iron_arrows', '{"iron_arrowheads":1,"oak_plank":1}'::jsonb),
+    ('bolt_b1', 'bolt', 'woodcrafting', 1, 2, 11, 'iron_bolts', '{"iron_arrowheads":1,"oak_plank":1}'::jsonb),
+    ('rune_earth_b1', 'rune_earth', 'runecutting', 1, 2, 11, 'scored_earth_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_water_b1', 'rune_water', 'runecutting', 1, 2, 11, 'scored_water_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_fire_b1', 'rune_fire', 'runecutting', 1, 2, 11, 'scored_fire_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_ice_b1', 'rune_ice', 'runecutting', 1, 2, 11, 'scored_ice_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_poison_b1', 'rune_poison', 'runecutting', 1, 2, 11, 'scored_poison_rune', '{"rune_blank":2,"bones":1}'::jsonb),
+    ('rune_rupture_b1', 'rune_rupture', 'runecutting', 1, 2, 11, 'scored_rupture_rune', '{"rune_blank":2,"bones":1}'::jsonb),
     ('imbuement_fire_ward', 'imbuement', 'artificing', 2, 1, 1, 'imbue_fire_ward', '{"ford_weed":5,"bones":4}'::jsonb),
     ('imbuement_fire_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_fire_edge', '{"rake_tine":5,"razor_claw":4}'::jsonb),
     ('imbuement_brute_edge', 'imbuement', 'artificing', 3, 1, 1, 'imbue_brute_edge', '{"pike_ferrule":5,"razor_claw":4}'::jsonb),
@@ -1971,15 +2038,15 @@ begin
     ('fish', 3, 26, false, 0, 1000, 500, 28800000::bigint, 12::bigint, 121::bigint, 107::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
     ('log', 10, 99, true, 100, 1000, 1000, 36000000::bigint, 13::bigint, 178::bigint, 194::bigint, 0::bigint, 0::bigint, 0::bigint, 35884::bigint, 35884800::bigint),
     ('bar', 1, 5, false, 0, 1000, 40, 28800000::bigint, 14::bigint, 40::bigint, 34::bigint, 0::bigint, 0::bigint, 0::bigint, 3984::bigint, 3984190::bigint),
-    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 15::bigint, 14::bigint, 5::bigint, 5::bigint, 0::bigint, 0::bigint, 3520::bigint, 3520959::bigint),
-    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 16::bigint, 131::bigint, 87::bigint, 23::bigint, 21::bigint, 13::bigint, 28681::bigint, 28681147::bigint),
-    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 17::bigint, 78::bigint, 58::bigint, 14::bigint, 0::bigint, 0::bigint, 21520::bigint, 21520540::bigint),
-    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 18::bigint, 297::bigint, 59::bigint, 94::bigint, 144::bigint, 44::bigint, 35925::bigint, 35925120::bigint),
-    ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 19::bigint, 66::bigint, 48::bigint, 17::bigint, 0::bigint, 0::bigint, 17932::bigint, 17932076::bigint),
-    ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 20::bigint, 8::bigint, 7::bigint, 1::bigint, 0::bigint, 0::bigint, 9473::bigint, 14288364::bigint),
+    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 15::bigint, 14::bigint, 13::bigint, 0::bigint, 0::bigint, 0::bigint, 3520::bigint, 3520959::bigint),
+    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 16::bigint, 131::bigint, 131::bigint, 0::bigint, 0::bigint, 9::bigint, 28681::bigint, 28681147::bigint),
+    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 17::bigint, 78::bigint, 74::bigint, 0::bigint, 0::bigint, 0::bigint, 21520::bigint, 21520540::bigint),
+    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 18::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 50::bigint, 35925::bigint, 35925120::bigint),
+    ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 19::bigint, 66::bigint, 65::bigint, 0::bigint, 0::bigint, 0::bigint, 17932::bigint, 17932076::bigint),
+    ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 20::bigint, 8::bigint, 8::bigint, 0::bigint, 0::bigint, 0::bigint, 9473::bigint, 14288364::bigint),
     ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 21::bigint, 6::bigint, 5::bigint, 0::bigint, 0::bigint, 0::bigint, 2461::bigint, 2461539::bigint),
-    ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 22::bigint, 3::bigint, 1::bigint, 2::bigint, 0::bigint, 0::bigint, 975::bigint, 1471390::bigint),
-    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 23::bigint, 38::bigint, 30::bigint, 6::bigint, 0::bigint, 0::bigint, 10625::bigint, 10625243::bigint),
+    ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 22::bigint, 3::bigint, 3::bigint, 0::bigint, 0::bigint, 0::bigint, 975::bigint, 1471390::bigint),
+    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 23::bigint, 38::bigint, 34::bigint, 0::bigint, 0::bigint, 0::bigint, 10625::bigint, 10625243::bigint),
     ('ore', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
     ('ore', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
     ('ore', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
@@ -1988,18 +2055,54 @@ begin
     ('arrowhead', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 190::bigint, 140::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
     ('arrowhead', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
     ('arrowhead', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
-    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 190::bigint, 130::bigint, 17::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 190::bigint, 126::bigint, 14::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 198::bigint, 156::bigint, 42::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
-    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 198::bigint, 165::bigint, 33::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
-    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 81::bigint, 8::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 73::bigint, 9::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 93::bigint, 25::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
-    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 101::bigint, 17::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
-    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 66::bigint, 7::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 60::bigint, 7::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
-    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 78::bigint, 21::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
-    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 84::bigint, 15::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 190::bigint, 143::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrow', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 190::bigint, 140::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('arrow', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 198::bigint, 198::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('meal', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('meal', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_fire', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_fire', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('log', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('log', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('log', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('log', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('fish', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('fish', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('fish', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('fish', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('rune_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('rune_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('grain', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('grain', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('grain', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('grain', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('bar', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('bar', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('bar', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('bar', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('shaft', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('shaft', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('shaft', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('shaft', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('cut_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('cut_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 286::bigint, 218::bigint, 0::bigint, 0::bigint, 0::bigint, 28771::bigint, 28771258::bigint),
+    ('cut_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('cut_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 297::bigint, 297::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('honing_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('honing_stone', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('honing_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('honing_stone', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('drink', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 114::bigint, 85::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('drink', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 114::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('drink', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
+    ('drink', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 118::bigint, 118::bigint, 0::bigint, 0::bigint, 0::bigint, 28592::bigint, 28592308::bigint),
     ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 70::bigint, 51::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
     ('temper_kit', 3, 21, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 70::bigint, 50::bigint, 0::bigint, 0::bigint, 0::bigint, 28717::bigint, 28717949::bigint),
     ('temper_kit', 3, 36, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 72::bigint, 72::bigint, 0::bigint, 0::bigint, 0::bigint, 28535::bigint, 28535780::bigint),
@@ -2024,26 +2127,118 @@ begin
     ('temper_kit', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 76::bigint, 54::bigint, 0::bigint, 0::bigint, 0::bigint, 28450::bigint, 28450607::bigint),
     ('temper_kit', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 79::bigint, 79::bigint, 0::bigint, 0::bigint, 0::bigint, 28654::bigint, 28654912::bigint),
     ('temper_kit', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 79::bigint, 79::bigint, 0::bigint, 0::bigint, 0::bigint, 28654::bigint, 28654912::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 11::bigint, 2::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 7::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 13::bigint, 2::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
-    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 14::bigint, 1::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint)) p(k, rung, l, m, b, t, n, ms, seed, att, plain, fine, master, ret, xp, spent) loop
+    ('rune_earth', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_earth', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_earth', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_earth', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_water', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_water', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_water', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_water', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_ice', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_ice', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_ice', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_ice', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_poison', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_poison', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_poison', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_poison', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_rupture', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 95::bigint, 71::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_rupture', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 95::bigint, 68::bigint, 0::bigint, 0::bigint, 0::bigint, 28670::bigint, 28670659::bigint),
+    ('rune_rupture', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('rune_rupture', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 99::bigint, 99::bigint, 0::bigint, 0::bigint, 0::bigint, 28786::bigint, 28786154::bigint),
+    ('ore', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('ore', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('ore', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('ore', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('log', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('log', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('log', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('log', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('fish', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('fish', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('fish', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('fish', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('grain', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('grain', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('grain', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('grain', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('bar', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 293::bigint, 222::bigint, 0::bigint, 0::bigint, 0::bigint, 28757::bigint, 28757936::bigint),
+    ('bar', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 293::bigint, 223::bigint, 0::bigint, 0::bigint, 0::bigint, 28757::bigint, 28757936::bigint),
+    ('bar', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 304::bigint, 304::bigint, 0::bigint, 0::bigint, 0::bigint, 28772::bigint, 28772958::bigint),
+    ('bar', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 304::bigint, 304::bigint, 0::bigint, 0::bigint, 0::bigint, 28772::bigint, 28772958::bigint),
+    ('shaft', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 293::bigint, 222::bigint, 0::bigint, 0::bigint, 0::bigint, 28757::bigint, 28757936::bigint),
+    ('shaft', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 293::bigint, 223::bigint, 0::bigint, 0::bigint, 0::bigint, 28757::bigint, 28757936::bigint),
+    ('shaft', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 304::bigint, 304::bigint, 0::bigint, 0::bigint, 0::bigint, 28772::bigint, 28772958::bigint),
+    ('shaft', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 304::bigint, 304::bigint, 0::bigint, 0::bigint, 0::bigint, 28772::bigint, 28772958::bigint),
+    ('meal', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('meal', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('meal', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('meal', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('drink', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 117::bigint, 87::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('drink', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 117::bigint, 84::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('drink', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('drink', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 121::bigint, 121::bigint, 0::bigint, 0::bigint, 0::bigint, 28630::bigint, 28630986::bigint),
+    ('honing_stone', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('honing_stone', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('honing_stone', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('honing_stone', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('arrowhead', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 195::bigint, 147::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('arrowhead', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 195::bigint, 145::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('arrowhead', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('arrowhead', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('arrow', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 195::bigint, 147::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('arrow', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 195::bigint, 145::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('arrow', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('arrow', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('bolt', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 195::bigint, 147::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('bolt', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 195::bigint, 145::bigint, 0::bigint, 0::bigint, 0::bigint, 28708::bigint, 28708861::bigint),
+    ('bolt', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('bolt', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 202::bigint, 202::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_earth', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_earth', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_earth', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_earth', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_water', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_water', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_water', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_water', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_fire', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_fire', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_fire', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_fire', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_ice', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_ice', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_ice', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_ice', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_poison', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_poison', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_poison', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_poison', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_rupture', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 97::bigint, 73::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_rupture', 2, 11, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 97::bigint, 70::bigint, 0::bigint, 0::bigint, 0::bigint, 28561::bigint, 28561636::bigint),
+    ('rune_rupture', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('rune_rupture', 2, 26, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 101::bigint, 101::bigint, 0::bigint, 0::bigint, 0::bigint, 28678::bigint, 28678310::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 10::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 10::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 10::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 10::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 1, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 10::bigint, 0::bigint, 0::bigint, 0::bigint, 28742::bigint, 28742498::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint),
+    ('imbuement', 1, 16, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 15::bigint, 15::bigint, 0::bigint, 0::bigint, 0::bigint, 27692::bigint, 27692291::bigint)) p(k, rung, l, m, b, t, n, ms, seed, att, plain, fine, master, ret, xp, spent) loop
     v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
     if v_j is null or (v_j->>'attempts')::bigint <> v_r.att or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine
        or (v_j->>'master')::bigint <> v_r.master or (v_j->>'returned')::bigint <> v_r.ret or (v_j->>'xp')::bigint <> v_r.xp
@@ -2051,6 +2246,31 @@ begin
       raise exception 'VERIFY(l): % on rung % at Level % seed % rolls % in SQL, attempts % plain % fine % master % returned % XP % in settleJob',
         v_r.k, v_r.rung, v_r.l, v_r.seed, v_j, v_r.att, v_r.plain, v_r.fine, v_r.master, v_r.ret, v_r.xp; end if;
   end loop;
+  -- (m) THE LIT CASCADE, while quality is dark (09 4.11 row 6): the lever row lit for these pins only, settleJob with quality on exactly,
+  --     then the shipped switch put back
+  update public.hr_trade_levers set quality_live = 1;
+  for v_r in select * from (values
+    ('ore', 1, 1, false, 0, 1000, 500, 3600000::bigint, 11::bigint, 12::bigint, 0::bigint, 0::bigint, 0::bigint),
+    ('fish', 3, 26, false, 0, 1000, 500, 28800000::bigint, 12::bigint, 107::bigint, 0::bigint, 0::bigint, 0::bigint),
+    ('log', 10, 99, true, 100, 1000, 1000, 36000000::bigint, 13::bigint, 194::bigint, 0::bigint, 0::bigint, 0::bigint),
+    ('bar', 1, 5, false, 0, 1000, 40, 28800000::bigint, 14::bigint, 34::bigint, 0::bigint, 0::bigint, 0::bigint),
+    ('meal', 1, 1, false, 0, 1000, 30, 3600000::bigint, 15::bigint, 5::bigint, 5::bigint, 0::bigint, 0::bigint),
+    ('meal', 5, 60, true, 0, 1000, 200, 28800000::bigint, 16::bigint, 87::bigint, 23::bigint, 21::bigint, 13::bigint),
+    ('honing_stone', 7, 70, false, 0, 932, 200, 21600000::bigint, 17::bigint, 58::bigint, 14::bigint, 0::bigint, 0::bigint),
+    ('arrow', 9, 99, true, 100, 1000, 300, 36000000::bigint, 18::bigint, 59::bigint, 94::bigint, 144::bigint, 44::bigint),
+    ('rune_fire', 4, 45, false, 0, 1000, 100, 18000000::bigint, 19::bigint, 48::bigint, 17::bigint, 0::bigint, 0::bigint),
+    ('imbuement', 1, 30, false, 0, 1000, 10, 14400000::bigint, 20::bigint, 7::bigint, 1::bigint, 0::bigint, 0::bigint),
+    ('temper_kit', 3, 21, false, 0, 1000, 6, 7200000::bigint, 21::bigint, 5::bigint, 0::bigint, 0::bigint, 0::bigint),
+    ('tool_pick', 2, 40, false, 0, 1000, 3, 3600000::bigint, 22::bigint, 1::bigint, 2::bigint, 0::bigint, 0::bigint),
+    ('draught', 1, 12, false, 0, 1000, 50, 10800000::bigint, 23::bigint, 30::bigint, 6::bigint, 0::bigint, 0::bigint)) p(k, rung, l, m, b, t, n, ms, seed, plain, fine, master, ret) loop
+    v_j := public.hr_trade_roll(v_r.k, v_r.rung, v_r.l, v_r.m, v_r.b, v_r.t, v_r.n, v_r.ms, v_r.seed);
+    if v_j is null or (v_j->>'plain')::bigint <> v_r.plain or (v_j->>'fine')::bigint <> v_r.fine or (v_j->>'master')::bigint <> v_r.master
+       or (v_j->>'returned')::bigint <> v_r.ret then
+      raise exception 'VERIFY(m): % lit at Level % seed % rolls % in SQL, plain % fine % master % returned % in settleJob', v_r.k, v_r.l, v_r.seed, v_j,
+        v_r.plain, v_r.fine, v_r.master, v_r.ret; end if;
+  end loop;
+  update public.hr_trade_levers set quality_live = 0;
+  if (select quality_live from public.hr_trade_levers) <> 0 then raise exception 'VERIFY(m): the quality switch was not put back'; end if;
   raise notice 'gen-trades: % kinds, % Levels, % recipes, the twins pinned at % points, % settles admitted, % rolled exactly; all green', 37, 99,
-    16, 1288, 13, 77;
+    48, 1288, 13, 205;
 end $mig$;

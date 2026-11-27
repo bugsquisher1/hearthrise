@@ -71,7 +71,8 @@ const SKILL_LINES = loadLines();
 const HOURS = 2, SEEDS = 2;
 
 /* DECLARED SHIFTS: [{ after: 'YYYY-MM-DD' (hunts recorded on or before it), grounds?: [ground id] (only hunts on these; every ground when
-   absent), why, mult: { metric: x } }]. The recorded rate is multiplied by `mult` before it is judged. Measured on this fixture, by
+   absent), why, mult: { metric: x }, seatPts?: [points, a seat] }]. The recorded rate is multiplied by `mult` before it is judged, and BC-5 adds
+   `seatPts` to each seat's recorded share of the party's damage (a change that moves who bleeds, measured sim over sim the same way). Measured on this fixture, by
    `calibrate.mjs --run --monsters ...` or the change's own before/after run. A change that moves one ground's hunts (a spell, a row) names it:
    a multiplier pooled over grounds it moves differently fits none of them (lane/d-harder-monsters: the step moved the Warrens' lone store
    bill x1.08 and Krell's fours' x1.6, so one row pooled over both left Krell's over the line once his Hold's own spell came on top). */
@@ -131,11 +132,23 @@ export const DECLARED_SHIFTS = Object.freeze([
      x1.02 on every metric (nothing declared). */
   Object.freeze({ after: '2026-11-23', grounds: Object.freeze(['krells_hold']), why: 'Krells Hold on the Danger scale: formula monsters with roles, rune at item Level 80',
     mult: Object.freeze({ killsPerH: 1.099, levelXpPerH: 1.099, coinPerH: 1.104, dealtPerH: 1.096, takenPerH: 0.675, healedPerH: 0.622, storePerH: 0.584 }) }),
+  /* (6) THE TIER ROWS RETIRED (lane/retire-tier-chain, 2026-11-26; 12-targets 8.4 item 4): no hunt plays a tier's pull, so the recorded Deadly fours
+     replay Krell's Hold as built, one pack a pocket. MEASURED by this guard's own replay (2 h x 2 seeds, the recorded kits, calibrate.mjs run) on
+     origin/set/v0.2.144 at 5383c03b0 with its own harness against the lane, sim over sim, geometric mean of the two hunts: the party barely bleeds
+     (taken 115-117k an hour -> 7.7-7.8k) and the Healer heals nothing, and the front seat takes 21.6 points more of what there is (the Lookout's
+     shots at the back came with the pull). Taken reads x0.067 on the harness hero and x0.049 on the played profile (BC-4), so x0.061 here, as (5)
+     set its own between the two. The Warrens' lone hero read x1.000 on every metric (nothing declared). The fixture's fours are the
+     only parties it holds: the next export, after v0.2.144 ships, replaces them with fours that hunted the scale. */
+  Object.freeze({ after: '2026-11-26', grounds: Object.freeze(['krells_hold']), why: 'the tier rows retired: a recorded Deadly four plays the ground as built (lane/retire-tier-chain)',
+    mult: Object.freeze({ killsPerH: 0.376, levelXpPerH: 0.313, coinPerH: 0.389, dealtPerH: 0.335, takenPerH: 0.061, healedPerH: 0, storePerH: 0.072 }),
+    seatPts: Object.freeze([21.6, -0.9, -0.7, -20.0]) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);
-const shiftOf = (s, key) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)))
-  .reduce((m, d) => m * ((d.mult && d.mult[key]) || 1), 1);
+const shiftsOn = (s) => DECLARED_SHIFTS.filter((d) => s.date <= d.after && (!d.grounds || d.grounds.includes(s.ground)));
+const shiftOf = (s, key) => shiftsOn(s).reduce((m, d) => m * (d.mult && Number.isFinite(d.mult[key]) ? d.mult[key] : 1), 1);
+/* the points a seat's recorded share moves by, summed over the declared shifts (BC-5) */
+const seatPtsOf = (s, i) => (s ? shiftsOn(s).reduce((t, d) => t + ((d.seatPts && d.seatPts[i]) || 0), 0) : 0);
 
 function anonymityProblems(fx) {
   const bad = [];
@@ -177,7 +190,7 @@ export function seatShareFails(rows, fxById) {
     const realSum = r.real.reduce((a, x) => a + (x.takenPerH || 0), 0), simSum = r.sim.seats.reduce((a, x) => a + (x.takenPerH || 0), 0);
     if (!(realSum >= TAKEN_MIN) || !(simSum > 0)) continue;
     r.real.forEach((x, i) => {
-      const want = (100 * (x.takenPerH || 0)) / realSum, got = (100 * (r.sim.seats[i].takenPerH || 0)) / simSum;
+      const want = Math.max(0, (100 * (x.takenPerH || 0)) / realSum + seatPtsOf(fxById[r.id], i)), got = (100 * (r.sim.seats[i].takenPerH || 0)) / simSum;
       const role = ((fxById[r.id] || {}).seats || [])[i] ? fxById[r.id].seats[i].role : '?';
       if (Math.abs(got - want) > SEAT_SHARE_PTS) fails.push(`${r.id}: seat ${i} (${role}) takes ${got.toFixed(1)}% of the party's damage in the replay, ${want.toFixed(1)}% in the record, past ${SEAT_SHARE_PTS} points`);
     });

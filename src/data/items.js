@@ -671,6 +671,8 @@ export const ITEMS={
      one Bronze Bar, booked under it so a forged head sold back loses money. */
   dawn_temper_salts: {n:'Dawnsteel Tempering Salts', icon:'🧂', v:230, tag:'temper'},
   bronze_arrowheads: {n:'Bronze Arrowheads', icon:'🔺', v:20},
+  /* band 1's head (lane/designer-kit-band1, 09 4.13): forged from one Iron Bar, booked under it the same way */
+  iron_arrowheads: {n:'Iron Arrowheads', icon:'🔺', v:25},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -874,11 +876,13 @@ export const ITEM_LEVELS = (() => {
     ITEMS[id] = { ...it, iL };
   }
   /* A TWIN (`statsAs`: a named piece that is another row's piece to the number, 12-targets 8.3 "every named twin stamped to a tier") is worn
-     as its base is: its step, its item Level and its wear, whatever stamp the base carries */
+     as its base is: its step, its item Level and its wear, whatever stamp the base carries. A twin that states no tier or book value is its
+     base's there too (28-named-pieces.md 2.7: a named piece is its tier's piece plus its rule, so its tier and book are never typed twice) */
   for (const [id, it] of Object.entries(ITEMS)) {
     const b = it && typeof it.statsAs === 'string' ? ITEMS[it.statsAs] : null;
     if (!b) continue;
-    ITEMS[id] = { ...it, reqLv: b.reqLv, ...(Number.isInteger(b.step) ? { step: b.step } : {}), ...(Number.isInteger(b.iL) ? { iL: b.iL } : {}) };
+    ITEMS[id] = { ...it, reqLv: b.reqLv, ...(Number.isInteger(b.step) ? { step: b.step } : {}), ...(Number.isInteger(b.iL) ? { iL: b.iL } : {}),
+      ...(it.tier === undefined && b.tier !== undefined ? { tier: b.tier } : {}), ...(it.v === undefined && b.v !== undefined ? { v: b.v } : {}) };
     if (Number.isInteger(b.iL)) out[id] = b.iL;
   }
   return Object.freeze(out);
@@ -978,7 +982,7 @@ const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
   'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
-  'dawn_temper_salts', 'bronze_arrowheads',
+  'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

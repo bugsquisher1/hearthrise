@@ -13,8 +13,8 @@
 //         and any other ground reads the catalogue itself.
 //   GSF-5 ONE VIEW FOR EVERY READER, AND ONLY ON THE SCALE: the edge settle, the start point's frozen peers and the browser's live view all
 //         fight through combat-sim.js fightItems on the instance's own ground (so the three agree to the bit), which hands the scale view
-//         to a fight whose plan names a stance (an input row's hero or a frozen peer's) and the catalogue as written to every other, a tier
-//         hunt on a scale ground included (lane/scale-early-grounds 2026-11-23: a tier fixture's planted row never reached a cached view).
+//         to a fight whose plan names a stance (an input row's hero or a frozen peer's) and the catalogue as written to every other, one on a
+//         scale ground included (lane/scale-early-grounds 2026-11-23: a fixture's planted row never reached a cached view).
 //   GSF-7 EVERY PIECE HAS AN ITEM LEVEL (the formula master's phase A, 27-formula-overhaul.md 2.3): every gear row carries a whole `iL`, 0 or over
 //         (tier 0, item Level 0, is the starting kit: gear-steps.js; the Mill Cellar's and the Thicket's base, lane/scale-early-grounds).
 //   GSF-6 THE CURVES CLIMB: within every ladder (GEAR_LADDERS) no rung's base stat is smaller in size than the rung below it.
@@ -29,6 +29,11 @@
 //         made piece has its bench recipe at the tier's level, taking a part a body on a home drops, served.
 //   GSF-10 PRICED PAST THE TOP: every stat curve's budget grows past GEAR_CURVE_TOP (src/core/gear-stats.js budgetOf), so no item Level is
 //         capped (found items are never held to the ladder's top).
+//   GSF-11 THE STAGED UNIQUES PAST DAWNSTEEL, SORTED (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8; lane/retire-dawnsteel-lines):
+//         every row the table keeps (c) is an item that is its home's base-tier plain piece to the number (`statsAs` a ladder rung: its
+//         stats, tier, item Level, wear and book), carrying exactly ONE rule (one resistance or one bane) that answers its home (an element a
+//         monster there casts, a class that lives there), its dropper spawning there; every row it cuts is no item. The re-aim of the retired
+//         line guards' piece rules (armor-line AL6 and AL8, weapon-line WL6: one attribute, and it answers its own ground).
 //
 //   node tests/gear-stats.mjs            the guard
 //   node tests/gear-stats.mjs --mutate   each rule driven red by a defect planted on an in-memory copy
@@ -55,6 +60,7 @@ import { TRAITS } from '../src/data/gear-steps.js';
 import { ITEMS, ITEM_LEVELS } from '../src/data/items.js';
 import { FIST_ITEMS } from '../src/data/fists.js';
 import { SPECIAL_SAMPLE } from '../src/data/special-attributes.js';
+import { spellRow } from '../src/data/monster-spells.js';
 import { deriveAll, readBack, render, OUT } from '../tools/gen-gear.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,9 +69,9 @@ const MODULES = ['src/data/items.js', 'src/data/gear-tiers.js', 'src/data/wave3-
   'src/data/boss-calls.js', 'src/data/library2-items.js', 'src/data/shields.js', 'src/data/fists.js', 'src/data/special-attributes.js'];
 /* the three readers that build a hunt's members (GSF-5): each must hand memberSide the fight's view (fightItems) of the instance's own ground */
 const READERS = [
-  ['supabase/functions/hr-accrue/accrue-hunt.js', 'const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale),'],
-  ['supabase/functions/hr-accrue/hunt-settle.js', 'const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members, play.level === null ? null : { level: play.level });'],
-  ['src/hunt-view/live-engine.js', 'fight = fightItems(items, where.ground, live.members, scaleOf(live));'],
+  ['supabase/functions/hr-accrue/accrue-hunt.js', 'const ctx = { items: fightItems(inp.items || {}, inp.ground, inp.members),'],
+  ['supabase/functions/hr-accrue/hunt-settle.js', 'const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members);'],
+  ['src/hunt-view/live-engine.js', 'fight = fightItems(items, where.ground, live.members);'],
   ['src/hunt-view/live-engine.js', '{ items: fight }'],
   ['src/hunt-view/live-engine.js', 'items: s.items,'],
 ];
@@ -131,11 +137,11 @@ export function check(o) {
     const stance = { risk: 'steady', danger: 0 };
     const cases = [['a lead naming a stance', [{ key: 'b', hero: {} }, { key: 'a', hero: stance }], scaled],
       ['a frozen peer naming a stance', [{ key: 'a', frozen: { hero: stance } }], scaled],
-      ['a tier fight (no stance)', [{ key: 'a', hero: {} }, { key: 'b', frozen: { hero: {} } }], o.items]];
+      ['a fight naming no stance', [{ key: 'a', hero: {} }, { key: 'b', frozen: { hero: {} } }], o.items]];
     for (const [what, ms, want] of cases) {
-      if (o.fightItems(o.items, ground, ms, null) !== want) out.push('GSF-5 on ' + scaleGround + ' ' + what + ' fights ' + (want === scaled ? 'the catalogue as written' : 'the scale view'));
+      if (o.fightItems(o.items, ground, ms) !== want) out.push('GSF-5 on ' + scaleGround + ' ' + what + ' fights ' + (want === scaled ? 'the catalogue as written' : 'the scale view'));
     }
-    if (o.fightItems(o.items, { id: 'no_such_ground' }, cases[0][1], null) !== o.items) out.push('GSF-5 a stance off the scale reads a view, not the catalogue');
+    if (o.fightItems(o.items, { id: 'no_such_ground' }, cases[0][1]) !== o.items) out.push('GSF-5 a stance off the scale reads a view, not the catalogue');
   }
   /* GSF-7 */
   for (const [id, it] of Object.entries(o.items)) if (o.GS.isGearRow(it) && !(Number.isInteger(it.iL) && it.iL >= 0)) out.push('GSF-7 ' + id + ' carries no item Level');
@@ -170,6 +176,66 @@ export function check(o) {
   for (const c of Object.keys(GEAR_CURVES)) {
     const top = GEAR_CURVE_TOP, next = top + GEAR_STEPS.tierSteps;
     if (!(o.GS.budgetOf(c, next) > o.GS.budgetOf(c, top))) out.push('GSF-10 the ' + c + ' curve holds past item Level ' + top + ' (' + o.GS.budgetOf(c, top) + ' at ' + top + ', ' + o.GS.budgetOf(c, next) + ' at ' + next + '): a piece past it is capped');
+  }
+  if (o.late) out.push(...latePieces(o));
+  return out;
+}
+
+/* GSF-11: WHERE EACH KEPT ROW OF 28-named-pieces.md 2.7 LIVES. `grounds` its home (the wings both, where the table says "the Catacomb wings"),
+   `monster` the body its Rare row goes on when the home's art lands (tests/catalogue-coherence.mjs PENDING_SOURCE until then). The table is the
+   ruling; this is its home column as data, and the guard holds the two to the same ids. */
+const WINGS = Object.freeze(['catacomb_bone_wing', 'catacomb_flooded_wing']);
+export const LATE_HOMES = Object.freeze({
+  burnt_crag_leg_plates: Object.freeze({ grounds: Object.freeze(['wyvern_roost']), monster: 'crag_wyvern' }),
+  limewashed_plate: Object.freeze({ grounds: WINGS, monster: 'bone_wall' }),
+  keepers_leg_plates: Object.freeze({ grounds: Object.freeze(['catacomb_flooded_wing']), monster: 'keeper_dunn' }),
+  paupers_shroud: Object.freeze({ grounds: WINGS, monster: 'shrouded_pauper' }),
+  watchmans_sword: Object.freeze({ grounds: WINGS, monster: 'shrouded_pauper' }),
+  dunns_mallet: Object.freeze({ grounds: Object.freeze(['catacomb_flooded_wing']), monster: 'keeper_dunn' }),
+});
+/* the table's rows: `| \`<id>\` | <name> | <slot, home> | <mark> | <ruling> | <becomes> |`, section 2.7 only; (c) keeps, (d) and cut cut */
+function lateTable(doc) {
+  const at = doc.indexOf('### 2.7'), end = doc.indexOf('\n## ', at);
+  const kept = [], cut = [];
+  if (at < 0) return { kept, cut };
+  for (const line of doc.slice(at, end < 0 ? undefined : end).split('\n')) {
+    const m = line.match(/^\|\s*`([a-z0-9_]+)`\s*\|[^|]*\|[^|]*\|[^|]*\|\s*([^|]+?)\s*\|/);
+    if (m) (m[2] === '(c)' ? kept : cut).push(m[1]);
+  }
+  return { kept, cut };
+}
+function latePieces(o) {
+  const out = [], L = o.late, { kept, cut } = lateTable(o.doc);
+  if (!kept.length) return ['GSF-11 28-named-pieces.md section 2.7 keeps no row: the table moved (re-aim the guard)'];
+  const homes = Object.keys(L.homes).sort().join(), ruled = kept.slice().sort().join();
+  if (homes !== ruled) out.push('GSF-11 the homes here (' + homes + ') are not the rows 28-named-pieces.md 2.7 keeps (' + ruled + ')');
+  const rungs = new Set(L.ladders.flatMap((l) => l.ids).filter(Boolean));
+  for (const id of cut) if (o.items[id]) out.push('GSF-11 ' + id + ' is an item: 28-named-pieces.md 2.7 cuts it');
+  for (const id of kept) {
+    const it = o.items[id], h = L.homes[id];
+    if (!it) { out.push('GSF-11 ' + id + ' is no item: 28-named-pieces.md 2.7 keeps it as a named piece'); continue; }
+    const b = typeof it.statsAs === 'string' ? o.items[it.statsAs] : null;
+    if (!b || !rungs.has(it.statsAs)) { out.push('GSF-11 ' + id + ' is not a plain ladder piece to the number (statsAs ' + it.statsAs + ')'); continue; }
+    for (const k of ['slot', 'armourClass', 'weaponType', 'twoHanded', 'tier', 'iL', 'reqLv', 'v']) {
+      if ((it[k] ?? null) !== (b[k] ?? null)) out.push('GSF-11 ' + id + '.' + k + ' is ' + it[k] + ', its plain piece ' + it.statsAs + '\'s is ' + b[k]);
+    }
+    if (!same(it, b)) out.push('GSF-11 ' + id + ' fights ' + JSON.stringify(statsOf(it)) + ', not its plain piece\'s ' + JSON.stringify(statsOf(b)));
+    const resists = Object.entries(it.resistPm || {}).filter(([, pm]) => pm > 0), bane = it.bane && it.bane.class ? it.bane : null;
+    if (resists.length + (bane ? 1 : 0) !== 1) { out.push('GSF-11 ' + id + ' carries ' + (resists.length + (bane ? 1 : 0)) + ' rules, not one (a resistance or a bane)'); continue; }
+    if (!h) continue;
+    const on = h.grounds.filter((g) => L.grounds[g]);
+    if (on.length !== h.grounds.length) out.push('GSF-11 ' + id + '\'s home ' + h.grounds.join(', ') + ' is not every one a ground');
+    for (const g of on) if (!(L.scale[g] && L.scale[g].gearLevel === it.iL)) out.push('GSF-11 ' + id + ' is item Level ' + it.iL + ', not its home ' + g + '\'s base tier (' + (L.scale[g] || {}).gearLevel + ')');
+    const bodies = new Set(on.flatMap((g) => [...L.monstersOn(L.grounds[g])]));
+    if (!bodies.has(h.monster)) out.push('GSF-11 ' + id + '\'s dropper ' + h.monster + ' spawns on none of ' + h.grounds.join(', '));
+    const els = new Set(), cls = new Set();
+    for (const m of bodies) {
+      const row = L.monsters[m] || {};
+      if (row.cls) cls.add(row.cls);
+      for (const sp of row.spells || []) { const r = L.spellRow(sp); if (r && r.element) els.add(r.element); }
+    }
+    if (resists.length && !els.has(resists[0][0])) out.push('GSF-11 ' + id + ' resists ' + resists[0][0] + ', which no monster on ' + h.grounds.join(', ') + ' casts');
+    if (bane && !cls.has(bane.class)) out.push('GSF-11 ' + id + ' banes ' + bane.class + ', which does not live on ' + h.grounds.join(', '));
   }
   return out;
 }
@@ -257,8 +323,12 @@ function live() {
     traits: TRAITS, doc: readFileSync(join(ROOT, 'docs/design/redesign/28-named-pieces.md'), 'utf8').replace(/\r/g, ''),
     step: { materials: MATERIAL_TIERS, ladders: GEAR_LADDERS, shields: SHIELD_ITEMS, slotItems: SLOT_ITEMS, baseDrops: BASE_DROPS, made: STEP_MADE,
       recipes: ARTISAN_RECIPES, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS,
-      stagedItems: new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))), pending: RE_POINT_PENDING } };
+      stagedItems: new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {}))), pending: RE_POINT_PENDING },
+    late: { homes: LATE_HOMES, ladders: GEAR_LADDERS, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS, spellRow } };
 }
+/* a copy of GSF-11's homes a mutant may edit */
+const lateCopy = (o) => { o.late = { ...o.late, homes: { ...o.late.homes } }; return o.late; };
+const lateRow = (o, id, edit) => { o.items = { ...o.items, [id]: { ...o.items[id], ...edit } }; };
 /* a copy of the step ladder's tables a mutant may edit */
 const stepCopy = (o) => { o.step = { ...o.step, materials: o.step.materials.map((m) => ({ ...m })), baseDrops: { ...o.step.baseDrops }, made: { ...o.step.made },
   scale: { ...o.step.scale } }; return o.step; };
@@ -301,12 +371,12 @@ const MUTANTS = [
     return v;
   }; }],
   ['GSF-4', 'the scale view drops the item Level', (o) => { const f = o.scaleItems; o.scaleItems = (items, g) => { const v = f(items, g); if (v === items) return v; const w = {}; for (const [k, it] of Object.entries(v)) { const { iL, ...r } = it; void iL; w[k] = r; } return w; }; }],
-  ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: fightItems(inp.items || {}, inp.ground, inp.members, inp.scale)', 'items: inp.items || {}'); }],
+  ['GSF-5', 'the edge settle fights the catalogue as written', (o) => { const f = 'supabase/functions/hr-accrue/accrue-hunt.js'; o.readers[f] = o.readers[f].replace('items: fightItems(inp.items || {}, inp.ground, inp.members)', 'items: inp.items || {}'); }],
   ['GSF-5', 'the browser fights the catalogue as written', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('{ items: fight }', '{ items }'); }],
   ['GSF-5', 'the browser\'s swings read another view than its heroes', (o) => { const f = 'src/hunt-view/live-engine.js'; o.readers[f] = o.readers[f].replace('items: s.items,', 'items,'); }],
-  ['GSF-5', 'a tier fight on a scale ground reads the scale view (a planted row never reaches it)', (o) => { o.fightItems = (items, g) => GS.scaleItems(items, g); }],
+  ['GSF-5', 'a fight naming no stance on a scale ground reads the scale view (a planted row never reaches it)', (o) => { o.fightItems = (items, g) => GS.scaleItems(items, g); }],
   ['GSF-5', 'a fight on the scale reads the catalogue', (o) => { o.fightItems = (items) => items; }],
-  ['GSF-5', 'a frozen peer\'s stance is never read', (o) => { const f = o.fightItems; o.fightItems = (items, g, ms, sc) => f(items, g, ms.filter((m) => !m.frozen), sc); }],
+  ['GSF-5', 'a frozen peer\'s stance is never read', (o) => { const f = o.fightItems; o.fightItems = (items, g, ms) => f(items, g, ms.filter((m) => !m.frozen)); }],
   ['GSF-7', 'a piece with no item Level', (o) => { const { iL, ...r } = o.items.rune_sword; void iL; o.items = { ...o.items, rune_sword: r }; }],
   ['GSF-7', 'a piece under item Level 0', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, iL: -20 } }; }],
   ['GSF-6', 'a rung steps down', (o) => { o.items = { ...o.items, rune_sword: { ...o.items.rune_sword, atkB: 1 } }; }],
@@ -326,6 +396,22 @@ const MUTANTS = [
   ['GSF-9', 'a made job on its bench while its part waits with a staged pack', (o) => { const S = stepCopy(o); S.recipes = { ...S.recipes, crafting: [...S.recipes.crafting, ...S.made.crafting] }; }],
   ['GSF-9', 'a made job kept off its bench once its pack ships', (o) => { const S = stepCopy(o); S.stagedItems = new Set(); }],
   ['GSF-10', 'the curve held at its top', (o) => { const g = o.GS; o.GS = { ...g, budgetOf: (c, iL) => g.budgetOf(c, Math.min(GEAR_CURVE_TOP, iL)) }; }],
+  /* the staged uniques past Dawnsteel, sorted (28-named-pieces.md 2.7) */
+  ['GSF-11', 'a kept piece sized on the Dawnsteel line again (its Dawnsteel twin)', (o) => { const d = o.items.dawn_platelegs; lateRow(o, 'keepers_leg_plates', { statsAs: 'dawn_platelegs', iL: d.iL, reqLv: d.reqLv, tier: d.tier, v: d.v, defB: d.defB }); }],
+  ['GSF-11', 'a kept piece a little better than its tier (an offset back)', (o) => { lateRow(o, 'limewashed_plate', { defB: o.items.limewashed_plate.defB + 10 }); }],
+  ['GSF-11', 'a kept piece typed a tier of its own', (o) => { lateRow(o, 'watchmans_sword', { tier: 8 }); }],
+  ['GSF-11', 'a kept piece priced over its plain piece', (o) => { lateRow(o, 'dunns_mallet', { v: o.items.dunns_mallet.v * 2 }); }],
+  ['GSF-11', 'a kept piece twinned on another named piece', (o) => { lateRow(o, 'paupers_shroud', { statsAs: 'limewashed_plate' }); }],
+  ['GSF-11', 'a kept piece with two rules', (o) => { lateRow(o, 'keepers_leg_plates', { bane: { class: 'undead', mult: 1.1 } }); }],
+  ['GSF-11', 'a kept piece with no rule (a stat trade only)', (o) => { lateRow(o, 'burnt_crag_leg_plates', { resistPm: {} }); }],
+  ['GSF-11', 'a resistance nothing on its home casts', (o) => { lateRow(o, 'burnt_crag_leg_plates', { resistPm: { frost: 100 } }); }],
+  ['GSF-11', 'a bane of a class that does not live at home', (o) => { lateRow(o, 'dunns_mallet', { bane: { class: 'dragon', mult: 1.1 } }); }],
+  ['GSF-11', 'a home its dropper never spawns on', (o) => { lateCopy(o).homes.keepers_leg_plates = { grounds: ['catacomb_bone_wing'], monster: 'keeper_dunn' }; }],
+  ['GSF-11', 'a piece on a ground off its tier', (o) => { lateCopy(o).homes.burnt_crag_leg_plates = { grounds: ['catacomb_flooded_wing'], monster: 'keeper_dunn' }; }],
+  ['GSF-11', 'a cut row back as an item', (o) => { o.items = { ...o.items, hoist_hooks: { ...o.items.wolfram_hatchets, n: 'Hoist Hooks' } }; }],
+  ['GSF-11', 'a kept row gone', (o) => { const { watchmans_sword, ...r } = o.items; void watchmans_sword; o.items = r; }],
+  ['GSF-11', 'a home for a row the table never kept', (o) => { lateCopy(o).homes.hoist_hooks = { grounds: WINGS, monster: 'night_carter' }; }],
+  ['GSF-11', 'the table rules nothing', (o) => { o.doc = o.doc.replace('### 2.7', '### 2.7x').replace(/### 2\.7x[\s\S]*?\n## /, '\n## '); }],
 ];
 
 if (isMain(import.meta.url)) {
@@ -344,5 +430,5 @@ if (isMain(import.meta.url)) {
   }
   const out = check(live());
   if (out.length) { console.error('gear-stats: RED\n  ' + out.slice(0, 40).join('\n  ')); process.exit(1); }
-  console.log('gear-stats: every piece is the formula\'s, no stat by hand and no offset, every fixed Trait a real one, rarity never sizes the base, on the scale the step carries the tier (one view for every reader), every ladder climbs');
+  console.log('gear-stats: every piece is the formula\'s, no stat by hand and no offset, every fixed Trait a real one, the late named pieces their tier\'s piece plus one rule that answers home, rarity never sizes the base, on the scale the step carries the tier (one view for every reader), every ladder climbs');
 }

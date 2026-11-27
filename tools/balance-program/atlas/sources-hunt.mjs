@@ -67,15 +67,6 @@ export function huntSources(D) {
         state: open ? 'OPEN' : 'STAGED', opens: Math.max(1, h.band[0]), band: h.band, label: 'MEASURED rate x READ FROM DATA chance', where: gid,
         chance: true, hunt: { ground: gid, perKill: k.perKill, luck: k.luck }, bands: [...k.bands] });
     }
-    /* A SCALED HOUR on the same ground past its top (src/data/scaled-hunts.js): its rows at the scaled loot rate, for gold an hour */
-    if (D.SCALABLE_GROUNDS[gid] && open) {
-      for (const [item, k] of by) {
-        out.push({ sid: 'scaled:' + gid + ':' + item, kind: 'drop', system: 'scaled-hunts', item, qty: 1, state: 'OPEN',
-          opens: D.SCALABLE_GROUNDS[gid].top + 1, band: h.band, where: gid + ' (scaled)', chance: true,
-          label: 'ASSUMED kills an hour of the band top; loot and price READ FROM DATA (lootPmFor, pricePerHour)',
-          hunt: { ground: gid, perKill: k.perKill, luck: k.luck, scaled: true } });
-      }
-    }
   }
   /* CALL OUT (src/data/boss-calls.js): a fight costs stamina only; a win rolls the called row's table, his call-only piece on it */
   for (const c of Object.values(D.BOSS_CALLS)) {

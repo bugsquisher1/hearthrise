@@ -12,6 +12,10 @@ export const ITEM_TEXT = Object.freeze({
   rarity_rare: 'Rare',
   rarity_very_rare: 'Very Rare',
   rarity_signature: 'Signature',
+  /* a Trait piece's facts (piece-words.js) */
+  piece_item_level: 'Item Level {level}',
+  piece_found_depth: '{ground}, depth {depth}',
+  piece_found_for: '{standing} for {hero}: {name}',
   /* the tooltip's head over a Signature's one fixed rule (src/data/signatures.js tip) */
   sig_rule: 'Effect',
   type_weapon: 'Weapon',
@@ -107,6 +111,7 @@ export const ITEM_TEXT = Object.freeze({
   one_bones: 'Bone',
   /* the job slice's part (lane/k1-job-slice): one head of an arrow */
   one_bronze_arrowheads: 'Bronze Arrowhead',
+  one_iron_arrowheads: 'Iron Arrowhead',
   one_big_bones: 'Big Bone',
   one_dragon_bones: 'Dragon Bone',
   one_bone_chips: 'Bone Chip',

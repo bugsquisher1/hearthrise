@@ -132,11 +132,6 @@ export function makePricer({ D, sources, rates, grid, supply = SUPPLY }) {
       let perH = 0;
       for (const [m, ch] of Object.entries(src.hunt.perKill)) perH += (r.killsByPerH[m] || 0) * ch * (src.hunt.luck ? luck : 1);
       let goldH = -r.netPerHeroH * ctx.party;
-      if (src.hunt.scaled) {
-        const pm = D.lootPmFor(src.hunt.ground, ctx.level), price = D.scaledPricePerHour(src.hunt.ground, ctx.level);
-        if (!pm || price === null) return BLANK('no scale at Level ' + ctx.level);
-        perH *= pm / 1000; goldH += price;
-      }
       if (!(perH > 0)) return BLANK('its monster is not killed on ' + src.hunt.ground);
       const h = src.qty / perH;
       return finish({ hunted: h, rested: 0, gold: goldH * h, chance: true, huntGold: true }, ctx, { rate: perH, deaths: r.deaths });

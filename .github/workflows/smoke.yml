@@ -273,11 +273,16 @@ jobs:
   # twice (the shipped game, then the one-style fours 40 Levels up), every cell again, about 2 x 39 = 78 min more, which no
   # job fits. Before V4-1 goes green, tests/lineup-v4.mjs --mutate reuses the plain measure (only the mono cells move) or
   # shards; until then a green plain run here is cancelled at 79 inside --mutate. Registered by the guard's own header.
+  # 2026-11-27 (lane/ci-reds-1127): timeout 79 -> 86. --mutate no longer measures the world twice more: the plain run hands its world over
+  # (--keep-world, --reuse-world) and the engine mutant plays only the one-style fours on two grounds (24 of the plain run's 324 cells).
+  # Here: setup 0.4 + the plain run 39.0 (45940237412, 3 workers) + the gate 1.2 + the engine mutant 2.2 (24 cells at the plain run's
+  # pace, not yet on a runner) = 42.8 min; x2 = 86. The plain run now has a worker a core (4, was 3): the next runs measure it, and the
+  # budget comes down with them.
   client-guards-6:
     runs-on: ubuntu-latest
     needs: release-proven
     if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 79
+    timeout-minutes: 86
 
     steps:
       - uses: actions/checkout@v4
@@ -298,135 +303,8 @@ jobs:
       - name: Lineups (V4, T-03 retired) - a mixed four beats a four of one style at its held depth
         if: ${{ !cancelled() }}
         run: |
-          node tests/lineup-v4.mjs
-          node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate
-      # ── END SELF-REGISTERED GUARDS ──
-
-  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (lane/ci-speed, 2026-11-18). in-page-21 ran 38.3-38.4 min
-  # on the nightlies 44139839256 and 43931474595. Here: Death popup 7.1 + HUD in reach 13.7 + setup 1.0 = 21.8 min; x2 = 44.
-  # 2026-11-27 (lane/ci-job-budgets): HUD in reach ALONE, timeout 44 -> 69. CANCELLED at its own 44 on 45900652922 and
-  # 45919097452 (723e91713) inside HUD in reach, every mutant caught (HR-8 on); 39.5-43.6 min whole on the nightly 45822566260
-  # and the set pushes (43.6 of 44 on 45931376842). hud-reachable --mutate grew to 27 mutants: the step is 31.4-33.2 min by
-  # itself, so Death popup (7.5-11.2) moved to in-page-24. Here, each at its slowest of 12 runs: setup 0.4 + install 0.7 + HUD
-  # in reach 33.2 (45931376842) = 34.3 min; x2 = 69. Past the 33-min split line by itself: a --shard in tests/hud-reachable.mjs
-  # (its owner's, the test's content) is what brings it back under.
-  in-page-46:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 69
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Playwright + Chromium
-        uses: ./.github/actions/playwright-chromium
-
-      # EVERY PANEL IN REACH (friends' panel, 2026-11-01): at six desktop sizes, solo and a party of 4, every
-      # HUD panel and window on screen and pressable, the bar at home, a moved panel clear of it; the away
-      # card follows the server and blocks nothing. --mutate plants seventeen defects.
-      - name: HUD in reach (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hud-reachable.mjs
-          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate
-
-      # A failing run is far easier to diagnose with the page state attached.
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-46
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  # ── in-page-23 ── THE AUTH LOCK, SPLIT OUT OF in-page 2026-10-31. release/v0.2.77 (run
-  # 41226511232) CANCELLED in-page at its 30 min with 0 failures, 3 mutants into auth-lock
-  # --mutate: setup 1 + node suite 8.5 + client boot 0.5 (--mutate 13.6) left 6 min for a proof
-  # of ~15. A mutant now stops at its first red arm. MEASURED on Tyler's PC under load: 0.4 +
-  # 11.1 min, not yet on a runner. 1 + 0.4 + 11.1 = 12.5; x2 = 25, 28 so the apt stall
-  # (12.5 + 12.2 = 24.7) keeps 12% slack.
-  # 2026-11-06 (lane/t-v099-reds): the Call out window joins it from client-guards, which installs no browser (run
-  # 42146852443: "Executable doesn't exist"). MEASURED on Tyler's PC under load: plain 1.8 min, --mutate 25.3 (13 mutants,
-  # each the whole rule set); at a page guard's minute a mutant on a runner, ~14. 12.5 + 14 = 26.5; x2 = 53, 55 so the
-  # apt stall (26.5 + 12.2 = 38.7) keeps 30% slack. A runner as slow as this PC (12.5 + 27.1 = 39.6) still fits.
-  # 2026-11-18 (lane/ci-speed): Auth lock and Live events moved to in-page-44. Here: Test fonts 1.1 + Call out 29.6 + Keyed hall 0.6
-  # + setup 1.3 = 32.6 min (44144849725, full sweep); x2 = 66. The longest job of the matrix: it is listed first.
-  in-page-23:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 66
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Playwright + Chromium
-        uses: ./.github/actions/playwright-chromium
-
-      # supabase-js asks no other tab unless a refresh is due (src/net/auth-lock.js): a held
-      # lock never delays the roster, one refresher across tabs, sign-out and a dead session hold.
-      # One font on every machine, or a green on Windows says nothing of this runner (tests/_test-fonts.mjs).
-      - name: Test fonts - the page guards draw GitHub's fallback on every machine
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/test-fonts.mjs
-          node tools/mutant-gate.mjs node tests/test-fonts.mjs --selftest
-
-      # CALL OUT ON THE GROUND'S PAGE (lane/c-boss-call): the server's words, the warning then ONE press at the quoted price,
-      # a moved price, no hammer, no free way back, the losing line and the boss bar. The money line and the server's half
-      # (tests/boss-call.mjs, tests/boss-call-db.mjs) stay in client-guards: they need no browser.
-      - name: Call out window (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/boss-call-window.mjs
-          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate
-
-      # A KEYED HALL ON ITS GROUND'S PAGE (lane/b-barrow-boss-room, the Krell's Hold design's pieces 5-7): the press off with no key, one confirm
-      # sending ONE hr_boss_hall_enter, the boss bar's countdown of a hasted spell and its named add's line.
-      - name: Keyed hall window (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/boss-hall-window.mjs
-          node tools/mutant-gate.mjs node tests/boss-hall-window.mjs --mutate
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-23
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
-      # tests/roads-window.mjs
-      - name: Roads window - the Talents map zooms Country Road Node, previews a route with its cost and spends only from the server's state
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/roads-window.mjs
-          node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
+          node tests/lineup-v4.mjs --keep-world
+          node tools/mutant-gate.mjs node tests/lineup-v4.mjs --mutate --reuse-world
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-12: the two proofs that PLANT INTO THE WORKING TREE (tests/mutation-safety.mjs restores and hash-verifies),
@@ -924,23 +802,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-plan-cache.mjs --selftest
           node tests/settle-budget.mjs
           node tools/mutant-gate.mjs node tests/settle-budget.mjs --mutate
-      # A PARTY'S DEFAULT PULL STAYS INSIDE THE KILL BOUND (designer 2026-11-01): a Thicket four with no pick lands its windows
-      # on the replayed chain. --mutate: the catalogue's as-built spawns back, refused kills_over.
-      - name: Party pull — a four with no pick lands inside the server's kill bound
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-pull-bound.mjs
-          node tools/mutant-gate.mjs node tests/party-pull-bound.mjs --mutate
-      # THE TIER IS THE SERVER'S (2027-02-27-hunt-tiers.sql): a pick frozen with its pull at hunt start, browser closed and hunt viewed store one world, a four plays its leader's, refused not clamped.
-      # The catalogue is GENERATED from hunt-tiers.js's one table (tools/gen-ground-tiers.mjs): --check holds the file to the data,
-      # --selftest proves each refusal bites (a tier no harder, a pull lost, a dial past the server's value bound).
-      - name: Hunt tiers — the server freezes the pick, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-ground-tiers.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-ground-tiers.mjs --selftest
-          node tests/hunt-tiers-db.mjs
-          node tools/mutant-gate.mjs node tests/hunt-tiers-db.mjs --mutate
       # THE DANGER SCALE IS THE SERVER'S (1056-danger-scale.sql, lane/v1-climb wave 1): the plan's stance frozen with its start a margin under the
       # lowest step the party last held, browser closed and hunt viewed storing one world and paying one Level XP (the share of each hero's own
       # Level, never the row's), the section and the end stamp the server's. The catalogue is GENERATED (tools/gen-danger.mjs --check holds it
@@ -1099,9 +960,6 @@ jobs:
           node tools/mutant-gate.mjs node tests/ground-pack.mjs --mutate
           node tests/balance-grade.mjs
           node tools/mutant-gate.mjs node tools/balance-sim/grade.mjs --selftest
-          # SCALED HUNTS (lane/b-scaled-hunts, hidden): on the real engine a scaled ground pays under the right-Level ground and over its own, nobody dies on Normal at the leader's Level, coin scales and drops don't
-          node tests/scaled-hunts.mjs
-          node tools/mutant-gate.mjs node tests/scaled-hunts.mjs --mutate
           node tools/gen-level-curve.mjs --check
           node tools/mutant-gate.mjs node tools/gen-level-curve.mjs --selftest
           node tests/hearth-fuel-rate.mjs
@@ -1130,6 +988,313 @@ jobs:
         run: |
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
+  # 8-45 real defects in real migration text and demand every one turns the
+  # guard red. Before the snapshot cache these replayed the whole chain per
+  # mutation — several hundred replays per run, and the arithmetic that put the
+  # b514 run through a 50-minute timeout.
+  #
+  # They are grouped because they share exactly one input: the applied chain.
+  # One job builds the snapshot once and every guard after it restores.
+  #
+  # MEASURED 2026-09-07: 20/20 green in 895.2 s (14.9 min); the two longest are
+  # conservation-fuzz 270.9 s and attended-loot-credit 94.9 s. The 2026-09-07
+  # merge re-slotted three more steps here — goal-counter-kinds --selftest
+  # (49.2 s; it replays the chain in PGlite, which is exactly this family's one
+  # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
+  # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
+  # Budget RAISED 30 -> 32, still measured x2.
+  # + login-reward (2026-10-10, measured locally): 6 s plain + 315 s mutate =
+  # 321 s (5.4 min); budget x2 = +11, so 32 -> 43.
+  # + daily-harvest-eligibility (2026-10-11, estimated from login-reward's
+  # per-replay cost: 1 replay plain + 4 SQL mutants ~ 4 min); budget x2 = +8,
+  # so 43 -> 51.
+  # + claim-intent moved from the 2026-08 slice to the whole replayed chain
+  # (2026-10-19: login-reward now applies after the account wallet, which the
+  # slice cannot replay). Measured locally: --selftest 251 s; budget +5, 51 -> 56.
+  # + b569 (origin/main): delta-transport --selftest (34 s) and skill-row-upsert
+  # --mutate (~100 s locally) = ~134 s; budget x2 = +5, so 56 -> 61.
+  # 2026-11-18 (lane/ci-speed): the account steps moved to economy-selftests-3. Here: Hunt core 14.7 + Party class XP 10.0 + Basic attack
+  # 0.2 + Renown 0.5 + setup 0.5 = 25.9 min (43931474595); x2 = 52.
+  # 2026-11-27 (lane/ci-reds-1127): Hunt core left for economy-selftests-5; timeout 52 -> 62. CANCELLED at its own 52 on 45939361593 (Hunt
+  # core 26.5, Balance calibration 1.4 + 9.6, Balance guard 11.9, then Kit trades). Here, each at its slowest of 11 runs, the never-run
+  # proofs at 1.5x a local full run: setup 0.4 + calibration 11.0 + Basic attack 0.2 + Renown 0.5 + Balance guard 11.9 + Drops 1.1 +
+  # flame, imbue, kit, loot 2.3 + Temper 1.8 + the balance-program self-tests 1.8 = 31.0 min; x2 = 62.
+  economy-selftests:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 62
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
+      # and buys nothing for a guard that never opens a page, so it stays in the
+      # in-page job. The install itself runs in every family: a job that fails on
+      # a dependency it did not know it had is a red build with no failing
+      # assertion in it, and that is the class this whole slice is about.
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE BALANCE SIMULATOR'S SMOKE (Tyler's balance ruling 2026-10-25, §11): one 15-minute cell played on the
+      # real engine twice must answer identical, sane numbers. NOT a balance guard (no tolerances yet, by the
+      # ruling): it keeps the local tool (tools/balance-sim, heavy runs stay local) runnable as the engine moves.
+      - name: Balance simulator — smoke (one cell on the real engine, deterministic)
+        if: ${{ !cancelled() }}
+        run: node tools/balance-sim/sim.mjs --smoke
+
+      # THE SIMULATOR REPRODUCES REAL HUNTS (Tyler 2026-11-19: "rebuild the audit auto hunts to make sure what we are testing is
+      # accurate to the game"): the recorded parties in tests/fixtures/balance-calibration.json (aggregated, anonymous) replayed on
+      # the real engine with each seat's own XP, kit, bar and stock must land on the server's tally: 10% on kills, Level XP, coin
+      # and damage dealt, 15% on damage taken, 25% on healing, 40% on store gold, no deaths where the record has none; and the
+      # played profile (tools/balance-sim/played.mjs) within 20%. A balance change made on purpose declares its shift in the
+      # guard. --mutate: monsters harder, more HP, more XP, more coin, the recorded bars ignored, a bent record, the played
+      # profile lost, an account key or a stored slot id in the fixture, nothing judged.
+      - name: Balance calibration — the simulator against recorded hunts
+        if: ${{ !cancelled() }}
+        run: node tests/balance-calibration.mjs
+
+      - name: Balance calibration — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/balance-calibration.mjs --mutate
+
+      # T-03 "Party class XP" (tests/party-class-xp-line.mjs) RETIRED 2026-11-22 (docs/design/redesign/12-targets.md 2.6): it held
+      # the 10-31 rule that a party beats solo only with mixed classes, which the redesign drops (a four earns more by holding
+      # deeper). V4 takes its place: tests/lineup-v4.mjs, self-registered in client-guards-2. The file stays as the party table's measuring
+      # tool (--table --mixed --write), listed in tests/guards-unregistered.json.
+
+      # THE ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14: 2.0 s, every player and
+      # monster basic attack). I1 the value; I2 core, hr-accrue and a real hunt
+      # agree on it; I3 moving the constant moves the engine, and no second
+      # numeric copy exists under src/ or the edge. --mutate: five defects.
+      - name: Basic attack — one 2.0 s interval, one source
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/basic-attack-interval.mjs
+          node tools/mutant-gate.mjs node tests/basic-attack-interval.mjs --mutate
+
+      # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
+      # itself can fail. The guard already runs inside run-smoke; its --selftest
+      # was wired into NOTHING, which is the restore-census mistake below,
+      # repeated. Worse, until 2026-08-31 it graded ANY throw as a catch: eight
+      # of eleven mutations demonstrated only "the apply threw", and a reviewer's
+      # SYNTAX-ONLY non-defect duly reported ✓ CAUGHT. Every mutation now names
+      # WHICH mechanism must catch it (the migration's own §3 gate, or this
+      # file's assertions) and a regex the catch must MATCH; a syntax error or an
+      # unplantable anchor is classified HARNESS and exits 2; and two permanent
+      # NEGATIVE CONTROLS — the reviewer's syntax-only plant and a comment-only
+      # plant — must never read as catches. Making `by` explicit also exposed
+      # that R2's counter equality, R6 and R9 had no mutation that reached them
+      # at all (§3 refused every defect aimed at them first), so all three were
+      # assertions nothing had ever fired; they now have gate-blind twins.
+      # 14 mutations + 2 controls, ~2 minutes of real PostgreSQL.
+      - name: Renown faucet — every mutation caught by its NAMED assertion
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/balance-guard.mjs
+      - name: Balance guard - the whole game against the plan (30-plan E)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/balance-guard.mjs
+          node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
+      # tests/drop-formula.mjs
+      - name: Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/drop-formula.mjs
+      # tests/econ-levers.mjs
+      - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/econ-levers.mjs
+          node tools/mutant-gate.mjs node tests/econ-levers.mjs --mutate
+      # tests/flame-rules.mjs
+      - name: Company flame rules (room, luck, decay by hunted time, the burn, the stoke rule) and their SQL catalogue
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/flame-rules.mjs
+          node tools/mutant-gate.mjs node tests/flame-rules.mjs --mutate
+          node tools/gen-flame-temper.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-flame-temper.mjs --selftest
+      # tests/imbue.mjs
+      - name: Imbuement rows (one of each kind a slot, a part from another open ground, no family keys), life, the fee, the worn set and the consumable slice's room
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/imbue.mjs
+          node tools/mutant-gate.mjs node tests/imbue.mjs --mutate
+      # tests/kit-recipes.mjs
+      - name: Kit trades bands 0 and 1 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/kit-recipes.mjs
+          node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
+      # tests/personal-loot.mjs
+      - name: Personal loot (ch / n a hero, the flame's luck, per-hero pity at the stated rate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/personal-loot.mjs
+          node tools/mutant-gate.mjs node tests/personal-loot.mjs --mutate
+      # tests/release-plan.mjs
+      - name: Release plan - every STAGED sidecar places itself, the edge point derives, no collision
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/release-plan.mjs
+          node tools/mutant-gate.mjs node tests/release-plan.mjs --mutate
+          node tools/mutant-gate.mjs node tools/release-plan.mjs --selftest
+      # tests/rule-slots.mjs
+      - name: Rule slots - every family of every cut slot holds its contract, candidates compose, no variant in a bundle
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/rule-slots.mjs
+          node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest
+      # tests/temper-steps.mjs
+      - name: Temper on steps (ranks by Level, prices, the seat, the gear part both paths read) and carry-over's quote
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/temper-steps.mjs
+          node tools/mutant-gate.mjs node tests/temper-steps.mjs --mutate
+      # tests/wage-prices.mjs
+      - name: Prices in hours of wage - no town price row types its gold, one store ceiling
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/wage-prices.mjs
+          node tools/mutant-gate.mjs node tests/wage-prices.mjs --mutate
+      # tools/balance-program/arrival-kit.mjs
+      - name: The arrival-kit run scales only jewelry numbers, moves only the arrival offset, and reads LOW over MID by stretch
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/arrival-kit.mjs --selftest
+      # tools/balance-program/balance-matrix.mjs
+      - name: The balance matrix's diff sees a planted attack and monster patch, an empty patch plays as the tree, and its flags bite
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
+      # tools/balance-program/baseline.mjs
+      - name: The balance baseline reads every outcome, its noise rule and target verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
+      # tools/balance-program/calibrate.mjs
+      - name: Calibration C-1 reads real heroes' kits and skills by band, the pass rule bites, and nothing names a player
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/calibrate.mjs --selftest
+      # tools/balance-program/census.mjs
+      - name: Rule-code census - a planted uncited function and a planted typed number each show up, a named one reads named
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest
+      # tools/balance-program/experiments.mjs
+      - name: Balance Lab experiment records - a missing hypothesis, a result older than its hypothesis, a closed record with no conclusion and a moved result file are each refused
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/experiments.mjs --selftest
+          node tools/balance-program/experiments.mjs --check
+      # tools/balance-program/formulas/architecture-register.mjs
+      - name: Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest
+      # tools/balance-program/formulas/combat-register.mjs
+      - name: Combat formula register - a CRLF checkout reads in step, a changed row or value reads STALE
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
+      # tools/balance-program/graph.mjs
+      - name: Balance model graph - an undeclared read, a wrong declaration, a new ghost edge and a wrong sign are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/graph.mjs --selftest
+          node tools/balance-program/graph.mjs --check
+      # tools/balance-program/lab.mjs
+      - name: Balance Lab ask and propose - the picture of a planted lever, an undeclared outcome of a proposal and an unknown name are each read right
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/lab.mjs --selftest
+      # tools/balance-program/levers.mjs
+      - name: Balance lever registry - an unclaimed typed number, a new key in a pinned table, a lost anchor and a bad knob are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/levers.mjs --selftest
+          node tools/balance-program/levers.mjs --check
+      # tools/balance-program/paths.mjs
+      - name: Best-path solver - a planted dominant recipe reads DOMINANT, a planted slow one NEGLECTED
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest
+      # tools/balance-program/platform-cost.mjs
+      - name: Platform cost ladder - its account-day is its hand-computed lines, no rung raises the day, a planted rung that does is caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/platform-cost.mjs --selftest
+      # tools/balance-program/progression-grid.mjs
+      - name: The progression grid's judge turns a planted out-of-band cell red, and its kits follow their rules and the data
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest
+      # tools/balance-program/proposals.mjs
+      - name: The proposal registry is whole, every toggle plants, and an alternative stacked on what it replaces is refused
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
+      # tools/balance-program/readers.mjs
+      - name: Balance Lab readers - every target has a reader or a reason, each reader judges its planted cells, the headroom reader fails a 5% step near 750, findings diff new/gone/unchanged
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/readers.mjs --selftest
+          node tools/balance-program/readers.mjs --check
+      # tools/balance-program/sensitivity/analyze.mjs
+      - name: Sensitivity matrix - a planted effect reads back with its sign, noise is not called an effect, and a planted interaction is found
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/analyze.mjs --selftest
+          node tools/balance-program/sensitivity/analyze.mjs --check-docs
+      # tools/balance-program/sensitivity/sensitivity.mjs
+      - name: Sensitivity pass - every lever's scaled numbers reach the planted tree's own data, an empty point plays as the tree, and a harder monster slows the kills
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/sensitivity.mjs --selftest
+      # tools/balance-program/sources.mjs
+      - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
+      # tools/balance-program/start-cards.mjs
+      - name: Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
+      # tools/balance-program/targets.mjs
+      - name: Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
+          node tools/balance-program/targets.mjs --check
+      # tools/gen-skill-curve.mjs
+      - name: The skill curves - generated from src/data/core-model.js, the Level clock and Inner Flame's, every refusal bites (gen-skill-curve)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-skill-curve.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-skill-curve.mjs --selftest
+      # tools/gen-talents.mjs
+      - name: The Roads catalogue - generated from src/data/talents.js, every refusal bites (gen-talents)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-talents.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-talents.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
   # ── in-page-3 ── THE HUNT SCREEN, SPLIT OUT 2026-10-21. in-page-2 was
@@ -1388,6 +1553,37 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # economy-selftests-5: the Hunt core alone (lane/ci-reds-1127, 2026-11-27), out of economy-selftests, which it took past its 52 on
+  # 45939361593. 11.0 min on the nightly 45822566260, 26.5 on 45939361593 (first-week-bands 24.4 of it, every file about twice its
+  # time on 45931376842: the runner, not the tree). Here: setup 0.4 + Hunt core 26.5 = 26.9 min; x2 = 54. Registered by run-all.mjs's header.
+  economy-selftests-5:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 54
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/hunt-core/run-all.mjs
+      - name: Hunt core — movement, leash, world step (cases + mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-core/run-all.mjs
+      # ── END SELF-REGISTERED GUARDS ──
+
   # ── perf ── THE HUNT PAGE'S FRAME, HEAP AND DOM BUDGET (2026-10-21, Andy in
   # Firefox: "the page is slowing down", "the analyser seems to have slowed
   # down"). tests/perf-budget.mjs plays the real client over the edge's own
@@ -1444,319 +1640,6 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
-
-  # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
-  # 8-45 real defects in real migration text and demand every one turns the
-  # guard red. Before the snapshot cache these replayed the whole chain per
-  # mutation — several hundred replays per run, and the arithmetic that put the
-  # b514 run through a 50-minute timeout.
-  #
-  # They are grouped because they share exactly one input: the applied chain.
-  # One job builds the snapshot once and every guard after it restores.
-  #
-  # MEASURED 2026-09-07: 20/20 green in 895.2 s (14.9 min); the two longest are
-  # conservation-fuzz 270.9 s and attended-loot-credit 94.9 s. The 2026-09-07
-  # merge re-slotted three more steps here — goal-counter-kinds --selftest
-  # (49.2 s; it replays the chain in PGlite, which is exactly this family's one
-  # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
-  # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
-  # Budget RAISED 30 -> 32, still measured x2.
-  # + login-reward (2026-10-10, measured locally): 6 s plain + 315 s mutate =
-  # 321 s (5.4 min); budget x2 = +11, so 32 -> 43.
-  # + daily-harvest-eligibility (2026-10-11, estimated from login-reward's
-  # per-replay cost: 1 replay plain + 4 SQL mutants ~ 4 min); budget x2 = +8,
-  # so 43 -> 51.
-  # + claim-intent moved from the 2026-08 slice to the whole replayed chain
-  # (2026-10-19: login-reward now applies after the account wallet, which the
-  # slice cannot replay). Measured locally: --selftest 251 s; budget +5, 51 -> 56.
-  # + b569 (origin/main): delta-transport --selftest (34 s) and skill-row-upsert
-  # --mutate (~100 s locally) = ~134 s; budget x2 = +5, so 56 -> 61.
-  # 2026-11-18 (lane/ci-speed): the account steps moved to economy-selftests-3. Here: Hunt core 14.7 + Party class XP 10.0 + Basic attack
-  # 0.2 + Renown 0.5 + setup 0.5 = 25.9 min (43931474595); x2 = 52.
-  economy-selftests:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 52
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
-      # and buys nothing for a guard that never opens a page, so it stays in the
-      # in-page job. The install itself runs in every family: a job that fails on
-      # a dependency it did not know it had is a red build with no failing
-      # assertion in it, and that is the class this whole slice is about.
-      - name: Install node modules (no browser)
-        run: npm install --no-audit --no-fund
-
-      # THE HUNT CORE (HUNT_SCREEN_SPEC §1.6): every tests/hunt-core/*.mjs —
-      # grid, the one leash, movement, the event schema, the persisted world,
-      # stepSwing inside the one loop (split-parity with the world re-decoded
-      # at every cut), purity. Each file runs its cases AND plants its own
-      # mutants into temp copies, so this one line is the plain run and the
-      # proof. Core lanes add files there, never a line here.
-      - name: Hunt core — movement, leash, world step (cases + mutants)
-        if: ${{ !cancelled() }}
-        run: node tests/hunt-core/run-all.mjs
-
-      # THE BALANCE SIMULATOR'S SMOKE (Tyler's balance ruling 2026-10-25, §11): one 15-minute cell played on the
-      # real engine twice must answer identical, sane numbers. NOT a balance guard (no tolerances yet, by the
-      # ruling): it keeps the local tool (tools/balance-sim, heavy runs stay local) runnable as the engine moves.
-      - name: Balance simulator — smoke (one cell on the real engine, deterministic)
-        if: ${{ !cancelled() }}
-        run: node tools/balance-sim/sim.mjs --smoke
-
-      # THE SIMULATOR REPRODUCES REAL HUNTS (Tyler 2026-11-19: "rebuild the audit auto hunts to make sure what we are testing is
-      # accurate to the game"): the recorded parties in tests/fixtures/balance-calibration.json (aggregated, anonymous) replayed on
-      # the real engine with each seat's own XP, kit, bar and stock must land on the server's tally: 10% on kills, Level XP, coin
-      # and damage dealt, 15% on damage taken, 25% on healing, 40% on store gold, no deaths where the record has none; and the
-      # played profile (tools/balance-sim/played.mjs) within 20%. A balance change made on purpose declares its shift in the
-      # guard. --mutate: monsters harder, more HP, more XP, more coin, the recorded bars ignored, a bent record, the played
-      # profile lost, an account key or a stored slot id in the fixture, nothing judged.
-      - name: Balance calibration — the simulator against recorded hunts
-        if: ${{ !cancelled() }}
-        run: node tests/balance-calibration.mjs
-
-      - name: Balance calibration — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/balance-calibration.mjs --mutate
-
-      # T-03 "Party class XP" (tests/party-class-xp-line.mjs) RETIRED 2026-11-22 (docs/design/redesign/12-targets.md 2.6): it held
-      # the 10-31 rule that a party beats solo only with mixed classes, which the redesign drops (a four earns more by holding
-      # deeper). V4 takes its place: tests/lineup-v4.mjs, self-registered in client-guards-2. The file stays as the party table's measuring
-      # tool (--table --mixed --write), listed in tests/guards-unregistered.json.
-
-      # THE ONE BASIC-ATTACK INTERVAL (Tyler 2026-10-14: 2.0 s, every player and
-      # monster basic attack). I1 the value; I2 core, hr-accrue and a real hunt
-      # agree on it; I3 moving the constant moves the engine, and no second
-      # numeric copy exists under src/ or the edge. --mutate: five defects.
-      - name: Basic attack — one 2.0 s interval, one source
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/basic-attack-interval.mjs
-          node tools/mutant-gate.mjs node tests/basic-attack-interval.mjs --mutate
-
-      # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
-      # itself can fail. The guard already runs inside run-smoke; its --selftest
-      # was wired into NOTHING, which is the restore-census mistake below,
-      # repeated. Worse, until 2026-08-31 it graded ANY throw as a catch: eight
-      # of eleven mutations demonstrated only "the apply threw", and a reviewer's
-      # SYNTAX-ONLY non-defect duly reported ✓ CAUGHT. Every mutation now names
-      # WHICH mechanism must catch it (the migration's own §3 gate, or this
-      # file's assertions) and a regex the catch must MATCH; a syntax error or an
-      # unplantable anchor is classified HARNESS and exits 2; and two permanent
-      # NEGATIVE CONTROLS — the reviewer's syntax-only plant and a comment-only
-      # plant — must never read as catches. Making `by` explicit also exposed
-      # that R2's counter equality, R6 and R9 had no mutation that reached them
-      # at all (§3 refused every defect aimed at them first), so all three were
-      # assertions nothing had ever fired; they now have gate-blind twins.
-      # 14 mutations + 2 controls, ~2 minutes of real PostgreSQL.
-      - name: Renown faucet — every mutation caught by its NAMED assertion
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest
-
-      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
-      # tests/balance-guard.mjs
-      - name: Balance guard - the whole game against the plan (30-plan E)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/balance-guard.mjs
-          node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest
-      # tests/drop-formula.mjs
-      - name: Drops in hunted hours, the rarity ladder and pity, the dark Trait roller (its planted mutants run inline)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/drop-formula.mjs
-      # tests/econ-levers.mjs
-      - name: Economy levers set together - a typed store price, a second coin ratio, the kit out of 0.2-0.3 of pay, the wage off the pay, Careful off C-5
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/econ-levers.mjs
-          node tools/mutant-gate.mjs node tests/econ-levers.mjs --mutate
-      # tests/flame-rules.mjs
-      - name: Company flame rules (room, luck, decay by hunted time, the burn, the stoke rule) and their SQL catalogue
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/flame-rules.mjs
-          node tools/mutant-gate.mjs node tests/flame-rules.mjs --mutate
-          node tools/gen-flame-temper.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-flame-temper.mjs --selftest
-      # tests/imbue.mjs
-      - name: Imbuement rows (one of each kind a slot, a part from another open ground, no family keys), life, the fee, the worn set and the consumable slice's room
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/imbue.mjs
-          node tools/mutant-gate.mjs node tests/imbue.mjs --mutate
-      # tests/kit-recipes.mjs
-      - name: Kit trades sample - one recipe a trade at band 0, rung by band, every face sourced and used, the store the fallback
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/kit-recipes.mjs
-          node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
-      # tests/personal-loot.mjs
-      - name: Personal loot (ch / n a hero, the flame's luck, per-hero pity at the stated rate)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/personal-loot.mjs
-          node tools/mutant-gate.mjs node tests/personal-loot.mjs --mutate
-      # tests/release-plan.mjs
-      - name: Release plan - every STAGED sidecar places itself, the edge point derives, no collision
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/release-plan.mjs
-          node tools/mutant-gate.mjs node tests/release-plan.mjs --mutate
-          node tools/mutant-gate.mjs node tools/release-plan.mjs --selftest
-      # tests/rule-slots.mjs
-      - name: Rule slots - every family of every cut slot holds its contract, candidates compose, no variant in a bundle
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/rule-slots.mjs
-          node tools/mutant-gate.mjs node tests/rule-slots.mjs --selftest
-      # tests/temper-steps.mjs
-      - name: Temper on steps (ranks by Level, prices, the seat, the gear part both paths read) and carry-over's quote
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/temper-steps.mjs
-          node tools/mutant-gate.mjs node tests/temper-steps.mjs --mutate
-      # tests/wage-prices.mjs
-      - name: Prices in hours of wage - no town price row types its gold, one store ceiling
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/wage-prices.mjs
-          node tools/mutant-gate.mjs node tests/wage-prices.mjs --mutate
-      # tools/balance-program/arrival-kit.mjs
-      - name: The arrival-kit run scales only jewelry numbers, moves only the arrival offset, and reads LOW over MID by stretch
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/arrival-kit.mjs --selftest
-      # tools/balance-program/balance-matrix.mjs
-      - name: The balance matrix's diff sees a planted attack and monster patch, an empty patch plays as the tree, and its flags bite
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/balance-matrix.mjs --selftest
-      # tools/balance-program/baseline.mjs
-      - name: The balance baseline reads every outcome, its noise rule and target verdicts bite, its scenarios hold open grounds only, and a replay is byte-identical
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/baseline.mjs --selftest
-      # tools/balance-program/calibrate.mjs
-      - name: Calibration C-1 reads real heroes' kits and skills by band, the pass rule bites, and nothing names a player
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/calibrate.mjs --selftest
-      # tools/balance-program/census.mjs
-      - name: Rule-code census - a planted uncited function and a planted typed number each show up, a named one reads named
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/census.mjs --selftest
-      # tools/balance-program/experiments.mjs
-      - name: Balance Lab experiment records - a missing hypothesis, a result older than its hypothesis, a closed record with no conclusion and a moved result file are each refused
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/experiments.mjs --selftest
-          node tools/balance-program/experiments.mjs --check
-      # tools/balance-program/formulas/architecture-register.mjs
-      - name: Formula architecture register - a bad merge, a class 3 row with no recommendation, a stale knob and a CRLF checkout are each caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/formulas/architecture-register.mjs --selftest
-      # tools/balance-program/formulas/combat-register.mjs
-      - name: Combat formula register - a CRLF checkout reads in step, a changed row or value reads STALE
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/formulas/combat-register.mjs --selftest
-      # tools/balance-program/graph.mjs
-      - name: Balance model graph - an undeclared read, a wrong declaration, a new ghost edge and a wrong sign are each caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/graph.mjs --selftest
-          node tools/balance-program/graph.mjs --check
-      # tools/balance-program/lab.mjs
-      - name: Balance Lab ask and propose - the picture of a planted lever, an undeclared outcome of a proposal and an unknown name are each read right
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/lab.mjs --selftest
-      # tools/balance-program/levers.mjs
-      - name: Balance lever registry - an unclaimed typed number, a new key in a pinned table, a lost anchor and a bad knob are each caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/levers.mjs --selftest
-          node tools/balance-program/levers.mjs --check
-      # tools/balance-program/paths.mjs
-      - name: Best-path solver - a planted dominant recipe reads DOMINANT, a planted slow one NEGLECTED
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/paths.mjs --selftest
-      # tools/balance-program/platform-cost.mjs
-      - name: Platform cost ladder - its account-day is its hand-computed lines, no rung raises the day, a planted rung that does is caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/platform-cost.mjs --selftest
-      # tools/balance-program/progression-grid.mjs
-      - name: The progression grid's judge turns a planted out-of-band cell red, and its kits follow their rules and the data
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/progression-grid.mjs --selftest
-      # tools/balance-program/proposals.mjs
-      - name: The proposal registry is whole, every toggle plants, and an alternative stacked on what it replaces is refused
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/proposals.mjs --selftest --quick
-      # tools/balance-program/readers.mjs
-      - name: Balance Lab readers - every target has a reader or a reason, each reader judges its planted cells, the headroom reader fails a 5% step near 750, findings diff new/gone/unchanged
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/readers.mjs --selftest
-          node tools/balance-program/readers.mjs --check
-      # tools/balance-program/sensitivity/analyze.mjs
-      - name: Sensitivity matrix - a planted effect reads back with its sign, noise is not called an effect, and a planted interaction is found
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/analyze.mjs --selftest
-          node tools/balance-program/sensitivity/analyze.mjs --check-docs
-      # tools/balance-program/sensitivity/sensitivity.mjs
-      - name: Sensitivity pass - every lever's scaled numbers reach the planted tree's own data, an empty point plays as the tree, and a harder monster slows the kills
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/sensitivity/sensitivity.mjs --selftest
-      # tools/balance-program/sources.mjs
-      - name: Source atlas - an item with no source, a source nothing uses, a drop nobody can reach are each listed
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/sources.mjs --selftest
-      # tools/balance-program/start-cards.mjs
-      - name: Check C1 reads the weapon cards' band on planted lives (Good alone, Slow alone, a death, a loss)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/start-cards.mjs --selftest
-      # tools/balance-program/targets.mjs
-      - name: Balance targets - a reader that does not exist, a malformed target and a planted fault are each caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/targets.mjs --selftest
-          node tools/balance-program/targets.mjs --check
-      # tools/gen-skill-curve.mjs
-      - name: The skill curves - generated from src/data/core-model.js, the Level clock and Inner Flame's, every refusal bites (gen-skill-curve)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-skill-curve.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-skill-curve.mjs --selftest
-      # tools/gen-talents.mjs
-      - name: The Roads catalogue - generated from src/data/talents.js, every refusal bites (gen-talents)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-talents.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-talents.mjs --selftest
-      # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min
   # (the sum of each step's slowest run on the full sweeps 44139839256, 44144849725 and 43931474595). Here about 25.7 min with setup and
@@ -1833,7 +1716,8 @@ jobs:
           node tests/mutant-control.mjs
           node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest
 
-  # db-replay-11: Scaled hunts, the server half (lane/c-scaled-hunts, 2026-11-07), and live events (lane/c-live-events), its own job: db-replay-8 already runs near its
+  # db-replay-11: live events (lane/c-live-events) and the steps after them, its own job (its scaled hunts step retired with the tier chain,
+  # lane/retire-tier-chain 2026-11-26): db-replay-8 already runs near its
   # 30 min. Measured locally 2026-11-07 on a cached chain: plain 89 s, --mutate 295 s (21 mutants); a cold chain build adds ~6 min.
   # + hero-slot-buy --selftest 136 s, plot-tier-price-replay --mutate 92 s, kill-daily-credit --selftest 48 s
   # (2026-11-13, lane/a-audit-guards, measured locally) = 276 s; x2 = 9.2 min, 34 -> 44.
@@ -1866,19 +1750,6 @@ jobs:
 
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
-
-      # SCALED HUNTS, THE SERVER HALF (2027-03-21-scaled-hunts*.sql, lane/c-scaled-hunts): a gold purchase priced by the server, capped by
-      # the bank and the day, paid once with one ledger row; the leader's hours spent only by the window's world swings, browser closed and
-      # hunt viewed alike; the hours running out, the switch and a leader change at the next settle; every forged claim refused; the
-      # server feature switch (2027-03-21-feature-switches.sql) turns the whole feature off and on with a row, no release. The
-      # catalogue is GENERATED from src/data/scaled-hunts.js (tools/gen-scaled-hunts.mjs): --check holds the file to the data.
-      - name: Scaled hunts — the purchase, the bank and the settle, both paths
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-scaled-hunts.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-scaled-hunts.mjs --selftest
-          node tests/scaled-hunts-server.mjs
-          node tools/mutant-gate.mjs node tests/scaled-hunts-server.mjs --mutate
 
       # ARCHITECTURE AUDIT RULES 10 AND 11 (CLAUDE.md §6, lane/c-ops-gates 2026-11-19). per-player-cost: statements a settle, ledger rows
       # a hero-hour and row writes a settle for a lone hero and a party of four, on the replay with the shipped engine, browser closed;
@@ -2371,6 +2242,58 @@ jobs:
       - name: Settings registry - base run
         if: ${{ !cancelled() }}
         run: node tests/settings-registry.mjs
+
+  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (lane/ci-speed, 2026-11-18). in-page-21 ran 38.3-38.4 min
+  # on the nightlies 44139839256 and 43931474595. Here: Death popup 7.1 + HUD in reach 13.7 + setup 1.0 = 21.8 min; x2 = 44.
+  # 2026-11-27 (lane/ci-job-budgets): HUD in reach ALONE, timeout 44 -> 69. CANCELLED at its own 44 on 45900652922 and
+  # 45919097452 (723e91713) inside HUD in reach, every mutant caught (HR-8 on); 39.5-43.6 min whole on the nightly 45822566260
+  # and the set pushes (43.6 of 44 on 45931376842). hud-reachable --mutate grew to 27 mutants: the step is 31.4-33.2 min by
+  # itself, so Death popup (7.5-11.2) moved to in-page-24. Here, each at its slowest of 12 runs: setup 0.4 + install 0.7 + HUD
+  # in reach 33.2 (45931376842) = 34.3 min; x2 = 69. Past the 33-min split line by itself: a --shard in tests/hud-reachable.mjs
+  # (its owner's, the test's content) is what brings it back under.
+  # 2026-11-27 (lane/ci-reds-1127): HUD in reach --mutate in two shards (tests/hud-reachable.mjs --shard), 1/2 here, 2/2 in in-page-54;
+  # timeout 69 -> 49. 36.5 min whole on 45948810667 (plain 3.7, the gate 1.2, the clean control 4.3, 27 mutants 27.4). Here, on that
+  # run's own mutant times: setup 1.1 + plain 3.7 + gate 1.2 + control 4.3 + shard 1/2 (14 mutants) 14.1 = 24.4 min; x2 = 49.
+  in-page-46:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 49
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-46
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/hud-reachable.mjs
+      - name: HUD in reach (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hud-reachable.mjs
+          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate --shard=1/2
+      # ── END SELF-REGISTERED GUARDS ──
 
   # economy-selftests-3: the account steps of economy-selftests, split out 2026-11-18 (lane/ci-speed). economy-selftests ran
   # 44.6 min on the nightly 43931474595 and on the diff-scoped release 44021995226 (plain runs, not proofs, fill it), the longest
@@ -4254,6 +4177,83 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # ── in-page-23 ── THE AUTH LOCK, SPLIT OUT OF in-page 2026-10-31. release/v0.2.77 (run
+  # 41226511232) CANCELLED in-page at its 30 min with 0 failures, 3 mutants into auth-lock
+  # --mutate: setup 1 + node suite 8.5 + client boot 0.5 (--mutate 13.6) left 6 min for a proof
+  # of ~15. A mutant now stops at its first red arm. MEASURED on Tyler's PC under load: 0.4 +
+  # 11.1 min, not yet on a runner. 1 + 0.4 + 11.1 = 12.5; x2 = 25, 28 so the apt stall
+  # (12.5 + 12.2 = 24.7) keeps 12% slack.
+  # 2026-11-06 (lane/t-v099-reds): the Call out window joins it from client-guards, which installs no browser (run
+  # 42146852443: "Executable doesn't exist"). MEASURED on Tyler's PC under load: plain 1.8 min, --mutate 25.3 (13 mutants,
+  # each the whole rule set); at a page guard's minute a mutant on a runner, ~14. 12.5 + 14 = 26.5; x2 = 53, 55 so the
+  # apt stall (26.5 + 12.2 = 38.7) keeps 30% slack. A runner as slow as this PC (12.5 + 27.1 = 39.6) still fits.
+  # 2026-11-18 (lane/ci-speed): Auth lock and Live events moved to in-page-44. Here: Test fonts 1.1 + Call out 29.6 + Keyed hall 0.6
+  # + setup 1.3 = 32.6 min (44144849725, full sweep); x2 = 66. The longest job of the matrix: it is listed first.
+  # 2026-11-27 (lane/ci-reds-1127): the Call out window's mutants left for three shards (in-page-51, -52, -53); timeout 66 -> 44.
+  # CANCELLED at its own 66 on 45939361593 inside the Roads window: Call out 55.1 (48 mutants at 67 s) + Roads 7.3 of its 17.5. Here, each
+  # at its slowest of 11 runs: setup 1.0 + Test fonts 1.4 + Call out plain 1.2 + Keyed hall 0.8 + Roads window 17.5 = 21.9 min; x2 = 44.
+  in-page-23:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 44
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # supabase-js asks no other tab unless a refresh is due (src/net/auth-lock.js): a held
+      # lock never delays the roster, one refresher across tabs, sign-out and a dead session hold.
+      # One font on every machine, or a green on Windows says nothing of this runner (tests/_test-fonts.mjs).
+      - name: Test fonts - the page guards draw GitHub's fallback on every machine
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/test-fonts.mjs
+          node tools/mutant-gate.mjs node tests/test-fonts.mjs --selftest
+
+      # A KEYED HALL ON ITS GROUND'S PAGE (lane/b-barrow-boss-room, the Krell's Hold design's pieces 5-7): the press off with no key, one confirm
+      # sending ONE hr_boss_hall_enter, the boss bar's countdown of a hasted spell and its named add's line.
+      - name: Keyed hall window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boss-hall-window.mjs
+          node tools/mutant-gate.mjs node tests/boss-hall-window.mjs --mutate
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-23
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/boss-call-window.mjs
+      - name: Call out window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boss-call-window.mjs
+      # tests/roads-window.mjs
+      - name: Roads window - the Talents map zooms Country Road Node, previews a route with its cost and spends only from the server's state
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/roads-window.mjs
+          node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
+      # ── END SELF-REGISTERED GUARDS ──
+
   # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
   # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
   # job (tests/run-smoke.mjs), but their --mutate/--selftest proofs were wired
@@ -5759,6 +5759,99 @@ jobs:
           node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
+  # in-page-51: the Call out window's mutants, shard 1 of 3 (lane/ci-reds-1127, 2026-11-27; tests/boss-call-window.mjs --shard). The 48
+  # mutants each play the whole rule set, 67 s a mutant at the slowest (45939361593: 54 min for 48). Here: setup 1.0 + the gate 1.2 + 16
+  # mutants 18.0 = 20.2 min; x2 = 41. Registered by the guard's own header.
+  in-page-51:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 41
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/boss-call-window.mjs
+      - name: Call out window, mutants shard 1 of 3 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=1/3
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # in-page-52: the Call out window's mutants, shard 2 of 3 (lane/ci-reds-1127, 2026-11-27; tests/boss-call-window.mjs --shard). The 48
+  # mutants each play the whole rule set, 67 s a mutant at the slowest (45939361593: 54 min for 48). Here: setup 1.0 + the gate 1.2 + 16
+  # mutants 18.0 = 20.2 min; x2 = 41. Registered by the guard's own header.
+  in-page-52:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 41
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/boss-call-window.mjs
+      - name: Call out window, mutants shard 2 of 3 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=2/3
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # in-page-53: the Call out window's mutants, shard 3 of 3 (lane/ci-reds-1127, 2026-11-27; tests/boss-call-window.mjs --shard). The 48
+  # mutants each play the whole rule set, 67 s a mutant at the slowest (45939361593: 54 min for 48). Here: setup 1.0 + the gate 1.2 + 16
+  # mutants 18.0 = 20.2 min; x2 = 41. Registered by the guard's own header.
+  in-page-53:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 41
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/boss-call-window.mjs
+      - name: Call out window, mutants shard 3 of 3 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=3/3
+      # ── END SELF-REGISTERED GUARDS ──
+
   # ── in-page-21 ── TELEMETRY, REPORT A PROBLEM, DEATH POPUP, SPLIT OUT OF in-page
   # 2026-10-26 (lane a-ci-budget). release/v0.2.50 (run 40314818369) CANCELLED in-page
   # at 36:33 with 0 failures: 12.2 min of apt stall (23.9 MB at 32.8 kB/s) + node suite
@@ -5889,6 +5982,36 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # in-page-54: HUD in reach --mutate, shard 2 of 2 (lane/ci-reds-1127, 2026-11-27; see in-page-46). On 45948810667's mutant times: setup
+  # 1.1 + the gate 1.2 + the clean control 4.3 + 13 mutants 13.4 = 20.0 min; x2 = 40. Registered by the guard's own header.
+  in-page-54:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/hud-reachable.mjs
+      - name: HUD in reach, mutants shard 2 of 2 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate --shard=2/2
+      # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-14: the last steps of db-replay-6, from "Frame self-echo" on, split out 2026-11-18 (lane/ci-speed). db-replay-6 took up to 39.2 min
   # (the sum of each step's slowest run on the full sweeps 44139839256, 44144849725 and 43931474595). Here about 19.2 min with setup and
@@ -7494,18 +7617,6 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-bench-tax.mjs --selftest
           node tests/bench-tax.mjs
           node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
-
-      # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
-      # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
-      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden (the unique Tempering bands retired with the old
-      # rungs, lane/tp-im-steps). Seconds each; the proofs plant in memory.
-      - name: Past Dawnsteel - the armor and weapon lines
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/armor-line.mjs
-          node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
-          node tests/weapon-line.mjs
-          node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
 
       # SPECIAL-ATTRIBUTE GEAR (designer, lane/d-special-attributes; Tyler 2026-11-14 "sprinkle items like this throughout the game"): each of the
       # five sample rows in src/data/special-attributes.js is the standard piece plus one attribute at its tier's size, with a home a player can

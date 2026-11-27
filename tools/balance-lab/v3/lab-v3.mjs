@@ -15,9 +15,10 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_GROUNDS } from '../../../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../../../src/data/hunts.js';
-import { GROUND_TIERS, tiersOf, tierRowOf, pullOfTier } from '../../../src/data/hunt-tiers.js';
+/* the tier rows retired (lane/retire-tier-chain): the program's one tier axis answers Normal on every ground */
+import { tiersOf, tierRowOf, pullOfTier } from '../../balance-sim/tier-axis.mjs';
 import { charXpForLevel } from '../../../src/core/xp.js';
-import { GROUND_ROSTER, FORMULA_EXCEPTIONS, formulaStats, contractXpPerH, tierRowFor } from '../../../src/data/balance-sheet.js';
+import { GROUND_ROSTER, FORMULA_EXCEPTIONS, formulaStats, contractXpPerH } from '../../../src/data/balance-sheet.js';
 import { SUPPLY } from '../../balance-program/standards.mjs';
 import { PROJECTED, placeholderWhatIf } from '../../balance-program/grid-project.mjs';
 import { KNOB_LIST } from '../virtual/knobs.mjs';
@@ -69,7 +70,7 @@ export function start(knobs) {
 const floorOf = (g) => HUNT_INDEX[HUNT_GROUNDS[g].hunt].band[0];
 export function liveWhatIf(cell) {
   if (!cell.projected) return cell.whatIf || {};
-  const w = placeholderWhatIf({ MONSTERS, GROUND_ROSTER, formulaStats, tierRowFor, tiersOf, floorOf, fitOf: (g) => groundFit(HUNT_GROUNDS[g]) }, cell.projected.floor);
+  const w = placeholderWhatIf({ MONSTERS, GROUND_ROSTER, formulaStats, tierRowFor: tierRowOf, tiersOf, floorOf, fitOf: (g) => groundFit(HUNT_GROUNDS[g]) }, cell.projected.floor);
   return { monsters: w.monsters, tiers: w.tiers, ...(cell.whatIf && cell.whatIf.items ? { items: cell.whatIf.items } : {}) };
 }
 function liveDensity(cell, w) {
@@ -85,7 +86,6 @@ function applyCell(cell, w) {
   const set = (row, k, v) => { undo.push([row, k, Object.prototype.hasOwnProperty.call(row, k), row[k]]); row[k] = v; };
   for (const [id, f] of Object.entries(w.monsters || {})) if (MONSTERS[id]) for (const [k, v] of Object.entries(f)) set(MONSTERS[id], k, v);
   for (const [id, f] of Object.entries(w.items || {})) if (ITEMS[id]) for (const [k, v] of Object.entries(f)) set(ITEMS[id], k, v);
-  for (const [g, byTier] of Object.entries(w.tiers || {})) if (GROUND_TIERS[g]) for (const [t, row] of Object.entries(byTier)) set(GROUND_TIERS[g], t, row);
   for (const [id, row] of Object.entries((cell.resolved && cell.resolved.staged) || {})) if (!ITEMS[id]) set(ITEMS, id, row);
   return () => { for (let i = undo.length - 1; i >= 0; i--) { const [row, k, had, v] = undo[i]; if (had) row[k] = v; else delete row[k]; } };
 }

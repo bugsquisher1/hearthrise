@@ -18,14 +18,14 @@
 // was the most expensive guard CI runs: nightly 44730692384 spent 16,400 job-seconds on it (1,398 plain + 15,002 across 13
 // --mutate shards), because each page mutant boots Chromium and walks every rule up to the one that catches it. 23 of its
 // mutants were planted in modules with no DOM at all (the slot's reasons, the Configure action table, the bar's drafts and
-// plans, the section readers, the summary model, Hunt prep's words, the tier note, the float defaults, the residue put) and
+// plans, the section readers, the summary model, Hunt prep's words, the float defaults, the residue put) and
 // were caught after up to 209 booked seconds each, by rules whose logic half reads those modules. Here that half runs on the
 // same fixture (tests/fixtures/hunt-envelope.json, with the page's own edits) through the same readers the widgets call, in
 // about a second; a mutant is planted into a temp copy of src and judged in about one.
 //
 // THE SPLIT KEEPS EVERY CATCH. tests/hunt-screen.mjs keeps every rule as a page rule (what the page shows, where, and what a
 // press sends): its plain run still reads every number below on screen, and its mutants keep the wiring, layout, input and
-// clocks. The 23 mutants moved here verbatim, and each is caught by the SAME rule id that caught it in the page
+// clocks. The 21 mutants moved here verbatim (23 until the two tier-note mutants left with the tiers), and each is caught by the SAME rule id that caught it in the page
 // (tests/hunt-screen.mutant-rules.json): the rules run in the page's order (HS-27, HS-4, HS-5, HS-7, HS-19, HS-20, HS-24,
 // HS-25, HS-11, HS-8), so the first red one is the one the page's stopAtFirst saw.
 //
@@ -51,8 +51,8 @@
 //         emptying the earlier one clears it
 //   HS-8  IN TOWN: the Spells list is castable first, then locked; a locked spell says which weapon casts it, or its unlock
 //         and no weapon; the Food run is the server's HP / gold / gold a point, cheapest per point first; the comparison;
-//         a new food slot starts with its HP test; Hunt prep reads a store food per use; the tier note is the tier's plain
-//         line (no number), the line beside Enter its first sentence, the facts line the server's pull
+//         a new food slot starts with its HP test; Hunt prep reads a store food per use (the tier note, its press line and the
+//         pull on the server's pick left with the tiers: lane/retire-tier-chain 2026-11-26, 12-targets 8.4 item 4)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -114,7 +114,6 @@ async function modulesOf(base) {
     FP: await imp('src/hunt-view/float-prefs.js'),
     CT: await imp('src/data/combat-text.js'),
     ST: await imp('src/data/settings.js'),
-    TIERS: await imp('src/data/hunt-tiers.js'),
     BAR_MS: (await imp('src/data/hunt-hud.js')).BAR_ANSWER_MS,
   };
 }
@@ -431,7 +430,7 @@ async function pure(base) {
     if (conflicts(env).has(6)) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
   }
 
-  { // HS-8 IN TOWN: the Spells list and its locks, the Food run, the comparison, the new food slot, Hunt prep, the tier's words
+  { // HS-8 IN TOWN: the Spells list and its locks, the Food run, the comparison, the new food slot, Hunt prep
     const env = inTown(clone(FIXTURE));
     let cs = characterOf(env);
     const set = M.HS.settingsOf(cs), skills = M.IS.skillsOf(cs), bag = M.IS.carriedOf(cs), worn = (M.IS.equipmentOf(cs) || {}).ammo;
@@ -482,30 +481,11 @@ async function pure(base) {
     const prep = M.RD.readinessOf(cs);
     const prepText = prep.checks.map((c) => c.text).join(' | ') + ' | ' + prep.short.join(', ');
     if (!prep.checks.some((c) => /^Food: [^|]*Salted Trout \(40 gp\)/.test(c.text)) || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 500));
-    /* THE TIER'S WORDS on the Glade, the server's Dangerous: its plain line and the one death line, no number; the line beside Enter its
-       first sentence; the facts line the pull on the server's pick; another ground keeps its own. */
-    const picked = 'mosslight_glade';
-    env.hunt_tier = { picks: { [picked]: 'dangerous' }, playing: null };
-    cs = characterOf(env);
-    const tiers = M.HS.huntTierOf(cs);
-    if (!tiers || tiers.picks[picked] !== 'dangerous' || Object.keys(tiers.picks).length !== 1) fails.push('HS-8 the tier does not show the server’s Dangerous: ' + JSON.stringify(tiers));
-    const r = M.HL.huntRows().find((x) => x.hunt === picked);
-    const lv = M.CSX.levelOf(cs);
-    const gdPull = M.TIERS.GROUND_TIERS[picked].dangerous.pull[0];
-    const facts = M.HL.packWords(r, M.HL.tierPull(r, 'dangerous', 1));
-    if (!new RegExp(' packs? of ' + gdPull + '[ ,]').test(facts)) fails.push('HS-8 the facts line does not say the pull on the server’s Dangerous: ' + facts);
-    const gdLine = M.TIERS.TIER_LINES.dangerous.more;
-    const note = M.HL.tierWords(r, 'dangerous', 1, lv ? lv.level : null);
-    if (note !== gdLine + '\n' + M.TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + note);
-    if (/\d/.test(note)) fails.push('HS-8 the tier note carries a number: ' + note);
-    const press = M.HL.tierChoiceWords(r, 'dangerous', 1);
-    if (press !== 'Dangerous: ' + gdLine.split('\n')[0].replace(/^M/, 'm')) fails.push('HS-8 the line beside Enter reads: ' + press);
-    if (/\d/.test(press)) fails.push('HS-8 the line beside Enter carries a number: ' + press);
   }
   return fails;
 }
 
-/* The 23 mutants of tests/hunt-screen.mjs planted in modules with no DOM, moved here verbatim (lane/c-rules-in-node 2026-11-20).
+/* The 21 mutants of tests/hunt-screen.mjs planted in modules with no DOM, moved here verbatim (lane/c-rules-in-node 2026-11-20).
    Each one's page rule (tests/hunt-screen.mutant-rules.json) is the rule that catches it here. */
 const MUTANTS = [
   /* Tyler 10-25: ammo on its own tab (HS-27, HS-7). */
@@ -517,9 +497,6 @@ const MUTANTS = [
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
   ['the store price is not shown in the Food run (HS-8)', 'src/shell/action-table.js', '  const price = srv ? srv.price : null;', '  const price = null;'],
-  /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
-  ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],
   ['Hunt prep tells a player to buy first', 'src/shell/hunt-go.js', "return c.source === 'store' ? { kind: c.kind, own: null, store: off ? null : store, off }", "return c.source === 'store' ? { kind: c.kind, own: null, store: null, off }"],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],

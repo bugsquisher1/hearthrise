@@ -66,13 +66,11 @@ begin
     -- 1056's: the same, plus the frozen stance in the overlay. After 1059-no-party-finder.sql, the party view at 1059's image:
     -- this file's splice in it, its `listed` key gone. After 1062-store-step.sql, hr_hunt_settle_session at 1062's image: this
     -- file's body with its gold_out proof priced at the store step; this file restates its own, and 1062's retry splices it back.
-    -- After 1071-trait-pieces.sql, the instance read at 1071's image (restated whole with this file's splice in it, plus the worn pieces),
-    -- and after 1074-inner-flame-luck.sql the same with its `flame` key (06fa5411).
+    -- After 1071-trait-pieces.sql, the instance read at 1071's image (restated whole with this file's splice in it, plus the worn pieces).
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)'
-                and v_md5 in ('43c031340d414ede76522755f7060233', '01b65ee3b44238d75fefb3aaedca260d', '3097347b88e3a5187f2f12cf0d7fbcae',
-                              'fc3028f121261dd3b7a15476c5164c40', '06fa5411752cbb0a3d481fe1e8420cfc'))
-       and not (v_r.fn = 'public.hr_hunt_party_view(uuid,integer)' and v_md5 = 'c88adbee1f77556025bfea0ddf2c6c11')
+                and v_md5 in ('43c031340d414ede76522755f7060233', '558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9'))
+       and not (v_r.fn = 'public.hr_hunt_party_view(uuid,integer)' and v_md5 = '8a1c6092767da47b0399a6a2d7ad91a4')
        and not (v_r.fn = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)' and v_md5 = 'a2991dfe16b083693b702f7a910ede1e') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;

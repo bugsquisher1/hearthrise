@@ -654,7 +654,7 @@ Against `townWageShare` 0.25: a work-hour is worth it on the first rung from abo
 **Calls made here.**
 
 - **The trade Level gates the band.** Under 4.8 alone the band was the job's and the rung was only an XP choice, so a company at Cooking 16 cooked every band at full yield. Levels 16 to 99 bought quality and speed and nothing else, which is a skill nobody needs to level. Now each metal is ten Levels on. That is the OSRS shape: a new product as you level. The training choice is the newest band (full XP, yield 0.75 to 0.92, the strongest good) or the band behind (yield 1.0, 7% weaker, 7% cheaper).
-- **Band 0 needs no depth record.** The first band is open to every company, so a new account's first visit to town can work every recipe in the sample. Every other band keeps 4.2's rule: a depth record at that band. A band 0 record would cost one kill, so it never bounded an idle alt's labor. The store floor's daily budget does that (5.5), and an alt earns far more by hunting.
+- **Band 0 needs no depth record.** The first band is open to every company, so a new account's first visit to town can work every recipe in the sample. Every other band keeps 4.2's rule: a depth record at that band or deeper (ruled 2026-11-27, lane/designer-kit-band1: bands 1 to 3 have one or two grounds each, so an exact match would leave a company that skipped the Glade without iron; built in `hr_trade_band_open`, lane/k1-server-fixes). A band 0 record would cost one kill, so it never bounded an idle alt's labor. The store floor's daily budget does that (5.5), and an alt earns far more by hunting.
 - **The good is the bundle, counted in hours.** The band 0 goods keep the live items the first hour already names (`20` section 3.2: Cooked Shrimp, Bronze Arrows, Copper Ore), and the job slice re-cuts each to one hunted hour. A good with no live item yet (the arrowhead) becomes an item with the verb that makes it, never before (the W0 rule).
 - **Own stock first, never two bands behind.** The plan spends the company's own goods at the heroes' band or one behind, then the store. A good two or more bands behind is weaker than the store's, so the plan sells it to the store floor or leaves it in storage.
 - **The work day is planned whole.** The server plans every work-hour from the stock rules (3.4), so a company that has something to make uses its whole day. The pace table below is why: at 0.8 of the day used, the kit lags its heroes by a band or more on 76 days of 140.
@@ -767,6 +767,135 @@ At V the same kit is 0.135 of gross and from the store 0.187. So a 10 h day sits
 The walk found the gap in row 1b: with the sample alone, steps 4, 6 and 8 have inputs only the live bench makes. So the cut and batch 2 are one release.
 
 **Built here:** `src/data/trades.js` `TRADES.was` now says what it is for (the live skill the trade replaces, which the cut deletes; nothing carries over). Everything else above is the backend's cut slice and the batch-2 data lane (HANDOFFS 2026-11-27, designer-calls-1127). No new migration from this lane.
+
+### 4.12 Built: band 0 whole and the slice's three calls; the cut's contract (lane/one-town-work, 2026-11-27, backend architect)
+
+**How it plays:** on the first day every good the band 0 jobs need is itself a band 0 job: chop logs, saw planks, mine ore, smelt bars, catch shrimp, mine rune essence and cut blank runes, pull turnips and press juice, grind whetstones. A job you stop gives back the fee of every set it never got to. A job the day would cut short is kept going by your work-block rule, if you set one. Everything a job makes is Plain until something in the game reads quality.
+
+**Built (STAGED, dark with `trade_jobs`):**
+- **Batch 2 of band 0 (row 1b).** Nine `KIT_RECIPES` rows: `log_b0`, `fish_b0`, `rune_stone_b0`, `grain_b0` (Turnip), `bar_b0`, `shaft_b0`, `cut_stone_b0`, `honing_stone_b0` (Coarse Whetstone, 2 bars), `drink_b0` (Turnip Juice). Twenty named rows in all, 25 job recipes with the imbuements. The validator's cap is "band 0 whole": one row a kind a band, a refine row allowed. `tests/kit-recipes.mjs` KR-CLOSED holds the cut's precondition: every town input of a band 0 job is made by another band 0 job, never only by the bench, the store or the kit (17 mutants).
+- **Quality dark (row 6).** `TRADE_LEVERS.quality.live` false; `settleJob` and its twin `hr_trade_roll` read it (`hr_trade_levers.quality_live`) and roll no quality at all. 1063's VERIFY(m) pins the lit cascade with the row lit for the probe and put back, so the day it lights the twin is already the JS.
+- **The fee back (row 5).** `hr_trade_job_close` credits `fee - ceil(fee x attempted / count)` through one `hr_apply`, journalled `trade_fee_refund`, keyed by the job. Security S-28.
+- **The rule buys for a job (row 7).** `hr_time_auto_buy` and `hr_time_auto_sweep` restated in 1073 (pinned to 1071): a hero whose open job would stop at the cap with sets left is working for the rule.
+- **The farm's unit.** `cropXp()` (252) and `hr_trade_levers.crop_xp`, for the cut's farm writer.
+
+**Calls made here (CONFLICTS 2026-11-27 one-town-work):** the fee comes back at the day's cap as well as at a stop (the same goods never made); `grain_b0` is a Farming job beside the plots (the farm grows with no work-day cost, the job spends the day); the hearth's fuel runs stay the one bench run (they train Inner Flame, a combat skill, lane/f1-inner-flame's).
+
+**Not built: the cut (row 1).** It cannot land alone. Counted on this set (the items by `catalogue-coherence`, the guards by search, the cut not run): 61 replay guards name a gathering or bench pointer in their fixtures, the cut retires the edge's gather and artisan channels, the Work window's gather and bench rows and the first hour's "Cook 10 Shrimp" through the bench, and 145 live items lose their every door (43 ammo, 37 foods and drinks, 27 jewelry, 18 materials, 12 gathering tools, 6 armor, 2 more; `dawn_bar`, the Dawnsteel Temper kit's input, among them). So the cut is one landing of four lanes, and its server half is this contract.
+
+| Layer | What the cut does | Owner |
+|---|---|---|
+| Data | `SKILLS_DEF` combat only; `hr_activities` keeps only the hearth's `fuel_*` rows, and only until F1 lights the company flame (4.13 row 3) (regenerated `1065` by `tools/gen-catalogues.mjs`); the 145 doorless items (listed below) get a band's `KIT_RECIPES` batch (bands 1 to 8, 20 or fewer a batch: `KIT_BATCH_MAX` is a batch cap since 4.13) or a cut | Designer |
+| Server | One file `NNNN-one-town-work-cut.sql` after `1073` and the regenerated `1065`: drop `hr_trade_row_sync` (trigger and function), `company_trades`, and `hr_trade_lock` / `hr_trade_is` once nothing calls them; delete every `player_skills` row whose skill left `hr_skills`, one `admin` ledger row an account (`one_town_work_cut`, the XP removed by skill; nothing converts); every pointer, errand and last activity naming a cut activity to idle; the farm's XP writers credit `company_trade_xp` farming `crop_xp` a crop and its gates read `hr_trade_level_of`; restate the readers that name trade skills (`hr_lb_skills`, `hr_market_eligible`'s artisan door, `hr_players_online*`, `hr_unlock_buy` / `hr_unlock_guard`, `hr_hunt_after_job`, `hr_resume_plan`, `hr_work_day_view` without `trades`); the `bench_run` and `bench_tax` sections and the bench's client verbs (`hr_recipe_learn`) leave the envelope and the baseline. ITS LAST STATEMENT LIGHTS `trade_jobs`, so no apply leaves the bench live beside the switch or the bench gone with it dark. §self-check: no trade row in `player_skills` or `hr_skills`, no cut pointer, a farm harvest credits 252 a crop, every bench verb gone, grant hygiene | Backend |
+| Edge | `set-activity.js` refuses `gather`; `artisan` only for the hearth; `accrue-gather.js`, `tick-gather.js` and the bench half of `accrue-artisan.js` / `tick-artisan.js` retire; `catalogue.js` loses the bench | Reliability (one deploy, the release's) |
+| Client | The Work window is the Jobs list, the work blocks and the hearth; the Skills window's trade lines read `trade_jobs.trades`; `town-work.js`, `bench-fee.js`, `bench-output.js`, `station-sort.js`, `town-ticker.js` retire; the bag's Cook all, the first hour's coach and the item tips' "Made by" lines point at jobs | Systems |
+| Guards | The 61 replay guards: a guard whose subject was the bench retires with that said (CLAUDE.md 3.6); a unique catch (the world tick's token and writer checks, conservation, the settle budget) is re-aimed at the hunt channel or a job | Each layer's lane |
+
+The four land as one merge on the set, after the designer's item batches, in the release that ships `trade_jobs`.
+
+**The 145 the cut would orphan, by band and kind** (game designer, lane/designer-kit-band1, 2026-11-27). Counted from the data by `node tools/balance-program/redesign/trades/cut-orphans.mjs` (its `--check` holds `cut-orphans.json`), on set/v0.2.144 before band 1 landed. An item is orphaned when every door it has is the bench (every skill but the hearth's fuel runs, which make no item) or a gathering node, and no job makes it. The farm, drops, the store, the kit and the chests stay doors. Its band is its item Level over 20, else the metal or wood in its name (bronze and copper 0, iron and oak 1, steel and willow 2, mithril and maple 3, rune and yew 4, ember 5, dawn 6, cobalt 7, wolfram 8), else its bench or node Level read on the job ladder (band = (Level - 1) / 10, rounded down). Kind: ammo (arrows, bolts, whetstones, runes), food, drink (mana), jewelry, tool, armor (cloaks and a shield), weapon, material.
+
+| Band | Ammo | Food | Drink | Jewelry | Tool | Armor | Weapon | Material | All |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 6 | 6 | 0 | 0 | 0 | 1 | 1 | 1 | 15 |
+| 1 | 10 | 3 | 1 | 9 | 2 | 0 | 0 | 1 | 26 |
+| 2 | 8 | 6 | 1 | 6 | 2 | 2 | 0 | 2 | 27 |
+| 3 | 2 | 5 | 0 | 0 | 2 | 0 | 0 | 3 | 12 |
+| 4 | 8 | 3 | 1 | 0 | 2 | 0 | 0 | 2 | 16 |
+| 5 | 6 | 6 | 1 | 3 | 2 | 1 | 0 | 1 | 20 |
+| 6 | 1 | 3 | 0 | 3 | 2 | 1 | 0 | 1 | 11 |
+| 7 | 1 | 1 | 1 | 3 | 0 | 1 | 0 | 1 | 8 |
+| 8 | 0 | 2 | 0 | 3 | 0 | 1 | 0 | 1 | 7 |
+| 9 | 1 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
+| All | 43 | 37 | 5 | 27 | 12 | 7 | 1 | 13 | 145 |
+
+| Band | The items |
+|---|---|
+| 0 | Ammo: `chalked_earth_rune`, `chalked_ice_rune`, `chalked_poison_rune`, `chalked_rupture_rune`, `chalked_water_rune`, `copper_whetstone`. Food: `cooked_copper_crab`, `cooked_herring`, `cooked_wolf_meat`, `copper_crab`, `roasted_carrot`, `turnip_mash`. Armor: `graypelt_cloak`. Weapon: `klappas_club`. Material: `copper_bar` |
+| 1 | Ammo: `barbed_arrows`, `iron_arrows`, `iron_bolts`, `iron_whetstone`, `scored_earth_rune`, `scored_fire_rune`, `scored_ice_rune`, `scored_poison_rune`, `scored_rupture_rune`, `scored_water_rune`. Food: `cooked_pikeperch`, `cooked_trout`, `wheat_bread`. Drink: `carrot_juice`. Jewelry: `banded_signet_follow`, `banded_signet_keen`, `banded_signet_keen_follow`, `banded_signet_keen_surge`, `banded_signet_surge`, `banded_signet_surge_follow`, `fang_studs_focus`, `fang_studs_steady`, `fang_studs_steady_focus`. Tool: `iron_axe`, `iron_pickaxe`. Material: `oak_plank` |
+| 2 | Ammo: `etched_earth_rune`, `etched_fire_rune`, `etched_ice_rune`, `etched_poison_rune`, `etched_rupture_rune`, `etched_water_rune`, `steel_arrows`, `steel_whetstone`. Food: `baked_potato`, `cooked_goldgill`, `cooked_lobster`, `cooked_panther_meat`, `cooked_silverfin`, `pikeperch`. Drink: `tomato_juice`. Jewelry: the six `seam_jasper_band_*`. Tool: `steel_axe`, `steel_pickaxe`. Armor: `steelgrate`, `warband_bulwark`. Material: `field_ration`, `willow_plank` |
+| 3 | Ammo: `mithril_arrows`, `mithril_whetstone`. Food: `cooked_bear_meat`, `goldgill`, `roasted_pumpkin`, `silverfin`, `tomato_soup`. Tool: `mithril_axe`, `mithril_pickaxe`. Material: `flux_salt`, `maple_plank`, `verdite_ore` |
+| 4 | Ammo: the six `carved_*_rune`, `rune_arrows`, `rune_whetstone`. Food: `carrot_stew`, `cooked_swordfish`, `vegetable_stew`. Drink: `pumpkin_cider`. Tool: `rune_axe`, `rune_pickaxe`. Material: `verdite_bar`, `yew_plank` |
+| 5 | Ammo: the six `graven_*_rune`. Food: `cooked_shark`, `ember_tart`, `fishers_pie`, `pumpkin_pie`, `river_chowder`, `swordfish`. Drink: `goldenroot_tea`. Jewelry: `ember_earrings`, `ember_necklace`, `ember_ring`. Tool: `ember_axe`, `ember_pickaxe`. Armor: `archmage_cloak`. Material: `heartgarnet` |
+| 6 | Ammo: `dawn_whetstone`. Food: `bear_claw_pie`, `cooked_frostfin`, `goldenroot_roast`. Jewelry: `dawn_earrings`, `dawn_necklace`, `dawn_ring`. Tool: `dawn_axe`, `dawn_pickaxe`. Armor: `duskweave_cloak`. Material: `dawn_bar` |
+| 7 | Ammo: `emberhead_arrows`. Food: `shark`. Drink: `emberfruit_cordial`. Jewelry: `cobalt_earrings`, `cobalt_necklace`, `cobalt_ring`. Armor: `samite_cloak`. Material: `runewood_plank` |
+| 8 | Food: `cooked_moonfish`, `moonfish`. Jewelry: `wolfram_earrings`, `wolfram_necklace`, `wolfram_ring`. Armor: `cerecloth_cloak`. Material: `duskwood_plank` |
+| 9 | Ammo: `dawnpoint_arrows`. Food: `moonbloom_elixir`, `void_banquet` |
+
+**What each becomes (the designer's rule for the batches to come).**
+
+- **A band's kit face, in its band's batch:** the band's arrow, bolt, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar. Band 1's are built (4.13). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
+- **A second good of one kind at one band is cut with the bench** (4.9 rule 1: a recipe is one kind at one band, so two meals a band are the same hour of food twice): the extra foods and drinks at each band once its batch has picked its one meal and one drink, the raw fish no batch picks and no monster drops, `barbed_arrows`, `copper_whetstone`, `copper_bar`, and the Deep Seam bridge (`verdite_ore`, `verdite_bar`, `flux_salt`: one bar a band). Named arrows past a band's metal (`emberhead_arrows`, `dawnpoint_arrows`) are cut too: a band's arrow is its metal's.
+- **Jewelry (27), the cloaks and `heartgarnet` are Artificing's Trait crafts** (section 2: crafted jewelry and cloaks roll Traits from the part used). They need kinds `KINDS` does not have yet, so they are their own batch, designed with the Trait crafts and landed before the cut.
+- **The gathering tools (12) are cut with the bench.** They speed the gathering nodes the cut removes. The `tool_*` kinds bring tools back as job tools when they ship (20 section 1.4).
+- **The named-piece reforges** (`klappas_club`, `steelgrate`) are gear, and gear drops (section 2): each becomes a drop of its named source in `28-named-pieces.md` or is cut.
+- **Uses that outlive their source** are re-pointed by the cut's data lane to the band's face: the room and property costs on `cooked_trout`, `cooked_lobster`, `cooked_shark`, `wheat_bread`, `field_ration`, `goldenroot_roast`, `moonbloom_elixir` and the oak, willow, maple, runewood and duskwood planks, and the Hallmark and reforge offers on the crafted jewelry.
+
+### 4.13 The cut's four calls, ruled, and band 1 (2026-11-27, game designer, lane/designer-kit-band1)
+
+**How it plays:** a job you start and never finish costs you nothing for the sets it never got to, whatever ended it. Farming has a job like every other gathering trade, and the plots keep growing on their own beside it. The Great Hearth is fed from the Hearth panel and by your stoke rule while you hunt, never by a hero standing at it. Each new metal arrives as one batch of jobs.
+
+| # | Call (CONFLICTS 2026-11-27, one-town-work) | Ruling | Why |
+|---|---|---|---|
+| 1 | The fee back when the day's cap ends a job, not only at a stop | **Kept as built: the fee of every set never attempted comes back, however the job ends** (a stop, the day's cap, Collect at the end). One rule, `fee - ceil(fee x attempted / count)`, journalled `trade_fee_refund` | 4.11 row 5's reason covers it word for word: the fee is the sink on goods made. The quote's count is a whole day's attempts whatever is left of the day, so without it a job started at noon always pays for sets the clock never allowed. If the standing work rule buys a block (4.11 row 7) the job runs on, and only the sets still unattempted at its true end come back. No exploit: the refund is at most what the same job burned, and gold parked in a fee earns nothing |
+| 2 | `grain_b0` (Pull Turnips), a Farming job beside the plots | **Kept, and every band gets its crop the same way** (band 1 Pull Carrots). The plots stay the passive door | Two doors, two different costs: the plots cost seeds and no work hours, the job costs work hours and no seeds. A company with spare hours pulls, a company whose hours are spoken for plants. That is a real choice, never the same choice twice. Cutting it would leave Farming the one gathering trade with no job, so its Level would read on the Skills list with nothing in the Work window (4.11 row 1a: hidden is the rule for that). Merging the plots into a job would make the farm cost work hours it never did and lose the one town door that runs on no clock |
+| 3 | The hearth's fuel runs kept as the one bench run (they train Inner Flame) | **Overruled: there is no bench run in the target.** The flame is the company's (21 section 1): Remains go on it through the stoke rule and the Burn press (`hr_flame_burn`), and Flame Level is what burns down while heroes hunt. The `fuel_*` rows and the old Inner Flame skill XP retire with F1 (21 section 1, build step 5; lane/f1-inner-flame). Bridge only: if the cut ships before F1 lights the company flame, the cut keeps the `fuel_*` rows and the artisan channel for the hearth alone, and F1's lighting removes both. Nothing new is built on them | A hero standing at a fire to train a skill is the old bench in a new coat: a press repeated every day for a number. 21's flame is set once (the stoke rule) and then runs on what you hunt, which is the first principle. Keeping the run would also leave two ways to raise one flame, a bench Level and a Flame Level |
+| 4 | `KIT_BATCH_MAX` counts every named row (20), so band 1 cannot be added | **Built: a cap a batch.** `src/data/trades.js` `KIT_BATCHES` holds the named rows as batches (`band0-sample` 5, `band0-whole` 9, `temper-kits` 6, then a band a batch), `KIT_RECIPES` is the batches end to end, and `validateKitRecipes` refuses a batch past 20 | CLAUDE.md section 10's 20 is an authoring pace (play a batch, read it for repetition, then the next), never a ceiling on the game. A per-band cap would bite a correct band once Alchemy ships its draughts. `tests/kit-recipes.mjs` KR-BATCH proves it on synthetic faces: two batches of 15 pass, one of 21 is refused, two mutants (the cap counts the whole list again, no cap) |
+
+Found on the way and fixed: `validateKitRecipes` read the shipped faces whatever faces it was handed, so a caller passing its own table was checked against the wrong one. It reads its `faces` argument now.
+
+**Band 1, iron: built (STAGED, dark with `trade_jobs`).** Two batches, each read for repetition (CLAUDE.md section 10).
+
+*How it plays:* once a hero has a depth record on the Mosslight Glade and a trade reaches Level 11, the Work window offers that trade's iron job. Iron ore smelts to Iron Bars, which forge Iron Arrowheads and grind Iron Whetstones. Oak logs saw to Oak Planks. An arrowhead and a plank make an Iron Arrow or an Iron Bolt. Trout cooks to Cooked Trout, carrots press to Carrot Juice, and two Blank Runes and a bone cut any of the six Scored runes. A band 0 caster can now cut every family of Chalked rune, not only fire.
+
+| Batch | Rows | What |
+|---|---|---|
+| `band0-runes` | 5 | Cut Chalked Earth, Water, Ice, Poison and Rupture Runes. The sample cut only fire, so a caster on any other family had only the store on the first day |
+| `band1-iron` | 18 | Mine Iron Ore, Chop Oak Logs, Catch Trout, Pull Carrots, Smelt Iron Bars, Saw Oak Planks, Cook Trout, Press Carrot Juice, Grind Iron Whetstones, Forge Iron Arrowheads, Fletch Iron Arrows, Fletch Iron Bolts, and Cut Scored Earth, Water, Fire, Ice, Poison and Rupture Runes |
+
+43 named rows in five batches (5, 9, 6, 5, 18), 48 job recipes with the imbuements. Every band 1 row opens at its trade's Level 11 (rung 2, `bandRung`), and the Tempering Salts (band 1's Temper kit, already named) at Smithing 21, the kind's own rung.
+
+*Calls made here.*
+
+- **The rune's stone has no metal.** Rune Essence and Blank Runes are every band's goods, made by band 0's two jobs alone, so a band's rune is its tier (Scored at band 1) and its binder. A stone a band would be eight new goods with no decision in them, and a second Cut Blank Runes job behind Level 11 would be the same good at the same work behind a gate. The validator now refuses any good made by two rows ("one good, one recipe"), and `KIT_FACES` names the shared face at each band so a rune's inputs still read its own band.
+- **Band 1's Remains are Bones** (`STREAM_FACES.remains[1]`). Band 1 has no imbuement, but its runes bind with Remains. The Mosslight Glade, the band 1 ground (gear Level 20), drops Bones from the Glade Poacher, the Goblin Sluicer and Rook the Poacher, so bands 0 to 2 bind with one good, and the binder changes where the imbuement's does.
+- **The first bolt is band 1's.** The bolt opens at Woodcrafting's second rung, so band 0 has none. Iron Bolts take the Iron Arrowhead and an Oak Plank, the arrow's own chain, so a ranged company makes both from one forge.
+- **One new good: Iron Arrowheads** (`iron_arrowheads`, booked at 25 under the Iron Bar's 30 like the bronze head under its bar, a placeholder icon re-dyed from the Barrow Nail by `tools/world-art/job-face-icons.mjs` for the Art Director to judge).
+- **Band 1's meal is Cooked Trout and its drink Carrot Juice.** The other band 1 foods (`cooked_pikeperch`, `wheat_bread`) and `barbed_arrows` are second goods of one kind at one band, cut with the bench (4.12). Kitchen 1's Cooked Trout keeps its source, and Kitchen 3's Wheat Bread is the cut's data lane's to re-point.
+
+*Every input has a source and every output a use* (`tests/kit-recipes.mjs` KR-SOURCE and KR-CLOSED, read from `catalogue-coherence`). Every town input of every band 0 and band 1 job is made by a job at its band or below. The bones are a monster drop. Every output is worn, eaten, drunk or spent by another job. After band 1 the cut orphans **128** live items, not 145 (`cut-orphans.mjs`): 17 gained a job (the five Chalked runes, the six Scored runes, Iron Arrows, Iron Bolts, Iron Whetstones, Cooked Trout, Carrot Juice and Oak Planks). Band 1's last five are the cut's (`barbed_arrows`, `cooked_pikeperch`, `wheat_bread`, the iron axe and pickaxe), and its nine rings and studs are Artificing's.
+
+**Walk-through: a company's first iron day, on real data.** It holds what the band 0 walk-through (4.11) ends with: band 0 goods and every trade trained on band 0 jobs. Each trade needs 7.5 work-hours of its own XP to reach Level 11 (`tradeXpTable`), about a quarter of one free day of a company of four. Every id was grepped on the set (`items.js`, `monsters.js`, `hunt-grounds.js`, `danger.js`, `trades.js`).
+
+| # | Step | Holds and can reach (steps before only, plus band 0) | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Mosslight Glade to a depth record | Band 0 gear and kit. The Glade opens at Level 16 | `hunt-grounds.js mosslight_glade`, `DANGER_GROUNDS.mosslight_glade` gear Level 20 (band 1, `hr_trade_band_open`). Drops `bones` (`glade_poacher`, `goblin_sluicer`, `rook_poacher`) | Yes |
+| 1 | Mine Iron Ore, Mining 11 | The band 1 record from step 0. No input | `ore_b1`, face `iron_ore` | Yes once lit |
+| 2 | Smelt Iron Bars, Smithing 11 | Ore from step 1 | `bar_b1`, 1 `iron_ore` to `iron_bar` | Yes once lit |
+| 3 | Forge Iron Arrowheads, Smithing 11 | Bars from step 2 | `arrowhead_b1`, 1 `iron_bar` to `iron_arrowheads` (new) | Yes once lit |
+| 4 | Chop Oak Logs and Saw Oak Planks, Woodcutting 11 and Woodcrafting 11 | Nothing needed for the logs | `log_b1` (`oak_log`), `shaft_b1` (1 `oak_log` to `oak_plank`) | Yes once lit |
+| 5 | Fletch Iron Arrows or Iron Bolts, Woodcrafting 11 | Arrowheads from step 3, planks from step 4 | `arrow_b1`, `bolt_b1`: 1 `iron_arrowheads` and 1 `oak_plank` each | Yes once lit |
+| 6 | Grind Iron Whetstones, Smithing 11 | Bars from step 2 | `honing_stone_b1`, 2 `iron_bar` to `iron_whetstone` | Yes once lit |
+| 7 | Catch Trout and Cook Trout, Fishing 11 and Cooking 11 | Nothing needed for the fish | `fish_b1` (`trout`), `meal_b1` (1 `trout` to `cooked_trout`) | Yes once lit |
+| 8 | Pull Carrots and Press Carrot Juice, Farming 11 and Cooking 11 | Nothing needed for the crop (or the plots' carrots, `carrot_seed` from the shop) | `grain_b1` (`carrot`), `drink_b1` (1 `carrot` to `carrot_juice`) | Yes once lit |
+| 9 | Cut Scored runes, Runecutting 11 | Blank Runes from band 0's Mine Rune Essence and Cut Blank Runes, bones from step 0 | `rune_<family>_b1`: 2 `rune_blank` and 1 `bones` to `scored_<family>_rune`, six families | Yes once lit |
+| 10 | Mix Tempering Salts, Smithing 21 | Bars from step 2 | `temper_kit_b1`, 3 `iron_bar` to `temper_salts` | Yes once lit |
+
+No step needs a good only the bench, the store or the start kit makes. The walk found one gap, now ruled: band 1's runes had no Remains face (`STREAM_FACES` had none at band 1), so the server would have refused to sell all six.
+
+**The labor ratio at 10, 12 and 14 hours, at band 1,** MEASURED. The burn is the real engine's: the Steady four (hammer, bow, mage, healer) at the Glade's reference Level 23, mid kit, nothing over item Level 39, 8 seeds x 10 h (`node tools/balance-program/redesign/v1-climb.mjs --ground mosslight_glade --level 23 --only base:steady --seeds 8 --hours 10 --max-il 39`, saved as `k1-band1-glade.json`), priced by the K1 tool (`measure.mjs --from tools/balance-program/redesign/trades/k1-band1-glade.json --days 10,12,14`, saved as `k1-band1-measured.txt`). The Glade's casters drink far more than Muster's four (the drink line is 2,862 g of the kit an hour), so the kit asks 0.66 work-hours a hunted hour (0.74 with imbuements), against Muster's 0.56.
+
+| Hunting a hero a day | Free 8 h, whole day planned | Free 8 h, 0.8 used | Premium 10 h, whole day | Kit made at home / from the store (free, whole day) | Gold the kit costs, share of gross (free, whole day) |
+|---|---|---|---|---|---|
+| 10 h | 0.82 | 1.03 | 0.66 | 100% / 0% | 0.042 |
+| 12 h | 0.99 | 1.23 | 0.79 | 100% / 0% | 0.042 |
+| 14 h | 1.15 | 1.44 | 0.92 | 87% / 13% | 0.068 |
+
+So the band 1 kit sits inside the 0.8 to 1.0 this page wants at 10 and 12 hours on a planned day, and 14 hours leans on the store for an eighth of its kit. In band, so no lever moves (CLAUDE.md 3.5).
+
+**The store a band behind stays the fallback** (the same tool, a hero at band 1's first step, gold an hour of effect): the meal line is 729 at the store against 488 crafted at band 1 and 485 crafted at band 0, the charge line 1,457 against 976 and 971. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind, as at every band 0 to 8 (KR-STORE).
+
+*Read with care:* the K1 tool's pace table applies one measured burn to the whole career, so the Glade's heavier mana bill read as a career-long rate overstates the lag past band 2. The pace of 4.9 (the Muster burn) is unchanged by this batch: no kind's work moved.
 
 ---
 

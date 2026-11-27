@@ -230,10 +230,11 @@ const ARMS = {
     }
     /* the rates over many seeds land on the curve: yield 750 at a new rung (a miss loses the set), 1200 with Mastery and the bench
        (a set back one time in six), Fine and Master on the cascade */
+    /* the cascade's rates are read LIT (quality: true): the shipped switch is dark (09 4.11 row 6), proven below */
     const rate = (k, rung, level, o) => {
       const t = { att: 0, made: 0, fine: 0, master: 0, ret: 0 };
       for (let s = 1; s <= 400; s++) {
-        const r = T.settleJob(k, rung, level, { count: 1e6, elapsedMs: HOUR, ...o, seed: 1000 + s });
+        const r = T.settleJob(k, rung, level, { count: 1e6, elapsedMs: HOUR, quality: true, ...o, seed: 1000 + s });
         t.att += r.attempts; t.made += r.plain + r.fine + r.master; t.fine += r.fine; t.master += r.master; t.ret += r.returned;
       }
       return t;
@@ -249,6 +250,18 @@ const ARMS = {
     within(0.6, r2.made - r2.master, r2.fine, 'a master\'s Fine arrows after Master missed');
     const g = rate(cat.kinds.ore, 1, 99, { mastery: true, benchPm: 100 });
     within(0.2, g.att, g.made - g.att, 'a second ore at yield 1200');
+    /* QUALITY IS DARK (09 4.11 row 6): the shipped switch is off, so a master's whole day lands Plain, the same count of goods as lit
+       and no draw spent on quality (the lit run's dice for yield and returns are the dark run's until its first quality roll) */
+    if (X.D.TRADE_LEVERS.quality.live !== false) out.push('the quality switch ships lit: nothing spends a Fine or Master good in v0.3.0');
+    const dark = T.settleJob(cat.kinds.arrow, 9, 99, { mastery: true, benchPm: 100, count: 400, elapsedMs: 8 * HOUR, seed: 41 });
+    const lit = T.settleJob(cat.kinds.arrow, 9, 99, { mastery: true, benchPm: 100, count: 400, elapsedMs: 8 * HOUR, seed: 41, quality: true });
+    if (!dark || dark.fine !== 0 || dark.master !== 0 || dark.plain !== lit.plain + lit.fine + lit.master || dark.attempts !== lit.attempts) {
+      out.push(`dark quality lands ${JSON.stringify(dark)}, not every one of the lit run's ${lit && lit.plain + lit.fine + lit.master} goods Plain`);
+    }
+    for (const id of ['meal', 'imbuement', 'tool_pick']) {
+      const d = T.settleJob(cat.kinds[id], cat.kinds[id].opens, 99, { mastery: true, count: 300, elapsedMs: 8 * HOUR, seed: 9 });
+      if (d && (d.fine || d.master)) out.push(`dark quality: a ${id} job lands ${d.fine} Fine and ${d.master} Master`);
+    }
     /* a day of work is a day of XP, inside the window; and a tool behind its job slows it by the contest curve */
     const day = T.settleJob(cat.kinds.meal, 5, 50, { count: 1e6, elapsedMs: 8 * HOUR, seed: 5 });
     if (!(day.xp <= 8 * 3600 && day.xp >= 8 * 3600 - 300)) out.push(`a day of meals at Level 50 pays ${day.xp} XP, not 8 hours of work (28,800)`);
@@ -379,6 +392,7 @@ const JS_MUTANTS = [
   ['Fine is rolled before Master', 'TF-SETTLE', 'src/core/trades.js', 'if (pMaster > 0 && rng.next() < pMaster) made[2]++;\n    else if (rng.next() < pFine) made[1]++;', 'if (rng.next() < pFine) made[1]++;\n    else if (pMaster > 0 && rng.next() < pMaster) made[2]++;'],
   ['the bound ignores the tool', 'TF-SETTLE', 'src/core/trades.js', 'BigInt(Math.max(1, Math.min(1000, toolPm | 0)))', '1000n'],
   ['the dice ignore the seed', 'TF-SETTLE', 'src/core/trades.js', 'const rng = createRng(seed >>> 0);', 'const rng = createRng(1);'],
+  ['the quality switch is ignored (a dark job rolls Fine and Master)', 'TF-SETTLE', 'src/core/trades.js', 'const rolls = !!kind.rolls && quality === true;', 'const rolls = !!kind.rolls;'],
 ];
 
 const SQL_MUTANTS = [

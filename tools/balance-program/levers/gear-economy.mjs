@@ -48,12 +48,11 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('gear.uniques', 'equipment', 'content', 'Unique, chest and boss pieces', {
     at: [at('src/data/wave3-uniques.js', 'export const WAVE3_ITEMS'), at('src/data/special-attributes.js', 'export const SPECIAL_SAMPLE')],
-    rows: rows('uniques, champions, bane gear, Catacomb chest armor and shields', [home('src/data/champions.js#CHAMPION_ITEMS', 'keys'), home('src/data/champions.js#CHAMPION_BY_TIER', 'count'), home('src/data/library2-items.js#BANE_GEAR', 'keys'), home('src/data/library2-items.js#ARMOUR_SETS', 'open'), home('src/data/library2-items.js#chitin', 'count'), home('src/data/library2-items.js#watch', 'count'), home('src/data/library2-items.js#TIER_VALUE', 'count'), home('src/data/library2-items.js#round5', 'count'), home('src/data/shields.js#SHIELD_ITEMS', 'open'), home('src/data/catacomb-armor.js#CATACOMB_ATTRS', 'count'), home('src/data/catacomb-armor.js#CATACOMB_TIERS', 'count'), home('src/data/catacomb-armor.js#WING_LEAN', 'count'), home('src/data/fists.js#FIST_ITEMS', 'open')]),
-    def: 'each unique sized by hand against a simulator at the fourth digit; Krell\'s pieces; chest armor\'s attributes by tier; shields\' guard',
+    rows: rows('uniques, champions, bane gear, the packs\' named pieces (a resistance or a bane, 28-named-pieces.md 2.7), Catacomb chest armor and shields', [home('src/data/grounds/*/pack.js#default', 'keys'), home('src/data/champions.js#CHAMPION_ITEMS', 'keys'), home('src/data/champions.js#CHAMPION_BY_TIER', 'count'), home('src/data/library2-items.js#BANE_GEAR', 'keys'), home('src/data/library2-items.js#ARMOUR_SETS', 'open'), home('src/data/library2-items.js#chitin', 'count'), home('src/data/library2-items.js#watch', 'count'), home('src/data/library2-items.js#TIER_VALUE', 'count'), home('src/data/library2-items.js#round5', 'count'), home('src/data/shields.js#SHIELD_ITEMS', 'open'), home('src/data/catacomb-armor.js#CATACOMB_ATTRS', 'count'), home('src/data/catacomb-armor.js#CATACOMB_TIERS', 'count'), home('src/data/catacomb-armor.js#WING_LEAN', 'count'), home('src/data/fists.js#FIST_ITEMS', 'open')]),
+    def: 'a named piece is its tier\'s formula piece plus one rule, its size here (a resistance permille, a bane mult; 12-targets 8.8 retired the uniques sized against the Dawnsteel line); Krell\'s pieces; chest armor\'s attributes by tier; shields\' guard',
     range: 'whole; Level requirement by tier',
     touches: 'the BiS kit and the gear chase', out: [...KILL, ...SURVIVE], f: ['C-GEAR-ARMOR', 'P19'],
     perturb: P('the BiS kit reads them (grid-kit.mjs)', 'gearExchange'),
-    flags: [flag('contradictory', 'Each unique\'s armor was sized to "the most that keeps its measure under the line", four digits from 1.0000: any engine change moves the measure', '44 X-ARMOR-LINE-FIT, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('gear.special-attributes', 'equipment', 'content', 'Special attributes on chest gear', {
     at: [at('src/data/special-attributes.js', 'export const SPECIAL_ATTRIBUTES'), at('src/data/special-attributes.js', 'export const SPECIAL_TIERS')],
@@ -406,8 +405,8 @@ export const GEAR_ECONOMY = [
     touches: 'sold-loot gold (about a third of coin at Level 45)', out: GOLD, f: ['E26', 'E27'],
     tests: [['tests/hunt-core/drop-tables.mjs', 'gear sale against coin']], testReads: ['VENDOR_GEAR_RATES'],
     perturb: P('the cells sell every drop at once (gold is an upper bound: 12-balance-pass 3.7)', 'saleStep'),
-    flags: [flag('redundant', 'A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb; no row for tier 8', '44 E-X17 and E-X18, CONFIRMED'),
-      flag('redundant', 'VENDOR_RAW_RATE and SHOP_BUYBACK_RATE are authored in the edge function and restated in src/data/shops.js DERIVED_PRICES', '44 E-X20, CONFIRMED')],
+    /* (44 E-X20's restatement in shops.js DERIVED_PRICES left with that list, lane/retire-tier-chain 2026-11-26: the edge's two rates stand alone) */
+    flags: [flag('redundant', 'A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb; no row for tier 8', '44 E-X17 and E-X18, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
   L('econ.start-gold', 'economy', 'global', 'Starting gold and kit', {
     at: [at('src/data/start-kit.js', 'export const START_CURRENCY'), at('src/data/start-kit.js', 'export const START_GOLD_HOURS_PM = 250')],
@@ -546,8 +545,8 @@ export const GEAR_ECONOMY = [
     ev: 'MEASURED (lane/trade-formulas, v1-climb Muster Barrows, the mixed MID four, 6 seeds x 8 h at Levels 60 / 63 / 70, tools/balance-program/redesign/trades/lab-muster.json, priced by measure.mjs into measured.txt): the Steady four at Level 60 burns 1.14 meal-line and 1.07 charge kit-hours a hero-hour; the labor ratio of a 10 h day 1.09 (1.18 with tools), of the 6 h mix 0.66; 1.0 and 0.6 at the reference' }),
   L('econ.trade-curve', 'economy', 'global', 'Yield, quality and speed on one curve', {
     at: [at('src/data/trades.js', 'yield: Object.freeze({ atReq: 0.75, noFailSpan: 15, cap: 1.25, masteryReturn: 0.1, benchMax: 0.1 }),'),
-      at('src/data/trades.js', 'quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5 }),'), at('src/data/trades.js', 'speedAt99: 1.25,'), at('src/data/trades.js', 'masteryCap: 3,')],
-    def: 'for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up',
+      at('src/data/trades.js', 'quality: Object.freeze({ fineBase: 0.1, fineTop: 0.6, masterTop: 0.5, steps: 5, live: false }),'), at('src/data/trades.js', 'speedAt99: 1.25,'), at('src/data/trades.js', 'masteryCap: 3,')],
+    def: 'for a rung opening at R worked at trade Level L: yield 0.75 + 0.25 x min(L - R, 15) / 15 (+0.10 Mastery, +0.10 bench, at most 1.25); Fine 0.10 + 0.50 x (L - R) / (99 - R), Master 0.50 x the same with the Mastery, rolled first; speed 1 + 0.25 x L / 99; a Fine or Master good is 5 / 10 item steps up; while quality.live is false (a switch, not a lever: 09 4.11 row 6) every job lands Plain and the cascade waits',
     range: '09 4.4 and 4.7 (Masteries: three an account, CR-Q1 a). SQL twins hr_trade_yield_pm, hr_trade_fine_pm, hr_trade_master_pm, hr_trade_speed_pm (1063, generated, swept by TF-TWIN)',
     touches: 'material waste on the newest rung (the XP route), the quality of made kit, the value of a work-hour (0.11 to 0.19 hours of wage at Level 1, 0.28 at 50 on the first rung, 0.46 at 99 with a Mastery and a bench: measured.txt)', out: [], f: [],
     tests: [['tests/trade-formulas.mjs', 'TF-09: 09\'s curve ends; TF-SETTLE: the dice land on it; TF-TWIN: the SQL is the JS']], testReads: ['TRADE_PM', 'yieldPm', 'finePm', 'masterPm', 'speedPm'],
@@ -655,11 +654,11 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.shop-prices', 'economy', 'content', 'Shop offers', {
     at: [at('src/data/shops.js', 'export const SHOP_OFFERS')],
-    rows: rows('gold costs on shop offers', [home('src/data/shops.js#DERIVED_PRICES', 'count'), home('src/data/shops.js#PROPERTY_HOURS_PM', 'keys'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),
+    rows: rows('gold costs on shop offers', [home('src/data/shops.js#PROPERTY_HOURS_PM', 'keys'), home('src/data/companion-unlocks.js#COMPANION_OFFERS', 'keys')]),
     def: 'deeds in milli-hours of wage at their tier\'s step (PROPERTY_HOURS_PM, list prices), rooms from ROOM_RUNGS; every good the store sells whole (tool, gear, jewel, seed, the legacy equip and seed rows) at the store\'s ask, storeCeiling x book (27 K-3: SHOP_PREMIUM 2 and JEWEL_SHOP_PREMIUM 10 retired); the companions still typed (three copies)',
     range: 'whole',
     touches: 'gold out; the arbitrage floor of the buyback', out: [], f: ['E30', 'E29'],
-    tests: [['tests/vendor-shop-arbitrage.mjs', 'no buy-and-sell loop']], testReads: ['SHOP_OFFERS', 'DERIVED_PRICES', 'SHOP_BUYBACK_RATE'],
+    tests: [['tests/vendor-shop-arbitrage.mjs', 'no buy-and-sell loop']], testReads: ['SHOP_OFFERS', 'SHOP_BUYBACK_RATE'],
     perturb: NP('outside-hunt'),
     ev: 'CONFIRMED (read)' }),
   L('econ.house', 'economy', 'content', 'House: property, rooms, chests, room perks', {
@@ -678,7 +677,7 @@ export const GEAR_ECONOMY = [
     range: 'whole',
     touches: 'gold out (storage)', out: [], f: ['E34'],
     perturb: NP('outside-hunt'),
-    flags: [flag('redundant', 'The bank base, growth and stacks are restated in shops.js DERIVED_PRICES', 'CONFIRMED (read: DERIVED_PRICES base 3000, growth 1.32, slots 20)')],
+    /* (its restatement in shops.js DERIVED_PRICES left with that list, lane/retire-tier-chain 2026-11-26) */
     ev: 'CONFIRMED (read)' }),
   L('econ.training', 'economy', 'global', 'Training yard pay and fee', {
     at: [at('src/data/training.js', 'xpPerHour: 30000,'), at('src/data/training.js', 'feeBase: 50,'), at('src/data/training.js', 'feePerLevel: 6,')],
@@ -699,16 +698,6 @@ export const GEAR_ECONOMY = [
     touches: 'a gold sink and idle skill pace', out: [], f: ['P09'],
     tests: [['tests/training-gear-db.mjs', 'the items in the database']], testReads: ['TRAINING_GEAR', 'hr_training_gear'],
     perturb: NP('not-in-runs'),
-    ev: 'CONFIRMED (read)' }),
-  L('econ.scaled-hunts', 'economy', 'exception-intentional', 'Scaled hunts: pay and price', {
-    at: [at('src/data/scaled-hunts.js', 'xpPm: 730,'), at('src/data/scaled-hunts.js', 'partyPm: 700,'), at('src/data/scaled-hunts.js', 'coinPm: Object.freeze({ solo: 500'), at('src/data/scaled-hunts.js', 'price: Object.freeze({ perLevel: 40 })')],
-    rows: rows('the scaled hour\'s loot reader', [home('src/data/scaled-hunts.js#lootPmFor', 'count')]),
-    def: 'a scaled hour pays XP x0.73, a party x0.70, coin x0.5 of the rise, and costs 40 gold a Level an hour; 24 h at most, 48 h bought a day',
-    range: 'permille. Mode approved 2026-11-07',
-    touches: 'old grounds raised to the leader\'s Level', out: [], f: ['C-SCALED', 'P26', 'E07'],
-    tests: [['tests/scaled-hunts.mjs', 'the scaled hour']], testReads: ['SCALED_HUNTS'],
-    perturb: NP('not-in-runs'),
-    flags: [flag('redundant', 'xpPm and partyPm were re-dialed seven times to hold one guard: compensations for the missing kill-rate term', '44 E-X11, CONFIRMED; knobs.json notKnobs')],
     ev: 'CONFIRMED (read)' }),
   L('econ.bench-tax', 'economy', 'global', 'Public bench tax', {
     at: [at('src/data/bench-tax.js', 'export const BENCH_TAX = '), at('src/data/bench-tax.js', 'export const BENCH_TAX_FREE_UNDER_MG = 500')],

@@ -46,6 +46,9 @@
 //               --write generates its step into its job's SELF-REGISTERED region. Red on a header naming
 //               a job the file lacks, a generated step with no header behind it, a region edited by
 //               hand, or a header not written yet (architecture audit 2026-11-19, row 8)
+//   CI-SHAPE-14 a proof split into shards (`--shard=K/N`) runs every shard 1..N exactly once, all with one N:
+//               a shard left out is a third of a proof that never runs, and every other job stays green
+//               (lane/ci-reds-1127, 2026-11-27, when the Call out and HUD proofs were split across jobs)
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -78,6 +81,8 @@ import { isGated, isProofCommand, GATE_PREFIX } from '../tools/lib/guard-deps.mj
 import { readHeaders, generate, regionSteps, headerSteps } from '../tools/lib/ci-register.mjs';
 
 const BASELINE_PATH = join(ROOT, 'tests', 'ci-shape.baseline.json');
+/** A mutant shard on a command line (` --shard=K/N`, CI-SHAPE-14). */
+const SHARD_FLAG = /\s--shard=(\d+)\/(\d+)(?=\s|$)/;
 
 /** An environment step, not a guard. Derived from the step NAME, never a list. */
 export function isInfraStep(step) {
@@ -252,6 +257,28 @@ export function analyse({ workflowText, baseline, listText, actions = [], header
       fail('CI-SHAPE-11', `${a.path}:${line} fetches with no deadline: "${cmd}". A stalled mirror then holds `
         + 'the job silent until its timeout-minutes (run 42758317717: 43 min, no test run). Run it under '
         + '`timeout <seconds>`, and say what happens when the deadline passes.');
+    }
+  }
+
+  // CI-SHAPE-14 — a sharded proof runs every shard once. The family is the command with its --shard=K/N taken out.
+  const families = new Map();
+  for (const c of cmds) {
+    const m = SHARD_FLAG.exec(c.cmd);
+    if (!m) continue;
+    const fam = c.cmd.replace(SHARD_FLAG, ' --shard=K/N');
+    if (!families.has(fam)) families.set(fam, []);
+    families.get(fam).push({ k: +m[1], n: +m[2], job: c.job });
+  }
+  for (const [fam, got] of families) {
+    const ns = [...new Set(got.map((x) => x.n))];
+    if (ns.length !== 1) { fail('CI-SHAPE-14', `"${fam}" runs with shard counts ${ns.join(' and ')} (${got.map((x) => `${x.k}/${x.n} in ${x.job}`).join(', ')}). One proof is cut one way: every shard says the same N.`); continue; }
+    const n = ns[0];
+    const missing = [], extra = [];
+    for (let k = 1; k <= n; k++) if (!got.some((x) => x.k === k)) missing.push(`${k}/${n}`);
+    for (const x of got) if (x.k < 1 || x.k > n) extra.push(`${x.k}/${x.n}`);
+    if (missing.length || extra.length) {
+      fail('CI-SHAPE-14', `"${fam}" ${missing.length ? `never runs shard ${missing.join(', ')}` : ''}${missing.length && extra.length ? ' and ' : ''}${extra.length ? `runs a shard outside 1..${n} (${extra.join(', ')})` : ''}. `
+        + 'A shard left out is part of a proof that never runs while every job stays green: register every K of the N.');
     }
   }
 
@@ -509,6 +536,27 @@ async function selftest() {
       if (to < 0) throw harness('--selftest could not find the edge job timeout');
       ls[to] = '    timeout-minutes: 999';
       return { workflowText: ls.join('\n'), baseline, listText };
+    }],
+    ['a sharded proof with one shard cut another way (its last shard never runs)', 'CI-SHAPE-14', () => {
+      // Structural: the matrix's first sharded proof, its K/N rewritten K/(N+1) in the workflow, so shard N+1 is never run.
+      const c = guardCommands(jobs).find((x) => SHARD_FLAG.test(x.cmd));
+      if (!c) throw harness('--selftest: no command in the matrix runs with --shard=K/N');
+      const m = SHARD_FLAG.exec(c.cmd);
+      const moved = c.cmd.replace(SHARD_FLAG, ` --shard=${m[1]}/${+m[2] + 1}`);
+      if (workflowText.split(c.cmd).length !== 2) throw harness(`--selftest: "${c.cmd}" is not in the workflow exactly once`);
+      const wf = workflowText.replace(c.cmd, () => moved);
+      const { [c.cmd]: _gone, ...rest } = baseline.commands;
+      return { workflowText: wf, baseline: { commands: { ...rest, [moved]: c.job } }, listText: listOf(wf) };
+    }],
+    ['a sharded proof with one shard left out (the same N, one K never registered)', 'CI-SHAPE-14', () => {
+      // Structural: the matrix's first sharded proof loses its --shard, so its family never runs that K (the rest keep their N).
+      const c = guardCommands(jobs).find((x) => SHARD_FLAG.test(x.cmd));
+      if (!c) throw harness('--selftest: no command in the matrix runs with --shard=K/N');
+      const gone = c.cmd.replace(SHARD_FLAG, ' --planted-unsharded');
+      if (workflowText.split(c.cmd).length !== 2) throw harness(`--selftest: "${c.cmd}" is not in the workflow exactly once`);
+      const wf = workflowText.replace(c.cmd, () => gone);
+      const { [c.cmd]: _gone, ...rest } = baseline.commands;
+      return { workflowText: wf, baseline: { commands: { ...rest, [gone]: c.job } }, listText: listOf(wf) };
     }],
   ];
 

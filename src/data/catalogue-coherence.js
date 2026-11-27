@@ -458,7 +458,8 @@ export function obtainableItemIds() {
    level. Declared with the file that reads it, proven by the guard. */
 export const ENGINE_SKILL_CONSUMERS = Object.freeze({
   melee:        Object.freeze({ label: 'melee hit chance and max hit (combat engine)', file: 'src/core/combat.js', needle: 'melee' }),
-  defense:      Object.freeze({ label: 'damage taken (combat engine)', file: 'src/core/combat.js', needle: 'defense' }),
+  /* the hero's Defense as the monster's to-hit reads it: the unit's def (src/core/member.js heroSnapshot; combat.js's twin, monsterCombatRolls, left with lane/retire-dawnsteel-lines) */
+  defense:      Object.freeze({ label: 'damage taken (combat engine)', file: 'src/core/member.js', needle: 'levelsOf(state.skills).defense' }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
   /* Inner Flame (Tyler 2026-10-25, replacing Prayer and its PENDING_CONSUMER row): the HP and mana regeneration RATE */

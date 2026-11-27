@@ -100,8 +100,8 @@ export const GEAR_STATES = deep({
 export const GEAR_STATE_IDS = F(Object.keys(GEAR_STATES));
 
 export const POWER_SOURCES = deep([
-  { id: 'gear-tier', from: [1, 15, 30, 45, 60, 75, 88], row: 'src/data/gear-tiers.js MATERIAL_TIERS', state: 'live' },
-  { id: 'unique-band', from: [110, 125, 145, 165], row: 'tools/balance-sim/staged/armor-line.js, weapon-line.js', state: 'staged' },
+  /* every tier worn from its item Level less wearAhead (12-targets 8.3); past the last named one (Wolfram, 150) the same formula a tier (8.8: the staged unique bands past Dawnsteel retired) */
+  { id: 'gear-tier', from: [1, 10, 30, 50, 70, 90, 110, 130, 150], row: 'src/data/gear-tiers.js MATERIAL_TIERS', state: 'live' },
   { id: 'tempering', from: [40, 80, 120, 160, 200], row: 'src/data/temper.js TEMPER_STEPS (Temper on steps, dark: temper_steps)', state: 'staged' },
   { id: 'tower-chest-weapon', from: [10, 40, 70, 100], row: 'src/data/chests.js CHEST_KEYS', state: 'live', weeklyOpensAHero: 6 },
   { id: 'catacomb-armor', keyTiers: [2, 4, 6, 7], row: 'src/data/catacomb-armor.js', state: 'staged', weeklyOpensAHero: 6 },

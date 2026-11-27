@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/kit-recipes.mjs — THE KIT TRADES' SAMPLE HOLDS ITS RULE (lane/k1-kit-trades-sample, game designer, 2026-11-26;
+// tests/kit-recipes.mjs — THE KIT TRADES' BANDS HOLD THEIR RULE (lane/k1-kit-trades-sample, game designer, 2026-11-26;
 //   docs/design/redesign/09-crafting.md section 4.9). src/data/trades.js KIT_RECIPES (the five named rows and the band's faces),
 //   src/core/trades.js (bandRung, and the catalogue that resolves them as named), src/data/catalogue-coherence.js (the live doors).
 //
@@ -9,13 +9,19 @@
 //
 // mutant-anchors: src/core/trades.js src/data/trades.js src/data/job-faces.js
 //   (the mutants patch a temp copy of src/; no tracked file is patched)
-// ci-step: economy-selftests | Kit trades sample - one recipe a trade at band 0, rung by band, every face sourced and used, the store the fallback
+// ci-step: economy-selftests | Kit trades bands 0 and 1 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
 // ci-run: node tests/kit-recipes.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
 //
-//   KR-ROWS    the first day's sample is five band 0 rows, one a trade: Cooking, Smithing, Woodcrafting, Runecutting and one gathering
-//              trade; batch 2 (lane/tp-im-steps, 21 section 2.2) is the Temper kit a band, Iron to Dawnsteel, and nothing else past band 0;
-//              a row holds only its kind, band, derived id and a short label (no time, count, XP or price); validate() is clean
+//   KR-ROWS    band 0 is the first day whole (09 4.11 row 1b, 4.13): the sample's five, batch 2 (the gather rows, the refine rows, the
+//              honing stone and the drink) and every rune family; band 1 (iron, 09 4.13) is the same kinds at iron and oak, the first bolt
+//              and the Temper kit, with no stone of its own; one row a kind, every v0.3.0 gathering and making trade with a job at each
+//              band; past band 1 only the Temper kit a band, to Dawnsteel (lane/tp-im-steps, 21 section 2.2); one good, one recipe; a row holds only its kind, band, derived
+//              id and a short label (no time, count, XP or price); validate() is clean
+//   KR-BATCH   a batch of 20 or fewer, each batch on its own (09 4.13): two batches of 15 pass, one of 21 is refused, and KIT_RECIPES is
+//              the batches end to end, so a band past 0 lands as its own batch
+//   KR-CLOSED  ONE TOWN WORK (09 4.11): every town input of every job at a whole band (0 and 1) is made by a job at that band or below
+//              (never only by the live bench, the store or the start kit), and every hunted input is its stream's face a monster drops, so the cut leaves no gap
 //   KR-RUNG    a band's recipe opens at the band's rung (band b at rung b + 1, the last rung for every band past it, never before the
 //              kind's own rung), swept over every kind and bands 0 to 12; every band 0 row opens at trade Level 1, so the first day can
 //              make it
@@ -44,6 +50,8 @@ import { harnessFail, verdict } from './_mutant-verdict.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const HOUR = 3600000;
+/* the bands whose kit batches have landed whole (09 4.13): KR-ROWS holds their kinds, KR-CLOSED their chains */
+const WHOLE_BANDS = Object.freeze([0, 1]);
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
@@ -65,19 +73,47 @@ const ARMS = {
     if (refused) return ['KR-ROWS the catalogue refuses the rows: ' + refused];
     for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
     for (const p of KR.validate()) out.push('KR-ROWS trades: ' + p);
-    const all = KR.KIT_RECIPES, rows = all.filter((r) => r.band === 0);
-    if (rows.length !== 5) out.push('KR-ROWS the first day sample is ' + rows.length + ' band 0 rows, not five');
-    const later = all.filter((r) => r.band !== 0);
-    if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '1,2,3,4,5,6') out.push('KR-ROWS batch 2 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at bands 1 to 6');
-    const trades = rows.map((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade);
-    for (const t of ['cooking', 'smithing', 'woodcrafting', 'runecutting']) if (trades.filter((x) => x === t).length !== 1) out.push('KR-ROWS ' + t + ' has ' + trades.filter((x) => x === t).length + ' rows, not one');
-    const gather = rows.filter((r) => cat.kinds[r.kind] && cat.kinds[r.kind].stage === 'gather');
-    if (gather.length !== 1) out.push('KR-ROWS ' + gather.length + ' gathering rows, not one');
+    const all = KR.KIT_RECIPES;
+    const runes = Object.keys(KR.KINDS).filter((k) => KR.KINDS[k].family);
+    /* BAND 0 WHOLE (09 4.11 row 1b, 4.13): exactly the first day's kinds, one row each: the sample's five, then the gather rows (logs,
+       shrimp, rune essence, the crop), the refine rows (bars, planks, blank runes), the honing stone, the drink and every rune family.
+       BAND 1, IRON (09 4.13): the same kinds at iron and oak, the first bolt and the Temper kit, and no stone of its own (the rune's stone
+       has no metal). Past band 1, only the Temper kits (bands 2 to 6) until their bands land */
+    const want = {
+      0: ['ore', 'arrowhead', 'arrow', 'meal', 'log', 'fish', 'rune_stone', 'grain', 'bar', 'shaft', 'cut_stone', 'honing_stone', 'drink', ...runes],
+      1: ['ore', 'arrowhead', 'arrow', 'bolt', 'meal', 'log', 'fish', 'grain', 'bar', 'shaft', 'honing_stone', 'drink', 'temper_kit', ...runes],
+    };
+    for (const b of [0, 1]) {
+      const rows = all.filter((r) => r.band === b), kinds = rows.map((r) => r.kind);
+      if (kinds.slice().sort().join() !== want[b].slice().sort().join()) out.push('KR-ROWS band ' + b + ' is ' + kinds.join(', ') + ', not its whole (' + want[b].join(', ') + ')');
+      for (const t of ['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', 'runecutting']) {
+        if (!rows.some((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade === t)) out.push('KR-ROWS band ' + b + ' has no ' + t + ' row: the trade has no job at the band');
+      }
+    }
+    const later = all.filter((r) => r.band > 1);
+    if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '2,3,4,5,6') out.push('KR-ROWS past band 1 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at bands 2 to 6');
     for (const r of all) {
       const extra = Object.keys(r).filter((k) => !['id', 'kind', 'band', 'name'].includes(k));
       if (extra.length) out.push('KR-ROWS ' + r.id + ' types ' + extra.join(', '));
       if (r.id !== KR.recipeId(r.kind, r.band)) out.push('KR-ROWS ' + r.id + ' is not its derived id');
     }
+    return out;
+  },
+  /* A BATCH OF 20 OR FEWER, EACH ON ITS OWN (CLAUDE.md section 10; 09 4.13): the cap reads a batch, never the whole list, so a band
+     past 0 can land as its own batch; KIT_RECIPES is the batches end to end. Read on synthetic faces (one kind, thirty bands), so the
+     proof does not wait for the shipped list to pass twenty */
+  'KR-BATCH'({ KR }) {
+    const out = [];
+    const flat = KR.KIT_BATCHES.flatMap((b) => b.rows.map((r) => r.id)).join();
+    if (flat !== KR.KIT_RECIPES.map((r) => r.id).join()) out.push('KR-BATCH KIT_RECIPES is not the batches end to end');
+    const faces = { ore: Array.from({ length: 30 }, (_, b) => 'test_ore_' + b) };
+    const rows = (from, n) => Array.from({ length: n }, (_, i) => Object.freeze({ id: KR.recipeId('ore', from + i), kind: 'ore', band: from + i, name: 'Mine Test Ore' }));
+    const two = [{ id: 'test-a', rows: rows(0, 15) }, { id: 'test-b', rows: rows(15, 15) }];
+    const twoP = KR.validateKitRecipes(two, KR.KINDS, KR.TRADES, faces, {});
+    if (twoP.length) out.push('KR-BATCH two batches of 15 (30 rows) are refused: ' + twoP.join('; '));
+    const big = KR.validateKitRecipes([{ id: 'test-big', rows: rows(0, 21) }], KR.KINDS, KR.TRADES, faces, {});
+    if (!big.some((p) => /past a batch of 20/.test(p))) out.push('KR-BATCH a batch of 21 is not refused');
+    for (const b of KR.KIT_BATCHES) if (b.rows.length > 20) out.push('KR-BATCH batch ' + b.id + ' has ' + b.rows.length + ' rows');
     return out;
   },
   'KR-RUNG'({ T, KR, cat }) {
@@ -135,6 +171,31 @@ const ARMS = {
     for (const f of made.keys()) if (f && !live(f) && !KR.NEW_FACES[f]) out.push(`KR-SOURCE ${f} is neither a live item nor a new face`);
     return out;
   },
+  /* ONE TOWN WORK (09 4.11 rows 1 and 1b): the live bench is cut in the release that lights the jobs, so band 0's chains must close on the
+     job list alone. Every town input of a band 0 job is made by another band 0 job (no bench, no store, no start kit: a door that
+     outlives the kit), and every hunted input is its stream's face that a monster drops */
+  'KR-CLOSED'({ T, cat, sources }) {
+    const out = [];
+    /* every band's chains close on jobs at that band or below (band 1's runes cut band 0's Blank Runes, 09 4.13): a band is whole only
+       when every town input of every job at it is made by a job, never only by the bench, the store or the kit */
+    const all = T.jobRecipes(cat).filter((r) => !r.imbue);
+    /* the bands whose batches have landed whole; bands 2 to 6 hold only their Temper kit until theirs land (its bar is a drop meanwhile) */
+    for (const b of WHOLE_BANDS) {
+      const jobs = all.filter((r) => r.band === b);
+      const made = new Map(all.filter((r) => r.band <= b).map((r) => [r.face, r.id]));
+      const hunted = new Set(cat.named.filter((r) => r.band === b).flatMap((r) => r.hunted.map((h) => h.face)));
+      for (const r of jobs) {
+        for (const item of Object.keys(r.inputs)) {
+          if (made.has(item)) continue;
+          if (hunted.has(item) && (sources.get(item) || []).includes('monster drop')) continue;
+          out.push(`KR-CLOSED ${r.id}: input ${item} is made by no job at band ${b} or below (only the bench, the store or the kit): the band breaks when the bench is cut`);
+        }
+      }
+    }
+    const ids = new Set(all.map((r) => r.id));
+    for (const id of ['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'arrow_b1', 'bolt_b1', 'rune_fire_b1', 'meal_b1']) if (!ids.has(id)) out.push(`KR-CLOSED ${id} is not a job`);
+    return out;
+  },
   'KR-STORE'({ T, KR, cat, STORE_KIT }) {
     const out = [];
     const ts = T.TRADE_PM.tierSteps;
@@ -189,10 +250,23 @@ async function runPure(X, only = null) {
 
 /* each row: name, the arm that must name it, the file (a literal, so tools/guard-anchors.mjs reads it), the anchor, its replacement */
 const MUTANTS = [
-  ['a sixth recipe and a second Smithing row before the sample is read', 'KR-ROWS', 'src/data/trades.js',
-    "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n", "  kitRow('rune_fire', 0, 'Cut Chalked Fire Runes'),\n  kitRow('honing_stone', 0, 'Grind Coarse Whetstones'),\n"],
-  ['batch 2 carries a kind that is no Temper kit', 'KR-ROWS', 'src/data/trades.js',
-    "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('meal', 1, 'Cook Trout'),\n"],
+  ['band 0 carries a kind the first day does not hold (the bolt)', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('drink', 0, 'Press Turnip Juice'),\n", "  kitRow('drink', 0, 'Press Turnip Juice'),\n  kitRow('bolt', 0, 'Fletch Bronze Bolts'),\n"],
+  ['band 0 without its planks (the arrow has no shaft once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js',
+    "  kitRow('shaft', 0, 'Saw Normal Planks'),\n", ''],
+  ['band 0 without its blank runes', 'KR-CLOSED', 'src/data/trades.js', "  kitRow('cut_stone', 0, 'Cut Blank Runes'),\n", ''],
+  ['band 0 without its bars (the arrowhead and the whetstone have no metal)', 'KR-CLOSED', 'src/data/trades.js',
+    "  kitRow('bar', 0, 'Smelt Bronze Bars'),\n", ''],
+  ['past band 1, a row that is no Temper kit (steel bars before band 2 is whole)', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('bar', 2, 'Smelt Steel Bars'),\n"],
+  ['band 1 without its arrowheads (its arrows and bolts have no head once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js',
+    "    kitRow('arrowhead', 1, 'Forge Iron Arrowheads'),\n", ''],
+  ['band 1 without its bars (the iron arrowhead, the whetstone and the Iron Temper kit have no metal)', 'KR-CLOSED', 'src/data/trades.js',
+    "    kitRow('bar', 1, 'Smelt Iron Bars'),\n", ''],
+  ['band 1 cuts its own Blank Runes (one good, two recipes)', 'KR-ROWS', 'src/data/trades.js',
+    "    kitRow('shaft', 1, 'Saw Oak Planks'),\n", "    kitRow('shaft', 1, 'Saw Oak Planks'),\n    kitRow('cut_stone', 1, 'Cut Blank Runes'),\n"],
+  ['band 1 without its crop (Carrot Juice has no carrot from a job)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('grain', 1, 'Pull Carrots'),\n", ''],
+  ['band 1\'s runes have no binder', 'KR-SOURCE', 'src/data/job-faces.js', "remains: Object.freeze(['bones', 'bones', 'bones'", "remains: Object.freeze(['bones', null, 'bones'"],
   ['a recipe row types its own time', 'KR-ROWS', 'src/data/trades.js',
     'Object.freeze({ id: recipeId(kind, band), kind, band, name })', 'Object.freeze({ id: recipeId(kind, band), kind, band, name, ms: 3000 })'],
   ['the catalogue opens a named recipe a rung late', 'KR-RUNG', 'src/core/trades.js', 'const k = out[r.kind], rung = bandRung(k, r.band);', 'const k = out[r.kind], rung = bandRung(k, r.band) + 1;'],
@@ -201,13 +275,16 @@ const MUTANTS = [
     'Math.min(TRADE_PM.rungCount, Math.max(0, Math.floor(Number(band) || 0)) + 1)', '1'],
   ['a band ignores the kind\'s own rung', 'KR-RUNG', 'src/core/trades.js', 'Math.max(kind.opens, Math.min(', 'Math.max(1, Math.min('],
   ['a band past the ladder opens past the last rung', 'KR-RUNG', 'src/core/trades.js', 'Math.min(TRADE_PM.rungCount, Math.max(0,', 'Math.min(99, Math.max(0,'],
-  ['an input face with no door', 'KR-SOURCE', 'src/data/trades.js', "shaft: Object.freeze(['normal_plank'])", "shaft: Object.freeze(['normal_shaft'])"],
-  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/job-faces.js', "remains: Object.freeze(['bones', null", "remains: Object.freeze(['cellar_dust', null"],
+  ['an input face with no door', 'KR-SOURCE', 'src/data/trades.js', "shaft: Object.freeze(['normal_plank', 'oak_plank'])", "shaft: Object.freeze(['normal_shaft', 'oak_plank'])"],
+  ['a hunted input face with no door', 'KR-SOURCE', 'src/data/job-faces.js', "remains: Object.freeze(['bones', 'bones'", "remains: Object.freeze(['cellar_dust', 'bones'"],
   ['the store sells at the hero\'s own band', 'KR-STORE', 'src/core/trades.js', 'bandStep(bandOf(heroStep)) - TRADE_PM.storeLag', 'bandStep(bandOf(heroStep))'],
   ['the store sells at the crafted price', 'KR-STORE', 'src/core/trades.js',
     'BigInt(TRADE_PM.storeCeiling) * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n',
     '1000n * big(kind.workUh) * BigInt(TRADE_PM.townWageShare) * BigInt(wage(storeStep(heroStep))) * 1000n'],
   ['a meal is two hunted hours', 'KR-HOURS', 'src/data/trades.js', "line: 'meal', split: 0.5, effect: 1, opens: 1, from: [share('fish', 1)]", "line: 'meal', split: 0.5, effect: 2, opens: 1, from: [share('fish', 1)]"],
+  ['the cap counts the whole list, not a batch (band 1 could never land)', 'KR-BATCH', 'src/data/trades.js',
+    'if (b.rows.length > KIT_BATCH_MAX)', 'if (batches.flatMap((x) => x.rows || []).length > KIT_BATCH_MAX)'],
+  ['a batch has no cap', 'KR-BATCH', 'src/data/trades.js', "if (b.rows.length > KIT_BATCH_MAX) out.push('batch '", "if (b.rows.length > 999) out.push('batch '"],
   ['the job ignores the trade Level', 'KR-HOURS', 'src/core/trades.js', 'if (rung < kind.opens || rung > TRADE_PM.rungCount || lv(level) < R) return null;', 'if (rung < kind.opens || rung > TRADE_PM.rungCount) return null;'],
 ];
 

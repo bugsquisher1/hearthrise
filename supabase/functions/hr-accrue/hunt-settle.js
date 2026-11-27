@@ -59,8 +59,7 @@ import { MONSTERS } from '../../../src/data/monsters.js';
 import { wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 import { charLevelFromXp } from '../../../src/core/xp.js';
-import { huntPlayOf, fightItems } from '../../../src/core/combat-sim.js';
-import { COMBAT_BALANCE } from '../../../src/core/combat.js';
+import { fightItems } from '../../../src/core/combat-sim.js';
 import { memberSide, frozenOf, frozenKey } from '../../../src/core/member.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
@@ -119,34 +118,30 @@ export function liveSeeds(inst, from) {
   for (let i = 0; i < LIVE_SEEDS; i++) list.push(seed('s', from + i));
   return { domain: 's', from, list };
 }
-/* WHAT A START POINT READ NOW FREEZES of `inst`: its world (null when the next settle restarts it), its scale and the frozen row
-   of any member (member.js frozenOf) at the instance's next boundary. ONE home for huntLive's peers and huntPeerKeys. `members`: the
-   instance's, whose plan says whether the fight plays the Danger scale (combat-sim.js fightItems). */
+/* WHAT A START POINT READ NOW FREEZES of `inst`: its world and the frozen row of any member (member.js frozenOf) at the instance's next
+   boundary. ONE home for huntLive's peers and huntPeerKeys. `members`: the instance's, whose plan says whether the fight plays the Danger
+   scale (combat-sim.js fightItems). */
 function frozenAt(inst, members) {
-  /* A SCALED HUNT (scalePlanOf): the Level the next settle plays, and a world it restarts is no start point (the browser starts fresh, as the server will). */
-  const play = inst.play || { level: null, restart: false };
-  const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
-  const where = play.level === null ? null : huntGroundOf(String(inst.hunt));
+  const world = typeof inst.world === 'string' ? inst.world : null;
   /* THE BURNING TOWER: the floor the server says stands (or stands next), the live engine's ctx.towerFloor; its table is the peers' rows */
   const run = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground);
   const tower = run && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
   /* a peer's frozen rolls against the rows the instance plays (null: member.js reads the catalogue, as before) */
-  const rows = tower !== null ? towerMonsters(tower, run) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
+  const rows = tower !== null ? towerMonsters(tower, run) : null;
   const atMs = Number(inst.next_swing_at_ms);
   /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
   let kinds = null;
   /* the catalogue as the instance's fight reads it (combat-sim.js fightItems: on the Danger scale every piece sized at the ground's base) */
-  const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members, play.level === null ? null : { level: play.level });
-  return { play, world, tower, row: (m) => frozenOf(memberSide(m, { items }), kinds || (kinds = kindsOf(inst, world, tower)), atMs, rows) };
+  const items = fightItems(ITEMS, (huntGroundOf(String(inst.hunt)) || {}).ground, members);
+  return { world, tower, row: (m) => frozenOf(memberSide(m, { items }), kinds || (kinds = kindsOf(inst, world, tower)), atMs, rows) };
 }
 export function huntLive(inst, members, user, slot) {
   const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
-  const { play, world, tower, row } = frozenAt(inst, members);
+  const { world, tower, row } = frozenAt(inst, members);
   return {
     v: 1,
     instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
       settled_to_ms: Number(inst.settled_to_ms), next_swing_at_ms: Number(inst.next_swing_at_ms), world_swing: from,
-      scale: play.level === null ? null : { level: play.level },
       ...(tower !== null ? { tower_floor: tower } : {}),
       /* A LIVE EVENT: each member's Level XP windows by member key (src/core/live-events.js), so the browser's prediction earns what the server will */
       ...(members.some((m) => m.liveXp) ? { live_xp: Object.fromEntries(members.filter((m) => m.liveXp).map((m) => [m.key, m.liveXp])) } : {}) },
@@ -283,8 +278,7 @@ const budgetSpent = (b) => b.spentMs >= b.limitMs;
    the purse no longer pays (gold_short) or a gold_out end it no longer proves (another hero's coins
    arrived). The server never clamps a bill the engine already spent; it refuses the window, and this
    re-reads at once so the window re-runs on the fresh purse. */
-/* `scale_moved` (2027-03-21-scaled-hunts.sql): the leader's switch, hours or leadership moved between this read and its commit. */
-const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short', 'scale_moved']);
+const RETRYABLE = Object.freeze(['session_moved', 'version_conflict', 'gold_short']);
 export function retryableSettle(v) {
   if (!v || v.outcome !== 'refused') return false;
   if (RETRYABLE.includes(v.reason)) return true;
@@ -657,8 +651,6 @@ export async function readHuntSettle(o, mode) {
     return { answer: { outcome: 'nothing', reason: 'tower_pending', status: 200,
       body: { ok: true, settled: false, reason: 'tower_pending', ...(await envOf()) } } };
   }
-  /* A SCALED HUNT (scalePlanOf): the Level this window plays, whether the stored world restarts for it, and its hours as a cap. */
-  inst.play = scalePlanOf(inst, where);
   const members = [];
   for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));
   /* EACH HERO AS ITS OWN CHARACTER READS (heroSetup): never the party this read saw. A setting the player left unset is the
@@ -683,36 +675,11 @@ export async function readHuntSettle(o, mode) {
       body: { ok: true, settled: false, reason: 'below_min_span', ...env, hunt_live: huntLive(inst, members, user, slot) } } };
   }
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
-  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);
+  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   /* A YARD SESSION STOPS AT ITS NEXT UNPAID HOUR (src/core/hunt/training.js trainingStopMs): the commit that lands there pays it or ends the session `gold_out`. */
   const paidTo = Math.min(toMs, trainingStopMs(where.ground, mine.session, fromMs));
   if (!(paidTo > fromMs)) return notDue();
   return { envOf, inst, members, where, fromMs, toMs: paidTo, endMs, nowMs, pending, version: Number(mine.state.version), worldMaxBytes: o.worldMaxBytes };
-}
-
-/**
- * WHAT THIS WINDOW PLAYS ON A SCALABLE GROUND (2027-03-21-scaled-hunts.sql; src/data/scaled-hunts.js). The instance read carries the
- * server's own answer (hr_hunt_instance_read `scale`: hr_scaled_hunt_of, { level, banked_ms } when the party leader's switch is on, hours
- * are banked and the leader is past the ground's band) and the Level the stored world was built on (`scale_level`). Nothing here is a
- * client value, and nothing here is trusted by the commit: hr_hunt_apply_instance re-proves the Level and the hours, and debits them.
- *   level    the Level the engine plays (null: the ground's own; a scale this engine's data can't play is played unscaled, never half)
- *   restart  the stored world was built on another Level: it restarts from the stored swing (as a party change does), so no standing
- *            monster keeps a row the window doesn't play
- *   stopMs    the window may walk at most the banked hours of world swings: hours spent only while the party is in the spawn, never
- *            past what is banked (a window that would cross the end stops there; the next settle plays the ground's own)
- * A database before that file carries neither key: every window plays unscaled, as before.
- */
-export function scalePlanOf(inst, where) {
-  const s = inst && inst.scale && typeof inst.scale === 'object' ? inst.scale : null;
-  const asked = s && Number.isInteger(s.level) ? s.level : null;
-  const tick = COMBAT_BALANCE.tickMs;
-  const swings = s ? Math.floor(Number(s.banked_ms) / tick) : 0;
-  const next = Math.floor(Number(inst && inst.next_swing_at_ms));
-  const stopMs = asked !== null && swings > 0 && Number.isFinite(next) ? next + swings * tick : Infinity;
-  const level = asked !== null && swings > 0 && where && huntPlayOf(where.ground.id, { level: asked }).level === asked
-    && stopMs > Number(inst.settled_to_ms) ? asked : null;
-  const stored = inst && Number.isInteger(inst.scale_level) ? inst.scale_level : null;
-  return { level, restart: typeof (inst && inst.world) === 'string' && stored !== level, stopMs: level === null ? Infinity : stopMs };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
@@ -723,17 +690,16 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
      edge's limit counts too). `clock` is the request budget's timer (engineBudget); absent, performance.now. */
   const tick = typeof clock === 'function' ? clock : perfNow;
   const t0 = tick();
-  const play = inst.play || { level: null, restart: false };
   /* THE TRAIT ROLL (1071-trait-pieces.sql): handed only when the server's read says it is on; the engine rolls it on the scale alone */
   const drops = traitDropsOf(inst, members);
   /* THE INNER FLAME (1074-inner-flame-luck.sql): the note of the window's Remains, handed only when the server's read says the fire is lit */
   const flame = flameDropsOf(inst);
   const out = accrueHunt({
-    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: play.restart ? null : (inst.world || null),
+    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,
       worldSwing: Number(inst.world_swing) || 0 },
     window: { fromMs, toMs }, secret: String(inst.secret || ''),
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
-    worldMaxBytes: plan.worldMaxBytes, ...(play.level !== null ? { scale: { level: play.level } } : {}),
+    worldMaxBytes: plan.worldMaxBytes,
     /* the instance's frozen mode, the read's own (readHuntSettle proposes nothing without one this engine knows) */
     sessionMode: inst.session_mode,
     /* the Tower's floor, the read's own (readHuntSettle proposes nothing on the Tower without one) */
@@ -752,10 +718,8 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
         version: m.version, salt: String(inst.secret || ''), attempt: attempt || 0 }),
       delta: p.delta, hunt: p.hunt, analyzer: p.analyzer, ...(traits ? { traits } : {}), ...(flame ? { flame: flameFor(flame, m.key) } : {}) });
   }
-  /* THE SCALE IT PLAYED, a claim the commit re-proves (never sent unscaled, so a database before 2027-03-21-scaled-hunts.sql takes every window as before) */
   return { out, engineMs, commit: { instanceId: String(inst.id), worldSwingFrom: out.worldSwingFrom,
-    settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world,
-      ...(out.scaleLevel !== null && out.scaleLevel !== undefined ? { scale: { level: out.scaleLevel } } : {}) },
+    settle: { to: new Date(out.settledTo).toISOString(), world_swing: out.worldSwingTo, world: out.world },
     members: payload } };
 }
 

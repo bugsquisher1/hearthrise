@@ -159,7 +159,6 @@
       ]
     }
   },
-  "hunt_tier": { "picks": {}, "playing": null },
   "hunt_settings": {
     "preset": 0,
     "role": "tank",

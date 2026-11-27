@@ -5,7 +5,14 @@
 //   node tests/hud-reachable.mjs                 the rules
 //   node tests/hud-reachable.mjs --mutate        every planted defect must turn a named rule RED
 //   node tests/hud-reachable.mjs --mutate --only <words>   only the mutants whose name holds <words>
+//   node tests/hud-reachable.mjs --mutate --shard=K/N      every Nth mutant from the Kth (smoke.yml's in-page-46 and in-page-54)
 //   node tests/hud-reachable.mjs --shots <dir>   also write a screenshot per size, solo and in a party of 4
+//
+// ci-step: in-page-46 | HUD in reach (play.html)
+// ci-run: node tests/hud-reachable.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate --shard=1/2
+// ci-step: in-page-54 | HUD in reach, mutants shard 2 of 2 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/hud-reachable.mjs --mutate --shard=2/2
 //
 // mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css src/shell/widgets/alerts.js src/shell/windows/away.js src/styles/summary.css
 // mutant-writes-tree: no — page mutants are served overrides
@@ -675,7 +682,14 @@ async function main() {
     process.exit(fails.length ? 1 : 0);
   }
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
-  const MINE = scopedMutants('tests/hud-reachable.mjs', MUTANTS);
+  const ALL = scopedMutants('tests/hud-reachable.mjs', MUTANTS);
+  /* --shard=K/N (lane/ci-reds-1127: 27 mutants ran 27-33 min alone, in-page-46 36.5 min whole on 45948810667): every Nth mutant from the
+     Kth, as tests/tally-window.mjs does; the clean control runs in every shard that holds one. Malformed: exit 2. */
+  const sh = process.argv.find((a) => a.startsWith('--shard'));
+  const sm = sh && /^--shard=(\d+)\/(\d+)$/.exec(sh);
+  if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.error('  HARNESS: bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(2); }
+  const MINE = sm ? ALL.filter((_, i) => i % +sm[2] === +sm[1] - 1) : ALL;
+  if (sm) console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + MINE.length + ' of ' + ALL.length + ' mutants');
   if (!MINE.length) process.exit(0);
   const clean = await cleanControl(() => checks(null, null));
   console.log(clean.line);

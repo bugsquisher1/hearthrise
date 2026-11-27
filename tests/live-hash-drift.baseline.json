@@ -25,10 +25,10 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 3022,
+  "replay_ms": 2702,
   "counts": {
-    "tracked_names": 1187,
-    "entries": 999
+    "tracked_names": 1188,
+    "entries": 1000
   },
   "functions": [
     {
@@ -9468,6 +9468,7 @@
         "1056-danger-scale.sql",
         "1071-trait-pieces.sql",
         "1074-inner-flame-luck.sql",
+        "1076-personal-loot.sql",
         "2026-10-23-hunt-world-state.sql",
         "2026-11-01-party-leader-density.sql",
         "2026-11-16-hunt-density-bounds.sql",
@@ -9490,12 +9491,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "05592f262c64353ec26fc689fef54706",
-        "norm_len": 8536,
+        "md5": "38b3b560c876fcdae3901abda1f06e84",
+        "norm_len": 9128,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql, 1056-danger-scale.sql, 1071-trait-pieces.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1074-inner-flame-luck.sql."
+      "why": "STAGED for the v0.2.144 release by 1005-lever-horizon.sql, 1025-own-heroes-apart.sql, 1046-settle-plans.sql, 1053-lever-gates.sql, 1056-danger-scale.sql, 1071-trait-pieces.sql, 1074-inner-flame-luck.sql, 1076-personal-loot.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body, replay is the staged body from 1076-personal-loot.sql."
     },
     {
       "sig": "hr_hunt_instance_solo()",
@@ -9710,6 +9711,24 @@
         "source": "computed-from-replay"
       },
       "agree": true
+    },
+    {
+      "sig": "hr_hunt_loot_freeze()",
+      "name": "hr_hunt_loot_freeze",
+      "tracked_by": [
+        "restate"
+      ],
+      "touched_by": [
+        "1076-personal-loot.sql"
+      ],
+      "live": null,
+      "replay": {
+        "md5": "64b3f8eec4a777ce0c8d2909e692948e",
+        "norm_len": 623,
+        "source": "computed-from-replay"
+      },
+      "agree": false,
+      "why": "STAGED for the v0.2.144 release by 1076-personal-loot.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1076-personal-loot.sql."
     },
     {
       "sig": "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",

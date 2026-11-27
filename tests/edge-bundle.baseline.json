@@ -588,6 +588,11 @@
         "bytes": 3907085,
         "on": "2026-11-27",
         "why": "lane/p1-personal-loot: personal loot in the engine (+8,686 B): src/core/hunt/took-part.js new (who took part in a kill, persisted on the hero unit), hunt-rewards.js payPersonal and its walk, drops.js effectiveDropChance share, combat-sim.js lootStreams, hunt-settle.js / accrue-hunt.js personalLoot"
+      },
+      {
+        "bytes": 3907329,
+        "on": "2026-11-27",
+        "why": "lane/p1-personal-loot: src/data/party.js PERSONAL_LOOT note now says what reads the switch (+244 B, a comment)"
       }
     ]
   }

@@ -31,6 +31,14 @@ export const PACK_TABLES = Object.freeze({
   /* a pack's own shield (an off-hand that makes a shield arm, src/data/shields.js isShield over ITEMS): the row that says its item guards.
      Krell's Tollgate is the first (lane/c-krell-uniques); after hr_items, its parent */
   hr_hunt_shields: ['item_id'],
+  /* a pack's own weapon (src/data/items.js weaponType): the row that says which arm it is. The Catacombs' Mallet and Watchman's Sword are the
+     first (lane/flame-temper-shipped-packs); after hr_items, its parent */
+  hr_hunt_weapons: ['item_id'],
+  /* a pack's pieces outside the hunt files (lane/flame-temper-shipped-packs, tests/ground-pack.mjs GP-9): each worn piece's item Level and each
+     Remains good a scale ground of it burns (tools/gen-flame-temper.mjs), each piece in the tally hand's slots (tools/gen-tally-tasks.mjs) */
+  hr_item_levels: ['item_id'],
+  hr_flame_fuel: ['item_id'],
+  hr_tally_tiers: ['item_id'],
 });
 
 /* THE ROWS A PACK MAY MOVE (Coordinator ruling 2026-11-17, set/v0.2.135): an item sells at the highest income dial of the grounds that

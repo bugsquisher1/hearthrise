@@ -140,6 +140,22 @@ export default definePack({
     candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, part: true },
     /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
     live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
+    /* THE WINGS' FIVE NAMED PIECES (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8, lane/retire-dawnsteel-lines): the staged uniques
+       past Dawnsteel sorted onto the wings' base tier, Wolfram (item Level 160). Each is its tier's plain piece to the number (`statsAs`: its stats,
+       tier, item Level, wear and book, src/data/items.js) plus the one rule that answers the wings: less poison from the Night Carters' Lime Sack,
+       less ice from Keeper Dunn's Snuff the Candles, more to the Night Carters (Human) and the Bone Walls (Construct). NO SOURCE YET: each one's
+       Rare row on its monster goes in with the wings' art, its pixel icon the reveal shows (tests/catalogue-coherence.mjs PENDING_SOURCE names
+       the monster). tests/gear-stats.mjs GSF-10 holds the rows to the rule. */
+    limewashed_plate: { n: 'Limewashed Plate', icon: '🛡️', type: 'armor', slot: 'body', armourClass: 'plate',
+      resistPm: { poison: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platebody' },
+    keepers_leg_plates: { n: 'Keeper\'s Leg Plates', icon: '🛡️', type: 'armor', slot: 'pants', armourClass: 'plate',
+      resistPm: { frost: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_platelegs' },
+    paupers_shroud: { n: 'Pauper\'s Shroud', icon: '🧥', type: 'armor', slot: 'body', armourClass: 'cloth',
+      resistPm: { frost: 100 }, rarity: 'rare', reqSkill: 'level', statsAs: 'cerecloth_body' },
+    watchmans_sword: { n: 'Watchman\'s Sword', icon: '⚔️', type: 'weapon', slot: 'weapon', weaponType: 'sword',
+      bane: { class: 'human', mult: 1.1 }, effects: ['bane'], rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_sword' },
+    dunns_mallet: { n: 'Dunn\'s Mallet', icon: '🔨', type: 'weapon', slot: 'weapon', weaponType: 'hammer', twoHanded: true,
+      bane: { class: 'construct', mult: 1.1 }, effects: ['bane'], rarity: 'rare', reqSkill: 'level', statsAs: 'wolfram_warhammer' },
   },
   itemText: {
     owing_tag: 'A wooden tag off a pauper\'s wrist. It has a name, a date, and "owed one burning"',
@@ -148,6 +164,11 @@ export default definePack({
     carters_hook: 'The hook a Night Carter drags a body with. They sold the dead up the north road by the cartload',
     candle_snuffer: 'Keeper Dunn\'s snuffer. He lights a candle for every name in the book, and snuffs them out when you come in',
     live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
+    limewashed_plate: 'It went into the ossuary wall with whoever wore it. A hundred years in the lime turned it white and sealed it against the stuff',
+    keepers_leg_plates: 'The Keepers stood their watches in the cold vaults for years, and these are lined against it',
+    paupers_shroud: 'A thin gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning, and the cold never got through',
+    watchmans_sword: 'The Havora Watch carried these against the town\'s thieves, and the Watchmen buried down here took theirs with them',
+    dunns_mallet: 'The Keepers packed the old bones into the walls with it to make room for the new dead. Keeper Dunn never put it down',
   },
   /* ON THE WINGS (lane/monster-roles-ford-wings, 2026-11-23): both wings play the monster formula, so each spell below keeps its shape and
      warning there and takes the formula's hit and cooldown (src/core/hunt/monster-formula.js); the numbers below play off the scale only. */

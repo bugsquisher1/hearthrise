@@ -223,6 +223,12 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-27 (lane/refhero-recut step 3), glade-4's TALLY only (from settle 11; world, timeline, kills 520 held): the crow's rows
    back on the set's chances (drop-tables rare-pace, gen-drop-hours --convert). Proof: the pin holds on a git archive of 5b6b28906 (exit 0, the
    late grounds re-cut and every catalogue regenerated), and this tree's src/data/monsters.js alone over it moves glade-4's tally at settle 11. */
+/* RE-PINNED 2026-11-27 (lane/p1-personal-loot, 20-v030 lane P1), THE WORLD HASHES ONLY, all five scenarios: every timeline and tally hash
+   and every kill count held (the --write diff moves 65 "world" lines and nothing else). Cause: the world's field list gains the hero unit's
+   `took` (src/core/hunt/took-part.js PERSISTED: whether it struck or healed in the pull in force), so every stored world string is one
+   field longer and world-state.js SHAPE moves. Personal loot is off here (no scenario hands personalLoot), so nothing reads the mark. Proof:
+   this tree with the base's src/core/hunt/world-state.js laid back alone (its MODULES without took-part.js) holds all five pins (exit 0,
+   11 mutants caught): drops.js `share`, the rewards' took-part walk, combat-sim's loot streams and the l:<unit> seed domain move no byte. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

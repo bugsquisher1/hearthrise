@@ -23,7 +23,12 @@
 //          gold split evenly, common items round-robin, each rare to the
 //          party's rare roll (party-split.js, the one split; a `rare_roll`
 //          event through ctx.emit) — and every kill counter, for each hero in
-//          the instance; then the Hearthfind roll for the hero who landed it
+//          the instance; then the Hearthfind roll for the hero who landed it.
+//          PERSONAL LOOT (ctx.personal: the instance's frozen `personal_loot`,
+//          lane/p1-personal-loot): the drops are each hero's own instead, rolled
+//          by every hero that took part in the kill (./hunt/took-part.js) on its
+//          own loot stream (payPersonal); the gold, the counters and the
+//          Hearthfind are unchanged
 //   kill   of a HERO: a death, answered to the caller (the span ends that
 //          hero's hunt and prices the death)
 //
@@ -33,6 +38,10 @@
 // offset (only with two or more heroes), each rare unit's roll (only with two or
 // more heroes, in drop order), the Hearthfind. The `r` stream is the server's
 // alone: the browser's prediction runs it on a constant (live-engine.js).
+// With personal loot a kill draws on `r` only its gold and the Hearthfind: each
+// roller draws its drop rows on its OWN stream (seed domain `l:<unit>`, one a
+// swing, ctx.lootRngOf), so what a hero finds never depends on who else stood
+// there or in which order they rolled.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -49,6 +58,7 @@ import { resolveHearthfind } from './hearthfind.js';
 import { magicXpFor } from './hunt/xp-share.js';
 import { splitEven, itemOwner, rareRoll } from './party-split.js';
 import { rollKillFor } from './trait-roll.js';
+import { noteTookPart, rollersOf } from './hunt/took-part.js';
 import { makeEvent } from './hunt/events.js';
 import { trainingSwing } from './hunt/training.js';
 import { isHero, isMonster } from './hunt/sides.js';
@@ -151,8 +161,12 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   else {
     payDrops(present, ids, lead, row, ctx, world, atMs);
     /* THE TRAIT ROLL (src/core/trait-roll.js; DARK: only when the server hands the window one, which no caller does while
-       GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves. */
-    if (ctx.traitDrops && (!pay || pay.drops)) present.forEach((m, i) => rollKillFor(ctx.traitDrops, m.key, ids[i], present.length, ctx.traitDrops.rngOf(ids[i]), atMs, monId, m.worn));
+       GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves.
+       With personal loot, each hero that took part in the kill (took-part.js), one in (how many of them): the drops' own rule. */
+    if (ctx.traitDrops && (!pay || pay.drops)) {
+      const by = ctx.personal ? rollersOf(ids, unitIn(world)) : ids;
+      by.forEach((id) => { const m = present[ids.indexOf(id)]; rollKillFor(ctx.traitDrops, m.key, id, by.length, ctx.traitDrops.rngOf(id), atMs, monId, m.worn); });
+    }
   }
   for (const m of present) countKill(m, kind, !pay || pay.bestiary);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
@@ -162,8 +176,13 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
-/* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. */
+/* A world's unit by id (the rewards' lookups of a kill's few heroes). */
+const unitIn = (world) => (id) => world.units.find((u) => u.id === id) || null;
+
+/* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. With personal
+   loot (ctx.personal), each roller's own roll instead (payPersonal). */
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
+  if (ctx.personal) { payPersonal(present, ids, row, ctx, world, atMs); return; }
   const rng = ctx.rng;
   /* ON THE DANGER SCALE the swing's dial carries the depth's share of the table (danger.js dangerDial dropPm: loot follows depth); off it none */
   const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
@@ -183,6 +202,23 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
       m = present[itemOwner(k++, present.length, offset)];
     }
     giveDrop(m, ids[present.indexOf(m)], ev, ctx, atMs);
+  }
+}
+
+/* PERSONAL LOOT (src/data/party.js PERSONAL_LOOT; 21-flame-temper-imbue-loot.md section 4; the hr_flags switch `personal_loot`, frozen on
+   the instance when its hunt starts, 1076-personal-loot.sql): EVERY HERO THAT TOOK PART in the kill (took-part.js rollersOf: alive at it and
+   struck at a monster or healed a hero in its pull) rolls the kill's whole table itself, in unit-id order, each row at 1 / (the heroes
+   rolling) of its chance (drops.js effectiveDropChance `share`), on ITS OWN odds (its weakness and drop buff, never the killer's), on ITS
+   OWN loot stream (ctx.lootRngOf(unit): seed domain l:<unit>, one a swing). What it finds goes to its own bag and only its own: there is
+   no round-robin, no rare roll and no rotation (`rareWon` is never touched), and a Rare's moment names its finder. The kill's expected
+   drops are the row's in any party, so a party never drops more than its heroes would apart. Not a die is drawn on `r`. */
+function payPersonal(present, ids, row, ctx, world, atMs) {
+  const by = rollersOf(ids, unitIn(world));
+  const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
+  for (const id of by) {
+    const m = present[ids.indexOf(id)];
+    const rolled = rollDropTable(row.drops, { depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus('dropRate'), share: by.length }, ctx.lootRngOf(id));
+    for (const ev of rolled.events) giveDrop(m, id, ev, ctx, atMs);
   }
 }
 
@@ -207,6 +243,8 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
   const fell = fallsAt(members, events);
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
+    /* WHO TOOK PART (took-part.js): every act before the kill, in order */
+    noteTookPart(ev, members, unitOf, world);
     if (ev.type !== 'kill') continue;
     const t = unitOf(ev.t);
     if (isMonster(t) && t.kind === boss) {
@@ -228,6 +266,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the swing's dial, src/core/hunt/dial.js: the Danger scale step's), hearthfind? (the indexed table; the catalogue's when absent),
+ *   personal? + lootRngOf(unit)? (PERSONAL LOOT, payPersonal: each roller's own drops on its own stream; absent, the party's one roll),
  *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays only his drops, on his kill),
  *   prize? (a keyed hall's boss, by id: his rows are each hero's own daily roll, payPrize),
  *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js),
@@ -246,6 +285,8 @@ export function rewardSwing(members, events, world, ctx) {
   const deaths = [];
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
+    /* WHO TOOK PART (took-part.js): the pull's marks, every act before this event read in order, so a kill reads the acts before it */
+    noteTookPart(ev, members, unitOf, world);
     switch (ev.type) {
       case 'xp': {
         const m = members.get(ev.u);

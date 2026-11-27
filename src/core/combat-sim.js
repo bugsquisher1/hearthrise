@@ -295,10 +295,12 @@ export function bornHpOf(u, evs) {
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
- * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number, traitDrops?: any, flameDrops?: any}} ctx
+ * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string, towerFloor?: number, traitDrops?: any, flameDrops?: any, personalLoot?: boolean}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
  *        traitDrops? (the server's Trait roll, src/core/trait-roll.js traitSwing: DARK, nothing hands one while GEAR_STEPS.traitsLive is false),
+ *        personalLoot? (true: PERSONAL LOOT, each hero that took part in a kill rolls its own drops on its own stream, hunt-rewards.js
+ *        payPersonal; the instance's own frozen rule, hr_hunt_instance_read `personal_loot`; absent, the party's one roll as before),
  *        flameDrops? (the Inner Flame's note of every Remains a hero picks up and when, hunt-settle.js flameDropsOf: handed only when
  *        the server says the fire is lit; the server walks the fire from it, 1074-inner-flame-luck.sql; no die is drawn),
  *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws),
@@ -307,6 +309,13 @@ export function bornHpOf(u, evs) {
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary (on the Tower, `tower`: { floors: the floors
  *            this member cleared standing, in order }) } }
  */
+/* EACH HERO'S LOOT STREAM FOR SWING `sw` (personal loot, seed domain l:<unit>): made lazily, once a hero a swing, so a swing with no kill
+   seeds nothing. */
+function lootStreams(ctx, sw) {
+  const made = new Map();
+  return (unit) => { if (!made.has(unit)) made.set(unit, createRng(seedOf(ctx, 'l:' + unit, sw))); return made.get(unit); };
+}
+
 export function simulateHuntInstance(inst, ctx) {
   const tick = Number.isInteger(ctx.tickMs) && ctx.tickMs > 0 ? ctx.tickMs : COMBAT_BALANCE.tickMs;
   const toMs = Math.floor(Number(ctx.toMs) || 0);
@@ -512,6 +521,9 @@ export function simulateHuntInstance(inst, ctx) {
         /* THE TRAIT ROLL (src/core/trait-roll.js), DARK: only on the scale and only when the server hands one (ctx.traitDrops; none while
            GEAR_STEPS.traitsLive is false). Each hero's own stream for the swing, seed domain t:<unit> (action-rules.js SEED_DOMAIN) */
         ...(ctx.traitDrops && scale && !train ? { traitDrops: traitSwing(ctx.traitDrops, ctx.ground, world.danger, (u) => createRng(seedOf(ctx, 't:' + u, sw))) } : {}),
+        /* PERSONAL LOOT (hunt-rewards.js payPersonal; the instance's frozen personal_loot, handed only by the server's read): each roller's
+           own stream for the swing, seed domain l:<unit>, made the first time that hero rolls in it */
+        ...(ctx.personalLoot === true ? { personal: true, lootRngOf: lootStreams(ctx, sw) } : {}),
         /* THE INNER FLAME (hunt-settle.js flameDropsOf): the server's note of each Remains picked up, only when it hands one */
         ...(ctx.flameDrops ? { flameDrops: ctx.flameDrops } : {}) });
       /* THE BURNING TOWER: each hero standing when its room fell cleared the floor (tower.js towerCleared's `floor` event names them). */

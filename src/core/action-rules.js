@@ -34,7 +34,7 @@ const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(
    on the SAME instance and index draw from separate streams, and adding one
    never re-keys another. Domains: `s` swing, `g` gather, `c:<lane>` cast,
    `r` roll, `t:<unit>` one hero's Trait roll (trait-roll.js, dark). A solo instance's id is its session id (hunt_instances). */
-export const SEED_DOMAIN = /^(s|g|r|t:[0-9]{1,9}|c:[a-z0-9_]{1,32})$/;
+export const SEED_DOMAIN = /^(s|g|r|t:[0-9]{1,9}|l:[0-9]{1,9}|c:[a-z0-9_]{1,32})$/;
 export function seedLabel(instanceId, domain, index) {
   if (!SEED_DOMAIN.test(String(domain))) throw new Error('seedLabel: unknown seed domain ' + String(domain));
   return 'hunt:' + String(instanceId) + ':' + String(domain) + ':' + int(index, 0);

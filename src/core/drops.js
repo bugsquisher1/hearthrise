@@ -36,17 +36,22 @@ export function bandOf(row) {
  * silently turn a guarantee into a multi-roll.
  *
  * @param row     { id, ch }
- * @param mods    { dropMult, dropBuff, featuredMult, depthPm }
+ * @param mods    { dropMult, dropBuff, featuredMult, depthPm, share }
  *   depthPm  the Danger scale's depth on the kill's own table, permille (src/core/hunt/danger.js dangerDial dropPm; absent off the scale)
+ *   share    PERSONAL LOOT (src/core/hunt/took-part.js, hunt-rewards.js): the heroes rolling this kill, each at 1 / share of the row's whole
+ *            chance after every multiplier and the cap, a guarantee's too, so the kill's expected drops are the row's in any party
+ *            (21-flame-temper-imbue-loot.md section 4.2). Absent or 1: the row's whole chance, exactly as before
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
-  if (row.ch >= 1) return Math.min(1, row.ch);
+  const share = Number.isInteger(m.share) && m.share > 1 ? m.share : 1;
+  if (row.ch >= 1) return share === 1 ? Math.min(1, row.ch) : Math.min(1, row.ch) / share;
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
   const depth = Number.isFinite(m.depthPm) && m.depthPm > 0 ? m.depthPm / 1000 : 1;
-  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);
+  const whole = Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * depth);
+  return share === 1 ? whole : whole / share;
 }
 
 /**

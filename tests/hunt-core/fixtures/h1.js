@@ -20,7 +20,7 @@ const V = sourceQuery(ROOT);
 export async function loadCore(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   const names = ['grid', 'leash', 'movement', 'events', 'world-state', 'world-step', 'targeting', 'roles', 'pull-cycle',
-    'damage', 'abilities', 'status', 'consumables', 'xp-share', 'tally', 'conditions'];
+    'damage', 'abilities', 'status', 'consumables', 'xp-share', 'tally', 'conditions', 'monster-formula'];
   const mods = await Promise.all(names.map((n) => imp('src/core/hunt/' + n + '.js')));
   /* M.worldstate, M.movement, … and M.hunt['pull-cycle'] for every module by its file name. */
   const M = Object.fromEntries(names.map((n, i) => [n.replace('-', ''), mods[i]]));

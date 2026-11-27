@@ -830,12 +830,12 @@ export const MONSTERS = {
     role: 'caster',
     hp: 1206, atk: 30, aim: 34, evasion: 37, def: 17, xp: 6137, gp: [94, 282], formula: true, speed: 2800,
     spells: ['slag_toss', 'slag_rain'],
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.8, ch: 0.5, band: 'common' }, { id: 'goblin_totem', everyHours: 1.333, ch: 0.3, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.67, ch: 0.15, band: 'uncommon' },
-      { id: 'steel_platebody', everyHours: 9.1, ch: 0.044, band: 'scarce' }, { id: 'boarhide_body', everyHours: 9.1, ch: 0.044, band: 'scarce' }, { id: 'scholar_body', everyHours: 9.1, ch: 0.044, band: 'scarce' },
-      { id: 'coppercap_shield', everyHours: 9.1, ch: 0.044, band: 'scarce' }, { id: 'war_crown', everyHours: 28.4, ch: 0.0141, band: 'rare' },
-      { id: 'willow_wand', everyHours: 35, ch: 0.0114, band: 'rare' }, { id: 'willow_spellbook', everyHours: 35, ch: 0.0114, band: 'rare' }, { id: 'willow_staff', everyHours: 35, ch: 0.0114, band: 'rare' },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.833, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.39, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.78, ch: 0.144, band: 'uncommon' },
+      { id: 'steel_platebody', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' },
+      { id: 'coppercap_shield', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'war_crown', everyHours: 29.6, ch: 0.0135, band: 'rare' },
+      { id: 'willow_wand', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_spellbook', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_staff', everyHours: 36.4, ch: 0.011, band: 'rare' },
       /* the Cauldron and his Rares keep him in the trophy band (125-150 h) and the rare band (20 h) a hero on the tier path (drop-tables.mjs); the Cauldron 274 h since steel is item Level 40 (lane/scale-grounds-2) */
-      { id: 'verdigris_cake', everyHours: 35, ch: 0.0114, band: 'rare' }, { id: 'coppercaps_cauldron', everyHours: 274, ch: 0.00146, band: 'trophy' }] },
+      { id: 'verdigris_cake', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'coppercaps_cauldron', everyHours: 286, ch: 0.0014, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED BOSS PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14): xp 0, gp [0, 0], his ground table plus one call-only piece; his adds pay nothing (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. His to-hit was a low `baseAcc` that took it off the old 85% ceiling so Defense and a shield counted; since the to-hit ratio (src/data/to-hit.js, L15) they always count, and each called row's aim and evasion land the chances its `baseAcc` landed on the reference hero of its Level (ported 2026-11-20). Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,
@@ -874,8 +874,8 @@ export const MONSTERS = {
     weaponWeak: 'ranged', weaponResist: [],
     role: 'swarm',
     hp: 33, atk: 13, aim: 44, evasion: 12, def: 1, xp: 101, gp: [5, 14], formula: true, speed: 4400,
-    drops: [{ id: 'bone_chips', everyHours: 0.0348, ch: 0.444, band: 'common' }, { id: 'crow_quill', everyHours: 0.2174, ch: 0.0711, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.69, ch: 0.00915, band: 'scarce' }, { id: 'iron_sword', everyHours: 1.69, ch: 0.00915, band: 'scarce' },
-      { id: 'iron_belt', everyHours: 15, ch: 0.00103, band: 'rare' }, { id: 'studded_belt', everyHours: 15, ch: 0.00103, band: 'rare' }, { id: 'adept_belt', everyHours: 15, ch: 0.00103, band: 'rare' }] },
+    drops: [{ id: 'bone_chips', everyHours: 0.0361, ch: 0.428, band: 'common' }, { id: 'crow_quill', everyHours: 0.2253, ch: 0.0686, band: 'uncommon' }, { id: 'iron_boots', everyHours: 1.753, ch: 0.00882, band: 'scarce' }, { id: 'studded_boots', everyHours: 1.753, ch: 0.00882, band: 'scarce' }, { id: 'adept_boots', everyHours: 1.753, ch: 0.00882, band: 'scarce' }, { id: 'iron_sword', everyHours: 1.753, ch: 0.00882, band: 'scarce' },
+      { id: 'iron_belt', everyHours: 15.55, ch: 0.000994, band: 'rare' }, { id: 'studded_belt', everyHours: 15.55, ch: 0.000994, band: 'rare' }, { id: 'adept_belt', everyHours: 15.55, ch: 0.000994, band: 'rare' }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     role: 'shooter',

@@ -89,8 +89,9 @@ if (process.argv.includes('--mutate')) {
   /* (lane/scale-grounds-2) 27 K-6: the strong company leaves in its own base, so the Glade's top (Level 31 in iron) falls under the Warrens' floor */
   ['tests/bands.mjs', 'the strong company never wears the tier ahead (the handover)', [['src/data/bands.js', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 1 });', 'BAND_ABS = Object.freeze({ freshTiersBack: 1, topTiersAhead: 0 });']]],
   /* (lane/monster-roles-ford-wings) a middle at the pay's grain, not its hold's: after the scale-grounds re-cut the Flooded Wing holds on its
-     anchor (507.8 to 510), so the plant drops the Bone Wing's refHeld (585 for a hold of 586.5) and its middle falls back to refStep 590 */
-  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 605, refKillsHead: 125, refHeld: 585, coinPm: 5500,', 'topStep: 605, refKillsHead: 125, coinPm: 5500,']]],
+     anchor (507.8 to 510), so the plant drops the Bone Wing's refHeld (585 for a hold of 586.5) and its middle falls back to refStep 590;
+     (lane/refhero-recut) on the clock's REF_HERO the Bone Wing holds its refStep and the Flooded Wing carries one again (475 for a hold of 474) */
+  ['tests/bands.mjs', 'the reading\'s middle at the pay\'s grain', [['src/data/danger.js', 'topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300,', 'topStep: 500, refKillsHead: 140, coinPm: 3300,']]],
   ['tests/bands.mjs', 'depth floors, not half up', [['src/core/bands.js', '(DEPTHS - 1) + span * den) / (2 * span * den));', '(DEPTHS - 1)) / (2 * span * den));']]],
   ['tests/bands.mjs', 'the top wears the base', [['src/core/bands.js', 'Math.min(g.gearLevel + T * BAND_ABS.topTiersAhead, wearableTierLevel(top))', 'g.gearLevel']]],
   /* lane/scale-early-grounds: the strong four wears what its top Level can wear, at the Level its hunt still plays */

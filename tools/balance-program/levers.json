@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17539,
+  "typed": 17534,
   "files": 263,
   "lever": 324,
   "notLever": 432,
@@ -8039,7 +8039,7 @@
     {
      "file": "src/data/danger.js",
      "line": 237,
-     "text": "catacomb_bone_wing: ground({ refStep: 590, floorStep: 510, topStep: 605, refKillsHead: 125, refHeld: 585, coinPm: 5500, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
+     "text": "catacomb_bone_wing: ground({ refStep: 500, floorStep: 405, topStep: 550, refKillsHead: 140, coinPm: 4200, formulaStep: 520, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_bone_wing'), entryLevel: 165, refLevel: 175, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
@@ -8087,37 +8087,37 @@
     {
      "file": "src/data/danger.js",
      "line": 257,
-     "text": "pyre_field: ground({ refStep: 80, floorStep: 10, topStep: 120, refKillsHead: 140, refHeld: 75, coinPm: 3000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
+     "text": "pyre_field: ground({ refStep: 50, floorStep: 0, topStep: 105, refKillsHead: 140, coinPm: 2900, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('pyre_field'), entryLevel: 70, refLevel: 80, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 258,
-     "text": "krells_hold: ground({ refStep: 60, floorStep: 15, topStep: 125, refHeld: 65, coinPm: 3600, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
+     "text": "krells_hold: ground({ refStep: 20, floorStep: 0, topStep: 120, coinPm: 4000, formulaStep: 70, gearLevel: tierLevel(4), ladderTier: 5, traits: traitPool('krells_hold'), entryLevel: 85, refLevel: 97, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 262,
-     "text": "carters_rest: ground({ refStep: 90, floorStep: 5, topStep: 110, refKillsHead: 160, coinPm: 1800, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),",
+     "text": "carters_rest: ground({ refStep: 60, floorStep: 0, topStep: 75, refKillsHead: 145, refHeld: 55, coinPm: 2100, formulaStep: 120, gearLevel: tierLevel(5), ladderTier: 6, traits: traitPool('carters_rest'), entryLevel: 110, refLevel: 117, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 263,
-     "text": "ox_road: ground({ refStep: 160, floorStep: 70, topStep: 240, coinPm: 4800, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
+     "text": "ox_road: ground({ refStep: 90, floorStep: 0, topStep: 175, coinPm: 2500, formulaStep: 70, gearLevel: tierLevel(6), ladderTier: 7, traits: traitPool('ox_road'), entryLevel: 112, refLevel: 120, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 264,
-     "text": "wyvern_roost: ground({ refStep: 190, floorStep: 70, topStep: 235, refHeld: 185, coinPm: 3700, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),",
+     "text": "wyvern_roost: ground({ refStep: 110, floorStep: 0, topStep: 195, refKillsHead: 140, refHeld: 105, coinPm: 2100, formulaStep: 70, gearLevel: tierLevel(7), ladderTier: 8, traits: traitPool('wyvern_roost'), entryLevel: 128, refLevel: 140, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     },
     {
      "file": "src/data/danger.js",
      "line": 266,
-     "text": "catacomb_flooded_wing: ground({ refStep: 510, floorStep: 460, topStep: 525, refKillsHead: 145, coinPm: 3500, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
+     "text": "catacomb_flooded_wing: ground({ refStep: 470, floorStep: 440, topStep: 500, refKillsHead: 140, refHeld: 475, coinPm: 3300, formulaStep: 500, gearLevel: tierLevel(8), named: 'catacomb', traits: traitPool('catacomb_flooded_wing'), entryLevel: 150, refLevel: 160, monsters: 'formula' }),",
      "binding": "DANGER_GROUNDS"
     }
    ],
@@ -9843,7 +9843,7 @@
       "uncommon"
      ],
      "rows": 226,
-     "distinct": 71,
+     "distinct": 92,
      "low": 0.06,
      "high": 1
     }
@@ -10086,7 +10086,7 @@
       "trophy"
      ],
      "rows": 308,
-     "distinct": 87,
+     "distinct": 88,
      "low": 0.0005,
      "high": 0.05
     }

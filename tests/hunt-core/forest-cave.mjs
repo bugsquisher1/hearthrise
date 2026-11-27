@@ -561,8 +561,12 @@ const mutants = [
     edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 575, gp: [15, 42]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 645, gp: [12, 39]'],
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 1130, gp: [24, 69]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 1965, gp: [36, 108]'],
       ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 2280, gp: [39, 120]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 1280, gp: [24, 78]']] },
+  /* ON THE SCALE a kill's Level XP is a share of the hours table at the ground's reference kill rate, never its row's xp (danger.js dangerDial
+     xpPm), so a third of the XP is three times the row's refKillsHead and half the coin is half its coin level (lane/refhero-recut: the row
+     edits alone moved only the coin, and the re-cut Glade's 135 kills a head paid its XP over the Sewer's party anyway) */
   { name: 'the glade\'s coin halved and its XP a third (it pays under the Sewer\'s party in both)', case: 'glade-between',
-    edits: [['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [2, 7]'],
+    edits: [['src/data/danger.js', 'topStep: 120, refKillsHead: 135, refHeld: 55, coinPm: 7800,', 'topStep: 120, refKillsHead: 405, refHeld: 55, coinPm: 3900,'],
+      ['src/data/monsters.js', 'xp: 101, gp: [5, 14]', 'xp: 38, gp: [3, 7]'], ['src/data/monsters.js', 'xp: 114, gp: [4, 13]', 'xp: 43, gp: [2, 7]'],
       ['src/data/monsters.js', 'xp: 199, gp: [8, 23]', 'xp: 75, gp: [5, 12]'], ['src/data/monsters.js', 'xp: 346, gp: [12, 36]', 'xp: 131, gp: [7, 19]'],
       ['src/data/monsters.js', 'xp: 401, gp: [13, 40]', 'xp: 152, gp: [7, 20]'], ['src/data/monsters.js', 'xp: 225, gp: [8, 26]', 'xp: 86, gp: [5, 14]']] },
   { name: 'Wickstead\'s Turncoats and spiders hit six times as hard (atk 8 -> 48, 5 -> 30)', case: 'wickstead-solo-floor',

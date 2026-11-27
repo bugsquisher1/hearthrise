@@ -9,7 +9,7 @@
 // ci-run: node tests/roads-window.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/roads-window.mjs --mutate
 //
-// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/road-plan.js src/shell/windows/talents/find.js src/core/talent-route.js
+// mutant-anchors: src/shell/windows/talents/index.js src/shell/windows/talents/card.js src/shell/windows/talents/map.js src/shell/windows/talents/camera.js src/session/talent-sections.js src/shell/windows/talents/road-plan.js src/shell/windows/talents/find.js src/core/talent-route.js src/session/company-sections.js
 //
 // docs/design/redesign/20-v030-the-roads.md section 4 (R-UI), 18-roads-review-ux.md sections 3 to 6. The pure half reads the layout,
 // the route and the camera in node; the page half is play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs),
@@ -41,8 +41,10 @@
 //         the answer's envelope
 //   RW-13 PLAN ROUTE (src/core/talent-route.js planRoute, ./road-plan.js): a far stone's Plan route sends ONE hr_talent_build_save for the
 //         hero's planned hunt naming the route over the build (each choice at its suggested option); nothing shows planned before the
-//         answer; Spend on plan then pays the plan in the map's order, one hr_talent_spend a point, each choice at its planned option,
-//         never past the server's points
+//         answer; the planned hunt is the SERVER's word (the section's plan_hunt, 1073), not the company section's older one. Spend on
+//         plan is ONE hr_talent_spend_plan naming that hunt (no hr_talent_spend): off while its answer is out and no stone owned
+//         before it; the answer's envelope owns the plan's steps in the map's order (the server's walk, nextPlanStep its twin), each
+//         choice at its planned option, and with no point left the press is off and says so
 //   RW-14 FIND TALENT AND THE FILTERS: typing an option's name finds its stone and Enter picks it and brings it on screen; a filter
 //         keeps its kind bright and dims the rest, and Vows shows every vow in Country view
 //   RW-15 THE KEYS: an arrow picks the next stone that way (the suggested one first), Enter is the card's own Take (ONE spend), Escape
@@ -72,10 +74,10 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 /* THE SERVER'S SECTION (hr_talents_view): a sword hero at Level 7 (the fixture's), 6 points, 2 spent on Power Strike's road */
 const LEVEL = 7;
 const OWNED = { 'power_strike.r1': true, 'power_strike.r2': true };
-const SECTION = (nodes = OWNED, level = LEVEL, points = pointsAt(level), extra = {}) => ({ live: true, level, points, spent: Object.keys(nodes).length, nodes,
-  auto: null, borrowed: [], vow_slots: 0, builds: {}, ...extra });
-/* the hunt the hero's plan is for (the company section's plan_hunt: src/session/plan-share.js planGroundOf) */
+/* the hunt the hero's plan is for, as the server names it (the section's plan_hunt, 1073: src/session/company-sections.js planGroundOf) */
 const GROUND = 'millrace_sewer';
+const SECTION = (nodes = OWNED, level = LEVEL, points = pointsAt(level), extra = {}) => ({ live: true, level, points, spent: Object.keys(nodes).length, nodes,
+  auto: null, plan_hunt: GROUND, borrowed: [], vow_slots: 0, builds: {}, ...extra });
 /* a far plain stone, four points out: Power Strike's road past its first crossroads */
 const FAR = 'power_strike.r5';
 
@@ -189,8 +191,22 @@ async function stub(page, s) {
       const t = s.env.talents;
       if (!(t.points - t.spent > 0)) return json({ ok: false, error: 'no_points' });
       const nodes = spend(t.nodes, body.p_node, body.p_pick);
-      s.env.talents = SECTION(nodes, t.level, t.points, { auto: t.auto, builds: t.builds });
+      s.env.talents = SECTION(nodes, t.level, t.points, { auto: t.auto, builds: t.builds, plan_hunt: t.plan_hunt });
       return json({ ok: true, spent: 1, envelope: Object.assign(clone(s.env), { version: ++s.version, ok: true }) });
+    }
+    /* 1073 hr_talent_spend_plan: the server's walk (each point to the first planned node in map order its check takes; nextPlanStep is
+       the twin), refused plan_changed for a ground that is not the section's */
+    if (name === 'hr_talent_spend_plan') {
+      await new Promise((res) => setTimeout(res, s.delay || 0));
+      const t = s.env.talents;
+      if (body.p_hunt !== t.plan_hunt) return json({ ok: false, error: 'plan_changed' });
+      const draft = t.builds[body.p_hunt];
+      if (!draft) return json({ ok: false, error: 'no_plan' });
+      let nodes = t.nodes, n = 0;
+      for (let step; n < t.points - t.spent && (step = nextPlanStep(nodes, draft, t.level)); n++) nodes = spend(nodes, step.id, step.pick);
+      if (!n) return json({ ok: false, error: t.points - t.spent > 0 ? 'plan_done' : 'no_points' });
+      s.env.talents = SECTION(nodes, t.level, t.points, { auto: t.auto, builds: t.builds, plan_hunt: t.plan_hunt });
+      return json({ ok: true, spent: n, envelope: Object.assign(clone(s.env), { version: ++s.version, ok: true }) });
     }
     /* 1069 hr_talent_auto_set: the setting, then the section says it (this stub spends nothing on turning it on) */
     if (name === 'hr_talent_auto_set') {
@@ -460,9 +476,11 @@ async function checks(overrides, opts = {}) {
       if (errors.length) fails.push('RW-12 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-    /* RW-13: Plan route, then Spend on plan, at Level 6: 3 points left for a plan of 4 */
+    /* RW-13: Plan route, then Spend on plan, at Level 6: 3 points left for a plan of 4. The company section still names an older plan
+       ground; the server's word (the section's plan_hunt) is the one the plan is saved and paid for */
     {
-      const { ctx, page, errors, s } = await open(SECTION(OWNED, 6), undefined, false, COMPANY);
+      const STALE = { company: { ...COMPANY.company, plan_hunt: 'muster_barrows' } };
+      const { ctx, page, errors, s } = await open(SECTION(OWNED, 6), undefined, false, STALE);
       await openMap(page);
       await page.waitForTimeout(400);
       /* a far choice: each of its options is planned on its own row */
@@ -497,12 +515,21 @@ async function checks(overrides, opts = {}) {
         const pay = await page.evaluate(({ W }) => { const b = document.querySelector(W + ' [data-hs-act="rd-plan-pay"]'); return !!b && !b.hidden && !b.disabled; }, { W });
         if (!pay) fails.push('RW-13 Spend on plan is off: ' + (await look(page)).card.slice(0, 240));
         else {
+          s.delay = 900;
           await page.click(W + ' [data-hs-act="rd-plan-pay"]');
+          await page.waitForTimeout(250);
+          /* while the one answer is out: the press is off and the server has not owned a stone yet, so the map owns none */
+          const out = await page.evaluate(({ W }) => ({ pay: document.querySelector(W + ' [data-hs-act="rd-plan-pay"]').disabled,
+            r3: document.querySelector(W + ' [data-rd-node="power_strike.r3"]').classList.contains('is-owned') }), { W });
+          if (!out.pay || out.r3) fails.push('RW-13 while Spend on plan\'s answer is out: ' + JSON.stringify(out));
           await wait(page, ({ W }) => document.querySelector(W + ' [data-rd-node="power_strike.r4"]').classList.contains('is-owned'), { W }, 8000);
+          s.delay = 0;
           await page.waitForTimeout(600);
-          const paid = sent(s).map((c) => [c.body.p_node, c.body.p_pick]);
-          const order = [['power_strike.r3', null], ['power_strike.x1', want['power_strike.x1']], ['power_strike.r4', null]];
-          if (JSON.stringify(paid) !== JSON.stringify(order)) fails.push('RW-13 Spend on plan with 3 points sent ' + JSON.stringify(paid));
+          const one = calls(s, 'hr_talent_spend_plan').map((c) => c.body.p_hunt);
+          if (JSON.stringify(one) !== JSON.stringify([GROUND]) || sent(s).length) fails.push('RW-13 Spend on plan sent ' + JSON.stringify({ plan: one, spends: sent(s).length }));
+          const held = s.env.talents.nodes;
+          const order = { ...OWNED, 'power_strike.r3': true, 'power_strike.x1': want['power_strike.x1'], 'power_strike.r4': true };
+          if (JSON.stringify(held) !== JSON.stringify(order)) fails.push('RW-13 Spend on plan with 3 points left the build ' + JSON.stringify(held));
           const after = await page.evaluate(({ W }) => ({ marks: [...document.querySelectorAll(W + ' .rdm-n.is-plan')].map((g) => g.getAttribute('data-rd-node')),
             pay: document.querySelector(W + ' [data-hs-act="rd-plan-pay"]').disabled, why: document.querySelector(W + ' .rdw-plan-why').textContent,
             card: document.querySelector(W + ' .rdw-plan').innerText.replace(/\s+/g, ' ') }), { W });
@@ -566,8 +593,15 @@ const MUTANTS = [
   { name: 'the plan shown before the server saved it', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)',
     to: 'tl.builds[plan.ground] = p.nodes; MEMO.delete(tl); repaint(); runIntent(sc, repaint, () => saveBuild(ctx.account, cs, plan.ground, p.nodes)', want: /RW-13/ },
   { name: 'Plan route written over a choice\'s first Plan', file: 'src/shell/windows/talents/road-plan.js', from: "root.querySelector('.rdw-plan-go')", to: "root.querySelector('[data-hs-act=\"rd-plan\"]')", want: /RW-13/ },
-  { name: 'a planned choice paid with no pick', file: 'src/core/talent-route.js', from: 'const pick = PICK_KINDS.includes(n.kind) ? draft[n.id] : null;', to: 'const pick = null;', want: /RW-13/ },
-  { name: 'Spend on plan pays past the server\'s points', file: 'src/shell/windows/talents/road-plan.js', from: 'if (!tl || !(tl.left > 0)) break;', to: 'if (!tl) break;', want: /RW-13/ },
+  /* lane/talents-plan-server: Spend on plan is one press the server walks (the planned choice's pick is the server's now: its mutant is
+     tests/recruit-company.mjs "the plan pays a choice with no pick", planted in hr_talent_plan_steps) */
+  { name: 'the plan saved for the company section\'s older ground, not the server\'s', file: 'src/session/company-sections.js',
+    from: "if (isObj(tl) && tl.live === true && Object.prototype.hasOwnProperty.call(tl, 'plan_hunt')) {", to: 'if (false) {', want: /RW-13/ },
+  { name: 'Spend on plan stays on while its answer is out', file: 'src/shell/windows/talents/road-plan.js', from: "prop(pay, 'disabled', !!off || pending);", to: "prop(pay, 'disabled', !!off);", want: /RW-13/ },
+  { name: 'the plan\'s next stone owned before the answer', file: 'src/shell/windows/talents/road-plan.js', from: 'runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),',
+    to: "if (sc.memo && plan.step) sc.memo.states[plan.step.id] = 'owned'; runIntent(sc, repaint, () => spendPlan(ctx.account, cs, plan.ground),", want: /RW-13/ },
+  { name: 'Spend on plan on with no point left', file: 'src/shell/windows/talents/road-plan.js', from: "const off = !tl || !(tl.left > 0) ? words('no_points') : !plan.step ? t('talents.plan_waiting') : '';",
+    to: "const off = !tl ? words('no_points') : !plan.step ? t('talents.plan_waiting') : '';", want: /RW-13/ },
   { name: 'Find talent ignores the options\' names', file: 'src/shell/windows/talents/find.js', from: "if (PICK_KINDS.includes(n.kind) && n.kind !== 'crossing') for (const o of optionsOf(n))", to: 'if (false) for (const o of optionsOf(n))', want: /RW-14/ },
   { name: 'a filter dims nothing', file: 'src/shell/windows/talents/map.js', from: "cls(M.svg, 'is-filtered', filters.size > 0);", to: "cls(M.svg, 'is-filtered', false);", want: /RW-14/ },
   { name: 'an arrow key picks nothing', file: 'src/shell/windows/talents/index.js', from: 'if (next) pickStone(body, ctx, sc, next);', to: 'if (next) patchBody(body, ctx);', want: /RW-15/ },

@@ -312,6 +312,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/talent-intents.js', 'spendTalent', 'hr_talent_spend', ['mend.r1', null]],
   ['src/session/talent-intents.js', 'saveBuild', 'hr_talent_build_save', ['muster_barrows', { 'mend.r1': true }]],
   ['src/session/talent-intents.js', 'setTalentAuto', 'hr_talent_auto_set', ['party']],
+  ['src/session/talent-intents.js', 'spendPlan', 'hr_talent_spend_plan', ['muster_barrows']],
   /* lane B1 (1071-work-blocks.sql): the standing block rule's two settings */
   ['src/session/time-intents.js', 'setTimeRule', 'hr_time_auto_set', ['work', 2]],
   ['src/session/time-intents.js', 'answerTimeOffer', 'hr_time_offer_answer', [1]],

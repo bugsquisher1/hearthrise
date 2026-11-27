@@ -2839,12 +2839,14 @@ begin
 end $function$;
 
 -- ── §5 GRANTS: nothing new is callable by a client or an engine role ───────────
+revoke all on function public.hr_work_bought(uuid, integer, timestamp with time zone) from public, anon, authenticated, service_role;
+revoke all on function public.hr_work_fold(date, bigint, timestamp with time zone, timestamp with time zone, bigint, bigint, date, jsonb)
+  from public, anon, authenticated, service_role;
 do $grants$
 declare v_sig text; v_role text;
 begin
   foreach v_sig in array array['public.hr_work_bought(uuid,integer,timestamp with time zone)',
                                'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date,jsonb)'] loop
-    execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
     end loop;
@@ -2898,10 +2900,9 @@ begin
     insert into public.hr_access_allowlist (user_id, note) values (c_u, 'work-blocks-midnight §6 probe') on conflict (user_id) do nothing;
     perform set_config('request.jwt.claim.sub', c_u::text, true);
     perform set_config('request.jwt.claims', jsonb_build_object('sub', c_u, 'role', 'authenticated')::text, true);
-    update public.hr_flags set enabled = false where key = 'beta_premium';
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY-harness: hr_create_character refused: %', v; end if;
-    update public.player_state set premium_until = null where user_id = c_u;
+    -- the base day is whatever the server says it is now (free, or Premium's: every number below is relative to it)
     select b.block_min::bigint * 60000 into v_blk from public.hr_time_blocks b where b.kind = 'work';
     if v_blk is null then raise exception 'VERIFY-harness: no `work` row in hr_time_blocks (1072-work-blocks-catalogue.generated.sql first)'; end if;
     v_base := public.hr_work_base_ms(c_u, 0);

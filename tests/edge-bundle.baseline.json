@@ -523,6 +523,11 @@
         "bytes": 3908954,
         "on": "2026-11-26",
         "why": "lane/t1-traits-drop: the settle hands the engine the worn pieces and the Trait roll and carries what it found (hunt-settle.js memberInput, traitDropsOf, traitsFor; trait-roll.js draws the base, drop-rate.js traitBasesOf), +4,735 B on the merged set"
+      },
+      {
+        "bytes": 3909095,
+        "on": "2026-11-27",
+        "why": "lane/tp-server-1 merged after lane/t1-traits-drop's ceiling: src/data/temper.js's header names hr_temper_kits and the kit-by-band row (+141 B on the merged set, comment text, kitItem retired; no new import)"
       }
     ]
   }

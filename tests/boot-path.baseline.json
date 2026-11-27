@@ -514,6 +514,12 @@
         "gzipBytes": 982096,
         "on": "2026-11-27",
         "why": "lane/retire-dawnsteel-lines: the 6 named uniques re-homed as item rows (items.js statsAs twins) and their placeholder icons"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 982470,
+        "on": "2026-11-27",
+        "why": "lane/designer-kit-band1: the iron band's 23 recipe rows and their job faces in the game half (trades.js, job-faces.js)"
       }
     ]
   }

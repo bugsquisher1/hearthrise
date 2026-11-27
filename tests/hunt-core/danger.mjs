@@ -58,7 +58,7 @@ const load = async (root) => {
   M.danger = await imp('src/core/hunt/danger.js');
   M.amount = await imp('src/core/hunt/amount.js');
   M.dangerData = await imp('src/data/danger.js');
-  M.tiers = await imp('src/data/hunt-tiers.js');
+  M.tiers = await imp('src/core/hunt/dial.js');
   M.coreModel = await imp('src/data/core-model.js');
   M.wageData = await imp('src/data/wage.js');
   M.xp = await imp('src/core/xp.js');

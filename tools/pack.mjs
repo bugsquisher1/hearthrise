@@ -130,7 +130,6 @@ async function propose(gid, argv) {
     console.log('  ' + r.id.padEnd(18) + ' L' + String(r.level).padEnd(3) + r.role.padEnd(8) + (r.drift.length ? ' rows    ' : ' rows =  ') + fmt(r.today));
     if (r.drift.length) console.log('  ' + ''.padEnd(31) + ' formula ' + fmt(r.formula) + '   (moves ' + r.drift.join(', ') + ')');
   }
-  for (const t of ['dangerous', 'deadly']) console.log('  ' + t + ' row: ' + JSON.stringify(D.BS.tierRowFor(floorOf(gid), t, { ground: gid, fit: fitOf(gid) })));
   if (!argv.includes('--write')) { console.log(rows.some((r) => r.drift.length) ? '\npack propose: --write puts the formula into the rows' : '\npack propose: every row is the formula\'s'); return; }
   /* a pack's monsters live in its own file; the rest in monsters.js */
   const packFile = join(ROOT, 'src', 'data', 'grounds', gid, 'pack.js');
@@ -299,8 +298,8 @@ async function newPack(id, argv) {
   const p = await F.fixturePack(like, { prefix: id + '_', status: 'staged', band });
   /* the pack's own ids: the ground is <id>, its map <id>, its monsters <id>_<monster> until renamed */
   const fx = p.id, mapWas = p.map.id;
-  /* the source ground's measured rows are its own: a new ground earns its tier row, XP fit and party rows on its own check */
-  for (const k of ['tierOverride', 'xpFit', 'partyVsAlone']) delete p[k];
+  /* the source ground's measured rows are its own: a new ground earns its XP fit and party rows on its own check */
+  for (const k of ['xpFit', 'partyVsAlone']) delete p[k];
   p.id = id; p.map = { ...p.map, id }; p.ground = { ...p.ground, map: id }; p.hunt = { ...p.hunt, name: id };
   if (Array.isArray(p.map.hunts)) p.map.hunts = p.map.hunts.map((h) => (h === fx ? id : h));
   console.log('pack new: ' + F.writePack(ROOT, p) + ' (from ' + like + ', map ' + mapWas + '); staged: plays in the sim, never listed or served');

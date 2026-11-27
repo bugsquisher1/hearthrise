@@ -153,15 +153,6 @@ export default definePack({
   partyVsAlone: { normal: { 2: [-45, -5], 3: [-50, -15, -10], 4: [-60, -35, -30, -30] }, dangerous: { 2: [-30, 15], 3: [-35, 5, 15], 4: [-45, -10, -5, 0] }, deadly: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-40, -5, 0, 5] } },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring; since the one party table (2026-11-16) Dangerous brings 8 on the table, so it brings six here too. */
-  tierOverride: { dangerous: 6, deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it, and Dangerous brings the same six (it never brings more than Deadly)' },
-  /* DEADLY IS A HEALER'S TIER UNDER 131 (the designer 2026-11-18, row 2: the Roost's Deadly is meant to need fire resistance, Tyler 11-08, and the
-     ground drops its answer, the Burnt Crag Leg Plates, on the Crag Wyvern; the Vaults' mechanism). MEASURED with the legs back on the Roost, the uniques
-     kit with the four Morrow packs open, Deadly's six, deaths in 16 hero-hours, a tank, hammer, bow and Mage (every death the tank's, the Crag Wyvern's
-     marked Fire Breath), 6 seeds x 2 h a cell or 12 where marked: 125 22.0, 126 13.7, 127 15.0, 128 11.7, 129 10.7 (12), 130 9.2 (12), 131 7.0 (12),
-     132 7.8 (12), 133 3.7, 135 5.7, 140 0.7, 142 1.0. With a Healer in the hammer's place (tank, Healer, bow, Mage) at 125: 1.3. So 131,
-     the first Level from which a four with no Healer reads the sheet's 9 or under (130 read 9.0 on six seeds and 9.2 on twelve). The card says the
-     tier's label (hunts.tier_healer) under it. */
-  healerTiers: { deadly: 131 },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 21782, deadlyFourNeeds: 'healer' },
   map,
 });

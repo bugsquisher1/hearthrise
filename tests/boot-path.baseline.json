@@ -104,6 +104,12 @@
         "gzipBytes": 207102,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206836,
+        "on": "2026-11-27",
+        "why": "a cut locked in"
       }
     ],
     "town": [
@@ -496,6 +502,12 @@
         "gzipBytes": 991880,
         "on": "2026-11-27",
         "why": "lane/signatures-batch-2: the move Signature rows and their names in the game half (signatures.js, source-names)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 981425,
+        "on": "2026-11-27",
+        "why": "a cut locked in"
       }
     ]
   }

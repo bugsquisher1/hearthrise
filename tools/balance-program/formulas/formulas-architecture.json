@@ -15,47 +15,47 @@
  },
  "counts": {
   "raw": {
-   "formulas": 131,
-   "exceptions": 154,
+   "formulas": 128,
+   "exceptions": 149,
    "byLane": {
     "combat": [
-     42,
-     67
+     41,
+     65
     ],
     "progression": [
-     37,
-     48
+     36,
+     47
     ],
     "economy": [
-     52,
-     39
+     51,
+     37
     ]
    }
   },
-  "formulas": 108,
-  "formulasMerged": 23,
-  "exceptions": 129,
-  "exceptionsMerged": 28,
+  "formulas": 107,
+  "formulasMerged": 21,
+  "exceptions": 125,
+  "exceptionsMerged": 27,
   "exceptionsAdded": 3,
   "byClass": {
    "1": 12,
-   "2": 25,
-   "3": 35,
-   "4": 57
+   "2": 24,
+   "3": 33,
+   "4": 56
   },
-  "confirmed": 115,
-  "hypothesis": 14,
-  "class3Approved": 26,
-  "class3NoApproval": 9,
-  "classDecided": 6,
-  "class4Removed": 56,
+  "confirmed": 112,
+  "hypothesis": 13,
+  "class3Approved": 25,
+  "class3NoApproval": 8,
+  "classDecided": 5,
+  "class4Removed": 55,
   "class4Left": [
    "E-X36"
   ],
-  "edges": 199,
-  "crossEdges": 68,
-  "inCycle": 59,
-  "knobs": 35,
+  "edges": 193,
+  "crossEdges": 64,
+  "inCycle": 55,
+  "knobs": 31,
   "knobsPlanned": 20
  },
  "formulas": [
@@ -435,22 +435,6 @@
    "owner": "combat owns a floor's monsters. Progression owns what a floor pays",
    "what": "A Burning Tower floor or a Catacomb room F: 5 monsters, each the stat formula at Level F on a floor-F ground, a Keeper (boss role) every 10th. Past floor 100 every blow is x1.012 a floor, compounding. Floor 300 is the last row",
    "where": "src/core/hunt/tower.js",
-   "state": "live"
-  },
-  {
-   "id": "C-SCALED",
-   "also": [
-    "P26",
-    "E07"
-   ],
-   "categories": [
-    "combat",
-    "progression",
-    "economy"
-   ],
-   "owner": "combat owns the stats, progression the XP share, economy the hourly price",
-   "what": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
-   "where": "src/data/scaled-hunts.js:159-190",
    "state": "live"
   },
   {
@@ -1663,32 +1647,6 @@
    "decided": "combat filed it 3, progression 4. Nobody designed \"the Tower ends at floor 300\": the server's bound is a generated table with a last row. A limit of the build, not a design choice: 4"
   },
   {
-   "id": "X-SCALED-THICKET",
-   "also": [],
-   "categories": [
-    "combat"
-   ],
-   "class": 4,
-   "status": "CONFIRMED",
-   "what": "A scaled Thicket reaches only half danger",
-   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
-   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle",
-   "decided": null
-  },
-  {
-   "id": "X-SCALED-NO-DEADLY",
-   "also": [],
-   "categories": [
-    "combat"
-   ],
-   "class": 3,
-   "status": "CONFIRMED",
-   "what": "Deadly is not offered on a scaled hunt",
-   "where": "src/data/scaled-hunts.js:144",
-   "fix": "a content rule. For Tyler with the scaled-hunt card",
-   "decided": null
-  },
-  {
    "id": "X-SPELL-HOLDS",
    "also": [],
    "categories": [
@@ -2730,35 +2688,6 @@
    "decided": null
   },
   {
-   "id": "E-X11",
-   "also": [
-    "P-X10"
-   ],
-   "categories": [
-    "economy",
-    "progression"
-   ],
-   "class": 3,
-   "status": "CONFIRMED",
-   "what": "Scaled hunts: XP x0.73, a party x0.70, coin x0.5 of the rise, fitted cell by cell so a bought hour is never the best grind",
-   "where": "src/data/scaled-hunts.js:107, 128, 137",
-   "fix": "keep the mechanic (Tyler 2026-11-07). The three numbers are compensations for X01 and should be re-derived once X01 is fixed",
-   "decided": "economy filed it 3 (the mode is approved, 2026-11-07), progression 4 (its XP share was re-dialed seven times). The mode is intentional: 3. Its numbers are outputs of the kill reward and get re-derived, not re-fitted"
-  },
-  {
-   "id": "E-X12",
-   "also": [],
-   "categories": [
-    "economy"
-   ],
-   "class": 2,
-   "status": "HYPOTHESIS",
-   "what": "SCALE_EXCEPTIONS: grounds left off the scale ladder by name",
-   "where": "src/data/scaled-hunts.js:41",
-   "fix": "confirm by reading the rows; move to a field on the ground",
-   "decided": null
-  },
-  {
    "id": "E-X14",
    "also": [],
    "categories": [
@@ -2844,8 +2773,8 @@
    ],
    "class": 2,
    "status": "CONFIRMED",
-   "what": "VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function, and restated in src/data/shops.js",
-   "where": "supabase/functions/hr-accrue/catalogue.js:307, 324, src/data/shops.js DERIVED_PRICES, src/data/scaled-hunts.js:197",
+   "what": "VENDOR_RAW_RATE 0.20 and SHOP_BUYBACK_RATE 0.5 are authored in the edge function (their restatement in src/data/shops.js DERIVED_PRICES and src/data/scaled-hunts.js left with them, lane/retire-tier-chain 2026-11-26)",
+   "where": "supabase/functions/hr-accrue/catalogue.js:307, 324",
    "fix": "author them in src/data; the edge imports them",
    "decided": null
   },
@@ -3103,12 +3032,6 @@
    "why": "A content flag on the tutorial ground. It changes no formula"
   },
   {
-   "id": "X-SCALED-NO-DEADLY",
-   "recommendation": "fold",
-   "approved": null,
-   "why": "A tier a ground does not offer is the same content flag the Mill Cellar uses. One mechanic, read from the mode's row"
-  },
-  {
    "id": "X-SPELL-FLOOR",
    "recommendation": "fold",
    "approved": "2026-11-21 (32-8, the effect)",
@@ -3257,12 +3180,6 @@
    "recommendation": "fold",
    "approved": "2026-11-03 (\"harder pays more on one line\")",
    "why": "The coin line that climbs from x0.5 to x1.4 over the first grounds is one of four stacked coin dials. Fold all four into one coin line by monster Level"
-  },
-  {
-   "id": "E-X11",
-   "recommendation": "fold",
-   "approved": "2026-11-07",
-   "why": "Keep scaled hunts. Their XP and party shares become outputs of the kill reward formula, so nobody re-dials them an eighth time"
   },
   {
    "id": "E-X29",
@@ -3510,15 +3427,7 @@
   },
   {
    "from": "C-MON-STATS",
-   "to": "C-SCALED"
-  },
-  {
-   "from": "C-MON-STATS",
    "to": "C-BOSS-ROOM"
-  },
-  {
-   "from": "C-TIER",
-   "to": "C-SCALED"
   },
   {
    "from": "C-TARGET",
@@ -3594,10 +3503,6 @@
   },
   {
    "from": "P25",
-   "to": "P20"
-  },
-  {
-   "from": "C-SCALED",
    "to": "P20"
   },
   {
@@ -3683,6 +3588,10 @@
   {
    "from": "P01",
    "to": "E37"
+  },
+  {
+   "from": "P01",
+   "to": "P22"
   },
   {
    "from": "P01",
@@ -3817,10 +3726,6 @@
    "to": "E33"
   },
   {
-   "from": "E26",
-   "to": "C-SCALED"
-  },
-  {
    "from": "E31",
    "to": "E26"
   },
@@ -3830,10 +3735,6 @@
   },
   {
    "from": "E44",
-   "to": "E45"
-  },
-  {
-   "from": "C-SCALED",
    "to": "E45"
   },
   {
@@ -4029,14 +3930,6 @@
    "to": "P17"
   },
   {
-   "from": "P01",
-   "to": "P22"
-  },
-  {
-   "from": "C-SCALED",
-   "to": "P22"
-  },
-  {
    "from": "E40",
    "to": "C-JEWEL-PERKS"
   },
@@ -4085,85 +3978,85 @@
   {
    "id": "C-MON-STATS",
    "category": "combat",
-   "feeds": 12,
-   "reaches": 80,
+   "feeds": 11,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "P03",
    "category": "progression",
    "feeds": 9,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-GEAR-WEAPON",
    "category": "combat",
    "feeds": 8,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-TIER",
    "category": "combat",
-   "feeds": 8,
-   "reaches": 80,
+   "feeds": 7,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "P01",
    "category": "progression",
    "feeds": 7,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-HERO-POWER",
    "category": "combat",
    "feeds": 6,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "P11",
    "category": "progression",
    "feeds": 6,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-CAST-POWER",
    "category": "combat",
    "feeds": 4,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-GEAR-ARMOR",
    "category": "combat",
    "feeds": 4,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-JEWEL-PERKS",
    "category": "combat",
    "feeds": 4,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "C-STATUS",
    "category": "combat",
    "feeds": 4,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   },
   {
    "id": "E14",
    "category": "economy",
    "feeds": 4,
-   "reaches": 80,
+   "reaches": 79,
    "categoriesReached": 3
   }
  ],
@@ -4191,7 +4084,6 @@
   "C-REF-HERO",
   "C-REGEN",
   "C-RESIST-HERO",
-  "C-SCALED",
   "C-SPELL-HIT",
   "C-SPELL-SHELL",
   "C-STATUS",
@@ -4204,9 +4096,6 @@
   "E10",
   "E12",
   "E14",
-  "E26",
-  "E27",
-  "E29",
   "E30",
   "E37",
   "E40",

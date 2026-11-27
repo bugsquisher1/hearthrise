@@ -36,7 +36,8 @@ const WORKER_ENTRY = 'tools/balance-lab/worker-main.mjs';
 /* GENERATED MODULES (no file on disk): the target sheet is src/data/balance-sheet.js when the tree has it
    (lane/b-ground-formula), else an empty module (the lab grades on the 10-25 ruling and offers no scale preview) */
 const SHEET_FILE = 'src/data/balance-sheet.js';
-/* the game's scaled hunts (src/data/scaled-hunts.js, lane/b-scaled-hunts): the Lab's scale preview reads it, never a ratio of its own */
+/* the game's scaled hunts (src/data/scaled-hunts.js, lane/b-scaled-hunts), RETIRED with them (lane/retire-tier-chain): the file is gone, so the
+   virtual module is empty and the Lab offers no scale preview */
 const SCALED_FILE = 'src/data/scaled-hunts.js';
 const optional = (file) => () => (existsSync(join(ROOT, file)) ? "export * from '../../../" + file + "';\n" : 'export {};\n');
 /* the knob list (tools/balance-program/formulas/knobs.json, the ONE list), as a module the v3 lab reads (which knobs re-write the rows) */
@@ -48,7 +49,7 @@ const VIRTUAL = {
 };
 /* the trees a bundled module may come from (anything else is a mistake in the graph: the client, the network, secrets) */
 const ALLOWED = [/^src\/core\//, /^src\/data\//, /^src\/build-info\.js$/, /^supabase\/functions\/hr-accrue\/[\w-]+\.js$/,
-  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles|sustain-reads)\.mjs$/, /^tools\/balance-program\/(standards|knob-rules|grid-project)\.mjs$/];
+  /^tools\/balance-lab\/[\w/-]+\.mjs$/, /^tools\/balance-sim\/(stats|styles|sustain-reads|tier-axis)\.mjs$/, /^tools\/balance-program\/(standards|knob-rules|grid-project)\.mjs$/];
 const SHIMS = { 'node:crypto': 'tools/balance-lab/shims/node-crypto.mjs', 'node:url': 'tools/balance-lab/shims/node-stub.mjs', 'node:path': 'tools/balance-lab/shims/node-stub.mjs' };
 /* words that must never appear in a bundled module's CODE (comments are stripped first) */
 const FORBIDDEN = [/\bfetch\s*\(/, /\bXMLHttpRequest\b/, /\bWebSocket\b/, /\blocalStorage\b/, /\bdocument\./, /supabase\.co/, /\bDeno\.env\b/, /service_role/];

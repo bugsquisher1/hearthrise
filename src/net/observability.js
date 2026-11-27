@@ -254,9 +254,7 @@ function watchHunt(cs, w, now, send) {
   }
   if (open && s.id !== w.sid) {
     const party = read.partyOf(cs);
-    /* The tier this hunt froze (hunt_tier); null when the server sent none. */
-    const tiers = read.huntTierOf(cs);
-    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1, tier: tiers ? tiers.playing : null });
+    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1 });
     w.open = true; w.sid = s.id; w.reseeds = 0;
   }
 }

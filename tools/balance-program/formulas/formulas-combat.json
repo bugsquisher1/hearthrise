@@ -14,15 +14,15 @@
   "H": "hypothesis: the row says what would confirm it"
  },
  "counts": {
-  "formulas": 42,
-  "exceptions": 67,
+  "formulas": 41,
+  "exceptions": 65,
   "byClass": {
    "1": 8,
    "2": 10,
-   "3": 17,
-   "4": 32
+   "3": 16,
+   "4": 31
   },
-  "confirmed": 58,
+  "confirmed": 56,
   "hypothesis": 9
  },
  "formulas": [
@@ -540,7 +540,6 @@
     "C-MON-DEF",
     "C-HERO-TOHIT",
     "C-RUN-ROOM",
-    "C-SCALED",
     "P-KILL-XP (progression: xp is on the same row)",
     "E-KILL-COIN (economy: gp is on the same row)"
    ],
@@ -659,23 +658,6 @@
     "E-RUN-KEYS (economy)"
    ],
    "random": "deterministic (rooms are picked by number, no dice)"
-  },
-  {
-   "id": "C-SCALED",
-   "computes": "A scaled hunt: the same formula with the ground's floor moved to the leader's Level and every monster up by the same gap. Normal and Dangerous only",
-   "impl": [
-    "src/data/scaled-hunts.js:159-190"
-   ],
-   "params": "SCALED_HUNTS { xpPm 730, partyPm 700, coinPm, tiers }. SCALE_EXCEPTIONS (the Thicket at half danger)",
-   "deps": [
-    "C-MON-STATS",
-    "C-TIER"
-   ],
-   "consumers": [
-    "P-KILL-XP (progression)",
-    "E-SCALED-FEE (economy)"
-   ],
-   "random": "deterministic"
   },
   {
    "id": "C-TARGET",
@@ -1069,24 +1051,6 @@
    "class": 3,
    "status": "C",
    "fix": "a cap on an endless mode. Needs Tyler's yes or a formula that reads any floor"
-  },
-  {
-   "id": "X-SCALED-THICKET",
-   "where": "src/data/scaled-hunts.js:41-44 SCALE_EXCEPTIONS",
-   "what": "A scaled Thicket reaches only half danger",
-   "why": "2026-11-07: \"its wolves run down a lone archer\"",
-   "class": 4,
-   "status": "C",
-   "fix": "a per-ground combat number. The cause is the bow against a melee pack, which the real Thicket hides by being gentle"
-  },
-  {
-   "id": "X-SCALED-NO-DEADLY",
-   "where": "src/data/scaled-hunts.js:144",
-   "what": "Deadly is not offered on a scaled hunt",
-   "why": "designer 2026-11-07",
-   "class": 3,
-   "status": "C",
-   "fix": "a content rule. For Tyler with the scaled-hunt card"
   },
   {
    "id": "X-SPELL-HOLDS",
@@ -1676,15 +1640,7 @@
   },
   {
    "from": "C-MON-STATS",
-   "to": "C-SCALED"
-  },
-  {
-   "from": "C-MON-STATS",
    "to": "C-BOSS-ROOM"
-  },
-  {
-   "from": "C-TIER",
-   "to": "C-SCALED"
   },
   {
    "from": "C-TARGET",
@@ -1799,7 +1755,7 @@
   },
   {
    "lane": "economy",
-   "edge": "C-BOSS-ROOM, C-SCALED, C-RUN-ROOM -> fees, keys and what they pay",
+   "edge": "C-BOSS-ROOM, C-RUN-ROOM -> fees, keys and what they pay",
    "why": "the modes share the monster formula and differ only in pay"
   }
  ]

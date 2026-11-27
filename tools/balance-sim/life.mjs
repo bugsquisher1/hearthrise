@@ -45,13 +45,12 @@ async function world(root) {
   const R = await loadCellRunner(root);
   const { BUILD } = await import(u('src/build-info.js'));
   const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + sourceQuery(root));
-  const T = await import(u('src/data/hunt-tiers.js'));
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { contractXpPerH } = await import(u('src/data/balance-sheet.js'));
   const huntOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt || g];
   const OPEN = (Array.isArray(G.OPEN_GROUNDS) ? G.OPEN_GROUNDS : Object.keys(G.OPEN_GROUNDS)).filter((g) => !huntOf(g).staged);
-  loaded = { root, R, BUILD, recommendedHunt, T, G, OPEN, floorOf: (g) => huntOf(g).band[0], topOf: (g) => huntOf(g).band[1], contractXpPerH };
+  loaded = { root, R, BUILD, recommendedHunt, G, OPEN, floorOf: (g) => huntOf(g).band[0], topOf: (g) => huntOf(g).band[1], contractXpPerH };
   return loaded;
 }
 
@@ -88,12 +87,10 @@ export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300,
       extra = { startBar: true, gear: { starter: true }, profile: undefined };
     }
     if (policy === 'push') { const ok = OPEN.filter((g) => floorOf(g) <= L + 10).sort((a, b) => floorOf(b) - floorOf(a)); if (ok.length) ground = ok[0]; }
-    if (policy === 'deadly' || policy === 'push') { const ts = T.tiersOf(ground); tier = ts[ts.length - 1]; }
-    if (policy === 'dangerous' && T.tiersOf(ground).includes('dangerous') && L >= floorOf(ground)) tier = 'dangerous';
-    const pull = tier === 'normal' ? null : T.pullOfTier(T.tierRowOf(ground, tier), party.length);
+    /* (the deadly and dangerous policies' harder tiers left with the tier rows, lane/retire-tier-chain: every chunk plays the ground as built) */
     const cell = { id: 'life:' + chunk, ground, party, startBySeat: seats.map((s) => ({ levelXp: s.levelXp, skills: { ...s.skills } })), hours: chunkH, seeds: 1,
       seedBase: seedBase + chunk, segmentH: chunkH, windowMs: 600000, supply: 'store', ...(plain ? {} : { profile: 'played' }),
-      ...(tier === 'normal' ? {} : { options: { tier } }), ...(pull ? { density: pull } : {}), ...extra };
+      ...extra };
     const m = R.runCell(cell), h = m.party.hours, before = seats.map((s) => s.levelXp);
     m.heroes.forEach((x, i) => {
       const s = seats[i], b = bank[i];

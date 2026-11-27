@@ -1,3 +1,0 @@
-{
-  "note": "STAGED, NOT APPLIED (lane/c-spell-rule, systems-engineer, 2026-11-21; plan L17). SCALED_HUNTS.xpPm 740 -> 730: under the spell rule a scaled Thicket at Level 41 paid 168,139 Level XP an hour against the Warrens' 166,887 (fee-guard); scaled hunts stay dark until L31. 1023 (STAGED) carried whole. ORDER: 1031 in its name, after 1030. EDGE: the same hr-accrue as 1028. Regenerated 2026-11-23 (lane/skills-time-parity, the designer's ruling 29 section 7 item 10): the Rat King's Crown 0.141% -> 0.17% raises the Sewer's drop value a kill, so its scaled drops multiple (hr_scaled_kill_bounds.loot, scaled-hunts.js lootPmFor) falls by about 0.3% on the Sewer's 86 rows (1826 -> 1821 at Level 26); no other ground or column moves."
-}

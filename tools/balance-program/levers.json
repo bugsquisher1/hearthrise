@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "717c8ef623d0cb8f",
+ "authored": "5c13e267a70536eb",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -63,7 +63,7 @@
   "dead": "nothing on the hunt path reads it: a perturbation changes no outcome"
  },
  "counts": {
-  "levers": 245,
+  "levers": 237,
   "byCategory": {
    "base-damage": 14,
    "skill-scaling": 11,
@@ -76,52 +76,52 @@
    "crit": 3,
    "leech": 2,
    "regen": 6,
-   "monster-stats": 37,
-   "spawn": 12,
-   "monster-rewards": 19,
+   "monster-stats": 33,
+   "spawn": 10,
+   "monster-rewards": 18,
    "rare-drops": 8,
    "equipment": 24,
    "imbuements": 2,
-   "economy": 49,
+   "economy": 48,
    "consumables": 9,
    "party": 6
   },
   "byClass": {
    "global": 131,
-   "archetype": 32,
+   "archetype": 28,
    "content": 52,
-   "exception-intentional": 19,
-   "exception-accidental": 11
+   "exception-intentional": 17,
+   "exception-accidental": 9
   },
   "byPerturb": {
-   "knob": 31,
+   "knob": 27,
    "not-playable:dead": 8,
-   "patch": 78,
+   "patch": 76,
    "not-playable:player-policy": 2,
    "not-playable:outside-hunt": 39,
    "not-playable:harness-fixed": 6,
-   "not-playable:not-in-runs": 42,
+   "not-playable:not-in-runs": 40,
    "variant": 5,
    "not-playable:not-built": 28,
    "not-playable:sql-only": 6
   },
   "byTest": {
-   "asserted": 136,
-   "mentioned only": 90,
+   "asserted": 133,
+   "mentioned only": 85,
    "none": 19
   },
   "flags": {
-   "redundant": 42,
-   "ineffective": 32,
-   "contradictory": 36
+   "redundant": 37,
+   "ineffective": 31,
+   "contradictory": 34
   }
  },
  "census": {
-  "bindings": 769,
-  "typed": 17582,
-  "files": 264,
-  "lever": 333,
-  "notLever": 436,
+  "bindings": 757,
+  "typed": 17516,
+  "files": 263,
+  "lever": 325,
+  "notLever": 432,
   "unclaimed": 0
  },
  "problems": [],
@@ -157,7 +157,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -241,7 +241,7 @@
    ],
    "reach": {
     "feeds": 13,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -301,7 +301,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -358,7 +358,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -427,7 +427,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -497,7 +497,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -541,7 +541,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -587,7 +587,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -636,7 +636,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -682,7 +682,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -744,7 +744,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -761,10 +761,9 @@
     "mentions": [
      "tests/hunt-core/damage.mjs",
      "tests/hunt-core/monster-spells.mjs",
-     "tests/hunt-live.mjs",
      "tests/supplies-catalogue.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -807,7 +806,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 81
+    "closure": 80
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -855,7 +854,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -927,7 +926,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1016,7 +1015,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1067,7 +1066,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1085,10 +1084,9 @@
      "tests/hunt-core/fist-play.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/xp-share.mjs",
-     "tests/scaled-hunts-server.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -1129,7 +1127,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1139,10 +1137,9 @@
      "tests/hunt-core/fist-play.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/xp-share.mjs",
-     "tests/scaled-hunts-server.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 5,
+    "mentionCount": 4,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -1183,7 +1180,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1246,7 +1243,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1312,7 +1309,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1366,7 +1363,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -1418,8 +1415,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 79
+    "feeds": 11,
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1453,8 +1450,7 @@
     "homes": [
      "src/data/to-hit.js#refHeroAt",
      "src/data/to-hit.js#aimFor",
-     "src/data/to-hit.js#evasionFor",
-     "src/data/to-hit.js#raisedHit"
+     "src/data/to-hit.js#evasionFor"
     ]
    },
    "flags": [
@@ -1498,7 +1494,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1651,7 +1647,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1724,7 +1720,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1804,8 +1800,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 17,
-    "closure": 79
+    "feeds": 16,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -1879,7 +1875,7 @@
    ],
    "reach": {
     "feeds": 7,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2121,7 +2117,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 81
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2183,7 +2179,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2253,7 +2249,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2322,7 +2318,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2378,7 +2374,7 @@
    ],
    "reach": {
     "feeds": 8,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2460,7 +2456,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2521,7 +2517,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -2589,7 +2585,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -2646,7 +2642,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2725,7 +2721,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "mixed: ",
@@ -2788,7 +2784,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2850,7 +2846,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2920,7 +2916,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -2987,7 +2983,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3073,7 +3069,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3136,7 +3132,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3219,7 +3215,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3292,7 +3288,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3441,7 +3437,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3539,7 +3535,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3598,7 +3594,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3666,7 +3662,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3740,7 +3736,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -3799,7 +3795,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -3953,7 +3949,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4023,7 +4019,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4087,7 +4083,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4174,7 +4170,7 @@
    ],
    "reach": {
     "feeds": 9,
-    "closure": 79
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4246,7 +4242,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4301,7 +4297,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4362,7 +4358,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4422,7 +4418,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4474,7 +4470,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -4540,7 +4536,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4614,7 +4610,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "code: a typed number in engine code",
@@ -4679,7 +4675,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 79
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4729,7 +4725,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "code: a typed number in engine code",
@@ -4876,7 +4872,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -4940,7 +4936,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5001,7 +4997,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5041,7 +5037,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5108,7 +5104,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5170,7 +5166,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5233,7 +5229,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5288,7 +5284,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5353,7 +5349,7 @@
    ],
    "reach": {
     "feeds": 6,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5426,8 +5422,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5499,8 +5495,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5541,7 +5537,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 146,
+     "line": 144,
      "text": "hp: Object.freeze({ base: 4.95, perLevel: 1.76 }),",
      "binding": "STAT_FORMULA"
     }
@@ -5566,8 +5562,8 @@
     "E23"
    ],
    "reach": {
-    "feeds": 14,
-    "closure": 78
+    "feeds": 13,
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5596,10 +5592,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5624,7 +5619,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 141,
+     "line": 139,
      "text": "blow: Object.freeze({ lo: 0.132, hi: 0.22, gentleCap: 0.11 }),",
      "binding": "STAT_FORMULA"
     }
@@ -5649,8 +5644,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5672,10 +5667,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -5700,13 +5694,13 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 131,
+     "line": 129,
      "text": "hit: Object.freeze({ lo: 0.40, hi: 0.70 }),",
      "binding": "STAT_FORMULA"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 135,
+     "line": 133,
      "text": "heroHit: 0.85,",
      "binding": "STAT_FORMULA"
     }
@@ -5730,8 +5724,8 @@
     "C-MON-TOHIT"
    ],
    "reach": {
-    "feeds": 13,
-    "closure": 79
+    "feeds": 12,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5744,10 +5738,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5769,7 +5762,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 150,
+     "line": 148,
      "text": "def: Object.freeze({ perLevel: 0.08 }),",
      "binding": "STAT_FORMULA"
     },
@@ -5798,7 +5791,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "mixed: data and code",
@@ -5814,7 +5807,7 @@
      "tests/ground-boss.mjs",
      "tests/hearthfind-boss-rate.mjs"
     ],
-    "mentionCount": 19,
+    "mentionCount": 18,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5842,7 +5835,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 126,
+     "line": 124,
      "text": "ramp: Object.freeze({ from: 8, to: 16 }),",
      "binding": "STAT_FORMULA"
     }
@@ -5867,8 +5860,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -5881,10 +5874,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -5911,25 +5903,25 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 209,
+     "line": 206,
      "text": "swarm: Object.freeze({ hp: 0.8, hit: -0.04, blow: 0.85, def: 0.5, evasion: 0.9, xp: 1.0, gp: 1.0 }),",
      "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 212,
+     "line": 209,
      "text": "glass: Object.freeze({ hp: 0.75, hit: 0.05, blow: 1.1, def: 0.5, evasion: 0.9, xp: 1.2, gp: 1.0 }),",
      "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 214,
+     "line": 211,
      "text": "heavy: Object.freeze({ hp: 1.2, gentleHp: 1.0, hit: -0.10, blow: 0.8, def: 3.0, evasion: 1.35, xp: 1.1, gp: 1.0 }),",
      "binding": "BASE_ROLES"
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 216,
+     "line": 213,
      "text": "elite: Object.freeze({ hp: 1.6, gentleHp: 1.2, hit: 0, blow: 1.0, def: 4.0, evasion: 1.5, xp: 1.15, gp: 1.0 }),",
      "binding": "BASE_ROLES"
     }
@@ -5962,8 +5954,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6013,8 +6005,8 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 195,
-     "text": "party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
+     "line": 192,
+     "text": "party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),",
      "binding": "STAT_FORMULA"
     }
    ],
@@ -6046,8 +6038,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6060,10 +6052,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6110,7 +6101,7 @@
     },
     {
      "file": "src/data/balance-sheet.js",
-     "line": 342,
+     "line": 339,
      "text": "export const DAMAGE_SCALE_BY_TIER = Object.freeze({ 1: 5.4, 2: 5.4, 3: 4.0, 4: 4.0, 5: 3.0, 6: 2.2 });",
      "binding": "DAMAGE_SCALE_BY_TIER"
     }
@@ -6136,7 +6127,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "mixed: code and data",
@@ -6186,7 +6177,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 324,
+     "line": 321,
      "text": "export const FORMULA_EXCEPTIONS = Object.freeze({",
      "binding": "GROUND_GP_FIT"
     }
@@ -6220,8 +6211,8 @@
     "C-MON-BLOW"
    ],
    "reach": {
-    "feeds": 14,
-    "closure": 79
+    "feeds": 13,
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6245,7 +6236,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6305,8 +6296,8 @@
     "P07"
    ],
    "reach": {
-    "feeds": 13,
-    "closure": 79
+    "feeds": 12,
+    "closure": 78
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6372,7 +6363,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6454,7 +6445,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6560,7 +6551,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6615,7 +6606,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "mixed: ",
@@ -6631,7 +6622,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6696,7 +6687,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -6723,294 +6714,6 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "mon.tier-danger",
-   "category": "monster-stats",
-   "name": "Harder-tier blows",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 446,
-     "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
-     "binding": "TIER_DIALS"
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 453,
-     "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
-     "binding": "TIER_DIALS"
-    }
-   ],
-   "definition": "Dangerous and Deadly: dmgPm 1170 and 1330 on atk, aim AND the monster's Level as armor reads it; lift 0.8 and 1 take back a gentle ground's kindness first",
-   "range": "permille above 1000. Ruled direction: struggle or pay (2026-11-19); S-6 Deadly is a tier you watch or gamble on",
-   "touches": "damage taken and deaths on harder tiers, and Defense XP",
-   "outcomes": [
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-TIER"
-   ],
-   "reach": {
-    "feeds": 8,
-    "closure": 80
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/hunt-tiers.mjs",
-      "what": "the tier rows",
-      "reads": [
-       "TIER_DIALS",
-       "tierRowFor"
-      ]
-     },
-     {
-      "file": "tests/balance-sheet.mjs",
-      "what": "the dials",
-      "reads": [
-       "TIER_DIALS",
-       "tierRowFor"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/hunt-tiers.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "knob",
-    "knob": "tierDanger",
-    "note": "shares its lines with tierHp, tierXp and tierPull",
-    "existingPatches": [
-     "tools/balance-program/patches/bp-tiers-2500.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-2600-deadly-2250.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-3000-deadly-2500.json"
-    ]
-   },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "Applied three times: to the blow, the aim and the Level armor reads. On Wickstead's Deadly a Level 8 monster counts as Level 21 against armor",
-     "ev": "44 X-TIER-TRIPLE, CONFIRMED"
-    },
-    {
-     "kind": "ineffective",
-     "why": "On the proposed game Dangerous and Deadly did nothing to a mid four (72 to 97% health on all 28 ground ends); the response is a cliff, a few percent of the dial between safe and a wipe",
-     "ev": "12-balance-pass, MEASURED (R0, L, R2) on the proposed game"
-    }
-   ],
-   "evidence": "CONFIRMED (read), MEASURED (12)"
-  },
-  {
-   "id": "mon.tier-hp",
-   "category": "monster-stats",
-   "name": "Harder-tier HP",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 446,
-     "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
-     "binding": "TIER_DIALS"
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 453,
-     "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
-     "binding": "TIER_DIALS"
-    }
-   ],
-   "definition": "hpPm 1100 and 1150",
-   "range": "permille 1000 or more",
-   "touches": "kill time on harder tiers",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-TIER"
-   ],
-   "reach": {
-    "feeds": 8,
-    "closure": 80
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/hunt-tiers.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "mentioned only"
-   },
-   "perturb": {
-    "kind": "knob",
-    "knob": "tierHp",
-    "existingPatches": [
-     "tools/balance-program/patches/bp-tiers-2500.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-2600-deadly-2250.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-3000-deadly-2500.json"
-    ]
-   },
-   "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "mon.tier-overrides",
-   "category": "monster-stats",
-   "name": "Per-ground tier dials",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 460,
-     "text": "const BASE_TIER_OVERRIDES = Object.freeze({",
-     "binding": "BASE_TIER_OVERRIDES"
-    }
-   ],
-   "definition": "four base grounds carry their own tier dials (the Glade pulls 6 and HP 1400/1450, the Warrens HP 1150/1250, the Thicket XP 1050/1080, the Sewer HP 1150/1250 and XP 1220); packs carry tierOverride",
-   "range": "permille",
-   "touches": "those grounds' harder tiers only",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-TIER"
-   ],
-   "reach": {
-    "feeds": 8,
-    "closure": 80
-   },
-   "class": "exception-accidental",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [],
-    "mentionCount": 0,
-    "verdict": "none"
-   },
-   "perturb": {
-    "kind": "patch",
-    "from": [
-     "src/data/balance-sheet.js: const BASE_TIER_OVERRIDES = Object.freeze({"
-    ],
-    "existingPatches": []
-   },
-   "rows": {
-    "what": "tierOverride in the packs",
-    "homes": [
-     "src/data/grounds/*/pack.js#default"
-    ],
-    "today": {
-     "table": "src/data/grounds/*/pack.js",
-     "packs": 9,
-     "carrying": 7,
-     "values": [
-      "carters_rest {\"dangerous\":6,\"deadly\":6}",
-      "hasks_ford {\"dials\":{\"dangerous\":{\"hpPm\":1150},\"deadly\":{\"hpPm\":1250}}}",
-      "krells_hold {\"dangerous\":6,\"deadly\":6}",
-      "ox_road {\"dangerous\":6,\"deadly\":6}",
-      "pyre_field {\"dangerous\":6,\"deadly\":6}",
-      "unmarked_catacombs {\"dangerous\":6,\"deadly\":6}",
-      "wyvern_roost {\"dangerous\":6,\"deadly\":6}"
-     ]
-    }
-   },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "The exact case Tyler's formula brief names: each compensates kill reward on one ground; a formula fix at the kill reward lets every ground take TIER_DIALS whole",
-     "ev": "44 X-TIER-PER-GROUND, CONFIRMED; knobs.json notKnobs"
-    }
-   ],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "mon.scaled-danger",
-   "category": "monster-stats",
-   "name": "Scaled-hunt exceptions",
-   "sites": [
-    {
-     "file": "src/data/scaled-hunts.js",
-     "line": 41,
-     "text": "export const SCALE_EXCEPTIONS = Object.freeze({",
-     "binding": "SCALE_EXCEPTIONS"
-    }
-   ],
-   "definition": "a scaled Thicket reaches only half danger; grounds listed off the scale ladder by name",
-   "range": "0..1",
-   "touches": "scaled hunts on those grounds",
-   "outcomes": [],
-   "formulas": [
-    "C-SCALED"
-   ],
-   "reach": {
-    "feeds": 3,
-    "closure": 80
-   },
-   "class": "exception-accidental",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/scaled-hunts.mjs"
-    ],
-    "mentionCount": 1,
-    "verdict": "mentioned only"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "existingPatches": []
-   },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "A per-ground combat number; the cause is the bow against a melee pack",
-     "ev": "44 X-SCALED-THICKET and E-X12, CONFIRMED / HYPOTHESIS"
-    }
-   ],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -7129,8 +6832,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7259,7 +6962,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "mixed: ",
@@ -7275,7 +6978,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 52,
+    "mentionCount": 50,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7347,7 +7050,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -7363,7 +7066,7 @@
      "tests/bands.mjs",
      "tests/boss-call.mjs"
     ],
-    "mentionCount": 53,
+    "mentionCount": 51,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -7445,7 +7148,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7470,141 +7173,6 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "spawn.tier-pull",
-   "category": "spawn",
-   "name": "Harder-tier pull size",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 446,
-     "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
-     "binding": "TIER_DIALS"
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 453,
-     "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
-     "binding": "TIER_DIALS"
-    }
-   ],
-   "definition": "Dangerous and Deadly pull 8 (the Glade's Dangerous 6)",
-   "range": "whole 1..16",
-   "touches": "kills an hour and damage taken on harder tiers",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract",
-    "takenPerH",
-    "healPerH",
-    "deathsPer1000h",
-    "lowHpTypical",
-    "lowHpP10",
-    "hpUnder30",
-    "hpUnder10",
-    "netLevelXpPerH",
-    "storePerH",
-    "suppliesPerH",
-    "huntedShare"
-   ],
-   "formulas": [
-    "C-PULL",
-    "E13"
-   ],
-   "reach": {
-    "feeds": 3,
-    "closure": 80
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/hunt-tiers.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "mentioned only"
-   },
-   "perturb": {
-    "kind": "knob",
-    "knob": "tierPull",
-    "existingPatches": [
-     "tools/balance-program/patches/bp-tiers-2500.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-2600-deadly-2250.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-3000-deadly-2500.json"
-    ]
-   },
-   "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "spawn.tier-pull-floor",
-   "category": "spawn",
-   "name": "No bigger pull under floor 16",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 424,
-     "text": "export const TIER_PULL_FROM_FLOOR = 16;",
-     "binding": "TIER_PULL_FROM_FLOOR"
-    }
-   ],
-   "definition": "under ground floor 16 a harder tier brings no more monsters",
-   "range": "a Level",
-   "touches": "early grounds' harder tiers",
-   "outcomes": [
-    "dps",
-    "dpsHero",
-    "ttkS",
-    "killsPerH",
-    "levelXpPerH",
-    "netPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-PULL",
-    "E13"
-   ],
-   "reach": {
-    "feeds": 3,
-    "closure": 80
-   },
-   "class": "exception-intentional",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [],
-    "mentions": [
-     "tests/hunt-core/hunt-tiers.mjs",
-     "tests/party-class-xp-line.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "mentioned only"
-   },
-   "perturb": {
-    "kind": "patch",
-    "from": [
-     "src/data/balance-sheet.js: export const TIER_PULL_FROM_FLOOR = 16;"
-    ],
-    "existingPatches": [
-     "tools/balance-program/patches/one-tier-table.json"
-    ]
-   },
-   "flags": [
-    {
-     "kind": "contradictory",
-     "why": "A deliberate rule of 2026-11-08 that conflicts with Tyler 2026-11-07 \"Dangerous and Deadly keep the bigger pulls\"",
-     "ev": "44 X-TIER-PULL-FLOOR, CONFIRMED"
-    }
-   ],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -7643,7 +7211,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7768,8 +7336,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 16,
-    "closure": 79
+    "feeds": 15,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7784,7 +7352,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
@@ -7793,7 +7361,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7848,7 +7416,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7863,7 +7431,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
@@ -7872,7 +7440,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7924,7 +7492,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -7939,7 +7507,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
@@ -7948,7 +7516,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -7992,8 +7560,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8008,7 +7576,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-calibration.mjs",
      "tests/balance-guard.mjs",
      "tests/boss-call-db.mjs",
@@ -8017,7 +7585,7 @@
      "tests/danger-db.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8061,8 +7629,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8142,8 +7710,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8161,9 +7729,10 @@
      "tests/boss-call-db.mjs",
      "tests/boss-call-window.mjs",
      "tests/hunt-core/danger.mjs",
-     "tests/plan-share.mjs"
+     "tests/plan-share.mjs",
+     "tests/settle-properties.mjs"
     ],
-    "mentionCount": 4,
+    "mentionCount": 5,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8207,8 +7776,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8274,8 +7843,8 @@
     "P22"
    ],
    "reach": {
-    "feeds": 17,
-    "closure": 77
+    "feeds": 16,
+    "closure": 76
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8335,8 +7904,8 @@
     "P22"
    ],
    "reach": {
-    "feeds": 9,
-    "closure": 79
+    "feeds": 8,
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8405,7 +7974,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8420,7 +7989,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-guard.mjs",
      "tests/bands.mjs",
      "tests/content-coherence.mjs",
@@ -8429,7 +7998,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8573,8 +8142,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8589,7 +8158,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-guard.mjs",
      "tests/bands.mjs",
      "tests/content-coherence.mjs",
@@ -8598,7 +8167,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8646,8 +8215,8 @@
     "P22"
    ],
    "reach": {
-    "feeds": 9,
-    "closure": 79
+    "feeds": 8,
+    "closure": 78
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8670,7 +8239,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-guard.mjs",
      "tests/bands.mjs",
      "tests/content-coherence.mjs",
@@ -8679,7 +8248,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8729,7 +8298,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8790,7 +8359,7 @@
    ],
    "reach": {
     "feeds": 10,
-    "closure": 78
+    "closure": 77
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8874,8 +8443,8 @@
     "C-TEMPER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -8965,8 +8534,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9072,8 +8641,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9138,8 +8707,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9207,8 +8776,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9273,8 +8842,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9335,8 +8904,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9397,8 +8966,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9473,8 +9042,8 @@
     "C-MON-STATS"
    ],
    "reach": {
-    "feeds": 12,
-    "closure": 80
+    "feeds": 11,
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9556,8 +9125,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9633,8 +9202,8 @@
     "C-TIER"
    ],
    "reach": {
-    "feeds": 8,
-    "closure": 80
+    "feeds": 7,
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9695,7 +9264,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9757,7 +9326,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9791,7 +9360,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 166,
+     "line": 164,
      "text": "xp: Object.freeze({ a: 1.436, b: 0.4, min: 2.534, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -9810,7 +9379,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9831,10 +9400,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9856,80 +9424,13 @@
    "evidence": "CONFIRMED (read)"
   },
   {
-   "id": "reward.tier-xp",
-   "category": "monster-rewards",
-   "name": "Harder-tier XP",
-   "sites": [
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 446,
-     "text": "dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
-     "binding": "TIER_DIALS"
-    },
-    {
-     "file": "src/data/balance-sheet.js",
-     "line": 453,
-     "text": "deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
-     "binding": "TIER_DIALS"
-    }
-   ],
-   "definition": "xpPm 1100 and 1250: Level XP a kill on Dangerous and Deadly",
-   "range": "permille 1000 or more. BALANCE_SHEET: Dangerous at least 1.10 and Deadly 1.25 of Normal (targets)",
-   "touches": "what a harder tier pays, so the reason to take the risk",
-   "outcomes": [
-    "levelXpPerH",
-    "netLevelXpPerH",
-    "hoursPerLevel",
-    "xContract"
-   ],
-   "formulas": [
-    "C-TIER",
-    "E01"
-   ],
-   "reach": {
-    "feeds": 9,
-    "closure": 79
-   },
-   "class": "archetype",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/hunt-core/hunt-tiers.mjs",
-      "what": "the tier rows",
-      "reads": [
-       "TIER_DIALS",
-       "tierRowFor"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/balance-sheet.mjs",
-     "tests/hunt-core/hunt-tiers.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "knob",
-    "knob": "tierXp",
-    "existingPatches": [
-     "tools/balance-program/patches/bp-tiers-2500.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-2600-deadly-2250.json",
-     "tools/balance-program/patches/bp-tiers-dangerous-3000-deadly-2500.json"
-    ]
-   },
-   "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
    "id": "reward.xp-floor-fit",
    "category": "monster-rewards",
    "name": "Early-ground XP fit",
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 166,
+     "line": 164,
      "text": "xp: Object.freeze({ a: 1.436, b: 0.4, min: 2.534, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -9948,7 +9449,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -9961,10 +9462,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9990,7 +9490,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 311,
+     "line": 308,
      "text": "export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.22, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));",
      "binding": "GROUND_XP_FIT"
     }
@@ -10009,7 +9509,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -10025,10 +9525,9 @@
     ],
     "mentions": [
      "tests/hunt-core/engine-parity.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10077,7 +9576,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 176,
+     "line": 174,
      "text": "gp: Object.freeze({ perHp: 0.30, lo: 0.5, keepMean: true, line: Object.freeze({ from: 1, to: 16, lo: 0.5, hi: 1.4 }) }),",
      "binding": "STAT_FORMULA"
     }
@@ -10107,10 +9606,9 @@
      "tests/ground-boss.mjs",
      "tests/hunt-core/engine-parity.mjs",
      "tests/hunt-live.mjs",
-     "tests/scaled-hunts.mjs",
      "tests/xp-frac-carry.mjs"
     ],
-    "mentionCount": 8,
+    "mentionCount": 7,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10137,7 +9635,7 @@
    "sites": [
     {
      "file": "src/data/balance-sheet.js",
-     "line": 321,
+     "line": 318,
      "text": "export const GROUND_GP_FIT = Object.freeze(foldRows('gp fit', { mosslight_glade: 0.7, coppercap_warrens: 0.7 }, GROUND_PACKS, (p) => (p.gpFit ? { [p.id]: p.gpFit.k } : {})));",
      "binding": "GROUND_GP_FIT"
     }
@@ -10155,18 +9653,15 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 6
    },
    "class": "exception-accidental",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
    "tests": {
     "asserts": [],
-    "mentions": [
-     "tests/hunt-core/hunt-tiers.mjs",
-     "tests/scaled-hunts.mjs"
-    ],
-    "mentionCount": 2,
-    "verdict": "mentioned only"
+    "mentions": [],
+    "mentionCount": 0,
+    "verdict": "none"
    },
    "perturb": {
     "kind": "patch",
@@ -10230,7 +9725,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -10246,7 +9741,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10316,7 +9811,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10437,7 +9932,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10531,7 +10026,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "mixed: ",
@@ -10556,7 +10051,7 @@
      "tests/art-palette.mjs",
      "tests/artisan-accrual.mjs"
     ],
-    "mentionCount": 116,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10913,7 +10408,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 61,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11007,7 +10502,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 78
+    "closure": 77
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11106,7 +10601,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11193,7 +10688,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11285,7 +10780,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11372,7 +10867,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11475,7 +10970,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -11532,7 +11027,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -11630,7 +11125,7 @@
    ],
    "reach": {
     "feeds": 12,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -12302,7 +11797,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-guard.mjs",
      "tests/bands.mjs",
      "tests/content-coherence.mjs",
@@ -12311,7 +11806,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12378,7 +11873,7 @@
      }
     ],
     "mentions": [
-     "tests/_tier-path.mjs",
+     "tests/_off-scale.mjs",
      "tests/balance-guard.mjs",
      "tests/bands.mjs",
      "tests/content-coherence.mjs",
@@ -12387,7 +11882,7 @@
      "tests/drop-formula.mjs",
      "tests/gear-stats.mjs"
     ],
-    "mentionCount": 24,
+    "mentionCount": 26,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13335,7 +12830,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13403,7 +12898,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13528,7 +13023,7 @@
    ],
    "reach": {
     "feeds": 5,
-    "closure": 79
+    "closure": 78
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -13787,7 +13282,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "mixed: ",
@@ -13968,7 +13463,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 55,
+     "line": 61,
      "text": "export const SOLO_XP_PM = 1150;",
      "binding": "SOLO_XP_PM"
     }
@@ -13987,7 +13482,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14027,7 +13522,7 @@
    "sites": [
     {
      "file": "src/data/party-class-xp.js",
-     "line": 80,
+     "line": 86,
      "text": "export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700]);",
      "binding": "PARTY_CLASS_XP"
     }
@@ -14047,7 +13542,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14118,7 +13613,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "exception-intentional",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14191,7 +13686,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14275,7 +13770,7 @@
    ],
    "reach": {
     "feeds": 3,
-    "closure": 79
+    "closure": 78
    },
    "class": "archetype",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14337,7 +13832,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -14353,7 +13848,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 61,
+    "mentionCount": 58,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -14407,8 +13902,8 @@
     "E27"
    ],
    "reach": {
-    "feeds": 4,
-    "closure": 79
+    "feeds": 3,
+    "closure": 3
    },
    "class": "archetype",
    "change": "mixed: data and code",
@@ -14449,11 +13944,6 @@
      "kind": "redundant",
      "why": "A hand-typed share a tier, each derived in a comment as the last x 1.3 / the book climb; no row for tier 8",
      "ev": "44 E-X17 and E-X18, CONFIRMED"
-    },
-    {
-     "kind": "redundant",
-     "why": "VENDOR_RAW_RATE and SHOP_BUYBACK_RATE are authored in the edge function and restated in src/data/shops.js DERIVED_PRICES",
-     "ev": "44 E-X20, CONFIRMED"
     }
    ],
    "evidence": "CONFIRMED (read)"
@@ -16035,7 +15525,7 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 80,
+     "line": 79,
      "text": "export const HERO_SLOTS = Object.freeze({ count: 4, free: true });",
      "binding": "HERO_SLOTS"
     }
@@ -16129,7 +15619,7 @@
    "sites": [
     {
      "file": "src/data/shops.js",
-     "line": 84,
+     "line": 83,
      "text": "export const SHOP_OFFERS = [",
      "binding": "SHOP_OFFERS"
     }
@@ -16144,7 +15634,7 @@
    ],
    "reach": {
     "feeds": 4,
-    "closure": 79
+    "closure": 78
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16179,7 +15669,6 @@
    "rows": {
     "what": "gold costs on shop offers",
     "homes": [
-     "src/data/shops.js#DERIVED_PRICES",
      "src/data/shops.js#PROPERTY_HOURS_PM",
      "src/data/companion-unlocks.js#COMPANION_OFFERS"
     ]
@@ -16221,7 +15710,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16329,13 +15818,7 @@
      "src/data/gold-ladders.js#BANK_STACKS_PER_RUNG"
     ]
    },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "The bank base, growth and stacks are restated in shops.js DERIVED_PRICES",
-     "ev": "CONFIRMED (read: DERIVED_PRICES base 3000, growth 1.32, slots 20)"
-    }
-   ],
+   "flags": [],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -16372,7 +15855,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 80
+    "closure": 79
    },
    "class": "global",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16445,7 +15928,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16473,89 +15956,6 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "CONFIRMED (read)"
-  },
-  {
-   "id": "econ.scaled-hunts",
-   "category": "economy",
-   "name": "Scaled hunts: pay and price",
-   "sites": [
-    {
-     "file": "src/data/scaled-hunts.js",
-     "line": 107,
-     "text": "xpPm: 730,",
-     "binding": "SCALED_HUNTS"
-    },
-    {
-     "file": "src/data/scaled-hunts.js",
-     "line": 128,
-     "text": "partyPm: 700,",
-     "binding": "SCALED_HUNTS"
-    },
-    {
-     "file": "src/data/scaled-hunts.js",
-     "line": 137,
-     "text": "coinPm: Object.freeze({ solo: 500, both: 500, party: 1000 }),",
-     "binding": "SCALED_HUNTS"
-    },
-    {
-     "file": "src/data/scaled-hunts.js",
-     "line": 140,
-     "text": "price: Object.freeze({ perLevel: 40 }),",
-     "binding": "SCALED_HUNTS"
-    }
-   ],
-   "definition": "a scaled hour pays XP x0.73, a party x0.70, coin x0.5 of the rise, and costs 40 gold a Level an hour; 24 h at most, 48 h bought a day",
-   "range": "permille. Mode approved 2026-11-07",
-   "touches": "old grounds raised to the leader's Level",
-   "outcomes": [],
-   "formulas": [
-    "C-SCALED",
-    "P26",
-    "E07"
-   ],
-   "reach": {
-    "feeds": 3,
-    "closure": 80
-   },
-   "class": "exception-intentional",
-   "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
-   "tests": {
-    "asserts": [
-     {
-      "file": "tests/scaled-hunts.mjs",
-      "what": "the scaled hour",
-      "reads": [
-       "SCALED_HUNTS"
-      ]
-     }
-    ],
-    "mentions": [
-     "tests/hunt-core/xp-share.mjs",
-     "tests/scaled-hunts-server.mjs",
-     "tests/scaled-hunts.mjs"
-    ],
-    "mentionCount": 3,
-    "verdict": "asserted"
-   },
-   "perturb": {
-    "kind": "not-playable",
-    "gap": "not-in-runs",
-    "existingPatches": []
-   },
-   "rows": {
-    "what": "the scaled hour's loot reader",
-    "homes": [
-     "src/data/scaled-hunts.js#lootPmFor"
-    ]
-   },
-   "flags": [
-    {
-     "kind": "redundant",
-     "why": "xpPm and partyPm were re-dialed seven times to hold one guard: compensations for the missing kill-rate term",
-     "ev": "44 E-X11, CONFIRMED; knobs.json notKnobs"
-    }
-   ],
    "evidence": "CONFIRMED (read)"
   },
   {
@@ -16693,7 +16093,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "code: a typed number in engine code",
@@ -16784,7 +16184,7 @@
    ],
    "reach": {
     "feeds": 2,
-    "closure": 80
+    "closure": 79
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -16882,7 +16282,7 @@
    ],
    "reach": {
     "feeds": 1,
-    "closure": 81
+    "closure": 80
    },
    "class": "content",
    "change": "data: a row or constant in src/data (its generated SQL catalogue, if any, is re-run by its generator)",
@@ -17313,14 +16713,6 @@
   {
    "at": "src/data/catalogue-coherence.js#UNREACHABLE_CEILING",
    "why": "a coherence guard's ceiling on unreachable items"
-  },
-  {
-   "at": "src/data/balance-sheet.js#TIER_SIZES",
-   "why": "the party sizes a tier row answers for (1..4): a shape"
-  },
-  {
-   "at": "src/data/balance-sheet.js#tierRowFor",
-   "why": "a solver's search bounds (lo 1, hi 10, 60 halvings) for a gentle ground's tier lift"
   },
   {
    "at": "src/core/plan-code.js#**",
@@ -17916,14 +17308,6 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/to-hit.js#raisedHit": {
-   "pin": "count",
-   "keys": [
-    "·"
-   ],
-   "typed": 1,
-   "bindings": 1
-  },
   "src/data/hearthrise.js#FIRE_REFERENCE_DAY": {
    "pin": "count",
    "keys": [
@@ -18086,8 +17470,6 @@
     "cdMs",
     "cdPm",
     "ch",
-    "dangerous",
-    "deadly",
     "def",
     "densityMax",
     "ember",
@@ -18102,7 +17484,6 @@
     "guardPm",
     "hitPm",
     "hp",
-    "hpPm",
     "k",
     "len",
     "level",
@@ -18670,20 +18051,6 @@
    "typed": 2,
    "bindings": 1
   },
-  "src/data/shops.js#DERIVED_PRICES": {
-   "pin": "count",
-   "keys": [
-    "SHOP_BUYBACK_RATE",
-    "VENDOR_GEAR_RATES",
-    "VENDOR_HOURLY_ARMOR_T2_RATE",
-    "VENDOR_RAW_RATE",
-    "baseHoursPm",
-    "growth",
-    "slots"
-   ],
-   "typed": 12,
-   "bindings": 1
-  },
   "src/data/shops.js#PROPERTY_HOURS_PM": {
    "pin": "keys",
    "keys": [
@@ -18783,14 +18150,6 @@
    "pin": "count",
    "keys": [
     "band"
-   ],
-   "typed": 1,
-   "bindings": 1
-  },
-  "src/data/scaled-hunts.js#lootPmFor": {
-   "pin": "count",
-   "keys": [
-    "·"
    ],
    "typed": 1,
    "bindings": 1
@@ -19685,36 +19044,6 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/balance-sheet.js#TIER_DIALS": {
-   "pin": "count",
-   "keys": [
-    "dmgPm",
-    "hpPm",
-    "lift",
-    "pull",
-    "xpPm"
-   ],
-   "typed": 9,
-   "bindings": 1
-  },
-  "src/data/balance-sheet.js#BASE_TIER_OVERRIDES": {
-   "pin": "count",
-   "keys": [
-    "dangerous",
-    "hpPm",
-    "xpPm"
-   ],
-   "typed": 10,
-   "bindings": 1
-  },
-  "src/data/scaled-hunts.js#SCALE_EXCEPTIONS": {
-   "pin": "count",
-   "keys": [
-    "danger"
-   ],
-   "typed": 1,
-   "bindings": 1
-  },
   "src/data/tower.js#TOWER_RULES": {
    "pin": "count",
    "keys": [
@@ -19796,14 +19125,6 @@
    "pin": "count",
    "keys": [
     "max"
-   ],
-   "typed": 1,
-   "bindings": 1
-  },
-  "src/data/balance-sheet.js#TIER_PULL_FROM_FLOOR": {
-   "pin": "count",
-   "keys": [
-    "·"
    ],
    "typed": 1,
    "bindings": 1
@@ -21057,21 +20378,6 @@
     "hours"
    ],
    "typed": 20,
-   "bindings": 1
-  },
-  "src/data/scaled-hunts.js#SCALED_HUNTS": {
-   "pin": "count",
-   "keys": [
-    "bankMaxHours",
-    "both",
-    "buyMaxHoursPerDay",
-    "maxHours",
-    "partyPm",
-    "perLevel",
-    "solo",
-    "xpPm"
-   ],
-   "typed": 8,
    "bindings": 1
   },
   "src/data/bench-tax.js#BENCH_TAX": {

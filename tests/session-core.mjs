@@ -253,7 +253,6 @@ const ASKVIA_SITES = Object.freeze({
   /* lane/k1-job-slice (1073-k1-job-slice.sql): a kit-trade job's start and its end, one askVia each on the one rule */
   'src/session/trade-intents.js': { rule: 2 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
-  'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
   'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
   'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
   'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
@@ -303,7 +302,6 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/training-intents.js', 'startTraining', 'hr_training_start', [{ skill: 'melee', where: 'yard', feeSeen: 197 }]],
   ['src/session/training-intents.js', 'buyGear', 'hr_training_gear_buy', ['training_sword', 197]],
   ['src/session/training-intents.js', 'unlockDummy', 'hr_house_dummy_unlock', ['melee', 197]],
-  ['src/session/scaled-hunts.js', 'buyScaledHours', 'hr_scaled_hunt_buy', ['mill_cellar', 1, 197]],
   ['src/session/training-intents.js', 'openGear', 'hr_training_gear_open', ['training_sword']],
   ['src/session/training-intents.js', 'useGear', 'hr_training_gear_switch', ['melee', true]],
   ['src/session/faction-intents.js', 'joinFaction', 'hr_faction_join', ['wardens']],

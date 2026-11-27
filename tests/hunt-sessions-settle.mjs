@@ -274,12 +274,6 @@
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
 //              (too_many_uses), an unsold id (not_for_sale).
-//   DENSITY    P0 #57: a Level-2 club hero at Mill Cellar density 8 (the real ground),
-//              nothing landed since it opened and Leave pressed, ends through its own
-//              settle with the browser closed (tick) and viewed (player's settle), both
-//              with the density the server froze on the instance at hunt start (a later
-//              setup change moves neither the bound nor what the engine plays) and with
-//              none frozen (an instance opened before the freeze: the bound reads the ceiling).
 //   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
@@ -333,7 +327,6 @@ import { isMain } from './_is-main.mjs';
 import { setGold } from './_gold.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
-import { withdrawScale } from './_tier-path.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -437,7 +430,7 @@ const mixedRow = () => {
 };
 /* The DB arms' settles play the ground installGround last put in the catalogue. */
 let fixtureRow = groundRow;
-/* null = the REAL ground (hunt-ground.js huntGroundOf) and the chain's own catalogue row (the DENSITY arm). */
+/* null = the REAL ground (hunt-ground.js huntGroundOf) and the chain's own catalogue row (a realGround hunter). */
 const groundsOf = (M) => (fixtureRow ? { mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } } : {});
 const deadlyOf = (M) => ({ ground: deadlyRow(), grid: gridOf(M) });
 
@@ -659,7 +652,7 @@ const ENGINE_ARMS = {
       let threw = false; try { M.SEED.swingSeederFor(bad, IID); } catch { threw = true; }
       if (!threw) problems.push(`a malformed secret ${JSON.stringify(bad)} was accepted`);
     }
-    /* THE REFUSAL ITSELF, not any throw: since the scaled-hunts row door (combat-sim.js huntPlayOf reads ctx.ground first) a call with no
+    /* THE REFUSAL ITSELF, not any throw: since the row door (combat-sim.js huntPlayOf reads ctx.ground first) a call with no
        ground throws a TypeError before the seed is asked for, and an arm that took any throw let 'an unseeded swing runs on a zero seed'
        survive (run 42454194810). Each call carries the fixture ground; only the engine's own seed refusal passes. */
     const refusalOf = (fn) => { try { fn(); return 'ran'; } catch (e) { return String((e && e.message) || e); } };
@@ -1621,10 +1614,12 @@ async function installGround(db, row = groundRow) {
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
-  /* THE FIXTURE PLAYS THE TIER PATH (lane/scale-early-grounds): the real Cellar is on the Danger scale now (1061 hr_danger_grounds), so a hunt
-     opened on its id would freeze the default stance; the fixture ground is not the Cellar, so its scale row is withdrawn in this database
-     only (and its store depth with it), and every tier arm here reads what it always read */
-  await withdrawScale(db, rows.map((g) => g.hunt));
+  /* THE FIXTURE GROUND IS THE HARNESS'S OWN (lane/scale-early-grounds; lane/retire-tier-chain): it takes the real Cellar's id, and the real
+     Cellar is on the Danger scale (hr_danger_grounds, its store depth hr_store_grounds), so its scale rows leave this database with the
+     real row it replaces: a fixture hunt freezes no stance and plays the fixture's own rows as written */
+  for (const t of ['hr_store_grounds', 'hr_danger_grounds']) {
+    if (await one(db, 'select to_regclass($1) is not null', ['public.' + t])) await db.query(`delete from public.${t} where hunt_id = any($1::text[])`, [rows.map((g) => g.hunt)]);
+  }
 }
 
 /* the most XP one hr_apply call may credit a skill, under its c_max_xp_delta (12,000,000: 2026-10-27-core-bodies.sql) */
@@ -1671,14 +1666,6 @@ async function character(db, M, uid, o) {
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(o.options), idem()]);
     if (!r || r.ok !== true) throw new Error('options refused: ' + JSON.stringify(r));
   }
-  /* The tier picked on the hunter's ground (hunt_density.tier, 2027-02-27-hunt-tiers.sql: per ground, never a setup). The Cellar offers none in the data, so the arm writes its own catalogue row: `o.density` is that row's pull, `o.tier` its name. */
-  if (o.density != null || o.tier) {
-    const t = o.tier || { id: 'deadly', pull: o.density };
-    await db.query("insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values ('mill_cellar', $1, array_fill($2::int, array[4]), 1000, 1000, 1000) on conflict (hunt_id, tier) do update set pull = excluded.pull", [t.id, t.pull]);
-    await asUser(db, uid);
-    const r = await one(db, `select public.hr_hunt_tier_set(0, 'mill_cellar', $1, $2::uuid)`, [t.id, idem()]);
-    if (!r || r.ok !== true) throw new Error('tier refused: ' + JSON.stringify(r));
-  }
   if (o.premium) await db.query(`select public.hr_premium_grant($1, 0, now() + interval '30 days', 's1 probe')`, [uid]);
   if (o.lastActivity) {
     /* `left`: a count an older hunt's start remembered (player_state.last_activity_left, 2027-04-24-bench-resume.sql). */
@@ -1699,9 +1686,6 @@ async function character(db, M, uid, o) {
 async function hunter(db, M, o) {
   const HUNT = o.realGround && o.hunt ? o.hunt : 'mill_cellar';
   if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
-  /* o.tierPath (lane/scale-early-grounds): an arm whose subject is a tier-path rule (the density pick, the party class table) on a real
-     ground that is now on the Danger scale withdraws that ground's scale rows in its own transaction, so the server freezes no stance */
-  if (o.realGround && o.tierPath) await withdrawScale(db, [HUNT]);
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -2224,7 +2208,7 @@ const DB_ARMS = {
         if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought after the confirm was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
       }
     }
-    /* THE PARTY'S HOLD SEAT AND A SCALED HUNT'S SWITCH (1053-lever-gates.sql): each lands at once as a setting, and the engine plays it
+    /* THE PARTY'S HOLD SEAT (1053-lever-gates.sql): it lands at once as a setting, and the engine plays it
        from the first window starting past the seed horizon (the lever's now + 34 s), never over the saved past or the seeds shown. The
        same shape on both paths: the hunt saved at F, an unsaved confirm at F + 19 s, the lever at F + 19.5 s, then the window the next
        save plays (it starts at the saved clock) reads the old value; THE HUNT VIEWED saves at F + 35 s (forced) and F + 56 s, THE BROWSER
@@ -2255,7 +2239,7 @@ const DB_ARMS = {
         if (JSON.stringify(past) !== JSON.stringify(after)) problems.push(`${label} (${path}): the window past the horizon plays ${JSON.stringify(past)}${ended ? ' (the hunt ended ' + ended + ')' : ''}, want ${JSON.stringify(after)} (CONTROL: the deferral is not a drop)`);
       }
     };
-    /* tests/scaled-hunts-server.mjs's Level 20 melee: its kit (tools/balance-sim/gear.mjs kitOf('tank', 20)), the shield making each a tank */
+    /* a Level 20 melee in its kit (tools/balance-sim/gear.mjs kitOf('tank', 20)), the shield making each a tank */
     const TANK = { ...STRONG, level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], beforeEnter: undefined };
     const KIT = [['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
       ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']];
@@ -2270,18 +2254,6 @@ const DB_ARMS = {
         return r && r.ok === true && r.hold_seat === seat ? { ok: true } : r;
       },
       (plan) => ({ hold: plan.inst.hold_seat ?? null }), { hold: null }, { hold: 1 });
-    await gate('the scaled switch',
-      async () => {
-        await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'scaled_hunts'");
-        return hunter(db, M, { ...TANK, realGround: true, hunt: 'mill_cellar', fromMs: BASE, beforeEnter: async () => {
-          await shields([UIDS[0]]);
-          const price = Number(await one(db, `select r.price_per_level * public.hr_scaled_level('mill_cellar', public.hr_level_of($1::uuid, 0)) from public.hr_scaled_hunt_rule r where r.id`, [UIDS[0]]));
-          const b = await as('select public.hr_scaled_hunt_buy(0, $2, 1, $3::bigint, $1::uuid)', [idem(), 'mill_cellar', price]);
-          if (!b || b.ok !== true) throw new Error('harness: the hour buy answered ' + JSON.stringify(b));
-        } });
-      },
-      () => as('select public.hr_scaled_hunt_switch(0, $2, false, $1::uuid)', [idem(), 'mill_cellar']),
-      (plan) => ({ level: plan.inst.play ? plan.inst.play.level : null }), { level: 20 }, { level: null });
     fixtureRow = groundRow;
     return problems;
   }),
@@ -4562,7 +4534,7 @@ const DB_ARMS = {
     for (const [path, door] of Object.entries(DOORS)) {
       await db.query('savepoint role_worn');
       /* a real ground with no exit: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and these heroes are Level 25 */
-      const h = await hunter(db, M, { realGround: true, tierPath: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      const h = await hunter(db, M, { realGround: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_sword')
                         on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'shield', 'practice_shield')
@@ -4571,19 +4543,16 @@ const DB_ARMS = {
                         on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[1]]);
         await db.query(`delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'`, [UIDS[1]]);
       } });
-      let paid = 0, raw = 0, world = null;
+      let paid = 0, world = null;
       for (let t = h.from + 60000; t <= h.from + 240000; t += 60000) {
         const plan = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: t, ...door }, door.mode);
         if (plan.answer) return [...problems, path + ': the read answered ' + JSON.stringify(plan.answer).slice(0, 200)];
         const heroes = UIDS.slice(0, 2).map((u) => plan.members.find((m) => m.user === u).hero.role).join();
         if (heroes !== 'tank,ranger') problems.push(path + ': the engine plays ' + heroes);
         const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
-        /* Each share against the table's cell: the kill's XP was 2 x raw or 2 x raw + 1 (the even share floored), xp-share.js splitKillXp. */
-        const cell = M.PCX.partyClassXp(['tank', 'ranger']).permille;
-        for (const e of p.out.events || []) if (e.type === 'xp' && e.raw > 0) {
-          paid += e.amount; raw += e.raw;
-          if (![e.raw, e.raw + 0.5].some((share) => e.amount === Math.floor((share * cell) / 1000 + 1e-9))) problems.push(path + ': a share of ' + e.raw + ' paid ' + e.amount + ', and the cell is ' + cell);
-        }
+        /* (the pay: on the Danger scale every hero earns its own Level's share, xp-share.js depthSplit; no class table, so the roles are
+           this arm's subject and the pay only its CONTROL) */
+        for (const e of p.out.events || []) if (e.type === 'xp' && e.amount > 0) paid += e.amount;
         world = p.commit.settle.world;
         const r = await M.HS.commitHuntSettle(exec, { ...p.commit, project: door.project || null });
         if (!r || r.ok !== true) return [...problems, path + ': the commit answered ' + JSON.stringify(r).slice(0, 200)];
@@ -4593,9 +4562,7 @@ const DB_ARMS = {
       const shown = await one(db, `select public.hr_state_of($1::uuid, 0)->'party'->'members'`, [UIDS[0]]);
       const roles = shown.map((m) => M.ROLES.roleForWeapon(m.weapon, m.role_pick)).sort().join();
       if (roles !== 'ranger,tank') problems.push(path + ': the party section shows ' + roles + ' over a world of ' + units);
-      /* The pay: two classes earn over the even share on this ground (1.07, the line the Party window reads); two tanks would earn it exactly. */
-      if (!raw) problems.push(path + ': CONTROL: nothing was paid in four minutes');
-      else if (!(paid > raw)) problems.push(path + ': the hunt paid ' + paid + ' on an even share of ' + raw + ': no class bonus for a tank and a ranger');
+      if (!paid) problems.push(path + ': CONTROL: nothing was paid in four minutes');
       await db.query('rollback to savepoint role_worn');
     }
     return problems;
@@ -4892,81 +4859,6 @@ const DB_ARMS = {
     await read('before the first settle', true);
     await settleTo(db, M, h.from + 60000);
     await read('after the first settle', false);
-    return problems;
-  }),
-  /* P0 bug report #57 (v0.2.26): a Level-2 club hero picked density 8 at Mill Cellar; the kill bound counted
-     the ground's as-built spawns, refused the engine's own kills (22 in a 50 s window against 15), and every
-     later, longer window more so: the instance never moved and the Leave never landed. Here is that instance:
-     the real ground, nothing landed since it opened, Leave pressed. It must end through its own settle, with
-     the browser closed (the tick) and with the hunt viewed (the player's settle). */
-  DENSITY: async (db, M) => inTx(db, async () => {
-    const problems = [];
-    try {
-      const h = await hunter(db, M, { realGround: true, tierPath: true, minutesAgo: 22, level: 2, density: 8,
-        inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
-      /* THE DENSITY TERM ALONE (v_pass = spawns + pockets x the frozen pick). hr_hunt_grounds.spawns is the Cellar's rows as built (a party's
-         own Normal pull, which once widened it, is retired: Tyler 2026-11-11), so only the pick can admit these kills. */
-      /* Hank's weapon: the club's cleave clears a full pack at once. */
-      await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
-      await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
-      await asUser(db, UID);
-      const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
-      await db.query("select set_config('request.jwt.claim.sub', '', true)");
-      if (!lv || lv.ok !== true) return ['CONTROL: the leave was refused: ' + JSON.stringify(lv)];
-      /* Pressed two minutes ago (the arm's clock is one transaction's now()). */
-      await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::bigint / 1000.0) where id = $1', [h.sid, h.from + 20 * 60000]);
-      const exec = makeExec(db);
-      /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
-      const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
-      if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
-      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. It is
-         the hunt's own from its start, never a lever pulled mid-hunt: written here 22 minutes into a backlog, 1005's trigger holds the
-         setup as it stood for every window starting before the seed horizon (since 1052-settle-flush.sql the clock's + 34 s, so the
-         whole backlog), which an engine of that day never had; the hold goes with it. */
-      const staleKey = async (n) => {
-        await db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
-          values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
-          on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
-        await db.query('delete from public.hunt_setup_holds where session_id = $1', [h.sid]);
-      };
-      await db.query('savepoint density');
-      for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
-        if (variant === 'frozen') {
-          /* A pick changed after Enter (or a stale key on an action-set row) moves neither the bound nor what the engine plays. */
-          await db.query(`update public.hunt_density set tier = 'normal' where user_id = $1 and slot = 0`, [UID]);
-          await staleKey(1);
-          const first = await settleTo(db, M, h.from + 60000);
-          const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
-          const played = first.res && first.res.ok === true && w ? M.WS.decode(JSON.parse(w)).density : null;
-          if (played !== 8) problems.push(`${variant}/${door}: after a setup change the engine played density ${played}, not the frozen 8`);
-        } else {
-          /* Hank's 32c99ffe: opened before the freeze existed, so its row holds none (the bound reads the ceiling). */
-          await db.query('update public.hunt_instances set density = null where id = $1', [h.inst]);
-          /* ...and its engine read the pick off the action set then (the key 2026-11-17 strips): it plays 8 against the ceiling. */
-          await staleKey(8);
-        }
-        let r = null;
-        /* its own settles, slice by slice: a 22-min backlog is ceil(22 min / HUNT_SETTLE_SPAN_MS) of them (lane/c-tick-span) */
-        const slices = Math.ceil(22 * 60000 / M.HS.HUNT_SETTLE_SPAN_MS) + 2;
-        for (let i = 0; i < slices; i++) {
-          r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
-            ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0 }) });
-          if (!r || r.outcome !== 'paid' || r.ended) break;
-        }
-        const s = await snapshot(db, h.sid);
-        if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
-        /* outgrown too (the Cellar ends its hunt at Level 5, hunt-grounds.js endsAtLevel): the club clears full packs and passes 5 before the Leave lands */
-        else if (!s.session.ended_at || !['left', 'died', 'outgrown'].includes(s.session.end_reason)) {
-          problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
-        }
-        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
-        const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
-          where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
-            and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
-        if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
-        await db.query('rollback to savepoint density');
-      }
-    } finally { fixtureRow = groundRow; }
     return problems;
   }),
   /* A REFUSED WINDOW NEVER TRAPS A HERO (2026-11-16-hunt-density-bounds.sql): the sixth refused commit in a row
@@ -5411,7 +5303,7 @@ const MUTANTS = [
     from: "    if ((v.outcome === 'nothing' && !OWED_WINDOW_REASONS.includes(v.reason)) || v.outcome === 'none') {",
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
-    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, inst.play.stopMs);' },
+    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
   /* THE FLUSH (lane/c-settle-flush): the confirm door, and each reason it saves at once, planted away */
   /* THE WATCHED STAMP (lane/watched-stamp): a viewed ask that marks nothing leaves the return counting from a stale stamp */
   { arm: 'WATCHED', name: '[watched-stamp] a viewed ask reads without the mark', file: join(FN, 'hunt-settle.js'),
@@ -5680,10 +5572,10 @@ const MUTANTS = [
   { arm: 'TICK-1', name: '[combat-parity shiftWindow] the member clock is read one second late', file: join(FN, 'hunt-settle.js'),
     from: '    nextSwingAtMs: num(h.next_swing_at_ms),', to: '    nextSwingAtMs: num(h.next_swing_at_ms) + 1000,' },
   { arm: 'TICK-1', name: '[world-tick-parity P5 rewind] the settle re-simulates the last swing', file: join(FN, 'hunt-settle.js'),
-    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: play.restart ? null : (inst.world || null),',
-    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms) - 2000, world: play.restart ? null : (inst.world || null),' },
+    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,',
+    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms) - 2000, world: inst.world || null,' },
   { arm: 'TICK-1', name: '[C2 knocked-out foe carried] the world is not carried across a settle', file: join(FN, 'hunt-settle.js'),
-    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: play.restart ? null : (inst.world || null),',
+    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,',
     to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null,' },
   { arm: 'PARTY-RESTART', name: 'the fresh world of a restarted instance counts from swing 0', file: join(FN, 'hunt-settle.js'),
     from: '      worldSwing: Number(inst.world_swing) || 0 },', to: '      worldSwing: 0 },' },
@@ -5882,8 +5774,6 @@ const DB_MUTANTS = [
     find: "'hold_seat', (select public.hr_party_hold_played(p, v_i.settled_to) from public.hunt_parties p", replace: "'hold_seat', (select p.hold_seat from public.hunt_parties p" },
   { arm: 'FLUSH-HORIZON', name: '[lever-gates] a hold pick mid-hunt is written to play at once', fn: 'public.hr_party_hold_put(uuid,integer)',
     find: '  if v_until is null then\n', replace: '  if true then\n' },
-  { arm: 'FLUSH-HORIZON', name: '[lever-gates] a scaled switch mid-hunt plays at once (no scale hold read)', fn: 'public.hr_scaled_hunt_of(uuid)',
-    find: 'where h.instance_id = p_instance and h.until >= v_i.settled_to;', replace: 'where false;' },
   { arm: 'FLUSH-HORIZON', name: '[settle-flush] the live horizon is the saved clock\'s alone (a leave under the flush)', fn: 'public.hr_hunt_live_horizon_at(timestamp with time zone)',
     find: 'greatest(now() + make_interval(secs => 2000 / 1000.0), p_settled_to) + make_interval(secs => 32000 / 1000.0)',
     replace: 'greatest(now(), p_settled_to + make_interval(secs => 32000 / 1000.0))' },
@@ -5897,13 +5787,6 @@ const DB_MUTANTS = [
     find: '             select max(coalesce((b.drops->>e.key)::numeric, 0)) from public.hr_hunt_kill_bounds b', replace: '             select 1000000 from public.hr_hunt_kill_bounds b' },
   { arm: 'VALUE', name: '[FRESH respawn x6] the kill bound is lifted', fn: AM,
     find: '  if v_kills > v_kmax then', replace: '  if v_kills > v_kmax * 1000 then' },
-  { arm: 'DENSITY', name: '[#57] the kill bound counts the as-built spawns again', fn: AM,
-    find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
-    replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
-  { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "jsonb_build_object('density', v_i.density, 'tier', coalesce(v_i.tier, 'normal'))\n", replace: "'{}'::jsonb\n" },
-  { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
-    find: '   where i.id = new.instance_id and i.density is null;', replace: '   where false;' },
   { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   /* (the instance twin of the seat's below: caught by the world-code leg, kills_over, and the instance's own, bad_world_swing) */

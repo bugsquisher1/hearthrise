@@ -453,7 +453,7 @@ export function monsterCombatRolls(monster, ctx) {
    hurt() (src/core/hunt/damage.js), so the two cannot price a blow differently. */
 
 /* A monster's two to-hit ratings (src/data/to-hit.js) as its row writes them (balance-sheet.js formulaStats, or a hand row's own). A tier's
-   or an enrage's harder blow raises `aim` the way it raises `atk` (hunt-tiers.js atTier, boss-phases.js swingRow). A foe with none (the
+   or an enrage's harder blow raises `aim` the way it raises `atk` (src/core/hunt/dial.js atTier, boss-phases.js swingRow). A foe with none (the
    snapshot's neutral foe) reads 0: the rails hold the chance. Every MONSTERS row carries both (tests/balance-sheet.mjs). */
 const monsterEvasion = (monster) => (monster && Number.isFinite(monster.evasion) && monster.evasion > 0 ? monster.evasion : 0);
 const monsterAim = (monster) => (monster && Number.isFinite(monster.aim) && monster.aim > 0 ? monster.aim : 0);

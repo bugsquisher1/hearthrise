@@ -17,7 +17,6 @@ export const PARTY_TEXT = Object.freeze({
   class_less: 'Level XP each: about -{pct}% vs solo in {place} · Mix {classes} for more',
   class_less_full: 'Level XP each: about -{pct}% vs solo in {place}',
   /* {place} on a harder tier the leader picked: each tier has its own measured line (lane/d-party-pace), so the line names it */
-  place_tier: '{place} ({tier})',
   /* THE LEADER (designer D-2 section 2.2): the words under a party of the account's own heroes, and its two presses */
   lead_words: 'Leader: {name} (walks in front, picks the hunt)',
   lead_pin: 'Lead',

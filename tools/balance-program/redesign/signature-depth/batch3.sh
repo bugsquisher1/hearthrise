@@ -56,7 +56,15 @@ run b3-muster-tooth      muster_barrows 60 $X --signatures -,bulls_tooth,-,-
 run b3-muster-signet     muster_barrows 60 $X --signatures -,drowned_signet,-,-
 run b3-muster-claw       muster_barrows 60 $A --signatures fledgling_claw,-,-,-
 run b3-slake-waders      the_slake 57 sword --signatures slake_waders
-# (the coin pieces: their rule moves the supply bill and next to nothing in the fight, so the bar reads their coin a hero-hour beside pace)
-run b3-muster-candle     muster_barrows 60 $X --signatures -,-,the_cold_candle,-
-run b3-muster-riverstone muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
-run b3-muster-mitts      muster_barrows 60 $T --signatures teamsters_mitts,-,-,-
+# ── the second scale ground (the spread bar), for the rows in band on their best cell ──
+run b3-slake-chain       the_slake 57 $X --signatures -,-,-,lock_keepers_chain
+run b3-slake-bracers     the_slake 57 $X --signatures -,-,-,greened_bracers
+run b3-muster-lone       muster_barrows 60 sword
+run b3-muster-waders     muster_barrows 60 sword --signatures slake_waders
+# (the coin pieces, at 4 seeds: their rule moves the supply bill, not the size bar (15 "Decision: the scale a Signature is sized on": coin
+#  is the market's), so they read their coin a hero-hour beside pace; paired with the plain four's first 4 seeds)
+SEEDS=4 run b3-muster-candle     muster_barrows 60 $X --signatures -,-,the_cold_candle,-
+SEEDS=4 run b3-muster-riverstone muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
+SEEDS=4 run b3-muster-mitts      muster_barrows 60 $T --signatures teamsters_mitts,-,-,-
+# ── THE SHAPES TRIED (b3v-*): temporary ids on a scratch copy of this tree (sum.mjs VARIANTS3 names each shape), played with this
+#    script's cell, never committed as rows; a kept shape replays from the tree by its real id ──

@@ -162,7 +162,14 @@ const ROWS3 = [
   ['#33 Teamster\'s Mitts (tank, coin)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-mitts'], null],
 ];
 /* THE SHAPES TRIED on a batch-3 row that missed (a temporary id on a scratch copy, b3v-*): [label, plain, worn] */
-const VARIANTS3 = [];
+const VARIANTS3 = [
+  ['#1 Bannerman\'s Pavise, a Challenge: the monsters it taunts Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-pavise-weak'],
+  ['#1 Bannerman\'s Pavise, a Challenge: the monsters it taunts Chilled 4 s (Muster)', 'b3-muster-tank', 'b3v-muster-pavise-chill'],
+  ['#42 Night Carter\'s Boots, a pull: its pack Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-boots-weak'],
+  ['#42 Night Carter\'s Boots, a pull: its pack Chilled 8 s (Muster)', 'b3-muster-tank', 'b3v-muster-boots-chill8'],
+  ['#31 The Cellar Key, every fifth death: a shield of 3% of max health on each hero of the party (Muster)', 'b3-muster-mixed', 'b3v-muster-key-shield'],
+  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health (Muster)', 'b3-muster-mixed', 'b3v-muster-thrower-shield'],
+];
 if (BATCH === '3') {
   const coin = (p, s) => { const d = (f) => Math.round(f(s) - f(p)); return 'store ' + sgn(d((c) => c.gold.storePerHeroH.mean)).replace('.0', '') + ', runes ' + sgn(d((c) => c.kit.charge)).replace('.0', '') + ', drink ' + sgn(d((c) => c.kit.drink)).replace('.0', ''); };
   console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Coin a hero-hour (worn - plain) | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');

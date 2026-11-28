@@ -212,7 +212,9 @@ function checkBasics(d, f) {
     } else {
       const abilityRune = p.reqSkill === 'magic' && d.runesSpent.has(b.partner);
       /* A shot the store sells stands behind an arrow a shot SPENDS (the free rung never runs out). */
-      if (!abilityRune && (!(Number(p.ammoPerShot) > 0) || p.reqSkill !== 'ranged')) f('B1', `'${b.id}' partner '${b.partner}' is not a spent arrow or a rune an ability spends`);
+      if (!abilityRune && p.reqSkill !== 'ranged') f('B1', `'${b.id}' partner '${b.partner}' is not a spent arrow or a rune an ability spends`);
+      /* a rune an ability spends is SPENT too (the bench cut took the only other check, w0e R1 over every made rune) */
+      if (!(Number(p.ammoPerShot) > 0)) f('B1', `'${b.id}' partner '${b.partner}' is free to spend (${p.ammoPerShot} a shot): one would last forever`);
       if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
     }
   }
@@ -395,6 +397,10 @@ function selftest() {
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
     /* BASIC_AMMO_PREMIUM is 1 since the spell-release balance (designer 2026-10-23): a store shot at its partner's book (4 g) holds, under it is red. */
     ['B1', 'a shop arrow under the crafted arrow book value per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 3 }); }],
+    ...['earth', 'water', 'fire', 'ice', 'poison', 'rupture'].map((family, i) => ['B1', `a free ${family} rune behind its store row`, (d) => {
+      const id = ['chalked', 'scored', 'etched', 'carved', 'graven'][i % 5] + '_' + family + '_rune';
+      d.items = { ...d.items, [id]: { ...d.items[id], ammoPerShot: 0 } };
+    }]),
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
     ['B5', 'Iron Arrows with no store row again (live 10-23: the Ranger hunted on with no basic)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_iron_arrows'); }],
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],

@@ -25,6 +25,11 @@
 // Every ammo-slot item's book value must sit inside the ladder's band, measured
 // as what the slot costs to run (gold per swing).
 //
+// ── CHECK 4: NOTHING MADE IS FREE TO SPEND (lane/bench-cut-data-guards, 2026-11-28) ──
+// Every ammo item burns more than nothing a shot (`ammoPerShot` > 0) but the ruled free rungs (FREE_RUNGS), and
+// every family and tier of rune is on the table to be judged. Until the bench cut tests/w0e's R1 held this over
+// every made rune. The cut left one rune checked (Chalked Fire), so a free Rupture ladder passed every guard.
+//
 //   node tests/recipe-yield-guard.mjs            → run standalone
 //   node tests/recipe-yield-guard.mjs --mutate   → prove the guard sees failure
 // ============================================================================
@@ -36,13 +41,27 @@ import { isMain } from './_is-main.mjs';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
+/* THE FREE RUNGS: an ammo item a shot may spend nothing of, each with its ruling. A new one is the designer's, never a default. */
+export const FREE_RUNGS = Object.freeze({
+  bronze_arrows: 'designer 2026-10-31 (PRIORITY_BOARD Decisions, src/data/slot-ladders.js): a basic attack costs nothing you can run out of',
+});
+
 /* What the slot costs to run at the ladder's top: dawn_whetstone, the tier-7 ceiling, at 19.80 g a swing. */
 export const MAX_GOLD_PER_SWING = 20;
 
 export async function recipeYieldGuard(overrides) {
   const { ITEMS } = overrides?.ITEMS ? { ITEMS: overrides.ITEMS } : await imp('src/data/items.js');
+  const { RUNE_TIERS, runeId } = await imp('src/data/runes.js');
+  const { CRAFTED_RUNE_FAMILIES } = await imp('src/data/stonecraft.js');
   const problems = [];
-  let ammo = 0;
+  let ammo = 0, runes = 0;
+
+  // ── CHECK 4: every family and tier of rune is an ammo item, so the loop below judges it.
+  for (const family of CRAFTED_RUNE_FAMILIES) for (const t of RUNE_TIERS) {
+    const id = runeId(family, t.tier), def = ITEMS[id];
+    if (!def || def.slot !== 'ammo') problems.push(`${id}: no ammo item carries this rune (${family}, tier ${t.tier}), so nothing judges what a cast spends of it.`);
+    else runes++;
+  }
 
   // ── CHECK 3: the ammo ladder, measured in GOLD PER SWING.
   /* The first draft of this check compared BOOK VALUE against the top arrow
@@ -63,9 +82,13 @@ export async function recipeYieldGuard(overrides) {
       /* ammo.js treats a missing field as inert, which is the safe direction for COMBAT. It is not safe for the ECONOMY: an
          ammo item with no burn is an infinite stack. Every ammo row declares it, so this stays an assertion. */
       problems.push(`${id}: an ammo-slot item that does not declare \`ammoPerShot\`. `
-        + `Declare it (0 is a valid, deliberate value for a free tier-1 rung).`);
+        + `Declare it (0 is the ruled free rungs' alone: FREE_RUNGS).`);
       continue;
     }
+    /* CHECK 4: free to spend is an infinite stack, so only a ruled rung is */
+    const free = Object.prototype.hasOwnProperty.call(FREE_RUNGS, id);
+    if (!free && !(Number(def.ammoPerShot) > 0)) problems.push(`${id}: spends ${def.ammoPerShot} a shot: one would last forever, and no ruling frees it (FREE_RUNGS).`);
+    if (free && Number(def.ammoPerShot) !== 0) problems.push(`${id}: a ruled free rung that spends ${def.ammoPerShot} a shot: delete its FREE_RUNGS row.`);
     const perSwing = (Number(def.v) || 0) * (Number(def.ammoPerShot) || 0);
     if (perSwing > MAX_GOLD_PER_SWING) {
       problems.push(`${id}: ${perSwing.toFixed(2)} g/swing (v ${def.v} x ammoPerShot `
@@ -74,7 +97,10 @@ export async function recipeYieldGuard(overrides) {
     }
   }
 
-  return { problems, note: `${ammo} ammo rows · ladder ceiling ${MAX_GOLD_PER_SWING} g a swing` };
+  if (!runes) problems.push('no rune on the table: the rune check judged nothing.');
+  for (const id of Object.keys(FREE_RUNGS)) if (!ITEMS[id]) problems.push(`${id}: a FREE_RUNGS row for an item that left ITEMS.`);
+
+  return { problems, note: `${ammo} ammo rows, ${runes} runes · ladder ceiling ${MAX_GOLD_PER_SWING} g a swing` };
 }
 
 /* ── THE GUARD, GRADED ──────────────────────────────────────────────────────
@@ -104,6 +130,26 @@ export async function recipeYieldMutationGuard() {
       return recipeYieldGuard({ ITEMS: I });
     }],
   ];
+
+  /* CHECK 4's mutants: every family and tier of rune made free in turn, then one lost from the table (each names its own item) */
+  const { RUNE_TIERS, runeId } = await imp('src/data/runes.js');
+  const { CRAFTED_RUNE_FAMILIES } = await imp('src/data/stonecraft.js');
+  const named = [];
+  for (const family of CRAFTED_RUNE_FAMILIES) {
+    for (const t of RUNE_TIERS) named.push([`a free ${t.name} ${family} rune`, runeId(family, t.tier), (I, id) => { I[id].ammoPerShot = 0; }]);
+    named.push([`a ${family} rune with no row`, runeId(family, 1), (I, id) => { delete I[id]; }]);
+  }
+  named.push(['a rune off the ammo slot (nothing judges it)', 'graven_ice_rune', (I, id) => { delete I[id].slot; }],
+    ['a rune that pays back a shot', 'carved_water_rune', (I, id) => { I[id].ammoPerShot = -1; }],
+    ['a free arrow no ruling frees', 'iron_arrows', (I, id) => { I[id].ammoPerShot = 0; }],
+    ['a free whetstone no ruling frees', 'coarse_whetstone', (I, id) => { I[id].ammoPerShot = 0; }],
+    ['the ruled free rung charges a shot and stays listed', 'bronze_arrows', (I, id) => { I[id].ammoPerShot = 1; }]);
+  for (const [label, id, plant] of named) mutations.push([label, async () => {
+    const I = cloneI(); plant(I, id);
+    const r = await recipeYieldGuard({ ITEMS: I });
+    return { problems: r.problems.filter((p) => p.startsWith(id + ':')) };
+  }]);
+  if (CRAFTED_RUNE_FAMILIES.length < 6) problems.push(`only ${CRAFTED_RUNE_FAMILIES.length} rune families to mutate: the family mutants went hollow`);
 
   for (const [label, run] of mutations) {
     const res = await run();

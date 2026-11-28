@@ -63,6 +63,12 @@ const MUTATIONS = {
     find: 'ammoPerShot: 1, family, runeTier: t.tier });',
     repl: 'ammoPerShot: 0, family, runeTier: t.tier });',
   },
+  free_rupture_runes: {
+    file: 'src/data/stonecraft.js',
+    why: 'one family is free past its first tier (the bench cut left R1 reading Chalked Fire alone): Rend would cast forever on one Graven Rupture Rune',
+    find: 'ammoPerShot: 1, family, runeTier: t.tier });',
+    repl: "ammoPerShot: family === 'rupture' && t.tier > 1 ? 0 : 1, family, runeTier: t.tier });",
+  },
   shop_drops_bronze_arrows: {
     file: 'src/data/shops.js',
     why: 'a player who sells their starter arrows can never buy the free rung back',
@@ -110,19 +116,19 @@ export async function runAll({ mutate } = {}) {
     const { MONSTERS } = await imp('src/data/monsters.js');
     const { START_INVENTORY } = await imp('src/data/start-kit.js');
     const { SHOP_OFFERS } = await imp('src/data/shops.js');
-    const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
+    const { RUNE_TIERS, runeId } = await imp('src/data/runes.js');
+    const { CRAFTED_RUNE_FAMILIES } = await imp('src/data/stonecraft.js');
+    const { jobFaces } = await imp('src/data/trades.js');
     const C = await imp('src/core/combat.js');
 
     const AMMO = await imp('src/core/ammo.js');
     const { createRng } = await imp('src/core/rng.js');
     const { xpForLevel, charXpForLevel } = await imp('src/core/xp.js');
-    const { indexArtisanRecipes } = await imp('src/core/artisan-sim.js');
     const ACC = await imp('supabase/functions/hr-accrue/accrual.js');
     const { computeAccrual } = ACC;
 
-    const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
-    /* no gathering node is town work since the bench cut: the engine's gather index is empty */
-    const GATHER_INDEX = {};
+    /* no gathering node and no bench row is town work since the bench cut: both of the engine's town indexes are empty in a fight */
+    const ARTISAN_INDEX = {}, GATHER_INDEX = {};
     const xpAt = (lv) => xpForLevel(lv);
 
     /* ── Fixtures, derived from the catalogue (TESTING.md fixture rule) ── */
@@ -254,7 +260,11 @@ export async function runAll({ mutate } = {}) {
     {
       /* a Magic-15 Mage with a bag of the Runecutting job's Chalked Fire Runes, enough for the whole span (a bag that runs dry ends the hunt) */
       const skills = { defense: xpAt(30), magic: xpAt(15), inner_flame: 0 };
-      ok(ITEMS.chalked_fire_rune && ITEMS.chalked_fire_rune.ammoPerShot > 0, 'R1: the Chalked Fire Rune is not a SPENT rune: a spell would cast forever on one');
+      /* EVERY rune, every family and tier, and every rune a job makes: R1 read the whole bench until the cut, then Chalked Fire alone */
+      const made = jobFaces().map((j) => j.output).filter((id) => ITEMS[id] && ITEMS[id].family);
+      const ladder = CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => runeId(f, t.tier)));
+      ok(made.length >= ladder.length && ladder.length >= 30, `R1: ${made.length} made runes for ${ladder.length} rungs: a family or tier no job makes, or nothing to judge`);
+      for (const id of new Set([...ladder, ...made])) ok(ITEMS[id] && ITEMS[id].ammoPerShot > 0, `R1: ${id} is not a SPENT rune: a spell would cast forever on one`);
       const fire = 20000;
       if (STAFF) {
         const mageSk = { ...skills, magic: xpAt(15) };

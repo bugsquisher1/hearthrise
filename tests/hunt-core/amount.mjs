@@ -18,11 +18,14 @@
 //                ground on the scale: one share of a reference health a head a second at every Level, the blow reaching at pressurePm,
 //                landing at the to-hit only while hitRoll holds; a Tower room (no refStep) keeps the old chain's measured table
 //   imbue        (lane/tp-im-steps) worn imbuements are consumable rows on the blow: Brute Edge on a brute and not a swarm, Fire Ward on an
-//                ember blow and not a plain one, and a damage meal on top of three adds nothing (their room fills the slice, 21 D-11)
+//                ember blow and not a plain one, each at its fire size (21 D-17), and a damage meal on top of three adds nothing (their room
+//                fills the slice, 21 D-11); Fire Edge's conversion +2 on an Undead, a whole cost on a target that resists Fire (21 D-18)
+//   leech        (lane/imbue-engine, 21 D-18) a worn Leech through damage.js landHit: a 30 HP swing pays 0, 1, 0, 1, 1 with the carry kept on
+//                the unit, a status tick nothing, a Mana Leech's mana on the dmg event's `back`, nothing with nothing worn
 //   temper-paths, imbue-paths   both paths: Temper 5 on every slot and three imbuements each change Muster's four through the real settle,
 //                and 10-minute and 100-second windows play one hunt (a closed hunt and a viewed one)
 //
-// mutant-anchors: src/core/hunt/amount.js src/core/hunt/damage.js src/data/amount.js src/core/member.js
+// mutant-anchors: src/core/hunt/amount.js src/core/hunt/damage.js src/data/amount.js src/core/member.js src/core/imbue.js src/core/hunt/imbue-leech.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT, groundRow, gridOf, mon, world } from './fixtures/h1.js';
@@ -249,12 +252,73 @@ cases.imbue = (M) => {
   const bare = heroAt(L, 1000 * L), worn = heroAt(L, 1000 * L, { imbues: set });
   const fed = heroAt(L, 1000 * L, { buffDmgPm: 50 }), both = heroAt(L, 1000 * L, { buffDmgPm: 50, imbues: set });
   const d = (a, b) => Math.round((a - b) * 1000) / 1000;
-  if (d(cond(worn, knight), cond(bare, knight)) !== 2) return 'Brute Edge on a brute moves the blow ' + d(cond(worn, knight), cond(bare, knight)) + ' steps, want 2';
+  /* (each at its fire size, 21 D-17: Brute Edge 5, Fire Ward 11) */
+  if (d(cond(worn, knight), cond(bare, knight)) !== 5) return 'Brute Edge on a brute moves the blow ' + d(cond(worn, knight), cond(bare, knight)) + ' steps, want 5';
   if (d(cond(worn, pike), cond(bare, pike)) !== 0) return 'Brute Edge on a swarm moves the blow ' + d(cond(worn, pike), cond(bare, pike)) + ' steps, want 0';
-  if (d(cond(bare, pike, 'ember'), cond(worn, pike, 'ember')) !== 0 || d(cond(knight, bare, 'ember'), cond(knight, worn, 'ember')) !== 2) return 'Fire Ward does not take 2 steps off an ember blow at its hero, and only that';
+  if (d(cond(bare, pike, 'ember'), cond(worn, pike, 'ember')) !== 0 || d(cond(knight, bare, 'ember'), cond(knight, worn, 'ember')) !== 11) return 'Fire Ward does not take 11 steps off an ember blow at its hero, and only that';
   if (d(cond(knight, bare), cond(knight, worn)) !== 0) return 'Fire Ward moves a plain blow at its hero';
   if (!(d(cond(fed, pike), cond(bare, pike)) > 0)) return 'CONTROL: a damage meal alone moves nothing';
   if (d(cond(both, pike), cond(worn, pike)) !== 0 || d(cond(both, knight), cond(worn, knight)) !== 0) return 'a damage meal on top of three imbuements adds ' + d(cond(both, pike), cond(worn, pike)) + ' steps: the room rule is gone (21 D-11)';
+  /* THE CONVERSION (21 D-18, lane/imbue-engine): Fire Edge resolves 5% of a plain blow at the target's percent for Fire. Muster's Undead
+     take Fire at 1150: +2 steps (stepsOf 1.0075), its rated size; a stone golem resists it (750): a whole cost, -4 (stepsOf 0.9875); a
+     Fire blow at the Undead converts nothing; and the clamp holds the gain (with the Ward and the Leech waiting and a meal, the four reads
+     the slice's 6) */
+  const golem = { side: 'mon', id: 5, kind: 'stone_golem', alive: true };
+  const fireEdge = heroAt(L, 1000 * L, { imbues: [{ id: 'fire_edge', band: L, kind: 'edge' }] });
+  const el = (t, e) => M.MONSTERS[t.kind] && M.targeting.elementOn(t, e);
+  if (el(knight, 'ember') !== 1150 || el(golem, 'ember') !== 750 || el(knight, 'physical') !== 1000 || el(golem, 'physical') !== 1000) return 'CONTROL: Muster\'s knight takes Fire at ' + el(knight, 'ember') + ' and the golem at ' + el(golem, 'ember');
+  const blowCond = (src, t, element, pm) => { const tr = {}; const e = pm || (element ? el(t, element) : 1000); A.blowAmount(inst, { source: src, target: t, mean: 1000, el: e, ward: !!element, element, rng: LOW, trace: tr }); return tr.cond; };
+  const conv = (t, element, pm) => blowCond(fireEdge, t, element, pm), plainOf = (t, element, pm) => blowCond(bare, t, element, pm);
+  if (d(conv(knight), plainOf(knight)) !== 2) return 'Fire Edge on an Undead (Fire 1150) moves a plain blow ' + d(conv(knight), plainOf(knight)) + ' steps, want +2';
+  if (d(conv(golem), plainOf(golem)) !== -4) return 'Fire Edge on a stone golem (Fire 750) moves a plain blow ' + d(conv(golem), plainOf(golem)) + ' steps, want a whole -4';
+  if (d(conv(knight, 'ember'), plainOf(knight, 'ember')) !== 0) return 'Fire Edge moves a Fire blow ' + d(conv(knight, 'ember'), plainOf(knight, 'ember')) + ' steps: converting Fire to Fire changes nothing';
+  /* a blow the Undead takes at half (500): 5% of it at Fire's 1150 is stepsOf(1.065) = 18, a gain the slice's cap holds to 6 */
+  if (d(conv(knight, null, 500), plainOf(knight, null, 500)) !== 6) return 'Fire Edge on a blow at 500 against Fire 1150 moves it ' + d(conv(knight, null, 500), plainOf(knight, null, 500)) + ' steps, want the slice\'s cap of 6 (a gain the clamp holds)';
+  const full = heroAt(L, 1000 * L, { buffDmgPm: 50, imbues: [{ id: 'fire_edge', band: L, kind: 'edge' }, { id: 'fire_ward', band: L, kind: 'ward' }, { id: 'life_leech', band: L, kind: 'leech' }] });
+  const fullCond = (() => { const tr = {}; A.blowAmount(inst, { source: full, target: knight, mean: 1000, el: 1000, rng: LOW, trace: tr }); return tr.cond; })();
+  if (d(fullCond, plainOf(knight)) !== 2) return 'Fire Edge beside a waiting Ward, Leech and a meal reads ' + d(fullCond, plainOf(knight)) + ' steps on an Undead, want 2 (the slice of 6 less two rooms of 2)';
+  return null;
+};
+/* THE LEECH IN THE FIGHT (21 D-18, lane/imbue-engine; src/core/hunt/imbue-leech.js through damage.js landHit, the one door every blow takes):
+   a Life Leech hero's five 30 HP swings at a monster heal 0, 1, 0, 1, 1 (600 thousandths carried each), each a `heal` from the hero to
+   itself naming the imbuement, after its `dmg`; a status tick (a `dot` piece) heals nothing and moves no carry; a Mana Leech's mana rides
+   the blow's `dmg` as `back` and fills no HP; the same hero with nothing worn (imbuements dark) writes no heal and keeps a carry of 0. */
+cases.leech = (M) => {
+  const h = M.worldstate.makeUnit({ id: 1, side: 'hero', kind: 'hero', alive: true, hp: 100, maxHp: 400, mana: 0, maxMana: 0, x: 4, y: 3 });
+  /* (the settle writes these at every boundary, never persisted: combat-sim.js syncUnit) */
+  Object.assign(h, { heroLv: 60, imbues: [{ id: 'life_leech', band: 50, kind: 'leech', untilMs: null }] });
+  const m = mon(M, 2, 0, 5, 3, { hp: 1000000, maxHp: 1000000 });
+  const w = world(M, [h, m], { phase: 'fight', leader: 1 });
+  const inst = { world: w, ground: groundRow(), grid: gridOf(M), occ: null, monsters: M.MONSTERS, tier: null };
+  const events = [];
+  const sc = { atMs: 0, dtMs: 100, swing: 0, rng: LOW, emit: (e) => events.push(e), track: () => {} };
+  if (h.leechMilli !== 0) return 'CONTROL: a new hero unit carries ' + h.leechMilli + ' (the persisted field is not blank 0)';
+  const heals = [];
+  for (let i = 0; i < 5; i++) {
+    const before = events.length;
+    const r = M.damage.landHit(inst, sc, h, m, 30, null, { id: 'basic', exact: true }, false);
+    if (r.dmg !== 30) return 'CONTROL: an exact 30 landed ' + r.dmg;
+    const mine = events.slice(before);
+    const heal = mine.find((e) => e.type === 'heal');
+    if (heal && (heal.u !== 1 || heal.t !== 1 || heal.ability !== 'life_leech' || mine.indexOf(heal) < mine.findIndex((e) => e.type === 'dmg'))) return 'the leech\'s heal is ' + JSON.stringify(heal) + ', want the hero to itself naming life_leech, after its dmg';
+    heals.push((heal ? heal.amount : 0) + '/' + h.leechMilli);
+  }
+  if (heals.join() !== '0/600,1/200,0/800,1/400,1/0' || h.hp !== 103) return 'five 30 HP swings healed ' + heals.join() + ' (HP ' + h.hp + '), want 0/600,1/200,0/800,1/400,1/0 and 103';
+  h.leechMilli = 500;
+  const n0 = events.length;
+  M.damage.landHit(inst, sc, h, m, 3000, null, { id: 'bleed', dot: true, exact: true });
+  if (events.slice(n0).some((e) => e.type === 'heal') || h.leechMilli !== 500 || h.hp !== 103) return 'a status tick leeched (carry ' + h.leechMilli + ', HP ' + h.hp + ')';
+  /* a Mana Leech */
+  h.imbues = [{ id: 'mana_leech', band: 55, kind: 'leech', untilMs: null }]; h.maxMana = 100; h.mana = 0; h.leechMilli = 0;
+  const n1 = events.length;
+  M.damage.landHit(inst, sc, h, m, 1000, null, { id: 'basic', exact: true }, false);
+  const dmg = events.slice(n1).find((e) => e.type === 'dmg');
+  if (!dmg || dmg.back !== 10 || h.mana !== 10 || h.hp !== 103 || events.slice(n1).some((e) => e.type === 'heal')) return 'a Mana Leech on a 1,000 HP blow wrote ' + JSON.stringify(dmg) + ' (mana ' + h.mana + ', HP ' + h.hp + '), want back 10, 10 mana and no heal';
+  /* dark: nothing worn */
+  delete h.imbues; h.leechMilli = 0;
+  const n2 = events.length;
+  M.damage.landHit(inst, sc, h, m, 30, null, { id: 'basic', exact: true }, false);
+  if (events.slice(n2).some((e) => e.type === 'heal' || e.back !== undefined) || h.leechMilli !== 0) return 'a hero with nothing worn leeched';
   return null;
 };
 /* BOTH PATHS (CLAUDE.md section 4; lane/tp-im-steps): Temper on steps and three imbuements on Muster Barrows' four, through the real settle
@@ -291,7 +355,17 @@ const pathCases = {
 const mutants = [
   { name: 'an imbuement never reaches the fight', case: 'imbue', edits: [[A, 'const rows = u.imbues ? imbueRows(', 'const rows = false ? imbueRows(']] },
   { name: 'an imbuement reads no monster role', case: 'imbue', edits: [[A, '{ role: other ? roleIdOf(inst, other) : null,', '{ role: null,']] },
-  { name: 'an imbuement reads no element', case: 'imbue', edits: [[A, 'element: c.element || null }, u.heroLv)', 'element: null }, u.heroLv)']] },
+  { name: 'an imbuement reads no element', case: 'imbue', edits: [[A, 'element: c.element || null, convert }, u.heroLv)', 'element: null, convert }, u.heroLv)']] },
+  /* lane/imbue-engine (21 D-18): the conversion and the leech in the fight */
+  { name: 'a conversion is never priced', case: 'imbue', edits: [[A, 'element: c.element || null, convert }, u.heroLv)', 'element: c.element || null, convert: null }, u.heroLv)']] },
+  { name: 'a conversion reads the blow\'s element as the target\'s Fire', case: 'imbue', edits: [[A, 'convertMult(cv, elementOn(other, cv.element), c.el)', 'convertMult(cv, c.el, c.el)']] },
+  { name: 'a conversion\'s cost is held to nothing', case: 'imbue', edits: [['src/core/imbue.js', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: n, key: r.key });', '      if (n > 0) out.push({ slice: \'consumable\', raises: channel, steps: n, key: r.key });']] },
+  { name: 'a conversion skips the clamp', case: 'imbue', edits: [['src/core/imbue.js', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: n, key: r.key });', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: n, room: 2, key: r.key });']] },
+  { name: 'the leech never reaches the blow', case: 'leech', edits: [['src/core/hunt/damage.js', '!(ability && ability.dot) ? leechOn(source, target, r.dmg) : null;', '!(ability && ability.dot) ? null : null;']] },
+  { name: 'a status tick leeches', case: 'leech', edits: [['src/core/hunt/damage.js', '!(ability && ability.dot) ? leechOn(source, target, r.dmg) : null;', 'true ? leechOn(source, target, r.dmg) : null;']] },
+  { name: 'the leech heals with no event', case: 'leech', edits: [['src/core/hunt/damage.js', "  if (lee && lee.hp) sc.emit(makeEvent('heal', sc.atMs, { u, t: u, amount: lee.hp, ability: lee.id }));\n", '']] },
+  { name: 'a Mana Leech\'s mana rides no event', case: 'leech', edits: [['src/core/hunt/damage.js', '...(lee && lee.mana ? { back: lee.mana } : {}), ', '']] },
+  { name: 'the carry is never kept on the unit', case: 'leech', edits: [['src/core/hunt/imbue-leech.js', '  u.leechMilli = pay.carry;\n', '']] },
   { name: 'the scale reads the old chain\'s table', case: 'refco', edits: [['src/core/hunt/monster-formula.js', "refCompany(g.refLevel, Number.isInteger(g.refStep) ? 'steps' : null)", 'refCompany(g.refLevel, null)']] },
   { name: 'the pipeline reference grows like the table', case: 'refco', edits: [['src/core/reference-company.js', '    const dpsHead = share * refHealth(L);', '    const dpsHead = tableDps(L);']] },
   { name: 'the pipeline reference takes the armor chain\'s share', case: 'refco', edits: [['src/core/reference-company.js', '      takePm: AMOUNT.pressurePm,', '      takePm: R.takePm + 1,']] },

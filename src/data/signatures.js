@@ -115,6 +115,16 @@
 //
 // BATCH 5'S RULINGS (lane/designer-sig-batch5, 2026-11-28): the rows set and cut, each reading in 15 "Batch 4's calls and the out-of-band
 // rows, ruled"; the cut rows stay as batch 4 built them until batch 5 rewrites each (HANDOFFS 2026-11-28 designer-sig-batch5).
+// BATCH 5 BUILT (lane/signatures-batch-5, 2026-11-28; 15 "Batch 5, built and measured"), each piece once for all its rows:
+//   #8  Stable Troll's Maul     interrupt (the wind-ups a Stagger ended, n) -> a shield of 10% a wind-up
+//   #47 Ledgehide Breeches      windup (a monster beside the wearer winds up at an ally within 1 tile) -> cast Parry at that monster
+//   #48 Troll Picker's Hooks    cast (of Gash, min 3) -> Whetted on the wearer: its next Rend +40%
+//   #18 Brewer's Apron          cast (of Circle of Renewal) -> heal again: the lowest of those it healed, by its own heal's amount
+//   #26 Thrower's Ring          raise: Earth rune shells twice as strong (RAISED from 30%, the size bar's own rule)
+//   #33 Teamster's Mitts        cast (of Power Strike) -> Braced on the wearer: the next blow at it at half
+//   #42 Night Carter's Boots    windup at an ally under half -> Blunted on its caster: that blow at half
+//   #25 The Cold Candle         saves Frost Lance's rune only (`saves.of`)
+// #29 is read as built (Gash on the bar); #38 keeps its boss row, dark, until its ground rule is ruled (two ground shapes read under).
 //
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the

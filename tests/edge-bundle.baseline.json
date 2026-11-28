@@ -728,6 +728,11 @@
         "bytes": 4085354,
         "on": "2026-11-28",
         "why": "lane/signatures-batch-5: castNow's reaction-monster check split onto its own line for the type ratchet (abilities.js, +117 B, a comment and a narrowing)"
+      },
+      {
+        "bytes": 4086494,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-5: signatures.js's header names batch 5's built rows, a comment block (+1 KB)"
       }
     ]
   }

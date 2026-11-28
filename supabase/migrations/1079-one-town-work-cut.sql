@@ -10,11 +10,12 @@
 --   (the work day) and the data lane's regenerated 1065-named-pieces-items-catalogue.generated.sql
 --   (hr_activities keeps only the Great Hearth's fuel_* runs, hr_skills only the combat skills and Inner Flame). Applied as ONE
 --   transaction by the apply tool; never begin/commit here. Ends with its §8 self-check, then §9 lights trade_jobs.
--- EDGE: hr-accrue moves in the same release (09 4.17, the edge lane): set_activity refuses `gather` and allows `artisan` only for a
---   fuel run; the bench tax's proposal and the gather channel retire. Apply, then deploy at once. An OLD edge on this database finds no
---   town pointer to accrue but a hearth run (§6 idles the rest), its bench_tax count is refused bad_delta (§2: not a delta key any
---   more), and a gather or bench start it proposes is refused by hr_apply's catalogue check (no such hr_activities row). A NEW edge on
---   the OLD database proposes no bench_tax and no gather, which the old hr_apply accepts.
+-- EDGE: EDGE FIRST (release-plan: after). hr-accrue moves in the same merge (09 4.17, the edge lane): set_activity refuses `gather`
+--   and allows `artisan` only for a fuel run; the bench tax's proposal and the gather channel retire. It deploys at the release's one
+--   edge point, before this file: a NEW edge on the OLD database proposes no bench_tax and no gather, which the old hr_apply accepts,
+--   and accrues no gather or bench pointer until §6 idles them (their work since the last settle is the cut's). An OLD edge on this
+--   database (a rollback) finds no town pointer to accrue but a hearth run, its bench_tax count is refused bad_delta (§2: not a delta
+--   key any more), and a gather or bench start it proposes is refused by hr_apply's catalogue check (no such hr_activities row).
 -- CLIENT: the envelope loses `bench_tax` (section), `work_day.trades` and `unlocked_recipes` (1032 amended in place, below); the Skills
 --   window reads the company's trades from `trade_jobs.trades`; the Work window is the Jobs list, the work blocks and the hearth.
 --

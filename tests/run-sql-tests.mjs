@@ -93,6 +93,7 @@ import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfac
 import * as APPROVED_CUTS_REMOVALS from './chain-removals/1032-approved-cuts.mjs';
 import * as RESTED_CUT_REMOVALS from './chain-removals/1040-rested-bank-cut.mjs';
 import * as WORK_MIDNIGHT_REMOVALS from './chain-removals/1075-work-blocks-midnight.mjs';
+import * as TOWN_WORK_CUT_REMOVALS from './chain-removals/1079-one-town-work-cut.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -693,6 +694,10 @@ const ALSO_LINTED = [
   /* A WORK WINDOW ACROSS MIDNIGHT (lane/work-blocks-midnight, 2026-11-27): HR_APPLY_CHAIN's newest link (the chain end read back,
      one call changed), hr_work_state restated (a SECURITY DEFINER, its ACL kept) and the helper's and the fold's revokes. */
   '1075-work-blocks-midnight.sql',
+  /* ONE TOWN WORK (lane/bench-cut-server, 2026-11-28): HR_APPLY_CHAIN's newest link (the chain end read back, the bench tax and the
+     bench's Storage take out), the hearth's owner-only bridge hr_hearth_fuel_of, the farm verbs restated (ACLs kept) and the bench
+     tax's, the bench inputs' and the recipe verbs' drops. */
+  '1079-one-town-work-cut.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -763,6 +768,10 @@ const HR_APPLY_CHAIN = [
      call, the work fold's (a 1059 line). Chain depth 0 again. Its declared removals, the lines those two splices replaced, are
      FROZEN in tests/chain-removals/1075-work-blocks-midnight.mjs. */
   '1075-work-blocks-midnight.sql',
+  /* ONE TOWN WORK (lane/bench-cut-server, 2026-11-28; 09-crafting.md 4.17). The chain-end body read back with pg_get_functiondef
+     (1075's image) with the bench tax and the bench's Storage take out: the take serves the Great Hearth's fuel run. Chain depth 0
+     again. Its declared removals are FROZEN in tests/chain-removals/1079-one-town-work-cut.mjs. */
+  '1079-one-town-work-cut.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -1180,15 +1189,15 @@ const SQL_MUTANTS = [
     from: "perform public.hr_reject('requirement_not_met', jsonb_build_object('item_id', v_item));",
     to: "perform public.hr_reject('requirement_met', jsonb_build_object('item_id', v_item));",
     expect: '2026-10-27-core-bodies.sql: its hr_apply DROPS 1 line(s)' },
-  /* The PART 1g lint reads HR_APPLY_CHAIN's LAST link, so these two plant into it (1075-work-blocks-midnight.sql since 2026-11-27;
+  /* The PART 1g lint reads HR_APPLY_CHAIN's LAST link, so these two plant into it (1079-one-town-work-cut.sql since 2026-11-28;
      planted into 1040, an earlier link, they would grade a body production no longer runs). */
   { name: 'hr_apply accepts a delta key nobody classified',
-    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
+    file: 'supabase/migrations/1079-one-town-work-cut.sql',
     from: "\n    'level_xp',\n",
     to: "\n    'level_xp', 'free_gold',\n",
     expect: 'hr_apply accepts the delta key "free_gold"' },
   { name: 'a classified delta key leaves hr_apply',
-    file: 'supabase/migrations/1075-work-blocks-midnight.sql',
+    file: 'supabase/migrations/1079-one-town-work-cut.sql',
     from: "\n    'level_xp',\n",
     to: '\n',
     expect: 'DELTA_KEY_CLASS classifies "level_xp" but hr_apply no longer accepts it' },
@@ -2116,6 +2125,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_APPLY,
     '1040-rested-bank-cut.sql': RESTED_CUT_REMOVALS.HR_APPLY,
     '1075-work-blocks-midnight.sql': WORK_MIDNIGHT_REMOVALS.HR_APPLY,
+    '1079-one-town-work-cut.sql': TOWN_WORK_CUT_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -2691,9 +2701,7 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
        the chain end, so the LAST link is the body production runs again). Neither moves a balance. */
     active_left: ['bounded', '2026-12-01 bench count / 1026 job counts: a stored job\'s count, only ever counted DOWN on an '
       + 'accrual of the hero\'s own gathering or bench pointer (never above the stored value); moves no balance'],
-    bench_tax: ['metadata', '2027-02-19 bench tax: the engine\'s count of a taxed window\'s crafts. hr_bench_tax_settle '
-      + 're-derives the fee from the SERVER pointer; the fee moves through the clamped, budgeted gold key and the purse '
-      + 'lock; refused (bench_tax_bad) on any window that is not a bench\'s'],
+    /* (bench_tax, the bench tax's count of a window's crafts, left hr_apply with the bench: 1079-one-town-work-cut.sql) */
     /* Phase 0, live settlement. NOT a currency and NOT budgeted, and here is the
        one line the lint demands. `fight` is an ABSOLUTE checkpoint of the fight
        in flight — `{monster, hp, kills}` — and it moves no balance: no gold, no

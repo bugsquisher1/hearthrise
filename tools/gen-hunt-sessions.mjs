@@ -1982,7 +1982,8 @@ begin
   if (select count(*) from public.hr_hunt_action_ids) <> ${actionIds.length}
      or exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and (id like '%\\_rune' or id like '%\\_whetstone'))
      or exists (select 1 from public.hr_hunt_action_ids a where not (a.type = 'attack_with_item' and a.id = 'loaded')
-                 and not exists (select 1 from public.hr_items i where i.item_id = a.id))
+                 and not exists (select 1 from public.hr_items i where i.item_id = a.id)
+                 and not exists (select 1 from public.hr_hunt_basic_supplies b where b.basic_id = a.id))
      or (select count(*) from public.hr_hunt_supplies) <> ${r.supplies.length}
      or (select count(*) from public.hr_hunt_travel) <> ${r.travel.length}
      or (select count(*) from public.hr_hunt_limits) <> ${nLim}

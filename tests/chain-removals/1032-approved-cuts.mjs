@@ -2,7 +2,7 @@
    24-5 and 27-7, build plan L10).
 
    HR_STATE_OF: that file restates hr_state_of WHOLE from the LIVE image (its §0 pins md5 e0a71bfe, the
-   2027-01-18-dead-surfaces-cut.sql body: replay chain = production) and removes exactly six keys, nothing else:
+   2027-01-18-dead-surfaces-cut.sql body: replay chain = production) and removes exactly six keys (seven since lane/bench-cut-server: `unlocked_recipes`, below), nothing else:
      · `dungeon_cooldowns` (hr_dungeon_cooldowns is dropped with the old dungeons) and its comment block;
      · `state.dungeon_scrip` (player_state.dungeon_scrip is dropped with the scrip) and its comment block;
      · `state.hearth_tokens` (account_wallet.hearth_tokens is dropped with the bond); the comment above it stops naming tokens;
@@ -63,6 +63,18 @@ export const HR_STATE_OF = Object.freeze([
   "      --    introduced by 2026-08-22-rested-record.sql",
   "      'rested_xp', v_st.rested_xp,",
   "      'rested_at', v_st.rested_at,",
+  /* the learned recipes (lane/bench-cut-server, 2026-11-28; 09-crafting.md 4.17): the key and its comment block, taken out in place
+     so no body of the release reads hr_recipes_of, which 1079-one-town-work-cut.sql drops with the recipe verbs (no hr_unlocks row
+     is a recipe since the cookbook cut, so the key was always {}) */
+  "    -- recipe-learn (2026-09-14): the gated recipes THIS CHARACTER has learned,",
+  "    -- in the client's own `{ \"<scroll_id>\": true }` shape. Written only by",
+  "    -- hr_recipe_learn (there is no client write policy and no client write grant",
+  "    -- on player_progress); the SAME rows hr_perks_of hands the away engine, so",
+  "    -- the attended screen and the night finally read one set. `{}` on a fresh",
+  "    -- character is a known state, not an error: no row is a LOCKED recipe.",
+  "    -- ── unlocked_recipes — the gated recipes THIS character has learned ──",
+  "    --    introduced by 2026-09-14-recipe-learn.sql",
+  "    'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),",
 ]);
 
 export const HR_ASSERT_GRANT_HYGIENE = Object.freeze([

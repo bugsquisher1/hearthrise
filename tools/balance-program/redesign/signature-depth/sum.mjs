@@ -7,7 +7,8 @@
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 3  batch 3 (batch3.sh, lane/signatures-batch-3): the same bars, the
 //                                                                           coin pieces' coin a hero-hour, the shapes tried
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 4  batch 4 (batch4.sh, lane/designer-sig-batch4): batch 3's under
-//                                                                           rows reshaped, fight rows on pace steps, coin rows on coin steps
+//                                                                           rows reshaped, fight rows on pace steps, coin rows on coin steps;
+//                                                                           and batch 4's own 14 rows (lane/signatures-batch-4, b4s-*) first
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -286,6 +287,42 @@ const VARIANTS4 = [
   ['#33 the Mitts on the hammer (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4-muster-mitts-hammer'],
   ['#33 the Mitts on the mage (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4-muster-mitts-mage'],
 ];
+/* BATCH 4'S OWN ROWS (systems, lane/signatures-batch-4, 2026-11-28; batch4.sh b4s-*): the 14 rows on the engine pieces P1 to P7 and P9,
+   each by its real id on the cell 15's rules A to E give it, against batch 3's plain fours (this tree replays them exactly) or a plain four
+   played here (the sword four, the Bold mixed four). The pair (#45, #46) reads as one: neither piece does anything without the other, so
+   each one's worth to the four that wears both is the pair's. A coin row's fight is printed beside its coin steps, never added.
+   [name, kind, [best ground, plain, worn], [second ground, plain, worn] | null] */
+const ROWS4B = [
+  ['#26 Thrower\'s Ring (healer): a shell you cast breaks, its breaker Blunted', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-thrower'], null],
+  ['#28 Vault Leech Ring (healer): Poison rune spells Sicken the monster on the lowest ally', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-leech'], null],
+  ['#33 Teamster\'s Mitts (sword): Power Strike turns a monster on an ally, 4 s', 'pace', ['Muster Barrows', 'b4s-muster-sword', 'b4s-muster-mitts'], null],
+  ['#42 Night Carter\'s Boots (healer): a stalker hits an ally under 45%, its next blow at half', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-boots'], ['Pyre Field', 'b3-pyre-mixed', 'b4s-pyre-boots']],
+  ['#43 Bull\'s Tooth (ranger): single-target hits on a brute under 30% land twice', 'pace', ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b4s-roost-tooth'], ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-tooth']],
+  /* (the Plate CUT to 4%: its reading is the 4% shape's, b4w-muster-plate4, the same rule under a temporary id; REPLAY=1 batch4.sh plays its
+     first two seeds by its real id, equal) */
+  ['#35 Gatekeeper\'s Plate (tank): you and allies within 2 tiles take 4% less (CUT from 8%)', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4w-muster-plate4'], null],
+  /* (the pair as set: the Rein cut to 7.5% after its own half read 19.0 at 15%, the Bell at 30%; as built, 15%, among the shapes) */
+  ['#45 Convoy Bell + #46 Lead Rein (healer + tank), the pair as set (the Rein at 7.5%)', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4s-muster-pair2'], null],
+  ['#40 Hearth Mason\'s Cloak (healer), on Bold', 'pace', ['Muster Barrows, Bold', 'b4s-muster-bold', 'b4s-muster-cloak'], null],
+  ['#44 Pyre Priest\'s Hood (mage): over 70% health, spells cost health', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-hood'], null],
+  ['#44 Pyre Priest\'s Hood (mage, coin): the same reading on the coin bar', 'coin', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-hood'], null],
+  ['#32 Ledger Ring (mage, coin): every fifth spell costs no mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-ledger'], null],
+  ['#37 Lychgate Leggings (healer, coin): under 30% mana, heals free for 5 s, 90 s clock', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-leggings'], null],
+  ['#41 Brood Bracers (ranger, coin): every fifth arrow that hits costs no arrow', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-bracers'], null],
+  ['#34 Sergeant\'s Sash (healer, coin): allies within 8 tiles regenerate 20% more mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-sash'], null],
+];
+/* BATCH 4'S SHAPES (b4w-*: a temporary id on a scratch copy, batch4.sh): the over rows' numbers, and the pair's halves apart (each piece's
+   effect with its partner worn inert, so the other half plays nothing) */
+const VARIANTS4B = [
+  ['#35 the Plate as built, 8% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4s-muster-plate'],
+  ['#35 the Plate at 4% (Muster, the tank four) KEPT', 'pace', 'b3-muster-tank', 'b4w-muster-plate4'],
+  ['#35 the Plate at 2.5% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate25'],
+  ['#45 + #46 as built: +30% heals, -15% taken (Muster)', 'pace', 'b3-muster-tank', 'b4s-muster-pair'],
+  ['#45 the Bell\'s half alone: +30% heals on the tank under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-bell'],
+  ['#46 the Rein\'s half alone: the tank -15% under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein'],
+  ['#45 + #46 at half size: +15% heals, -7.5% taken (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-pair-half'],
+  ['#46 the Rein\'s half alone at -7.5% (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein75'],
+];
 if (BATCH === '4') {
   const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
   const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / stepOf(p);
@@ -293,7 +330,8 @@ if (BATCH === '4') {
   const read = (x, bp) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s, bp) } : { g, owed: true }; };
   console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace steps (se) | Coin steps | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|');
-  for (const [name, kind, best, other] of ROWS4) {
+  /* (batch 4's own rows first, then batch 3's reshaped under rows, lane/designer-sig-batch4) */
+  for (const [name, kind, best, other] of ROWS4B.concat(ROWS4)) {
     const B = read(best), O = read(other, B.p);
     if (B.owed) { console.log('| ' + [name, kind, best[0], 'owed', '', '', '', '', '', '', ''].join(' | ') + ' |'); continue; }
     const coin = coinSteps(B.p, B.s);
@@ -305,7 +343,7 @@ if (BATCH === '4') {
       O.none ? '' : O.owed ? 'owed' : show(O.q), bar, spread].join(' | ') + ' |');
   }
   console.log('\n| Shape tried | Kind | Held delta (se, seeds) | Pace steps (se) | Coin steps | Bar | Kills/h |\n|---|---|---|---|---|---|---|');
-  for (const [name, kind, a, b] of VARIANTS4) {
+  for (const [name, kind, a, b] of VARIANTS4B.concat(VARIANTS4)) {
     const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
     const coin = p && s ? coinSteps(p, s) : null;
     console.log('| ' + [name, kind, h ? show(h, true) : 'owed', q ? show(q) : 'owed', coin === null ? 'owed' : sgn(coin),

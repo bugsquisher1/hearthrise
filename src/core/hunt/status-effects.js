@@ -48,12 +48,16 @@ export function stackValue(u, row, st, field) {
   return v && POWERED.has(field) && Number.isInteger(st.pw) ? Math.trunc((v * st.pw) / 1000) : v;
 }
 
-/** Unit `u`'s value of one effect `field` now, permille: its keys summed, each counted by its combine rule. 0 with none. */
-export function effectPm(u, field) {
-  const list = u && Array.isArray(u.statuses) ? u.statuses : null;
-  if (!list || !list.length) return 0;
+/** Unit `u`'s value of one effect `field` now, permille: its keys summed, each counted by its combine rule. 0 with none. `standing`
+    (lane/signatures-batch-4): effects held beside its stacks, [{ key, id, v }] (a worn Signature's aura, signature-auras.js auraEffects),
+    each counted as the strongest stack of a row `id` of stacking key `key`, so it adds to that key's rows under the key's cap. */
+export function effectPm(u, field, standing) {
+  const list = u && Array.isArray(u.statuses) ? u.statuses : NO_STACKS;
+  const held = Array.isArray(standing) ? standing : NO_STACKS;
+  if (!list.length && !held.length) return 0;
   /* key -> { best } (a strongest key) or key -> Map(row id -> best) (an add key) */
   let keys = null;
+  for (const e of held) keys = foldStanding(keys, e);
   for (const st of list) {
     const row = rowOfStack(st);
     if (!row || row.ground || !(st.left > 0)) continue;
@@ -79,6 +83,17 @@ export function effectPm(u, field) {
     total += Number.isInteger(cap) && Math.abs(v) > cap ? Math.sign(v) * cap : v;
   }
   return total;
+}
+
+const NO_STACKS = Object.freeze([]);
+/* one standing effect into the keys map (effectPm): its slot as a row of its key, the larger by size kept */
+function foldStanding(keys, e) {
+  if (!e || !Number.isInteger(e.v) || e.v === 0 || !own(STATUS_KEYS, e.key)) return keys;
+  const m = keys || new Map();
+  const slot = STATUS_KEYS[e.key].combine === 'add' ? e.key + '\u0000' + e.id : e.key;
+  const had = m.get(slot);
+  m.set(slot, had !== undefined && Math.abs(had) >= Math.abs(e.v) ? had : e.v);
+  return m;
 }
 
 /** True when unit `u` carries a live stack whose row has `flag` (silence). */

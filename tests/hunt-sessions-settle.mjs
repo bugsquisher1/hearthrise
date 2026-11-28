@@ -1853,6 +1853,34 @@ const DB_ARMS = {
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  /* BOTH-PATH WITH A FALL-BACK SAVE (lane/signatures-batch-4, 15 #40 Hearth Mason's Cloak, src/core/hunt/fall-save.js; CLAUDE.md section 4:
+     a rule that touches a death ships both doors). With the Signatures lit, the doomed hero wears the Cloak, handed by the server's own
+     read (`worn_signature`): its first would-be death is saved at 1 HP, once an hour on its clock, so it dies later than the plain doomed
+     hero, exactly once, and the tick's 90 s windows and a player's instants round that death write the same rows. */
+  'BOTH-PATH-SAVE': async (db, M) => {
+    const problems = [];
+    const wear = async () => {
+      await db.query("update public.hr_flags set enabled = true where key = any (array['trait_pieces', 'signatures'])");
+      const cape = await one(db, "select min(item_id) from public.hr_item_slots where equip_slot = 'cape'");
+      await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'cape', $2)
+                      on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0], cape]);
+      await db.query(`insert into public.trait_pieces (user_id, found_slot, base, slot, item_level, rarity, signature, hunt_id, step, depth, instance_id, kill_unit, at_ms,
+                        worn_slot, worn_equip_slot, worn_at) values ($1, 0, $2, 'cape', 60, 'signature', 'hearth_masons_cloak', 'muster_barrows', 600, 3, gen_random_uuid(), 1, 1, 0, 'cape', now())`,
+        [UIDS[0], cape]);
+    };
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const plain = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attendedCuts);
+    await rewindDice(db);
+    const { a, b, h } = await compareRuns(db, M, { ...DOOMED, beforeEnter: wear }, ticksOf(90000, SPAN_MS), attendedCuts);
+    const read = (a[0] && a[0].read) || null;
+    void read; void h;
+    if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the Cloak's doomed hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
+    const p = deathOf(plain.a[0]) - plain.h.from, s = deathOf(a[0]) - h.from;
+    if (!(p > 0)) problems.push(`CONTROL: the plain doomed hero never died (${p})`);
+    else if (!(s > p)) problems.push(`the Cloak's hero died ${s} ms in, the plain one ${p} ms in: no save (want a later death)`);
+    if (canon(a) !== canon(b)) problems.push(`a saved hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
+    return problems;
+  },
   /* BOTH-PATH ACROSS UTC MIDNIGHT (run 41149723847). The server clock is pinned, so the arm never reads the wall clock
      and each settle runs at its cut's instant, as in production. A hero with two deaths already that day dies at
      23:59:40. The browser closed: the tick window holding the death closes after midnight. The hunt viewed: the
@@ -5583,6 +5611,9 @@ const MUTANTS = [
     from: '      worldSwing: Number(inst.world_swing) || 0 },', to: '      worldSwing: 0 },' },
   { arm: 'PARTY-KICK', name: 'a hero with no member stays in the world', file: 'src/core/combat-sim.js',
     from: "    for (const u of world.units.slice()) if (isHero(u) && !owned.has(u.id)) leaveHero(world, u.id);", to: '' },
+  /* (lane/signatures-batch-4) the fall-back save, on both doors */
+  { arm: 'BOTH-PATH-SAVE', name: 'a worn Cloak saves no death', file: 'src/core/hunt/damage.js',
+    from: '  const saved = r.killed && isHero(target) && saversOf(inst).length ? saveFall(inst, sc, target, r) : null;', to: '  const saved = null;' },
   { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrue-hunt.js'),
     from: "    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));", to: "    else if (e.type === 'death') hints.death.length = 0;" },
   { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid', file: join(FN, 'hunt-settle.js'),

@@ -98,6 +98,21 @@
 // lane/drop-formula's roller) and #41 (an arrow returned: the reference ranger shoots store arrows bought a shot, so a returned arrow is a
 // refund or a minted item, a money call). #30 and #8 wait on their moves; #36 and #39 are the sample's and cut.
 //
+// BATCH 4 (lane/signatures-batch-4, 2026-11-28; HANDOFFS 2026-11-28 designer-sig-batch4, 15 "Batch 4: what is left, and the pieces it
+// needs"), 14 rows on the engine pieces P1 to P9, each built once for all its rows:
+//   #26 Thrower's Ring          P5 shield_break carries its breaker (`src`) -> Blunted on the monster that broke the shell
+//   #28 Vault Leech Ring        P6 cast (a Poison rune spell) -> Sickness on the monster attacking the lowest hero of the party (`at`)
+//   #33 Teamster's Mitts        P4 hit (of Power Strike) -> taunt: a monster on an ally turns on the wearer, held 4 s (Power Strike's)
+//   #42 Night Carter's Boots, #43 Bull's Tooth   P9 a monster role (`role`): a stalker's blow, a brute hit
+//   #32 Ledger Ring, #37 Lychgate Leggings, #44 Pyre Priest's Hood   P2 `costs`: what a cast of its kind pays instead of its mana
+//                               (src/core/hunt/signature-costs.js)
+//   #41 Brood Bracers           P3 `saves: { ammo }`: an arrow taken from nowhere after five landed shots, never minted (13 N-14)
+//   #34 Sergeant's Sash, #35 Gatekeeper's Plate, #45 Convoy Bell, #46 Lead Rein   P1 `aura`: a standing effect round the wearer or on
+//                               its partner (`with`), on a line (`belowPm`) (src/core/hunt/signature-auras.js)
+//   #40 Hearth Mason's Cloak    P7 `save`: a would-be death of the party left at 1 HP, once an hour; the pull falls back
+//                               (src/core/hunt/fall-save.js)
+// P8 (the boss cell, tools) is not built: CONFLICTS 2026-11-28 signatures-batch-4.
+//
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
 // move a move Signature belongs to (every live move gets one, CC-5). `best` is the seat (src/data/hunt-roles.js HUNT_ROLES) and the ground it
@@ -114,6 +129,7 @@
 
 const sig = (row) => Object.freeze({ ...row, home: Object.freeze(row.home), best: Object.freeze(row.best),
   ...(row.saves ? { saves: Object.freeze({ ...row.saves }) } : {}), ...(row.stackPlus ? { stackPlus: Object.freeze({ ...row.stackPlus }) } : {}),
+  ...(row.costs ? { costs: Object.freeze({ ...row.costs }) } : {}), ...(row.aura ? { aura: Object.freeze({ ...row.aura }) } : {}), ...(row.save ? { save: Object.freeze({ ...row.save }) } : {}),
   reacts: Object.freeze(row.reacts.map((r) => Object.freeze({ ...r }))) });
 
 export const SIGNATURES = Object.freeze({
@@ -220,8 +236,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'cast', family: 'ice', do: 'boon', to: 'self', status: 'stoked' }] }),
   throwers_ring: sig({ id: 'throwers_ring', n: 26, name: 'Thrower\'s Ring', slot: 'ring', family: 'earth',
     home: { kind: 'monster', id: 'slate_thrower' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'When a shield you cast breaks, its wearer heals 6% of max health',
-    reacts: [{ on: 'shield_break', do: 'heal', to: 'target', pm: 60 }] }),
+    tip: 'When a shield you cast breaks, the monster that broke it has its next blow at half',
+    reacts: [{ on: 'shield_break', do: 'status', status: 'blunted' }] }),
   the_cold_candle: sig({ id: 'the_cold_candle', n: 25, name: 'The Cold Candle', slot: 'necklace', family: 'ice',
     home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
     tip: 'Your Ice rune spells use no runes',
@@ -236,28 +252,69 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'heal', family: 'water', do: 'mana', pm: 5 }] }),
   vault_leech_ring: sig({ id: 'vault_leech_ring', n: 28, name: 'Vault Leech Ring', slot: 'ring', family: 'poison',
     home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'When a monster with your Sickness dies, the Sickness moves to the nearest monster',
-    reacts: [{ on: 'death', do: 'pass', what: 'sickness' }] }),
+    tip: 'Poison rune spells also Sicken the monster attacking the ally lowest on health',
+    reacts: [{ on: 'cast', family: 'poison', do: 'status', status: 'sickness', at: 'lowest' }] }),
   the_cellar_key: sig({ id: 'the_cellar_key', n: 31, name: 'The Cellar Key', slot: 'necklace',
     home: { kind: 'monster', id: 'the_landlord' }, best: { seat: 'healer', ground: 'carters_rest' },
     tip: 'When a monster hits an ally below 30% health, that ally heals 2% of max health (once every 30 s for each ally)',
     reacts: [{ on: 'ally_hit', belowPm: 300, do: 'heal', to: 'target', pm: 20, clockMs: 30000, per: 'target' }] }),
-  teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves',
-    home: { kind: 'monster', id: 'dead_teamster' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'On kill: restore 2% of your max mana',
-    reacts: [{ on: 'kill', do: 'mana', pm: 20 }] }),
+  teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves', move: 'power_strike',
+    home: { kind: 'monster', id: 'dead_teamster' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
+    tip: 'Power Strike on a monster attacking an ally: it turns on you for 4 s',
+    reacts: [{ on: 'hit', of: 'power_strike', do: 'taunt', ms: 4000 }] }),
   drowned_signet: sig({ id: 'drowned_signet', n: 38, name: 'Drowned Signet', slot: 'ring',
     home: { kind: 'monster', id: 'captain_hask' }, best: { seat: 'ranger', ground: 'muster_barrows' },
     tip: 'Your target boss below 25% health: you and your party deal 15% more damage for 10 s (once per boss)',
     reacts: [{ on: 'hit', boss: true, belowPm: 250, do: 'boon', to: 'party', status: 'emboldened', pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }] }),
   night_carters_boots: sig({ id: 'night_carters_boots', n: 42, name: 'Night Carter\'s Boots', slot: 'boots',
     home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'When a monster hits an ally below 45% health, its next blow lands at half',
-    reacts: [{ on: 'ally_hit', belowPm: 450, do: 'status', status: 'blunted' }] }),
+    tip: 'When a stalker hits an ally below 45% health, its next blow lands at half',
+    reacts: [{ on: 'ally_hit', belowPm: 450, role: 'stalker', do: 'status', status: 'blunted' }] }),
   bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',
     home: { kind: 'monster', id: 'bull_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    tip: 'Single-target hits on a monster below 30% health deal double damage',
-    reacts: [{ on: 'hit', single: true, belowPm: 300, do: 'echo', pm: 1000, ms: 100 }] }),
+    tip: 'Single-target hits on a brute below 30% health deal double damage',
+    reacts: [{ on: 'hit', single: true, belowPm: 300, role: 'brute', do: 'echo', pm: 1000, ms: 100 }] }),
+
+  /* ── BATCH 4 (lane/signatures-batch-4): the auras, the pair, the cast costs, the saved shot, the fall-back save ── */
+  ledger_ring: sig({ id: 'ledger_ring', n: 32, name: 'Ledger Ring', slot: 'ring',
+    home: { kind: 'monster', id: 'ledger_wight' }, best: { seat: 'mage', ground: 'muster_barrows' },
+    tip: 'Every fifth spell you cast costs no mana',
+    costs: { of: 'spell', pay: 'none', every: 5 }, reacts: [] }),
+  sergeants_sash: sig({ id: 'sergeants_sash', n: 34, name: 'Sergeant\'s Sash', slot: 'cape',
+    home: { kind: 'monster', id: 'color_sergeant' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Party aura: +20% mana regeneration within 8 tiles',
+    aura: { regenPm: 200, r: 8 }, reacts: [] }),
+  gatekeepers_plate: sig({ id: 'gatekeepers_plate', n: 35, name: 'Gatekeeper\'s Plate', slot: 'body',
+    home: { kind: 'monster', id: 'gatekeeper' }, best: { seat: 'tank', ground: 'muster_barrows' },
+    /* (CUT from 8%: 22.0 pace steps on the tank four, over the band; 4% read 8.5, 2.5% 2.3: 15 "Batch 4, measured") */
+    tip: 'Aura: you and allies within 2 tiles take 4% less damage',
+    aura: { takenPm: -40, r: 2 }, reacts: [] }),
+  lychgate_leggings: sig({ id: 'lychgate_leggings', n: 37, name: 'Lychgate Leggings', slot: 'pants',
+    home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Below 30% mana: your heals cost no mana for 5 s (90 s cooldown)',
+    costs: { of: 'heal', pay: 'none', belowManaPm: 300, ms: 5000, clockMs: 90000 }, reacts: [] }),
+  hearth_masons_cloak: sig({ id: 'hearth_masons_cloak', n: 40, name: 'Hearth Mason\'s Cloak', slot: 'cape',
+    home: { kind: 'chest', id: 'platinum' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Once an hour, a hero of your party who would die falls back instead',
+    save: { clockMs: 3600000 }, reacts: [] }),
+  brood_bracers: sig({ id: 'brood_bracers', n: 41, name: 'Brood Bracers', slot: 'gloves',
+    home: { kind: 'monster', id: 'brood_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
+    tip: 'Every fifth arrow that hits costs no arrow',
+    saves: { ammo: true, every: 5, hit: true }, reacts: [] }),
+  pyre_priests_hood: sig({ id: 'pyre_priests_hood', n: 44, name: 'Pyre Priest\'s Hood', slot: 'helmet',
+    home: { kind: 'monster', id: 'pyre_priest' }, best: { seat: 'mage', ground: 'muster_barrows' },
+    tip: 'Above 70% health: your spells cost health instead of mana (1 health per mana)',
+    costs: { of: 'spell', pay: 'hp', aboveHpPm: 700 }, reacts: [] }),
+  convoy_bell: sig({ id: 'convoy_bell', n: 45, name: 'Convoy Bell', slot: 'necklace',
+    home: { kind: 'monster', id: 'wagonmaster' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'With Lead Rein in your party: your heals on its wearer heal 30% more while it is below half health',
+    aura: { healPm: 300, to: 'with', with: 'lead_rein', belowPm: 500 }, reacts: [] }),
+  lead_rein: sig({ id: 'lead_rein', n: 46, name: 'Lead Rein', slot: 'belt',
+    home: { kind: 'monster', id: 'wagonmaster' }, best: { seat: 'tank', ground: 'muster_barrows' },
+    /* (CUT from 15%: the Rein's own half read 19.0 pace steps, over the band; 7.5% read 10.0, the Bell's half at 30% 9.1: each piece of
+       the pair sized as one Signature, 15 "Batch 4, measured") */
+    tip: 'With Convoy Bell in your party: below half health, you take 7.5% less damage',
+    aura: { takenPm: -75, with: 'convoy_bell', belowPm: 500 }, reacts: [] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

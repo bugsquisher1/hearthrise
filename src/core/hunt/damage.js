@@ -36,7 +36,7 @@ import { cheb } from './grid.js';
 import { atRest, unitById } from './movement.js';
 import { makeEvent } from './events.js';
 import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js';
-import { fallen } from './pull-cycle.js';
+import { fallen, fallBackNow } from './pull-cycle.js';
 import { shareKillXp } from './xp-share.js';
 import { payBasic, shotLine, ownShotLine } from './abilities.js';
 import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js';
@@ -59,6 +59,9 @@ import { isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { queueOn, reactorsOf } from './react-queue.js';
 import { nearFall } from './talent-rows.js';
 import { leechOn } from './imbue-leech.js';
+import { shotCredit, noteShot } from './signature-costs.js';
+import { auraEffects } from './signature-auras.js';
+import { saversOf, saveFall } from './fall-save.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -78,7 +81,8 @@ export const PERSISTED = Object.freeze({
 
 /* WHAT A UNIT'S STATUSES DO TO A BLOW AND A CLOCK (status-effects.js effectPm, by stacking key): takenPm (Sickness +, a hero's guard -),
    dealtPm (Weakened -, a hero's boon +), armorPm (Armor Break: a monster's defence), slowPm (Chill, at the rune tier it landed with). */
-const takenPmOf = (u) => effectPm(u, 'takenPm');
+/* (lane/signatures-batch-4) on a hero, beside its stacks, the party's worn Signature auras (signature-auras.js: Gatekeeper's Plate, Lead Rein), in Guarded's key */
+const takenPmOf = (u, inst) => effectPm(u, 'takenPm', isHero(u) ? auraEffects(inst, u, 'takenPm') : null);
 const slowPmOf = (u) => effectPm(u, 'slowPm');
 
 /** A clock of `ms` that unit `u` starts NOW, slowed by its live slowing statuses (a wiki formula, Chill's slowPm 300 = 30%):
@@ -236,7 +240,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
      markUntil, and a target under a status that moves what it takes (status-effects.js takenPm: Green Sickness +, a hero's guard -)
      that much more or less, added together and folded into the one multiplier hurt applies (`ability.mult`). A DEALER under a status
      that moves what it deals (dealtPm: Weakened -, a boon +) moves it after, its own factor (never under 1 permille). */
-  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target);
+  const markPm = (Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0) + takenPmOf(target, inst);
   const dealtPm = source ? effectPm(source, 'dealtPm') : 0;
   const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
   let mult = markPm ? Math.floor((base * Math.max(1, 1000 + markPm)) / 1000) : base;
@@ -248,6 +252,9 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     : markPm || dealtPm ? Object.assign({}, ability, { mult }) : ability;
   /** @type {{ dmg: number, killed: boolean, absorbed?: number, guard?: { u: any, n: number }, traits?: string[] }} */
   const r = hurt(inst, target, amount, source, element, tag, sc.rng);
+  /* A FALL-BACK SAVE (fall-save.js, lane/signatures-batch-4: Hearth Mason's Cloak): a blow that would kill a hero, with a worn save ready on
+     its side, leaves it at 1 HP and breaks the pull off below; a hunt with no such Signature reads one empty list */
+  const saved = r.killed && isHero(target) && saversOf(inst).length ? saveFall(inst, sc, target, r) : null;
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (isMonster(target)) inst.world.fightAt = sc.atMs;
@@ -269,7 +276,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const lee = source && source.imbues && !(ability && ability.dot) && r.dmg > 0 ? leechOn(source, target, r.dmg) : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(lee && lee.mana ? { back: lee.mana } : {}), ...(vit || {}), ...traitsField(r.traits) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(lee && lee.mana ? { back: lee.mana } : {}), ...(vit || {}), ...traitsField(r.traits), ...(saved ? { saved: saved.id } : {}) }));
   if (lee && lee.hp) sc.emit(makeEvent('heal', sc.atMs, { u, t: u, amount: lee.hp, ability: lee.id }));
   /* A SHIELD THAT BROKE (it held before this blow and is spent now): `shield_break` names the hero who cast it (`by`) and the blow's
      dealer (`u`), so the bar's triggers and the report read one event (abilities.js offerShield writes every shield). */
@@ -286,6 +293,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* THE GUARD'S SHARE (landOn `guard`, Bodyguard): what it took off this blow lands on the guard as it is, after it */
   if (r.guard) landHit(inst, sc, source, r.guard.u, r.guard.n, element, { id: 'bodyguard', dot: true, exact: true });
   if (reactorsOf(inst).length) noteMoments(inst, source, target, before, r, ability, crit, shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0) ? shieldBy : null, shieldBy);
+  /* (the save's fall back: the pull breaks off now, on the scale, in a fight: pull-cycle.js fallBackNow) */
+  if (saved) fallBackNow(inst, sc);
   return r;
 }
 
@@ -301,7 +310,8 @@ function noteMoments(inst, source, target, before, r, ability, crit, brokeBy, sh
     if (blow && crit && r.dmg > 0) queueOn(inst, source, 'crit', { t: target, dmg: r.dmg, ability: id });
     if (r.killed && isMonster(target)) queueOn(inst, source, 'kill', { t: target, over: r.over || 0, ability: id });
   }
-  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target });
+  /* (lane/signatures-batch-4) the breaking blow's dealer rides the moment (`src`): a status lands on the monster that broke it, Thrower's Ring */
+  if (brokeBy !== null) queueOn(inst, unitById(inst, brokeBy), 'shield_break', { t: target, src: source });
   if (Number.isInteger(shellBy) && r.absorbed > 0 && isHero(target) && isMonster(source)) queueOn(inst, unitById(inst, shellBy), 'absorb', { t: target, src: source, dmg: r.absorbed });
   const rs = reactorsOf(inst);
   /* A MONSTER'S DEATH, whoever's blow (a Signature's `pass`, Lurcher's Collar): its Mark as it fell rides the moment */
@@ -423,7 +433,9 @@ export function resolveAttacks(inst, sc) {
     const h = (inst.heroes && inst.heroes[u.id]) || null;
     const shot = pickShot(inst, u, h, t, sc);
     if (!shot) continue;
-    const cost = shot.pick.mana > 0 ? { mana: shot.pick.mana } : shot.pick.ammo !== null ? { ammo: shot.pick.ammo } : null;
+    /* (lane/signatures-batch-4) A SAVED SHOT (signature-costs.js, Brood Bracers): a hero holding its worn Signature's credit looses this shot
+       from nowhere (`free`: no arrow taken, none bought) */
+    const cost = shot.pick.mana > 0 ? { mana: shot.pick.mana } : shot.pick.ammo !== null ? { ammo: shot.pick.ammo, ...(typeof u.signature === 'string' && shotCredit(u) ? { free: true } : {}) } : null;
     const paid = cost ? payBasic(inst, u, cost, sc) : true;
     if (!paid) continue;
     /* A STORE SHOT is its crafted partner's BASIC version (supply-basics.js BASIC_EFFECT_SHARE). */
@@ -437,11 +449,17 @@ export function resolveAttacks(inst, sc) {
         ...(shot.pick.mana > 0 ? { mana: shot.pick.mana, magicXpMult: shot.pick.magicXpMult } : {}) }));
     }
     restart(u);
-    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m, shot.pick.price, sharePm);
+    let landed = false;
+    for (const m of hits) if (m.alive && landsOn(blow(inst, sc, u, h, m, shot.pick.price, sharePm))) landed = true;
+    /* (the saved shot's count: a shot that spent the credit back to 0, a shot of an arrow that landed one more) */
+    if (cost && cost.ammo && typeof u.signature === 'string') noteShot(u, paid !== true && paid.saved === true, landed);
     if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
     peel(inst, sc, u);
   }
 }
+
+/* a blow that landed (a roll that missed answers null, a dodge lands nothing) */
+const landsOn = (r) => !!r && r.dodged !== true;
 
 /* One hero blow at `t`. AGAINST THIS MONSTER (the settle's rollsVs, combat.js
    playerCombatRolls): the accuracy over its defence with the weapon weakness, and

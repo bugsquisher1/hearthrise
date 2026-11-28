@@ -287,6 +287,23 @@ export function challengeFrom(inst, sc, k, row) {
   return took.length;
 }
 
+/**
+ * A ONE-MONSTER TAUNT (a reaction's `taunt`, lane/signatures-batch-4: Teamster's Mitts, "Power Strike on a monster attacking an ally: it
+ * turns on you for 4 s"): monster `m`, engaged on another living hero of `u`'s side and held by no Challenge (the Challenge's own rule:
+ * challengeable takes none that is held), turns on `u`, leaves its queue and is held `ms`, on the step grid. Hold Fast keeps it where it is
+ * (retarget). Answers whether it turned. Emits the `target` retarget writes, never a `challenge` (no Challenge was cast).
+ */
+export function tauntOne(inst, sc, u, m, ms) {
+  if (!m || m.alive !== true || !isMonster(m) || !u || u.alive !== true || !isHero(u) || m.holdMs > 0) return false;
+  const on = Number.isInteger(m.target) && m.target !== u.id ? unitById(inst, m.target) : null;
+  if (!on || on.alive !== true || !isHero(on) || !isAlly(u, on)) return false;
+  retarget(inst, m, u.id, sc);
+  if (m.target !== u.id) return false;
+  m.queued = false;
+  m.holdMs = Math.max(STEP, Math.floor(ms / STEP) * STEP);
+  return true;
+}
+
 /* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? A SHOOTER on it is not held: it shoots
    from where it stands (shooters.js), so a Melee hero it shoots still walks to its mark. */
 const holding = (inst, u) => engaged(inst, u).some((m) => m.target === u.id && !rangeOf(inst, m));

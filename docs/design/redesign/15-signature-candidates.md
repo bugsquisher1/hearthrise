@@ -447,7 +447,7 @@ Every shape read (`sum.mjs --batch 4` prints both tables; a kept row reads from 
 | #34 Sergeant's Sash | Party aura: allies within 8 tiles regenerate 20% more mana | P1: an aura a Signature wears | Coin bar | As written. Fewer drinks for the whole party |
 | #35 Gatekeeper's Plate | Aura: you and allies within 2 tiles take 8% less damage | P1 | Fight, pace | Re-worded from "monsters within 2 tiles deal 8% less", the same on the blows that matter, on the aura ledger the support's fires use. A standing cut reads small (Weakened -8% on the pack read -2.0). If it reads under, it becomes "while you're below half health" (P1's `belowPm`) |
 | #45 Convoy Bell | With Lead Rein in your party: your heals on its wearer heal 30% more while it is below half health | P1, its partner check | Fight, pace | Reshaped by rule A: "+25% healing on its wearer" is a top-up |
-| #46 Lead Rein | With Convoy Bell in your party: below half health, you take 15% less damage | P1, its partner check | Fight, pace | Reshaped by rule E: a standing -10% is a cut the healer already covers |
+| #46 Lead Rein | With Convoy Bell in your party: below half health, you take 7.5% less damage | P1, its partner check | Fight, pace | Reshaped by rule E: a standing -10% is a cut the healer already covers |
 | #32 Ledger Ring | Every fifth spell you cast costs no mana | P2: a cast's cost | Coin bar | Reshaped: spells don't crit, so "on crit" had no moment. A ledger counts |
 | #37 Lychgate Leggings | Below 30% mana: your heals cost no mana for 5 s (90 s cooldown) | P2 | Coin bar | As written |
 | #44 Pyre Priest's Hood | Above 70% health: your spells cost health instead of mana (1 health a mana) | P2 | Coin bar, and pace (it costs health) | As written. The Lab reads it with Full Wick |
@@ -542,6 +542,66 @@ The Cellar Key got its 36 seeds at home and Brewer's Apron its first reading the
 - **The Key does not light.** Its 36 seeds read 5.7 at home, under the band. The Apron does not either. Neither was ever the big heal Carter's Rest made it look.
 - **Four kept rows left the band, all by the re-measure, none by play:** the Saber under, the Pennies and the Chain just over, the Candle over the coin bar. Each is dark (`SIGNATURE_RULES.live` false), so no player meets a number out of band. Each is set again on its own cell, on these steps, as the next Signature batch's first rows, with the Key and the Apron. A dial is set where it reads, never by moving the ruler.
 - **The roads' borrow values** (`roads/e5/sum.mjs`, Muster) rise 8% on pace and none changes its verdict. The held step is the larger on every row but the second healer's, whose value moves from 7.5 to 7.7, under its 10.
+
+## Batch 4, measured (systems, lane/signatures-batch-4, 2026-11-28)
+
+**How it plays:** fourteen more Signatures work in the fight engine for a hero that wears one, and players still see none (`SIGNATURE_RULES.live` false). A tank's plate that shields the melee beside it and a healer and tank pair read in band once cut, two coin pieces read in band as written, and the rest read under or need a call before their number moves.
+
+The pieces, each built once for all its rows (HANDOFFS 2026-11-28 designer-sig-batch4):
+
+| Piece | What it is, as built | Rows |
+|---|---|---|
+| P1 An aura | `aura` on the Signature row (`src/core/hunt/signature-auras.js`): a standing effect on the wearer and the heroes of its side within `r`, or only on its partner (`to: 'with'`), while a living hero of the side wears `with`, on a hero under `belowPm`. `takenPm` counts in Guarded's key under its 30% cap (status-effects.js `effectPm`'s `standing`), `regenPm` beside Still Mind, `healPm` on the wearer's cast heals. One a Signature. **Not a ledger row** (CONFLICTS 2026-11-28) | #34, #35, #45, #46 |
+| P2 A cast's cost | `costs` (`src/core/hunt/signature-costs.js`, read in abilities.js gateOf, tryCast and fire): `of` 'spell' (a cast that spends a rune) or 'heal', `pay` 'none' or 'hp' (straight off HP, never under 1 HP, on the cast event as `paidHp`), `every`, `aboveHpPm`, a window `belowManaPm` + `ms` + `clockMs`. Counts, windows and clocks ride `cds` | #32, #37, #44 |
+| P3 A saved shot | `saves: { ammo: true, every, hit: true }`: five landed basic shots hold a credit, and the next basic shot that would take an arrow takes none and buys none. Nothing refunded, nothing put in a bag | #41 |
+| P4 A one-monster taunt | `do: 'taunt'` (targeting.js `tauntOne`): the moment's monster, on another hero of the side and held by no Challenge, turns on the wearer, held `ms` | #33 |
+| P5 A broken shell's breaker | `shield_break` carries `src`, so a `status` lands on it | #26 |
+| P6 A monster picked by its target | a status's `at: 'lowest'`: the nearest monster on the living hero of the side lowest on health | #28 |
+| P7 A fall-back save | `save` (`src/core/hunt/fall-save.js`): a blow that would kill a hero of the side leaves it at 1 HP, once a `clockMs` on the wearer, and on the scale in a fight the pull breaks off at once (pull-cycle.js `fallBackNow`), a fall back, never a death | #40 |
+| P8 The boss cell | **Not built** (CONFLICTS 2026-11-28): Captain Hask has no called fight, and a called room is off the Danger scale | #38 |
+| P9 A monster role | `role` (reactions.js): the moment's monster plays it, its striker for a blow at a hero | #42, #43 |
+
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, a mutant on each piece: 53 cases, 114 mutants caught), on the real settle (both paths: batch 4's sets each settle the same in 10-minute and 100-second windows, and a Bold four's save breaks its pull off at the save and settles the same in one window and in 20-second ones), and on both server doors (`tests/hunt-sessions-settle.mjs` BOTH-PATH-SAVE: the doomed hero wearing the Cloak through the server's read dies later than the plain one, and the tick's windows and a player's instants write the same rows). engine-parity holds with every row dark, no re-pin. The sizes below are MEASURED. The luck ceiling (V10) is still owed.
+
+MEASURED on `lane/signatures-batch-4` snapshots dbd5f3138 (the rows; the plain fours replay batch 3's `b3-*` reports seed for seed: the Muster mixed four's first two seeds held 601 and 619, pace 0.84442 and 0.9077, both equal) a scratch copy of c3e809be2 for the shapes (`b4w-*`, temporary ids) and a89c6d78f for the pair as set (`b4s-muster-pair2`, by its real ids), `signature-depth/batch4.sh` (`b4s-*`) and `sum.mjs --batch 4`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady unless named, 12 seeds x 8 h, held from hour 4), paired on the same seeds against the same four with none, in each ground's own pace step (`pace-step.mjs`: Muster 0.398, Pyre Field 0.487, Wyvern Roost 0.429). Coin rows read 4 seeds against batch 3's 4-seed plain four (rule C).
+
+| # | Signature (seat) | Rule | Best cell | Held delta (se) | Pace or coin steps (se) | Second ground | Its pace steps (se) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| 35 | Gatekeeper's Plate (tank) | **CUT to 4%:** you and allies within 2 tiles take 4% less | Muster Barrows | +8.3 (2.2) | **+8.5 (2.6)** | (the tank's others pinned) | | **In band.** As written (8%) it read 22.0 (2.9). Set at 4% (`b4w-muster-plate4`; REPLAY=1 plays its first two seeds by its real id, equal) |
+| 45, 46 | Convoy Bell + Lead Rein (healer + tank), the pair | **The Rein CUT to 7.5%:** each with the other in the party, +30% heals on the Rein's wearer under half, and it takes 7.5% less under half | Muster Barrows | +22.1 (2.4) | **+23.7 (3.0)**, the pair; each half alone **+9.1 (2.7)** (the Bell) and **+10.0 (1.7)** (the Rein) | | | **Each piece in band on its own half.** As written the pair read 32.5 and the Rein's half alone 19.0. Two heroes spend a Signature each on it, so the pair reads about two |
+| 34 | Sergeant's Sash (healer, coin) | Allies within 8 tiles regenerate 20% more mana | Muster Barrows, 4 seeds | -0.3 (0.9) | **17.6 coin steps** | | | **In band (coin bar)** |
+| 44 | Pyre Priest's Hood (mage, coin and fight) | Over 70% health, spells cost health, 1 a mana | Muster Barrows, 12 seeds | +1.2 (2.3) | **19.8 coin steps**, fight +0.8 (2.0) | | | **In band (coin bar)**, the fight flat. The mage drinks nothing and the healer drinks more (the probe: 98 to 128 an hour), the four's bill lower |
+| 32 | Ledger Ring (mage, coin) | Every fifth spell costs no mana | Muster Barrows, 4 seeds | -0.5 (6.1) | **13.7 coin steps** | | | **Under the coin bar by 0.3** |
+| 41 | Brood Bracers (ranger, coin) | Every fifth arrow that hits costs no arrow | Muster Barrows, 4 seeds | 0.0 (0.0) | **12.5 coin steps** | | | **Under the coin bar.** The fight is identical. COMPUTED 20.6 before it was built |
+| 37 | Lychgate Leggings (healer, coin) | Under 30% mana, heals cost no mana for 5 s, 90 s clock | Muster Barrows, 4 seeds | -1.3 (1.1) | **3.0 coin steps** | | | **Under.** The healer is seldom under 30% mana: it drinks first |
+| 26 | Thrower's Ring (healer) | A shield you cast breaks: its breaker's next blow at half | Muster Barrows | +3.0 (2.7) | **+2.9 (2.8)** | | | **Under** |
+| 28 | Vault Leech Ring (healer) | Poison rune spells Sicken the monster on the ally lowest on health | Muster Barrows | +2.6 (3.0) | **+3.2 (2.9)** | | | **Under** |
+| 33 | Teamster's Mitts (sword) | Power Strike on a monster attacking an ally: it turns on you for 4 s | Muster Barrows, the sword four (played here) | -3.3 (2.3) | **-3.6 (2.4)** | | | **Under.** Pulling a monster off the back row onto the sword costs more than it saves |
+| 42 | Night Carter's Boots (healer) | A **stalker** hits an ally under 45%: its next blow at half | Muster Barrows | -1.5 (1.5) | **-1.2 (1.5)** | Pyre Field | +1.1 (2.7) | **Under** (was +11.8 on every monster). The Cairn Wight is one of Muster's four kinds |
+| 43 | Bull's Tooth (ranger) | Single-target hits on a **brute** under 30% deal double | Wyvern Roost, its home | +0.3 (1.2) | **+2.2 (1.2)** | Muster Barrows | +5.2 (2.1) | **Under** (was +9.7 on every monster) |
+| 40 | Hearth Mason's Cloak (healer), **Bold** | Once an hour, a hero of your party who would die falls back instead | Muster Barrows, Bold (the plain Bold four played here) | -2.4 (1.0), 5 seeds paired | **no held pace to pair**: the plain four's first death ends its four before hour 4 on 7 of 12 seeds | | | **The bar cannot read it.** Deaths 11 to 4 in 12 seeds x 8 h, seeds with a death 11 to 4, Level XP a hero-hour +11.1% (whole hunts, unpaired), kills +6.4% |
+
+Shapes tried (each against its row's plain four, temporary ids on the scratch copy):
+
+| Shape | Held delta (se) | Pace steps (se) | Reading |
+|---|---|---|---|
+| #35 the Plate as written, 8% (the tank four) | +20.8 (2.4) | +22.0 (2.9) | Over |
+| #35 **4%** | +8.3 (2.2) | **+8.5 (2.6)** | **In band. Set** |
+| #35 2.5% | +2.8 (1.9) | +2.3 (2.2) | Under |
+| #45 + #46 as written: +30% heals, -15% taken | +30.4 (2.0) | +32.5 (2.2) | Over |
+| #45 the Bell's half alone, +30% (the Rein worn inert) | +9.3 (2.4) | +9.1 (2.7) | In band. Kept |
+| #46 the Rein's half alone, -15% (the Bell worn inert) | +17.9 (2.6) | +19.0 (3.0) | Over |
+| #46 the Rein's half alone, **-7.5%** | +9.3 (1.6) | **+10.0 (1.7)** | **In band. Set** |
+| #45 + #46 at half size: +15% heals, -7.5% taken | +14.2 (2.4) | +15.3 (2.7) | The pair at half size; the Bell at half reads under its own band |
+
+**What the readings say.**
+
+- **A standing cut is big, not small.** 15 expected the Plate to read small (Weakened -8% on the pack read -2.0). It reads 22.0. A cut that holds every second on the tank and the melee beside it pays at the tank's danger every time, which is rule E's danger moment held all hunt. At 8% it read 22.0, at 4% 8.5, at 2.5% 2.3: the line is a cliff, as the Boots' was. Set at 4%.
+- **The pair pays as two Signatures, so each half is sized as one.** As written the pair read 32.5. Apart (its partner worn but inert), the Bell's half read 9.1 and the Rein's 19.0, so the Rein is cut to 7.5% (10.0 alone). As set the pair reads 23.7 (3.0), about two Signatures, which is what two heroes spend on it. Whether a pair is barred piece by piece is the designer's (CONFLICTS 2026-11-28).
+- **The role filters take #42 and #43 out of the band.** A save or a finisher keyed to one role fires on that role's share of the blows: Muster's Cairn Wight is one of its four kinds, its Knight and Captain Hask two of them, the Roost's Bull and Brood Wyverns two of its five. Big where its monsters are needs a ground whose mix is mostly that role, and no ground has been read for one.
+- **Mana and arrows are coin, and only the big lines read.** The Hood (the mage's whole drink bill, 19.8) and the Sash (20% more regen for the party, 17.6) reach the coin bar. The Ledger's fifth spell (13.7) and the Bracers' fifth arrow (12.5) sit just under it. The Leggings' window opens on a healer that drinks before it runs low (3.0).
+- **The Cloak is a Bold piece the pace bar cannot see.** Its worth is in the deaths it turns away: four in twelve days where the plain four had eleven, and a four that lives to the end. Pace from the held start reads only seeds whose four was still whole at hour 4 (5 of 12 plain, 10 of 12 with the Cloak), so the two arms cannot be paired. A Bold Signature needs its own measure (deaths avoided and Level XP kept, or the whole hunt's Level XP a hero-hour), a call for the designer.
+- **Repetition, audited.** Blunted carries #4, #23, #26 and #42 (a sword's target, a tank's neighbors, a broken shell's breaker, a stalker on a low ally). Guarded's key carries #1, #3, #17, #35 and #46. The taunt is new to Signatures (#33), the lowest-hero pick is new (#28), and the auras, the pair, the cast costs, the saved shot and the save are each one piece.
 
 ## How Signatures work
 
@@ -760,9 +820,9 @@ Best for: Healer, Mage
 Note: Fewer drinks for the whole party.
 
 **35. Gatekeeper's Plate** · Body · Drops from: Krell's Hold, Gatekeeper
-Aura: you and allies within 2 tiles take 8% less damage
+Aura: you and allies within 2 tiles take 4% less damage
 Best for: Tank
-Note: Melee standing next to the tank are covered too. (Batch 4 ruling, 2026-11-28: re-worded onto the aura ledger, batch 4's P1. If a standing cut reads under, it becomes "while you're below half health".)
+Note: Melee standing next to the tank are covered too. (Batch 4 ruling, 2026-11-28: re-worded onto the aura ledger, batch 4's P1. If a standing cut reads under, it becomes "while you're below half health".) (Batch 4, 2026-11-28, "Batch 4, measured": built as a standing effect in Guarded's key. 8% read 22.0 pace steps, over; CUT to 4%, 8.5 (2.6).)
 
 ## Low health and low mana
 

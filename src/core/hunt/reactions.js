@@ -27,6 +27,10 @@
 //   reflect pm of the moment's damage (an `absorb`: what the hero's shell took) back on the monster that dealt it, exact (Drover's Hat)
 //   ready   `move` ready now; pass  what the fallen carried moves on; boon  `status` on the moment's hero, `ms` long, at `pw` permille of
 //           its strength when named (a branch's status strength, status-effects.js)
+//   taunt   the moment's monster, if it is on another hero of the wearer's side and held by no Challenge, turns on the wearer, held `ms`
+//           (lane/signatures-batch-4, targeting.js tauntOne: Teamster's Mitts on Power Strike)
+// BATCH 4 (lane/signatures-batch-4): the filter `role` (the moment's monster plays that role: its striker, else the monster it names), a
+// status `at: 'lowest'` (on the monster attacking the lowest hero of the party), and a broken shell's moment carries its breaker (`src`).
 // WHERE IT LANDS (`to`, lane/signatures-batch-3): a heal to the moment's hero ('target', pm of its max health) or each living hero of the
 // party ('party'); mana to the moment's hero ('target', pm of the moment's amount: a heal's HP landed); a boon on the wearer ('self') or
 // the party ('party'). A status lands on the moment's monsters when it names them (`list`: a pull's pack, a Challenge's taunted).
@@ -45,7 +49,8 @@ import { applyStatus, statusRow, layStack } from './status.js';
 import { healIn } from './heal-cut.js';
 import { offerShield } from './shields.js';
 import { makeEvent } from './events.js';
-import { rowOf as standsIn } from './monster-roles.js';
+import { rowOf as standsIn, roleIdOf } from './monster-roles.js';
+import { tauntOne } from './targeting.js';
 import { cheb } from './grid.js';
 import { isAlly, isMonster } from './sides.js';
 
@@ -69,6 +74,10 @@ function runOne(inst, sc, { u, row, ctx }) {
   if (row.of && ctx.ability !== row.of) return;
   if (row.row && !(ctx.t && standsIn(ctx.t) === row.row)) return;
   if (row.melee && !ctx.melee) return;
+  /* (lane/signatures-batch-4) `role`: the moment's monster plays that role (monster-roles.js roleIdOf, the Danger scale's: none off it), its
+     striker for a blow at a hero (an ally hit, a broken shell), else the monster hit or fallen (Night Carter's Boots: a stalker; Bull's
+     Tooth: a brute). A role never changes, so it is read here */
+  if (row.role !== undefined && roleIdOf(inst, monsterOf(ctx)) !== row.role) return;
   const key = '~r:' + row.id + (row.per === 'target' && ctx.t ? ':' + ctx.t.id : '');
   if (row.clockMs && readyAt(u.cds, key) > sc.atMs) return;
   /* ONCE EVERY `every` MOMENTS (lane/signatures-batch-3: The Cellar Key, "a 20% chance" played as every fifth, so nothing is drawn): the
@@ -112,6 +121,9 @@ const blowOf = (inst, u) => (stepsOn(inst) ? PIPE_TOP : Math.max(1, int(u.maxHit
 /* THE MONSTERS A `status` LANDS ON (the header): every living engaged foe within `r` tiles of the hero (in id order) when the row names a
    reach, else the moment's source or target; never an ally, never a fallen one */
 function foesFor(inst, u, row, ctx) {
+  /* (lane/signatures-batch-4) `at: 'lowest'`: the monster attacking the living hero of the wearer's side with the lowest share of its
+     health (ties by id), the nearest to that hero of those on it (ties by id); none on it, none (Vault Leech Ring) */
+  if (row.at === 'lowest') { const m = onLowest(inst, u); return m ? [m] : []; }
   const list = Number.isInteger(row.r) ? inst.world.units.filter((o) => isMonster(o) && Number.isInteger(o.target) && cheb(o, u) <= row.r)
     /* (lane/signatures-batch-3) a moment that names its monsters (a pull's pack, a Challenge's taunted: `list`) lands on each of them */
     : Array.isArray(ctx.list) ? ctx.list : [ctx.src || ctx.t];
@@ -129,6 +141,22 @@ function statusOn(inst, sc, u, row, ctx, st, m) {
   if (applyStatus(inst, m, st, { u: u.id, maxHit: blowOf(inst, u), runeTier: 1 }, sc) === null) return false;
   if (row.ms) for (const s of m.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
   return true;
+}
+
+/* the moment's monster: its striker when it names one that is a monster, else the monster it names (the `role` filter) */
+const monsterOf = (ctx) => (ctx.src && isMonster(ctx.src) ? ctx.src : ctx.t && isMonster(ctx.t) ? ctx.t : null);
+
+/* the monster on the lowest living hero of u's side (foesFor's `at: 'lowest'`), or null */
+function onLowest(inst, u) {
+  let low = null;
+  for (const a of partyOf(inst, u)) if (!low || share(a) < share(low) || (share(a) === share(low) && a.id < low.id)) low = a;
+  if (!low) return null;
+  let m = null;
+  for (const o of inst.world.units) {
+    if (o.alive !== true || !isMonster(o) || o.target !== low.id) continue;
+    if (!m || cheb(o, low) < cheb(m, low) || (cheb(o, low) === cheb(m, low) && o.id < m.id)) m = o;
+  }
+  return m;
 }
 
 const DO = Object.freeze({
@@ -196,6 +224,8 @@ const DO = Object.freeze({
     return !!m && m.alive === true && isMonster(m) && n > 0 && landHit(inst, sc, u, m, n, null, { id: 'reflect', dot: true, exact: true }).dmg > 0;
   },
   ready: (inst, sc, u, row) => readyNow(u, row.move, sc.atMs),
+  /* (lane/signatures-batch-4) the moment's monster, on another hero of the wearer's side, turns on the wearer, held `ms` (targeting.js tauntOne) */
+  taunt: (inst, sc, u, row, ctx) => tauntOne(inst, sc, u, ctx.t, row.ms),
   pass: (inst, sc, u, row, ctx) => passOn(inst, sc, u, row.what, ctx),
   boon: (inst, sc, u, row, ctx) => {
     /* (lane/signatures-batch-3) to the wearer ('self': Greened Bracers, whose moment is a cast at a monster) or each living hero of the

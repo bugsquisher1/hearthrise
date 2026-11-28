@@ -28,6 +28,7 @@ import { traitsField } from './trait-rules.js';
 import { dist2 } from './grid.js';
 import { isAlly, isHero } from './sides.js';
 import { queueOn } from './react-queue.js';
+import { auraPm } from './signature-auras.js';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 const NONE = Object.freeze([]);
@@ -53,6 +54,10 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
   const inst = cast ? cast.inst : null, fx = cast ? cast.fx : null;
   /* the target's health as the heal begins (its `heal` moment reads a line there: Bargeman's Pole, "on a target below 30% health") */
   const was = int(t.hp);
+  /* (lane/signatures-batch-4) A WORN SIGNATURE'S AURA ON THIS HEAL (signature-auras.js, Convoy Bell): the healer's own aura on the hero it heals,
+     its line read as the heal begins */
+  const lift = inst ? auraPm(inst, t, 'healPm', u) : 0;
+  if (lift) n = Math.floor((n * (1000 + lift)) / 1000);
   if (fx) {
     n = Math.floor((n * outPmFor(inst, u, row, t)) / 1000);
     if (nearFall(inst, t, t.hp)) cast.near = true;

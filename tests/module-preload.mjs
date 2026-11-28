@@ -58,6 +58,7 @@ export const BOOT_BUDGET = Object.freeze({ files: 45, bytes: 520 * 1024 });
 /* MP-7: what loads on need, and what loads it. A module here imported into either half, or a sheet linked by the page, is red. */
 export const ON_NEED = Object.freeze({
   'src/hunt-view/live-engine.js': 'the hunt prediction: src/session/live-link.js loads it when a viewed hero\'s hunt opens',
+  'src/hunt-view/live-diff.js': 'what a diverged start point differs in: live-engine.js re-exports it, read only from a running prediction',
   'src/core/combat-sim.js': 'the instance engine, run in the browser only by the prediction',
   'src/core/hunt/signature-rules.js': 'Signature rules (the engine\'s)',
   'src/core/hunt/reactions.js': 'monster reactions (the engine\'s)',

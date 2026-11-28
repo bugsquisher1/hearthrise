@@ -43,8 +43,8 @@ const stats = (d) => {
 const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; if (Number.isFinite(x) && Number.isFinite(y) && f(x, y) !== null) d.push(f(x, y)); }); return d; };
 const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
 const paceOf = (p, s) => {
-  const k = paceStepPct(p.ground);
-  if (k === null) { console.error('e5 sum: ' + p.ground + ' has no measured pace step (signature-depth/pace-step.mjs)'); process.exit(2); }
+  const k = paceStepPct(p.ground, p.seats.length);
+  if (typeof k !== 'number') { console.error('e5 sum: ' + p.ground + ' has no measured pace step (signature-depth/pace-step.mjs)'); process.exit(2); }
   return p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
     : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / k : null)));
 };

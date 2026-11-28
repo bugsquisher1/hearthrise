@@ -135,13 +135,21 @@ const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y -
 /* (lane/signatures-batch-3) a report that carries each seed's pace to 5 places (v1-climb payX.exact) is read on it, both arms or neither:
    perSeed's hundredths move a paired delta in quanta of about 2.6 pace steps */
 const paysOf = (p, s) => (p.payX.exact && s.payX.exact ? [p.payX.exact, s.payX.exact] : [p.payX.perSeed, s.payX.perSeed]);
-const stepOf = (p) => {
-  const k = paceStepPct(p.ground);
-  if (k === null) { console.error('sum: ' + p.ground + ' has no measured pace step (pace-step.mjs): measure it before a Signature is read there'); process.exit(2); }
+/* the plain cell's pace step (its ground, and a lone hero apart). A cell paid at the floor (null: a held step buys no pace there) reads in
+   its best cell's steps when it is a second ground (`best`, that cell's plain report), so the spread bar compares pace itself; a best cell
+   there, or a cell nobody measured, stops the sum */
+const stepOf = (p, best) => {
+  const k = paceStepPct(p.ground, p.seats.length);
+  if (k === null && best) return stepOf(best);
+  if (typeof k !== 'number') {
+    console.error('sum: ' + p.ground + ' (' + p.seats.length + (p.seats.length === 1 ? ' hero' : ' heroes') + ') ' + (k === null ? 'is paid at the floor, so no Signature is sized there'
+      : 'has no measured pace step (pace-step.mjs): measure it before a Signature is read there'));
+    process.exit(2);
+  }
   return k;
 };
-const paceOf = (p, s) => {
-  const k = stepOf(p);
+const paceOf = (p, s, best) => {
+  const k = stepOf(p, best);
   return p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
     : stats(zip(...paysOf(p, s), (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / k : null)));
 };
@@ -187,8 +195,8 @@ if (BATCH === '3') {
   console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Coin a hero-hour (worn - plain) | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const [name, best, other] of ROWS3) {
-    const read = (x) => { if (!x) return { g: '(none read)', owed: true, none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
-    const B = read(best), O = read(other);
+    const read = (x, bp) => { if (!x) return { g: '(none read)', owed: true, none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s, bp) } : { g, owed: true }; };
+    const B = read(best), O = read(other, B.p);
     /* (a coin piece is the market's, never the size bar's; a row under its size reads no second ground) */
     const isCoin = / coin/.test(name), under = !B.owed && !!B.q && B.q.m < LO;
     const size = B.owed ? 'owed' : isCoin ? 'a coin piece (the market\'s, no bar)' : sizeOf(B.q);
@@ -282,11 +290,11 @@ if (BATCH === '4') {
   const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
   const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / stepOf(p);
   const coinBar = (x) => (x > COIN_HI ? 'OVER (cut its number)' : x < COIN_LO ? 'UNDER (raise or reshape)' : 'in band');
-  const read = (x) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
+  const read = (x, bp) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s, bp) } : { g, owed: true }; };
   console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace steps (se) | Coin steps | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const [name, kind, best, other] of ROWS4) {
-    const B = read(best), O = read(other);
+    const B = read(best), O = read(other, B.p);
     if (B.owed) { console.log('| ' + [name, kind, best[0], 'owed', '', '', '', '', '', '', ''].join(' | ') + ' |'); continue; }
     const coin = coinSteps(B.p, B.s);
     const bar = kind === 'coin' ? coinBar(coin) + ' (coin bar 20 +- 6)' : sizeOf(B.q);
@@ -321,8 +329,8 @@ if (BATCH !== '2') {
 console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');
 console.log('|---|---|---|---|---|---|---|---|---|---|');
 for (const [name, best, other] of ROWS2) {
-  const read = ([g, a, b]) => { const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
-  const B = read(best), O = read(other);
+  const read = ([g, a, b], bp) => { const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s, bp) } : { g, owed: true }; };
+  const B = read(best), O = read(other, B.p);
   const size = B.owed ? 'owed' : sizeOf(B.q);
   /* (the spread is read only for a size that reaches the band: under it, the row is reshaped first) */
   const spread = B.owed || !B.q ? 'owed' : B.q.m < LO ? 'n/a (under its size)' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'

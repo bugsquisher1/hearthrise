@@ -1461,8 +1461,8 @@ const mutants = [
   { name: 'the lowest hero is the highest', case: 'lowest-sicken', edits: [[RX, 'if (!low || share(a) < share(low) ||', 'if (!low || share(a) > share(low) ||']] },
   { name: 'the farthest monster on the lowest is picked', case: 'lowest-sicken', edits: [[RX, 'if (!m || cheb(o, low) < cheb(m, low) ||', 'if (!m || cheb(o, low) > cheb(m, low) ||']] },
   { name: 'the Mitts read any move\'s hit', case: 'power-taunt', edits: [[SG, "{ on: 'hit', of: 'power_strike', do: 'taunt', ms: 4000 }", "{ on: 'hit', do: 'taunt', ms: 4000 }"]] },
-  { name: 'a one-monster taunt takes a held monster', case: 'power-taunt', edits: [[TG, ' || !isHero(u) || m.holdMs > 0) return false;', ' || !isHero(u)) return false;']] },
-  { name: 'a one-monster taunt holds nothing', case: 'power-taunt', edits: [[TG, '  m.holdMs = Math.max(STEP, Math.floor(ms / STEP) * STEP);', '  m.holdMs = 0;']] },
+  { name: 'a one-monster taunt takes a held monster', case: 'power-taunt', edits: [[RX, ' || !isHero(u) || m.holdMs > 0) return false;', ' || !isHero(u)) return false;']] },
+  { name: 'a one-monster taunt holds nothing', case: 'power-taunt', edits: [[RX, '  m.holdMs = Math.max(STEP, Math.floor(ms / STEP) * STEP);', '  m.holdMs = 0;']] },
   /* (the count's case and mutant back, HANDOFFS 2026-11-28 designer-sig-batch4 item 3: the Candle saves every Ice cast now) */
   { name: 'the saved shot\'s count is never kept', case: 'shot-save', edits: [[SCO, '  if (n !== readyAt(u.cds, key)) u.cds = Object.assign({}, u.cds || {}, { [key]: n });', '']] },
   { name: 'a saved shot takes its arrow anyway', case: 'shot-save', edits: [[AB, '    if (c.free === true) return Object.assign({}, l, { saved: true });\n', '']] },

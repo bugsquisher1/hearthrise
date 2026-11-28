@@ -176,7 +176,7 @@ Every run: Muster Barrows unless named, held start, 8 seeds, Steady unless named
 
 Game designer, `lane/designer-greater-mend`, on CONFLICTS 2026-11-27 (E5). RULED.
 
-**How it plays.** A Shield hero at the Shield · Restoration town, or a Destruction hero at the Destruction · Restoration town, can take Greater Mend at a fifth of its power. It opens at Level 120 and Havora never lends it. It shares Mend's 6 s clock, so each cast is a small heal on the most hurt ally within 7 tiles in place of a Mend on yourself. A four with no healer falls back less often and holds about half a depth deeper, and pays about 14% more for supplies. Its Level XP doesn't move. Beside a real healer it adds almost nothing, so nobody takes it there. It's the drop hunter's pick, not a stand-in for a healer.
+**How it plays.** A Shield hero at the Shield · Restoration town, or a Destruction hero at the Destruction · Restoration town, can take Greater Mend at a fifth of its power. It opens at Level 120 and Havora never lends it. It shares Mend's 6 s clock, so each cast is a small heal on the most hurt ally within 7 tiles in place of a Mend on yourself. A four with no healer falls back less often and holds about half a depth deeper, and pays about 14% more for supplies. Its Level XP doesn't move. Beside a real healer it costs depth, since the borrower gives up its own Mends for small heals, so it's a pick only for a four without one. It's the drop hunter's pick, not a stand-in for a healer.
 
 **The rule (one data row, `src/data/talents.js BORROW_BANDS`).** A fourth value band: V0 20 to 50 lends at −80% at a border town and is not offered at Havora. Each band's top lands at or under its cap after its price: 4, 7, 10, and now 10. Greater Mend's V0 stays 40.3, so its value after the price is 8.06 and it opens at `max(20, 200 × 8.06 ÷ 14)`, rounded up to 120. A move measured past 50 is still never offered (the refusal `not_offered` stays, proven by a planted value). With it, every town now lends a move to both of its countries: the last two dead sides (Shield at its Restoration town, Destruction at its Restoration town) were Greater Mend.
 
@@ -188,7 +188,7 @@ Game designer, `lane/designer-greater-mend`, on CONFLICTS 2026-11-27 (E5). RULED
 | The same at −50% | +18.0 (1.9) | +7.6 (2.7) | 18.0 | 458 | +0.3% | +16.1% |
 | The same at −75% | +7.0 (2.4) | +0.4 (1.8) | 7.0 | 450 | −0.3% | +13.6% |
 | **The same at −80%, the fourth band** | **+6.0 (1.6)** | **−1.4 (1.1)** | **6.0** | 448 | −0.6% | +13.9% (kit share 0.24) |
-| The hammer beside a healer at −80% (V4's cell) | GMH_ROW |
+| The hammer beside a healer at −80% (V4's cell) | −9.3 (2.0) | −8.5 (1.9) | 0 | 335 | −2.1% | +3.6% |
 
 **Why this lever and not the others.**
 - **Keep the fallback (no borrowed heal):** leaves two town picks on the map that buy nothing and leaves a four with no healer one sustain borrow worth 2 steps (Circle of Renewal). A dead pick is a design bug.

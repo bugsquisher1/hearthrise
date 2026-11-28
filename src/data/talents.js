@@ -81,7 +81,7 @@ export const TALENT_RULES = Object.freeze({
    Havora crossing (null: not offered there). A move whose V0 is past the last band is re-driven and measured again, never offered.
    Each band's top lands at or under its cap after its price (4, 7, 10, 10). THE FOURTH BAND (game designer, lane/designer-greater-mend,
    2026-11-27; 19 L6): V0 20 to 50 lends at a fifth of its power at a border town and never at Havora. It holds Greater Mend (40.3 on 17's
-   cell, a four with no healer): measured at -80% it adds +6.1 held there (roads/e5 n-gm-200) and +1.6 beside a healer (m-gm-200) */
+   cell, a four with no healer): measured at -80% it adds +6.0 held there (roads/e5 n-gm-200) and costs 9.3 beside a healer (m-gm-200: the hammer gives up its Mends) */
 export const BORROW_BANDS = Object.freeze([
   Object.freeze({ upTo: 4, borderPm: 0, havoraPm: 300 }),
   Object.freeze({ upTo: 10, borderPm: 300, havoraPm: 500 }),

@@ -222,7 +222,7 @@ Beside them, two rules change a V0 but not whether a move casts: a borrowed ally
 | Circle of Renewal, the sword with no healer (N) | 447.2 | +2.0 (2.3) | +1.8 (1.5) | **2.0** | 214 | 18, 5 | +6.4% | 0 / 0 |
 | Greater Mend, the sword with no healer, at −75% (lane/designer-greater-mend) | 447.2 | +7.0 (2.4) | +0.4 (1.8) | 7.0 | 450 | 18, 0 | +13.6% | 0 / 0 |
 | **Greater Mend, the sword with no healer, at −80% (the fourth band)** | 447.2 | +6.0 (1.6) | −1.4 (1.1) | **6.0** | 448 | 18, 0 | +13.9% | 0 / 0 |
-| Greater Mend, the hammer beside a healer, at −80% | GMH_ROW18 |
+| Greater Mend, the hammer beside a healer, at −80% | 606.0 | −9.3 (2.0) | −8.5 (1.9) | 0 | 335 | 39, 0 | +3.6% | 0 / 0 |
 
 - **The heal rule works on cast count, as intended.** The sword's Greater Mend fell from 1,421 casts an hour (section 7, no rule) to 464, and its value from +97.4 to +40.3. Beside a healer it is +7.5 (it was +49.9 on the hammer before the rule, section 1). Under the rule the value now moves with power: 70% power reads 31.5 and half power 18.0 of 40.3.
 - **19 V4 passes on its own cell** (the hammer beside a healer, 10 steps or less): 7.5 ± 3.2.

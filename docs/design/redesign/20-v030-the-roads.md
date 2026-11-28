@@ -304,7 +304,7 @@ v0.3.0 ships when every line below is true.
 **Known risks:**
 - R10 is the widest lane and blocks most of the others, so it gets started first.
 - T1 is the largest new server surface.
-- V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback.
+- V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback. (Settled 2026-11-27: it passes beside a healer at full power and without one at the fourth band's −80%, so Greater Mend ships borrowable from Level 120.)
 - The Challenge made a tank's four 63 steps shallower (`23` section 3). MV lands before R-S so the Shield country isn't built on it.
 
 ## Changes from the first-hour rewrite

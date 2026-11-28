@@ -113,6 +113,9 @@
 //                               (src/core/hunt/fall-save.js)
 // P8 (the boss cell, tools) is not built: CONFLICTS 2026-11-28 signatures-batch-4.
 //
+// BATCH 5'S RULINGS (lane/designer-sig-batch5, 2026-11-28): the rows set and cut, each reading in 15 "Batch 4's calls and the out-of-band
+// rows, ruled"; the cut rows stay as batch 4 built them until batch 5 rewrites each (HANDOFFS 2026-11-28 designer-sig-batch5).
+//
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
 // move a move Signature belongs to (every live move gets one, CC-5). `best` is the seat (src/data/hunt-roles.js HUNT_ROLES) and the ground it
@@ -220,8 +223,8 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'taunt', do: 'boon', to: 'party', status: 'guarded', pw: 1250, ms: 3000 }] }),
   lock_keepers_chain: sig({ id: 'lock_keepers_chain', n: 19, name: 'Lock-Keeper\'s Chain', slot: 'necklace', move: 'spring_tide',
     home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'A hero near fall-back: Spring Tide is ready again (once every 30 s)',
-    reacts: [{ on: 'near_fall', do: 'ready', move: 'spring_tide', clockMs: 30000 }] }),
+    tip: 'A hero near fall-back: Spring Tide is ready again (once a minute)',
+    reacts: [{ on: 'near_fall', do: 'ready', move: 'spring_tide', clockMs: 60000 }] }),
   greened_bracers: sig({ id: 'greened_bracers', n: 20, name: 'Greened Bracers', slot: 'gloves', move: 'green_sickness',
     home: { kind: 'monster', id: 'greened_pikeman' }, best: { seat: 'healer', ground: 'muster_barrows' },
     tip: 'Green Sickness: your next Greater Mend heals 30% more',
@@ -251,13 +254,13 @@ export const SIGNATURES = Object.freeze({
     tip: 'Water rune heals: you get back 0.5% of your max mana',
     reacts: [{ on: 'heal', family: 'water', do: 'mana', pm: 5 }] }),
   vault_leech_ring: sig({ id: 'vault_leech_ring', n: 28, name: 'Vault Leech Ring', slot: 'ring', family: 'poison',
-    home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Poison rune spells also Sicken the monster attacking the ally lowest on health',
-    reacts: [{ on: 'cast', family: 'poison', do: 'status', status: 'sickness', at: 'lowest' }] }),
+    home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'carters_rest' },
+    tip: 'Poison rune spells: the hurt ally lowest on health heals for 60% of the damage they deal',
+    reacts: [{ on: 'cast', family: 'poison', do: 'heal', to: 'lowest', pm: 600 }] }),
   the_cellar_key: sig({ id: 'the_cellar_key', n: 31, name: 'The Cellar Key', slot: 'necklace',
     home: { kind: 'monster', id: 'the_landlord' }, best: { seat: 'healer', ground: 'carters_rest' },
-    tip: 'When a monster hits an ally below 30% health, that ally heals 2% of max health (once every 30 s for each ally)',
-    reacts: [{ on: 'ally_hit', belowPm: 300, do: 'heal', to: 'target', pm: 20, clockMs: 30000, per: 'target' }] }),
+    tip: 'When a monster hits an ally below 30% health, that ally heals 3% of max health (once every 20 s for each ally)',
+    reacts: [{ on: 'ally_hit', belowPm: 300, do: 'heal', to: 'target', pm: 30, clockMs: 20000, per: 'target' }] }),
   teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves', move: 'power_strike',
     home: { kind: 'monster', id: 'dead_teamster' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
     tip: 'Power Strike on a monster attacking an ally: it turns on you for 4 s',
@@ -272,14 +275,14 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'ally_hit', belowPm: 450, role: 'stalker', do: 'status', status: 'blunted' }] }),
   bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',
     home: { kind: 'monster', id: 'bull_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    tip: 'Single-target hits on a brute below 30% health deal double damage',
-    reacts: [{ on: 'hit', single: true, belowPm: 300, role: 'brute', do: 'echo', pm: 1000, ms: 100 }] }),
+    tip: 'Single-target hits on a brute below half health deal double damage',
+    reacts: [{ on: 'hit', single: true, belowPm: 500, role: 'brute', do: 'echo', pm: 1000, ms: 100 }] }),
 
   /* ── BATCH 4 (lane/signatures-batch-4): the auras, the pair, the cast costs, the saved shot, the fall-back save ── */
   ledger_ring: sig({ id: 'ledger_ring', n: 32, name: 'Ledger Ring', slot: 'ring',
     home: { kind: 'monster', id: 'ledger_wight' }, best: { seat: 'mage', ground: 'muster_barrows' },
-    tip: 'Every fifth spell you cast costs no mana',
-    costs: { of: 'spell', pay: 'none', every: 5 }, reacts: [] }),
+    tip: 'Every fourth spell you cast costs no mana',
+    costs: { of: 'spell', pay: 'none', every: 4 }, reacts: [] }),
   sergeants_sash: sig({ id: 'sergeants_sash', n: 34, name: 'Sergeant\'s Sash', slot: 'cape',
     home: { kind: 'monster', id: 'color_sergeant' }, best: { seat: 'healer', ground: 'muster_barrows' },
     tip: 'Party aura: +20% mana regeneration within 8 tiles',
@@ -291,16 +294,16 @@ export const SIGNATURES = Object.freeze({
     aura: { takenPm: -40, r: 2 }, reacts: [] }),
   lychgate_leggings: sig({ id: 'lychgate_leggings', n: 37, name: 'Lychgate Leggings', slot: 'pants',
     home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Below 30% mana: your heals cost no mana for 5 s (90 s cooldown)',
-    costs: { of: 'heal', pay: 'none', belowManaPm: 300, ms: 5000, clockMs: 90000 }, reacts: [] }),
+    tip: 'Below half mana: your heals cost no mana for 5 s (40 s cooldown)',
+    costs: { of: 'heal', pay: 'none', belowManaPm: 500, ms: 5000, clockMs: 40000 }, reacts: [] }),
   hearth_masons_cloak: sig({ id: 'hearth_masons_cloak', n: 40, name: 'Hearth Mason\'s Cloak', slot: 'cape',
     home: { kind: 'chest', id: 'platinum' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Once an hour, a hero of your party who would die falls back instead',
-    save: { clockMs: 3600000 }, reacts: [] }),
+    tip: 'Once every 75 minutes, a hero of your party who would die falls back instead',
+    save: { clockMs: 4500000 }, reacts: [] }),
   brood_bracers: sig({ id: 'brood_bracers', n: 41, name: 'Brood Bracers', slot: 'gloves',
     home: { kind: 'monster', id: 'brood_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    tip: 'Every fifth arrow that hits costs no arrow',
-    saves: { ammo: true, every: 5, hit: true }, reacts: [] }),
+    tip: 'Every third arrow that hits: your next shot costs no arrow',
+    saves: { ammo: true, every: 3, hit: true }, reacts: [] }),
   pyre_priests_hood: sig({ id: 'pyre_priests_hood', n: 44, name: 'Pyre Priest\'s Hood', slot: 'helmet',
     home: { kind: 'monster', id: 'pyre_priest' }, best: { seat: 'mage', ground: 'muster_barrows' },
     tip: 'Above 70% health: your spells cost health instead of mana (1 health per mana)',

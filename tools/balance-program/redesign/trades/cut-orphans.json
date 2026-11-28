@@ -1,5 +1,5 @@
 {
- "count": 88,
+ "count": 79,
  "byBand": {
   "0": {
    "food": [
@@ -105,13 +105,6 @@
    "armor": [
     "archmage_cloak"
    ],
-   "food": [
-    "cooked_shark",
-    "ember_tart",
-    "fishers_pie",
-    "pumpkin_pie",
-    "river_chowder"
-   ],
    "tool": [
     "ember_axe",
     "ember_pickaxe"
@@ -121,6 +114,12 @@
     "ember_necklace",
     "ember_ring"
    ],
+   "food": [
+    "ember_tart",
+    "fishers_pie",
+    "pumpkin_pie",
+    "river_chowder"
+   ],
    "material": [
     "heartgarnet"
    ]
@@ -128,23 +127,16 @@
   "6": {
    "food": [
     "bear_claw_pie",
-    "cooked_frostfin",
     "goldenroot_roast"
    ],
    "tool": [
     "dawn_axe",
     "dawn_pickaxe"
    ],
-   "material": [
-    "dawn_bar"
-   ],
    "jewelry": [
     "dawn_earrings",
     "dawn_necklace",
     "dawn_ring"
-   ],
-   "ammo": [
-    "dawn_whetstone"
    ],
    "armor": [
     "duskweave_cloak"
@@ -158,21 +150,11 @@
    ],
    "armor": [
     "samite_cloak"
-   ],
-   "food": [
-    "shark"
    ]
   },
   "8": {
    "armor": [
     "cerecloth_cloak"
-   ],
-   "food": [
-    "cooked_moonfish",
-    "moonfish"
-   ],
-   "material": [
-    "duskwood_plank"
    ],
    "jewelry": [
     "wolfram_earrings",
@@ -181,9 +163,6 @@
    ]
   },
   "9": {
-   "ammo": [
-    "dawnpoint_arrows"
-   ],
    "food": [
     "moonbloom_elixir",
     "void_banquet"
@@ -362,16 +341,6 @@
    ]
   },
   {
-   "id": "cooked_frostfin",
-   "name": "Frostfin Supper",
-   "kind": "food",
-   "band": 6,
-   "by": "bench Level 70",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
    "id": "cooked_herring",
    "name": "Cooked Herring",
    "kind": "food",
@@ -382,31 +351,11 @@
    ]
   },
   {
-   "id": "cooked_moonfish",
-   "name": "Moonfish Fillet",
-   "kind": "food",
-   "band": 8,
-   "by": "bench Level 88",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
    "id": "cooked_panther_meat",
    "name": "Cooked Panther Meat",
    "kind": "food",
    "band": 2,
    "by": "bench Level 25",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "cooked_shark",
-   "name": "Cooked Shark",
-   "kind": "food",
-   "band": 5,
-   "by": "bench Level 60",
    "doors": [
     "made by cooking"
    ]
@@ -472,16 +421,6 @@
    ]
   },
   {
-   "id": "dawn_bar",
-   "name": "Dawnsteel Bar",
-   "kind": "material",
-   "band": 6,
-   "by": "metal dawn",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
    "id": "dawn_earrings",
    "name": "Dawnsteel Earrings",
    "kind": "jewelry",
@@ -522,41 +461,11 @@
    ]
   },
   {
-   "id": "dawn_whetstone",
-   "name": "Dawnsteel Whetstone",
-   "kind": "ammo",
-   "band": 6,
-   "by": "metal dawn",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
-   "id": "dawnpoint_arrows",
-   "name": "Dawnpoint Arrows",
-   "kind": "ammo",
-   "band": 9,
-   "by": "bench Level 91",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "duskweave_cloak",
    "name": "Duskweave Cloak",
    "kind": "armor",
    "band": 6,
    "by": "item Level 120",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
-   "id": "duskwood_plank",
-   "name": "Duskwood Plank",
-   "kind": "material",
-   "band": 8,
-   "by": "bench Level 88",
    "doors": [
     "made by crafting"
    ]
@@ -772,16 +681,6 @@
    ]
   },
   {
-   "id": "moonfish",
-   "name": "Raw Moonfish",
-   "kind": "food",
-   "band": 8,
-   "by": "bench Level 90",
-   "doors": [
-    "gathered"
-   ]
-  },
-  {
    "id": "pumpkin_pie",
    "name": "Pumpkin Pie",
    "kind": "food",
@@ -909,16 +808,6 @@
    "by": "item Level 40",
    "doors": [
     "made by smithing"
-   ]
-  },
-  {
-   "id": "shark",
-   "name": "Raw Shark",
-   "kind": "food",
-   "band": 7,
-   "by": "bench Level 76",
-   "doors": [
-    "gathered"
    ]
   },
   {

@@ -23,8 +23,8 @@
 //         weights; an empty slot gains nothing; no ranks: byte for byte what it was
 //   TS-5  CARRY-OVER: every Trait moves (one on a Rare, two on a Very Rare), 2 + rank parts from the Trait's home ground, 0.5 h of wage a
 //         step at the new base; refused onto a lower tier, another slot, a piece with a Trait, from a Signature or out of escrow
-//   TS-6  THE KIT (lane/tp-im-steps, a K1 kit trade): a rank on a piece takes its band's Temper kit (Iron to Dawnsteel), never another band's;
-//         Bronze and the bands past Dawnsteel have none (kits_owed); every kit band is a named Smithing recipe; the quote's kits are whole
+//   TS-6  THE KIT (lane/tp-im-steps, a K1 kit trade): a rank on a piece takes its band's Temper kit (Iron to Wolfram), never another band's;
+//         Bronze and the bands past Wolfram have none (kits_owed); every kit band is a named Smithing recipe; the quote's kits are whole
 //   TS-7  THE CAP HOLDS ON A FULL KIT (lane/tp-im-steps, 20 lane TP done-when): rank 5, or a forged 9, on every slot is +5 steps of armor
 //         and of ward as well as of the gear part, and never more; the old rungs are gone (src/data/temper.js holds Temper on steps alone)
 // ════════════════════════════════════════════════════════════════════════
@@ -80,8 +80,9 @@ async function pure(base) {
     [from, { slot: 'weapon', tier: 3, traits: [], escrow: true }, 'escrowed'], [{ ...from, traits: [] }, { slot: 'weapon', tier: 3, traits: [] }, 'no_trait']];
   for (const [f, to, why] of refuse) { const r = C.carryQuote(f, to); if (r.ok || r.why !== why) out.push('TS-5 want ' + why + ', got ' + JSON.stringify(r)); }
   /* TS-6 */
-  const kitAt = [0, 19, 20, 45, 60, 80, 100, 119, 120, 140].map((l) => TR.temperKitAt(l)).join();
-  if (kitAt !== ',,temper_salts,fine_temper_salts,mithril_temper_salts,rune_temper_salts,ember_temper_salts,ember_temper_salts,dawn_temper_salts,') out.push('TS-6 the kits by item Level read ' + kitAt);
+  /* Cobalt's and Wolfram's kits (bands 7 and 8, 09 4.16) answer at 140 and 160; nothing past Wolfram (180) */
+  const kitAt = [0, 19, 20, 45, 60, 80, 100, 119, 120, 140, 160, 180].map((l) => TR.temperKitAt(l)).join();
+  if (kitAt !== ',,temper_salts,fine_temper_salts,mithril_temper_salts,rune_temper_salts,ember_temper_salts,ember_temper_salts,dawn_temper_salts,cobalt_temper_salts,wolfram_temper_salts,') out.push('TS-6 the kits by item Level read ' + kitAt);
   const named = new Set(TRD.KIT_RECIPES.filter((r) => r.kind === 'temper_kit').map((r) => r.band));
   TD.TEMPER_KITS.forEach((id, band) => { if (id && !named.has(band)) out.push('TS-6 the band ' + band + ' kit ' + id + ' is no named recipe'); });
   if (!TR.temperKitAt(TD.TEMPER_STEPS.rankEvery)) out.push('TS-6 rank 1 opens where no kit is named');

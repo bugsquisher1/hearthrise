@@ -196,10 +196,15 @@ export const FLAME_SKILL_CURVE = Object.freeze({ skill: 'inner_flame', base: 15,
    gate is now L. By tier (1..7 on the ammo ladders, 1..5 on the runes); the old gates were 1 / 15 / 30 / 45 / 60 / 75 / 88 for all three.
    tests/bands.mjs BD-10 re-derives every number from the snapshot. A rune spell's version reads its own skill's row (runes.js versionLevel).
    The Level a store basic is priced at is the ladder's MADE-AT Level, unchanged (stonecraft.js AMMO_MADE_LV, an item's `madeLv`, runes.js
-   RUNE_TIERS level, which Runecrafting crafts at), so no price moves. */
+   RUNE_TIERS level, which Runecrafting crafts at), so no price moves.
+   A RUNG OPENS BY ITS BAND (the designer, lane/kit-bands-6-9, 09 4.16): rung r is band r - 1's supply (its arrow, its stone, its rune), so
+   its gate is the career's Level capped at that band's gear item Level, 20 x (r - 1) (GEAR_STEPS.tierSteps a band; the Level the band's
+   reference four hunts at). The careers put rung 6 at 105 and 115 and rung 7 at 142 and 168, past Carter's Rest's entry (110) and the
+   whole Ox Road, so a band 5 or 6 company made supplies its heroes could not use. Rungs 1 to 5 sit under the cap and keep the careers'
+   Levels (every open ground's reference reads them unchanged). tests/bands.mjs BD-10 re-derives each as min(career, cap). */
 export const SUPPLY_GATES = Object.freeze({
-  melee: Object.freeze([1, 9, 23, 45, 73, 115, 168]),
-  ranged: Object.freeze([1, 9, 19, 39, 66, 105, 142]),
+  melee: Object.freeze([1, 9, 23, 45, 73, 100, 120]),
+  ranged: Object.freeze([1, 9, 19, 39, 66, 100, 120]),
   magic: Object.freeze([1, 8, 15, 39, 71]),
 });
 

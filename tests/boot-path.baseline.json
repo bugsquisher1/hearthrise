@@ -736,6 +736,18 @@
         "gzipBytes": 880241,
         "on": "2026-11-28",
         "why": "signatures-batch-4: 9 new Signature rows in src/data/signatures.js, which the bag tooltip reads for a piece's name and rule (item-standing.js, item-lore.js: about 0.75 KB), the reaction vocabulary's new fields in src/data/talents.js (0.15 KB) and the standing-effect fold in the one effect reader status-effects.js (0.12 KB). The engine code that rode along (tauntOne, fallBackNow) moved to reactions.js and fall-save.js, on need; the sign-in stage moves only by the hashed chunk names it lists"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 880873,
+        "on": "2026-11-28",
+        "why": "kit-bands-6-9: band 5-8 goods in items.js and stonecraft.js rungs on the town path (+0.6 KB)"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 880907,
+        "on": "2026-11-28",
+        "why": "designer-sig-batch5: longer Signature tips in signatures.js, read by the bag tooltip (+0.1 KB)"
       }
     ]
   }

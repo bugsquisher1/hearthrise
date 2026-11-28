@@ -1,0 +1,13 @@
+V1: 12 seed jobs (1 cells x 12 seeds x 8 h) on 4 workers; muster_barrows, Levels 60 / 63 / 70
+[1/12] base:steady#0 88 s, 89 s elapsed
+[2/12] base:steady#2 88 s, 89 s elapsed
+[3/12] base:steady#3 88 s, 89 s elapsed
+[4/12] base:steady#1 91 s, 92 s elapsed
+[5/12] base:steady#5 85 s, 174 s elapsed
+[6/12] base:steady#4 86 s, 175 s elapsed
+[7/12] base:steady#6 86 s, 175 s elapsed
+[8/12] base:steady#7 84 s, 176 s elapsed
+[9/12] base:steady#11 85 s, 262 s elapsed
+[10/12] base:steady#9 88 s, 263 s elapsed
+[11/12] base:steady#10 88 s, 263 s elapsed
+[12/12] base:steady#8 89 s, 263 s elapsed

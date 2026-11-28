@@ -166,7 +166,7 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
   cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
   bronze_arrows: FREE_RUNG,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
-  rune_whetstone: HONE, dawn_whetstone: HONE,
+  rune_whetstone: HONE, ember_whetstone: HONE, dawn_whetstone: HONE,
 }));
 
 

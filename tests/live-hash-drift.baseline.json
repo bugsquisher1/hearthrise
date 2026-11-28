@@ -25,7 +25,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-11-20",
-  "replay_ms": 31276,
+  "replay_ms": 5452,
   "counts": {
     "tracked_names": 1192,
     "entries": 1004
@@ -6533,21 +6533,23 @@
       "sig": "hr_flame_temper_settle()",
       "name": "hr_flame_temper_settle",
       "tracked_by": [
+        "chain",
         "pin",
         "restate"
       ],
       "touched_by": [
         "1063-flame-temper.sql",
-        "1074-inner-flame-luck.sql"
+        "1074-inner-flame-luck.sql",
+        "1078-imbue-fee-timer.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "40cf4eae24bc4914586505bb98641a96",
-        "norm_len": 1013,
+        "md5": "e171d7d70593a46d9cfbdcac77a025ca",
+        "norm_len": 1892,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1074-inner-flame-luck.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1074-inner-flame-luck.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1074-inner-flame-luck.sql, 1078-imbue-fee-timer.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1078-imbue-fee-timer.sql."
     },
     {
       "sig": "hr_flame_top_of(p_user uuid)",
@@ -11645,21 +11647,23 @@
       "touched_by": [
         "1063-flame-temper.sql",
         "1071-tp-im-server.sql",
-        "1077-worn-imbues.sql"
+        "1077-worn-imbues.sql",
+        "1078-imbue-fee-timer.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "9217edf7bb44749a311e287c92909a41",
-        "norm_len": 6144,
+        "md5": "6a304f2f52ff61dd5534e78e4639354e",
+        "norm_len": 6420,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1071-tp-im-server.sql, 1077-worn-imbues.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1077-worn-imbues.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1071-tp-im-server.sql, 1077-worn-imbues.sql, 1078-imbue-fee-timer.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1078-imbue-fee-timer.sql."
     },
     {
-      "sig": "hr_imbue_fee(p_item_level integer, p_hero_level integer)",
+      "sig": "hr_imbue_fee(p_band integer)",
       "name": "hr_imbue_fee",
       "tracked_by": [
+        "pin",
         "restate"
       ],
       "touched_by": [
@@ -11668,12 +11672,12 @@
       ],
       "live": null,
       "replay": {
-        "md5": "7891c2bd7d99fc3ff06069d543030e09",
-        "norm_len": 435,
+        "md5": "aae8df5dbf34e3dd46c0faa470711f09",
+        "norm_len": 322,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1063-flame-temper-catalogue.generated.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper-catalogue.generated.sql, 1069-gear-phase-b-flame-temper-catalogue.generated.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1069-gear-phase-b-flame-temper-catalogue.generated.sql."
     },
     {
       "sig": "hr_imbue_life_ms(p_quality text)",
@@ -11716,20 +11720,23 @@
       "sig": "hr_imbues_view(p_user uuid, p_slot integer)",
       "name": "hr_imbues_view",
       "tracked_by": [
+        "chain",
+        "pin",
         "restate"
       ],
       "touched_by": [
         "1063-flame-temper.sql",
-        "1071-tp-im-server.sql"
+        "1071-tp-im-server.sql",
+        "1078-imbue-fee-timer.sql"
       ],
       "live": null,
       "replay": {
-        "md5": "b50e27f5b772e21244497fdd5c96acb1",
-        "norm_len": 1275,
+        "md5": "63c1f8313be38e21cbd4b530d8665df9",
+        "norm_len": 1503,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1071-tp-im-server.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1071-tp-im-server.sql."
+      "why": "STAGED for the v0.2.144 release by 1063-flame-temper.sql, 1071-tp-im-server.sql, 1078-imbue-fee-timer.sql (production frozen on the live version; staged server changes apply together at the release). Live is the current body (absent on production), replay is the staged body from 1078-imbue-fee-timer.sql."
     },
     {
       "sig": "hr_inspect(p_target text, p_slot integer)",

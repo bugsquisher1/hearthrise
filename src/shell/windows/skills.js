@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/skills.js — THE SKILLS: TWO LEDGERS (WORLD_SHELL §4).
 //
-// One ledger, two homes (Tyler 10-18: split so neither needs a scroll bar):
-// the Gathering and crafting window, and the combat skills inside the
-// Character window (src/shell/windows/character/sheet.js), beside the combat
-// numbers they make. skillsWindow(groups) makes each from its SKILLS_DEF
+// Two homes (Tyler 10-18: split so neither needs a scroll bar): the trades in
+// the Work window (below), and the combat skills inside the Character window
+// (src/shell/windows/character/sheet.js), beside the combat numbers they make.
+// skillsWindow(groups) makes a ledger from its SKILLS_DEF
 // categories, so a new skill joins the ledger of its category with nothing
 // else to edit. One compact entry per skill the SERVER states, two to a
 // row: its glyph and name, the server's level, the progress to the next level,

@@ -8,6 +8,7 @@
 //   trade_jobs.recipes  [ { id, name, trade, kind, band, face, r_level, inputs, quote } ], quote the server's whole-day job
 //                       { ok, count, fee, ends_at } or the refusal the start would answer { ok: false, error, ... }
 //   trade_jobs.stock    { <item>: { fine, master } }  the company's Fine and Master goods
+// And the hero's work day (the `work_day` section, 1059-company-trades.sql: workDayOf), the Work window's line over the Jobs list.
 // Display only: every envelope replaces these, every press re-reads, and the server decides every job. The seed never reaches here.
 // ════════════════════════════════════════════════════════════════════════
 

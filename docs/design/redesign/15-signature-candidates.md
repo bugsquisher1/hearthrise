@@ -646,29 +646,88 @@ MEASURED on `lane/designer-sig-batch5` (the hunt engine of `set/v0.2.144` 40a8fa
 | 4 | Charred Saber | **Unchanged**: Flame Strike's target Blunted | Pyre Field, the sword four, **24 seeds** | +9.0 (1.9) | **+13.6 (3.4)** | Muster +3.7 (batch 2) | Over by 0.6, se 3.4 over the bar: **36 seeds owed** before any number moves. 12 seeds read 14.6 (5.1). The 6.4 was batch 2's tree | Kept, dark |
 | 43 | Bull's Tooth | Single-target hits on a brute **below half health** deal double damage | Muster Barrows | +0.2 (2.8) | **+10.5 (2.9)** | Wyvern Roost, its home, +4.9 (1.2) | In band, the spread holds. Under 30% read 2.2 at home, 5.2 on Muster | Data set, `best` Muster |
 | 31 | The Cellar Key | An ally hit below 30% heals **3%** of max health (once every **20 s** an ally) | Carter's Rest, its home, 36 seeds | +10.5 (2.6) | **+10.0 (2.4)** | | In band. 2% at 30 s read 5.7 | Data set |
-| 28 | Vault Leech Ring | **Reshaped:** Poison rune spells heal the hurt ally lowest on health for 50% of their damage | Carter's Rest, 36 seeds | PENDING | **PENDING** | Muster +4.7 (2.7) | PENDING | PENDING |
+| 28 | Vault Leech Ring | **Reshaped:** Poison rune spells: the hurt ally lowest on health heals for 60% of the damage they deal | Carter's Rest, 36 seeds | +11.8 (2.4) | **+11.8 (2.1)** | Muster +4.7 (2.7) at 50%, +5.0 at 100% | In band, the spread holds. 50% read 6.9 and 70% 16.6 there. A save on the weakest ally, rule A, on Green Sickness's 10 s clock. The batch 4 Sickness read 3.2 | Data set, `best` Carter's Rest |
 | 32 | Ledger Ring | **Every fourth** spell costs no mana | Muster Barrows, 4 seeds | -0.3 (6.1) | **17.0 coin** | | In band (coin bar). Every fifth 13.7 | Data set |
 | 41 | Brood Bracers | **Every third** arrow that hits: your next shot costs no arrow | Muster Barrows, 4 seeds | 0.0 (0.0) | **20.9 coin** | | In band. After five 12.5 | Data set |
 | 37 | Lychgate Leggings | **Below half mana**: heals cost no mana for 5 s (**40 s** cooldown) | Muster Barrows, 4 seeds | -2.3 (2.4) pace | **23.1 coin** | | In band. Under 30% the healer drinks first (3.0, and 7.1 at 10 s a 30 s clock). Under half the line is crossed every few casts, so the clock is the lever (5 s a 30 s clock 28.0, 10 s 43.0) | Data set |
 | 25 | The Cold Candle | **Reshaped:** Frost Lance uses no runes | Muster Barrows, 4 seeds | 0.0 (0.0) | **19.6 coin** (scratch `saves.of`) | | In band. Every Ice spell 27.8, every other 13.9: no count lands between. Frost Lance is 70% of the mage's Ice casts | Specced (HANDOFFS item 2). The data row stays every Ice spell, dark, until `saves.of` lands |
-| 40 | Hearth Mason's Cloak | **Once every 2 hours**, a hero of your party who would die falls back instead | Muster Barrows, Bold, 36 seeds | | **PENDING** Bold steps vs plain Steady | | PENDING | PENDING |
-| 33 | Teamster's Mitts | **Cut, replaced (spec):** Power Strike: the next blow you take lands at half | | | | | Every shape read under: the taunt -3.6 (sword four) and -1.6 (tank four), Blunted on a monster attacking an ally -3.6 and -0.8, a heal of 8% under half -0.5 and +5.4, its target Sickened PENDING | Batch 5 (a hero-side Blunted) |
+| 40 | Hearth Mason's Cloak | **Once every 75 minutes**, a hero of your party who would die falls back instead | Muster Barrows, Bold, 36 seeds | | **+7.8 (12.4)** Bold steps against plain Steady | | In band by rule F, set between the hour (+21.3, over) and 90 minutes (+5.3), two hours -1.9, once a hunt -15.7. Deaths: 17 in 36 seeds with it, 11 in 12 plain | Data set. The Lab reads it on more seeds before it turns on |
+| 33 | Teamster's Mitts | **Cut, replaced (spec):** Power Strike: the next blow you take lands at half | | | | | Every shape read under: the taunt -3.6 (sword four) and -1.6 (tank four), Blunted on a monster attacking an ally -3.6 and -0.8, a heal of 8% under half -0.5 and +5.4, its target Sickened +1.3 | Batch 5 (a hero-side Blunted) |
 | 26 | Thrower's Ring | **Cut, replaced (spec):** Earth rune shields you cast are 30% stronger | | | | | Every shape read under: the breaker Blunted 2.9, monsters hitting the shell Blunted 4.9, Weakened 3.9, Sapped 0.6, Protective Ward ready 5.5. A healer's shell is seldom the defense that binds, so a rule hung on its moments pays little | Batch 5 (a Signature's raise on a family's shells) |
 | 42 | Night Carter's Boots | **Cut, replaced (spec):** When a monster winds up a blow at an ally below half health, that blow lands at half | | | | | The stalker filter read -1.2 and +1.1, a caster filter -1.8 (the Bone Wing), -0.6 (the Flooded Wing), +1.5 (Pyre). Blunted spends on the striker's next blow, and a caster's comes a spell later. The wind-up is the blow itself, and only grounds with wind-ups have it, so the spread holds by construction | Batch 5 (a `windup` moment) |
 | 18 | Brewer's Apron | **Cut, replaced (spec):** Circle of Renewal: the hurt ally lowest on health is healed a second time | | | | | Every Circle shape read under at home: Emboldened 2.8, +4% on a hero under half 0.9, Guarded 15% for 4 s -0.9. Circle tops up a party already covered. The one heal that reads at home lands on the lowest ally (#28) | Batch 5 (a heal on the lowest from a heal) |
-| 38 | Drowned Signet | **Rewritten (rule D):** below half health, you deal 25% more damage for 4 s (once every 20 s) | Muster Barrows, the sword four | PENDING | **PENDING** | | PENDING | PENDING |
+| 38 | Drowned Signet | **To be rewritten (rule D)** for its seat on its ground | Muster Barrows, the sword four | -3.0 (2.6) | -2.4 (2.4) (the first shape: below half health, +25% damage for 4 s, once every 20 s) | | Under. The sword four on Muster read near zero on every rule this batch tried on it (#33's four shapes too) | Batch 5, its moments read first |
 
 Every shape read (`sum.mjs --batch 5` prints the four tables):
 
-SHAPES_TABLE
+| Shape or re-read | Kind | Held delta (se, seeds) | Pace steps (se) | Bar | Kills/h |
+|---|---|---|---|---|---|
+| #23 Ferry Pennies as it stands, under 45% (Muster, the tank four, this tree) | pace | +11.0 (2.3, 12) | +10.2 (2.4) | in band | -2.0% |
+| #23 under 40% (Muster) | pace | +0.3 (1.9, 12) | +0.5 (2.1) | UNDER (raise or reshape) | 0.0% |
+| #4 Charred Saber as it stands, Blunted on its target (Pyre, the sword four, this tree) | pace | +9.2 (2.8, 12) | +14.6 (5.1) | over, se 5.1: more seeds | 1.1% |
+| #26 monsters that hit a shield you cast: Weakened 8 s (Muster) | pace | +3.4 (3.3, 12) | +3.9 (3.3) | under, se 3.3: more seeds | -0.6% |
+| #26 the same, Sapped 6 s (Muster) | pace | +0.7 (2.7, 12) | +0.6 (2.7) | UNDER (raise or reshape) | -0.4% |
+| #28 Poison rune spells heal the lowest ally 50% of their damage (Muster) | pace | +4.7 (2.7, 12) | +4.7 (2.7) | UNDER (raise or reshape) | -0.9% |
+| #28 the same, 100% (Muster) | pace | +5.4 (2.3, 12) | +5.0 (2.4) | UNDER (raise or reshape) | -1.3% |
+| #42 a caster hits an ally under 45% (the Bone Wing) | pace | -1.3 (1.4, 12) | -1.8 (1.5) | UNDER (raise or reshape) | 0.0% |
+| #42 the same (the Flooded Wing, the axes four) | pace | +0.1 (1.6, 12) | -0.6 (2.3) | UNDER (raise or reshape) | -0.7% |
+| #42 the same (Pyre Field) | pace | +1.4 (2.6, 12) | +1.5 (3.5) | UNDER (raise or reshape) | 0.2% |
+| #43 a brute under half (Muster) | pace | +0.2 (2.8, 12) | +10.5 (2.9) | in band | 3.2% |
+| #43 the same (Wyvern Roost) | pace | +1.2 (1.3, 12) | +4.9 (1.2) | UNDER (raise or reshape) | 1.3% |
+| #33 the Mitts on the tank four (Muster) | pace | -1.1 (2.0, 12) | -1.6 (1.8) | UNDER (raise or reshape) | 0.0% |
+| #33 Power Strike on a monster attacking an ally: its next blow at half (Muster, the sword four, scratch `onAlly`) | pace | -3.9 (3.6, 12) | -3.6 (3.5) | UNDER (raise or reshape) | 0.9% |
+| #33 the same (Muster, the tank four) | pace | -1.3 (1.5, 12) | -0.8 (1.4) | UNDER (raise or reshape) | 0.3% |
+| #19 Lock-Keeper's Chain as it stands, once every 30 s (Muster, batch 3) | pace | +13.3 (2.7, 12) | +13.0 (2.9) | OVER (cut its number) | -2.2% |
+| #19 once every 40 s (Muster) | pace | +14.2 (2.2, 12) | +13.7 (2.1) | OVER (cut its number) | -2.2% |
+| #19 once every 60 s (Muster) | pace | +8.4 (2.8, 12) | +8.5 (2.9) | in band | -1.3% |
+| #19 once every 90 s (Muster) | pace | +7.5 (3.7, 12) | +7.7 (3.5) | in band, se 3.5: more seeds | -1.1% |
+| #4 Charred Saber as it stands, 24 seeds (Pyre, the sword four) | pace | +9.0 (1.9, 24) | +13.6 (3.4) | over, se 3.4: more seeds | 0.6% |
+| #33 Power Strike while you are under half health: heal 8% of your max (Muster, the sword four, scratch `selfBelowPm`) | pace | -0.8 (3.4, 12) | -0.5 (3.5) | UNDER (raise or reshape) | 0.2% |
+| #33 the same (Muster, the tank four) | pace | +5.3 (2.2, 12) | +5.4 (2.6) | UNDER (raise or reshape) | -0.6% |
+| #33 Power Strike: its target Sickened (takes 10% more, 6 s) (Muster, the sword four) | pace | -0.6 (2.8, 12) | +1.3 (2.7) | UNDER (raise or reshape) | 0.9% |
+| #26 monsters that hit a shield you cast: their next blow at half (Muster) | pace | +5.1 (2.1, 12) | +4.9 (2.1) | UNDER (raise or reshape) | -1.1% |
+| #18 Brewer's Apron, Circle of Renewal on a hero under half: +4% of its max health (Carter's Rest, 36 seeds) | pace | +0.1 (2.0, 36) | +0.9 (1.6) | UNDER (raise or reshape) | 0.0% |
+| #31 The Cellar Key, 3% once every 20 s (Carter's Rest, 36 seeds) | pace | +10.5 (2.6, 36) | +10.0 (2.4) | in band | 1.2% |
+| #28 Vault Leech Ring, 100% to the lowest ally (Carter's Rest, 36 seeds) | pace | +21.3 (2.2, 36) | +21.4 (2.2) | OVER (cut its number) | 3.4% |
+| #28 the same at 50% (Carter's Rest, 36 seeds) | pace | +6.8 (2.4, 36) | +6.9 (2.1) | UNDER (raise or reshape) | 0.9% |
+| #28 the same at 60% (Carter's Rest, 36 seeds) | pace | +11.8 (2.4, 36) | +11.8 (2.1) | in band | 1.5% |
+| #28 the same at 70% (Carter's Rest, 36 seeds) | pace | +16.4 (2.7, 36) | +16.6 (2.6) | OVER (cut its number) | 2.4% |
+| #18 Brewer's Apron, Circle of Renewal: each hero it heals takes 15% less for 4 s (Carter's Rest, 36 seeds) | pace | -3.0 (2.1, 36) | -0.9 (1.7) | UNDER (raise or reshape) | 0.2% |
+| #18 the same (Muster) | pace | +6.3 (1.9, 12) | +6.0 (2.0) | UNDER (raise or reshape) | -1.3% |
+| #38 Drowned Signet: under half health, you deal 25% more for 4 s, once every 20 s (Muster, the sword four) | pace | -3.0 (2.6, 12) | -2.4 (2.4) | UNDER (raise or reshape) | 0.7% |
+
+| Coin shape | Coin steps | Fight, pace steps (se) | Bar |
+|---|---|---|---|
+| #32 Ledger Ring, every fourth spell (Muster) | +17.0 | -0.3 (5.6) | in band |
+| #41 Brood Bracers, a credit after three landed (Muster) | +20.9 | +0.0 (0.0) | in band |
+| #37 Lychgate Leggings under 30% mana, 10 s, 30 s clock (Muster) | +7.1 | -3.3 (2.7) | UNDER (raise or reshape) |
+| #37 under half mana, 10 s, 30 s clock (Muster) | +43.0 | +1.8 (5.4) | OVER (cut its number) |
+| #37 under half mana, 15 s, 30 s clock (Muster) | +63.3 | -3.7 (2.0) | OVER (cut its number) |
+| #37 under half mana, 5 s, 30 s clock (Muster) | +28.0 | -2.2 (2.4) | OVER (cut its number) |
+| #37 under 40% mana, 10 s, 30 s clock (Muster) | +45.5 | -2.8 (2.3) | OVER (cut its number) |
+| #37 under half mana, 5 s, 40 s clock (Muster) | +23.1 | -2.3 (2.4) | in band |
+| #37 under half mana, 5 s, 45 s clock (Muster) | +21.7 | -2.3 (2.4) | in band |
+| #25 The Cold Candle, Frost Lance only (Muster, scratch `saves.of`) | +19.6 | +0.0 (0.0) | in band |
+
+| Bold shape | Kept a hero-hour: plain Bold, plain Steady, worn | Against | Bold steps (se, seeds) | Deaths on Bold, plain to worn (12 seeds x 8 h) | Bar |
+|---|---|---|---|---|---|
+| #40 the Cloak as built, once an hour (Muster, Bold) | 159367, 220952, 243138 | plain Steady | +25.9 (21.6, 12) | 11 in 12 seeds to 4 in 12 | over, se 21.6: more seeds |
+| #40 once a hunt (a 10 h clock) (Muster, Bold) | 159367, 220952, 216634 | plain Steady | -4.0 (22.0, 12) | 11 in 12 seeds to 7 in 12 | under, se 22.0: more seeds |
+| #40 once an hour, 36 seeds (Muster, Bold) | 159367, 220588, 238640 | plain Steady | +21.3 (11.8, 36) | 11 in 12 seeds to 14 in 36 | over, se 11.8: more seeds |
+| #40 once every 75 minutes, 36 seeds (Muster, Bold) | 159367, 220588, 226870 | plain Steady | +7.8 (12.4, 36) | 11 in 12 seeds to 17 in 36 | in band, se 12.4: more seeds |
+| #40 once every 90 minutes, 36 seeds (Muster, Bold) | 159367, 220588, 224612 | plain Steady | +5.3 (12.3, 36) | 11 in 12 seeds to 18 in 36 | under, se 12.3: more seeds |
+| #40 once every 2 hours, 36 seeds (Muster, Bold) | 159367, 220588, 218327 | plain Steady | -1.9 (12.2, 36) | 11 in 12 seeds to 20 in 36 | under, se 12.2: more seeds |
+| #40 once every 3 hours, 36 seeds (Muster, Bold) | 159367, 220588, 217232 | plain Steady | -3.1 (12.3, 36) | 11 in 12 seeds to 20 in 36 | under, se 12.3: more seeds |
+| #40 once a hunt, 36 seeds (Muster, Bold) | 159367, 220588, 206119 | plain Steady | -15.7 (11.7, 36) | 11 in 12 seeds to 24 in 36 | UNDER (raise or reshape) |
 
 **What the readings say.**
 
-- **The re-read moved rows by their tree, not their ruler.** Batch 2's readings sit on batch 2's plain fours. Played again on this tree, Ferry Pennies reads 10.2 (it read 13.7 on the old reports in the new steps) and the Charred Saber 13.6 on 24 seeds (6.4). Every batch 2 row is re-read on this tree before it turns on (HANDOFFS item 8).
+- **The re-read moved rows by their tree, not their ruler.** Batch 2's readings sit on batch 2's plain fours. Played again on this tree, Ferry Pennies reads 10.2 (it read 13.7 on the old reports in the new steps) and the Charred Saber 13.6 on 24 seeds (6.4). Every batch 2 row is re-read on this tree before it turns on (HANDOFFS item 7).
 - **A clock that never binds is no lever.** The Chain read 13.0 at 30 s and 13.7 at 40 s, then 8.5 at a minute: a near fall-back comes less often than every 40 s, and Spring Tide's own cooldown is a minute.
-- **Heals read where healing binds, and on the lowest ally.** The Leech's heal on the lowest ally read 4.7 and 5.0 on Muster (50% and 100%) and 21.4 at 100% on Carter's Rest. Circle of Renewal's every shape read nothing there. The Key reads 10.0 on 3% a 20 s clock.
+- **Heals read where healing binds, and on the lowest ally.** The Leech's heal on the lowest ally read 4.7 and 5.0 on Muster (50% and 100%: the lowest ally there is seldom low) and 6.9, 11.8, 16.6 and 21.4 at 50%, 60%, 70% and 100% on Carter's Rest. Circle of Renewal's every shape read nothing there. The Key reads 10.0 on 3% a 20 s clock.
+- **The sword four on Muster Barrows reads almost nothing.** Five rules on it read -3.6 to +1.3 (the Mitts' four, the Signet's one), while the Mitts' shapes on the tank four read up to 5.4. It is no cell for a melee row: batch 5 reads a melee row's moments first, on the tank four and on Pyre Field's sword four.
 - **A coin piece reads in coin steps and its line is a cliff.** The Leggings read 3.0 and 7.1 under 30% mana and 28 to 63 under half, since a healer that drinks at 30% sits between the two. A clock on the half line sets it (23.1 at 40 s).
-- **The Bold four keeps less than the Steady one on Muster.** 159,000 to 221,000 Level XP a hero-hour: a death costs a hero about a day of Level XP. With the Cloak at once an hour Bold keeps 238,600 (36 seeds), past Steady by 21.3 (11.8) steps. That is the death package's balance as much as the Cloak's, a reading for the Lab (HANDOFFS item 8).
+- **The Bold four keeps less than the Steady one on Muster.** 159,000 to 221,000 Level XP a hero-hour: a death costs a hero about a day of Level XP. With the Cloak once an hour Bold keeps 238,600 (36 seeds), past Steady by 21.3 (11.8) steps, and once every 75 minutes 226,900, past it by 7.8. So the Cloak is what makes Bold worth choosing on Muster, by about a Signature. That Bold never pays there without it is the death package's balance, a reading for the Lab (HANDOFFS item 7).
 - **Repetition, audited.** The cuts take Blunted off #26 and #42 and the taunt off #33, and the replacements are new pieces: a hero-side Blunted (#33, the mirror of #4's), a raise on a family's shells (#26), a wind-up moment (#42), a heal on the lowest ally from a heal (#18, beside #28's from a spell). Blunted keeps #4 and #23. Guarded keeps #1, #3, #17, #35 and #46.
 
 ### Batch 5: the rows and their moves (spec)
@@ -688,7 +747,7 @@ Nothing below is built. Each row reads its moments first (`moments.mjs`), then 1
 | 26 | Thrower's Ring | Earth rune | Carter's Rest, Slate Thrower · ring | Earth rune shields you cast are 30% stronger | a Signature's standing raise on a family's casts (`raise: { family, pm }`) | the mixed four's healer on Muster, the tank four's tank | Shelter, Arcane Barrier, Protective Ward and Warm Stone are the Earth shells. Read on the healer and on the tank, both cast one |
 | 42 | Night Carter's Boots | any | Unmarked Catacombs, Night Carter · boots | When a monster winds up a blow at an ally below half health, that blow lands at half | a `windup` moment (a monster's wind-up marked on a hero: `t` that hero, `src` the monster) | the mixed four on the Bone Wing and the Flooded Wing, Pyre Field | Muster has no wind-ups, so the spread holds by construction |
 | 18 | Brewer's Apron | Circle of Renewal | Carter's Rest, Troll Brewer · body | Circle of Renewal: the hurt ally lowest on health is healed a second time | a heal to the lowest ally that reads its own heal's amount, once a cast | the healer on Carter's Rest (36 seeds) | #28's heal on the lowest ally read 21.4 there at 100%. Lasting Circle and Wide Circle are the branches |
-| 38 | Drowned Signet | any | Captain Hask · ring | Below half health: you deal 25% more damage for 4 s (once every 20 s) | none (`hp_below`, a boon on the wearer) | the sword four on Muster and Pyre Field | Rule D. PENDING |
+| 38 | Drowned Signet | any | Captain Hask · ring | Rewritten on a moment its seat meets on Muster Barrows, read first with `moments.mjs` | | the ranger or the sword on Muster, Hask's Ford | Rule D. The first shape (below half health, +25% damage for 4 s) read -2.4 on the sword four |
 | support | Ash-Pit Mitts, Firebrick Belt, Farmhand's Gloves, Lye Pouch, Watchfire Cloak, Smoored Locket, Bedstone Boots, Pyre-Cloth Wraps | the support's 7 moves and its fires | as `22` section 7.1 | as `22` section 7.1, with the corrections beside | a status-ended moment (Ash-Pit), `min` (Firebrick), a shield to the party (Farmhand's), mana to the party (Lye Pouch), a fire filter (Watchfire, Smoored), `ready` on the moment's hero (Bedstone), two fires (Pyre-Cloth) | the support four on its best grounds (`22` section 2.2) | Built with L13, never before. Corrections from batches 2 to 4: Firebrick Belt's ready lands on a lane 95% full and reads nothing, so it is reshaped before it is built. Watchfire Cloak and Lye Pouch are kill-keyed and read under in every batch so far, so each reads its moments first. Lye Pouch and Smoored Locket are coin pieces on the coin bar. Smoored Locket's 20% line is under where an ally drinks (30%) |
 
 **Count:** 8, Parry's, Gash's, 29, 33, 26, 42, 18 and 38 (9 rows on 8 new pieces) plus the support's 8 with L13: 17 rows, 20 or fewer. #30 waits on Brand.

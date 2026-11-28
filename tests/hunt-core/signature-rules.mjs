@@ -77,7 +77,10 @@
 // BATCH 4 (lane/signatures-batch-4, 2026-11-28; one case a row, each engine piece's mutant):
 //   shell-break-blunt #26 Thrower's Ring (P5): the wearer's shell breaking Blunts the monster that broke it (shell-break-heal keeps the heal
 //                     piece #26 carried on a planted row)
-//   lowest-sicken     #28 Vault Leech Ring (P6): a Poison rune spell Sickens the nearest monster on the ally lowest on health
+//   lowest-sicken     the piece #28 carried in batch 4 (P6, a planted row): a Poison rune spell Sickens the nearest monster on the ally
+//                     lowest on health
+//   poison-heal-lowest #28 Vault Leech Ring (lane/designer-sig-batch5): a Poison rune spell heals the hurt ally lowest on health 60% of
+//                     the damage it dealt; the plain healer's heals no one
 //   power-taunt       #33 Teamster's Mitts (P4): Power Strike on a monster attacking an ally turns it on the wearer, held 4 s; not one a
 //                     Challenge holds
 //   ally-low-blunt, single-low-double   #42 and #43 with their role filters (P9): a stalker's blow, a brute hit
@@ -89,7 +92,7 @@
 //   aura-guard        #35 Gatekeeper's Plate (P1): the wearer and allies within 2 tiles take 8% less, under Guarded's 30% cap
 //   aura-regen        #34 Sergeant's Sash (P1): 20% more mana regeneration within 8 tiles
 //   pair-heal-guard   #45 Convoy Bell and #46 Lead Rein (P1, `with`): each works only with the other in the party, below half health
-//   fall-save         #40 Hearth Mason's Cloak (P7): a death saved at 1 HP once an hour; on Bold the pull breaks off, a fall back
+//   fall-save         #40 Hearth Mason's Cloak (P7): a death saved at 1 HP once every 75 minutes; on Bold the pull breaks off, a fall back
 //   real-settle       THE BOTH PATHS (CLAUDE.md section 4): a Muster four each playing a Signature (the sample's, then batch 2's, then batch
 //                     3's) plays a different hunt from the same four with none, the boon, the Collar's Bleed, the Pavise's Blunted, the Hat's
 //                     reflected blows, the Boots' Chill at a pull's own instant, the Tooth's second hit, the Ring's Stoked caster and the
@@ -974,15 +977,16 @@ const cases = {
     return null;
   },
   'lowest-sicken': (M) => {
-    /* #28 Vault Leech Ring (P6, a monster picked by its target): a Poison rune spell Sickens the monster attacking the ally lowest on health,
-       the nearest of those on it; the plain healer's cast Sickens only what it hit; with nobody on the lowest, nothing more */
+    /* the piece #28 Vault Leech Ring carried in batch 4 (P6, a monster picked by its target; a planted row since lane/designer-sig-batch5
+       reshaped the Ring to a heal on the lowest ally): a Poison rune spell Sickens the monster attacking the ally lowest on health, the
+       nearest of those on it; the plain healer's cast Sickens only what it hit; with nobody on the lowest, nothing more */
     const play = (worn, onLow) => {
       const g = H(M, 1, 10, 3, 'healer', { mana: 2000, maxMana: 2000, maxHit: 60 }), a = H(M, 2, 11, 3, 'tank', { hp: 900, maxHp: 1000 }), b = H(M, 3, 9, 6, 'mage', { hp: 300, maxHp: 1000 });
       const m = E(M, 10, 0, 12, 3, 2, { hp: 90000, maxHp: 90000 }), n = E(M, 11, 0, 9, 7, onLow ? 3 : 2, { hp: 90000, maxHp: 90000 }), far = E(M, 12, 0, 9, 9, onLow ? 3 : 2, { hp: 90000, maxHp: 90000 });
       const inst = fight(M, [g, a, b, m, n, far]);
       inst.heroes = { 1: entry(M, ['green_sickness'], 8) };
       g.target = 10;
-      if (worn) wear(M, g, 'vault_leech_ring');
+      if (worn) g.reacts = [{ kind: 'react', id: 'lowest_test', on: 'cast', family: 'poison', do: 'status', status: 'sickness', at: 'lowest' }];
       const sc = sc2(M, 77);
       M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
       return { cast: sc.events.some((e) => e.type === 'cast' && e.ability === 'green_sickness'), sick: [m, n, far].map((x) => stacksOf(x, 'sickness').length).join() };
@@ -991,6 +995,32 @@ const cases = {
     if (!w.cast || !p.cast || p.sick !== '1,0,0') return 'CONTROL: the plain healer\'s Green Sickness Sickened ' + p.sick + ' (want its target only, 1,0,0)';
     if (w.sick !== '1,1,0') return 'the wearer\'s Green Sickness Sickened ' + w.sick + ' (want its target and the nearest monster on the lowest ally, 1,1,0)';
     if (none.sick !== '1,0,0') return 'with nobody on the lowest ally the wearer\'s cast Sickened ' + none.sick + ' (want 1,0,0)';
+    return null;
+  },
+  'poison-heal-lowest': (M) => {
+    /* #28 Vault Leech Ring (reshaped, lane/designer-sig-batch5: the Sickness on the monster attacking the lowest ally read 3.2 pace steps): a
+       Poison rune spell heals the hurt ally lowest on health 60% of the damage the cast dealt, through the heal door; the plain healer's
+       cast heals no one; with every ally full, nothing */
+    const play = (worn, hurt) => {
+      const g = H(M, 1, 10, 3, 'healer', { mana: 2000, maxMana: 2000, maxHit: 60 }), a = H(M, 2, 11, 3, 'tank', { hp: hurt ? 900 : 1000, maxHp: 1000 });
+      const b = H(M, 3, 9, 6, 'mage', { hp: hurt ? 300 : 1000, maxHp: 1000 });
+      const m = E(M, 10, 0, 12, 3, 2, { hp: 90000, maxHp: 90000 }), n = E(M, 11, 0, 12, 4, 2, { hp: 90000, maxHp: 90000 });
+      const inst = fight(M, [g, a, b, m, n]);
+      inst.heroes = { 1: entry(M, ['green_sickness'], 8) };
+      g.target = 10;
+      if (worn) wear(M, g, 'vault_leech_ring');
+      const sc = sc2(M, 77);
+      M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
+      const dealt = sc.events.filter((e) => e.type === 'dmg' && e.u === 1 && e.ability === 'green_sickness').reduce((x, e) => x + Math.max(0, Math.floor(Number(e.amount) || 0)), 0);
+      const heals = sc.events.filter((e) => e.type === 'heal' && e.ability === 'vault_leech_ring');
+      return { cast: sc.events.some((e) => e.type === 'cast' && e.ability === 'green_sickness'), dealt, heals, a: a.hp, b: b.hp };
+    };
+    const w = play(true, true), p = play(false, true), full = play(true, false);
+    if (!w.cast || !p.cast || !(w.dealt > 0)) return 'CONTROL: the casts ' + JSON.stringify({ w: w.cast, p: p.cast, dealt: w.dealt });
+    if (p.heals.length || p.b !== 300) return 'the plain healer\'s Green Sickness healed ' + JSON.stringify(p.heals);
+    const want = Math.floor((w.dealt * 600) / 1000);
+    if (w.heals.length !== 1 || w.heals[0].t !== 3 || w.b !== 300 + want || w.a !== 900) return 'the wearer\'s cast dealt ' + w.dealt + ' and healed ' + JSON.stringify(w.heals) + ' (mage ' + w.b + ', tank ' + w.a + '; want the mage, the lowest, +' + want + ')';
+    if (full.heals.length) return 'with every ally full the cast healed ' + JSON.stringify(full.heals);
     return null;
   },
   'power-taunt': (M) => {
@@ -1187,27 +1217,31 @@ const cases = {
   },
   'fall-save': (M) => {
     /* #40 Hearth Mason's Cloak (P7, a fall-back save): a blow that would kill a hero of the wearer's party leaves it at 1 HP, its `dmg` event
-       naming the wearer, once an hour on the wearer's clock; inside the hour the next such blow kills; after it the wearer itself is saved.
+       naming the wearer, once every 75 minutes on the wearer's clock (an hour until lane/designer-sig-batch5); inside it the next such blow
+       kills, an hour on too; after it the wearer itself is saved.
        On the scale, in a fight, the save breaks the pull off at once on any stance (Bold breaks off on nothing else) */
     const play = (worn) => {
-      const g = H(M, 1, 10, 3, 'healer', { hp: 50, maxHp: 1000 }), a = H(M, 2, 12, 3, 'tank', { hp: 100, maxHp: 1000 }), m = E(M, 10, 0, 13, 3, 2);
-      const inst = fight(M, [g, a, m], { risk: null });
+      const g = H(M, 1, 10, 3, 'healer', { hp: 50, maxHp: 1000 }), a = H(M, 2, 12, 3, 'tank', { hp: 100, maxHp: 1000 }), c = H(M, 3, 11, 4, 'mage', { hp: 100, maxHp: 1000 }), m = E(M, 10, 0, 13, 3, 2);
+      const inst = fight(M, [g, a, c, m], { risk: null });
       if (worn) wear(M, g, 'hearth_masons_cloak');
       const sc = sc2(M, 86, 1000);
       blowAt(M, inst, sc, m, a, 500);
       const first = { hp: a.hp, alive: a.alive, ev: sc.events.find((e) => e.type === 'dmg' && e.t === 2) };
-      return { g, a, m, inst, sc, first };
+      return { g, a, c, m, inst, sc, first };
     };
     const w = play(true), p = play(false);
     if (p.first.alive !== false) return 'CONTROL: the plain blow left the tank ' + JSON.stringify(p.first);
     if (w.first.hp !== 1 || w.first.alive !== true || !w.first.ev || w.first.ev.saved !== 1 || w.first.ev.amount !== 99 || w.first.ev.hp !== 1) return 'the saved blow: ' + JSON.stringify(w.first) + ' (want the tank at 1 HP, its dmg 99 naming the wearer)';
-    if (w.g.cds['~r:hearth_masons_cloak'] !== 1000 + 3600000) return 'the Cloak\'s clock reads ' + JSON.stringify(w.g.cds);
+    if (w.g.cds['~r:hearth_masons_cloak'] !== 1000 + 4500000) return 'the Cloak\'s clock reads ' + JSON.stringify(w.g.cds);
     w.sc.atMs = 1000 + 600000;
     blowAt(M, w.inst, w.sc, w.m, w.a, 500);
-    if (w.a.alive !== false) return 'a second would-be death inside the hour was saved too';
+    if (w.a.alive !== false) return 'a second would-be death inside the clock was saved too';
     w.sc.atMs = 1000 + 3600000;
+    blowAt(M, w.inst, w.sc, w.m, w.c, 500);
+    if (w.c.alive !== false) return 'a would-be death an hour on, inside the 75 minutes, was saved';
+    w.sc.atMs = 1000 + 4500000;
     blowAt(M, w.inst, w.sc, w.m, w.g, 500);
-    if (w.g.alive !== true || w.g.hp !== 1) return 'the wearer\'s own would-be death after the hour: ' + JSON.stringify({ hp: w.g.hp, alive: w.g.alive });
+    if (w.g.alive !== true || w.g.hp !== 1) return 'the wearer\'s own would-be death after the 75 minutes: ' + JSON.stringify({ hp: w.g.hp, alive: w.g.alive });
     /* ON THE SCALE: a Bold pull in a fight breaks off at the save (the step falls, the pack goes home) */
     /* (a max health over 1,000, so 1 HP is under a permille: the margin reads it as a hero standing, never a death) */
     const k = H(M, 1, 12, 3, 'tank', { hp: 100, maxHp: 5000 }), b = E(M, 10, 0, 13, 3, 1);
@@ -1467,6 +1501,9 @@ const mutants = [
   /* ── batch 4 (lane/signatures-batch-4): each row's case, each engine piece's mutant ── */
   { name: 'a broken shell names no breaker', case: 'shell-break-blunt', edits: [[DM, "'shield_break', { t: target, src: source });", "'shield_break', { t: target });"]] },
   { name: 'the Thrower\'s Ring Blunts the shell\'s hero', case: 'shell-break-blunt', edits: [[SG, "{ on: 'shield_break', do: 'status', status: 'blunted' }", "{ on: 'shield_break', do: 'boon', status: 'blunted' }"]] },
+  /* (lane/designer-sig-batch5: the Leech's heal, its number as set and where it lands) */
+  { name: 'the Leech heals at 100%', case: 'poison-heal-lowest', edits: [[SG, "do: 'heal', to: 'lowest', pm: 600 }", "do: 'heal', to: 'lowest', pm: 1000 }"]] },
+  { name: 'the Leech heals its wearer', case: 'poison-heal-lowest', edits: [[SG, "do: 'heal', to: 'lowest', pm: 600 }", "do: 'heal', to: 'self', pm: 600 }"]] },
   { name: 'at is never read', case: 'lowest-sicken', edits: [[RX, "  if (row.at === 'lowest') { const m = onLowest(inst, u); return m ? [m] : []; }\n", '']] },
   { name: 'the lowest hero is the highest', case: 'lowest-sicken', edits: [[RX, 'if (!low || share(a) < share(low) ||', 'if (!low || share(a) > share(low) ||']] },
   { name: 'the farthest monster on the lowest is picked', case: 'lowest-sicken', edits: [[RX, 'if (!m || cheb(o, low) < cheb(m, low) ||', 'if (!m || cheb(o, low) > cheb(m, low) ||']] },
@@ -1503,6 +1540,8 @@ const mutants = [
   { name: 'a heal reads no aura', case: 'pair-heal-guard', edits: [[HRL, '  if (lift) n = Math.floor((n * (1000 + lift)) / 1000);\n', '']] },
   { name: 'a save never happens', case: 'fall-save', edits: [[DM, '  const saved = r.killed && isHero(target) && saversOf(inst).length ? saveFall(inst, sc, target, r) : null;', '  const saved = null;']] },
   { name: 'the save has no clock', case: 'fall-save', edits: [[FSV, '    if (readyAt(w.cds, key) > sc.atMs) continue;\n', '']] },
+  /* (lane/designer-sig-batch5: the Cloak's clock as it was, an hour, read +21.3 Bold steps against Steady, over the band) */
+  { name: 'the Cloak once an hour', case: 'fall-save', edits: [[SG, 'save: { clockMs: 4500000 }', 'save: { clockMs: 3600000 }']] },
   { name: 'a save leaves the pull on', case: 'fall-save', edits: [[DM, '  if (saved) fallBackNow(inst, sc);\n', '']] },
   { name: 'a hero left at 1 HP reads as a death', case: 'fall-save', edits: [[DZ, '(u.hp > 0 ? Math.max(1, Math.floor((u.hp * 1000) / u.maxHp)) : 0)', 'Math.floor((Math.max(0, u.hp) * 1000) / u.maxHp)']] },
   { name: 'the settle never syncs the Signature', case: 'real-settle', edits: [['src/core/combat-sim.js', '  syncSignature(u, m.hero);', '  void syncSignature;']] },

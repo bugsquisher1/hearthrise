@@ -364,17 +364,17 @@ if (BATCH === '4') {
 /* (each set or kept row as it stands; a set row reads from its shape's report, the same rule under a temporary id, and REPLAY=1
    batch5.sh plays its first two seeds by its real id. The cut rows' shapes are VARIANTS5) */
 const ROWS5 = [
-  ['#19 Lock-Keeper's Chain (healer): a hero near fall-back, Spring Tide ready, once a minute', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b5v-muster-chain60'], ['The Slake (batch 3, at 30 s)', 'b3-slake-mixed', 'b3-slake-chain']],
+  ["#19 Lock-Keeper's Chain (healer): a hero near fall-back, Spring Tide ready, once a minute", 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b5v-muster-chain60'], ['The Slake (batch 3, at 30 s)', 'b3-slake-mixed', 'b3-slake-chain']],
   ['#23 Ferry Pennies (tank): a Mend under 45%, Blunted next to you, as built', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b5-muster-pennies45'], null],
-  ['#4 Charred Saber (sword): Flame Strike's target Blunted, as built, 24 seeds', 'pace', ['Pyre Field', 'b5-pyre-sword24', 'b5-pyre-sabre24'], null],
-  ['#43 Bull's Tooth (ranger): single-target hits on a brute under half land twice', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b5v-muster-tooth50'], ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b5v-roost-tooth50']],
-  ['#31 The Cellar Key (healer): an ally hit under 30% heals 3%, 20 s an ally, 36 seeds', 'pace', ['Carter's Rest, its home', 'b4-carters-mixed36', 'b5v-carters-key3-20'], null],
-  ['#28 Vault Leech Ring (healer): Poison rune spells heal the lowest hurt ally LEECH_PCT of their damage, 36 seeds', 'pace', ['Carter's Rest', 'b4-carters-mixed36', 'LEECH_REPORT'], ['Muster Barrows (at 50%)', 'b3-muster-mixed', 'b5v-muster-leech-h50']],
+  ["#4 Charred Saber (sword): Flame Strike's target Blunted, as built, 24 seeds", 'pace', ['Pyre Field', 'b5-pyre-sword24', 'b5-pyre-sabre24'], null],
+  ["#43 Bull's Tooth (ranger): single-target hits on a brute under half land twice", 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b5v-muster-tooth50'], ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b5v-roost-tooth50']],
+  ['#31 The Cellar Key (healer): an ally hit under 30% heals 3%, 20 s an ally, 36 seeds', 'pace', ["Carter's Rest, its home", 'b4-carters-mixed36', 'b5v-carters-key3-20'], null],
+  ['#28 Vault Leech Ring (healer): Poison rune spells heal the lowest hurt ally 60% of their damage, 36 seeds', 'pace', ["Carter's Rest", 'b4-carters-mixed36', 'b5v-carters-leech-h60'], ['Muster Barrows (at 50%)', 'b3-muster-mixed', 'b5v-muster-leech-h50']],
   ['#32 Ledger Ring (mage, coin): every fourth spell costs no mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5v-muster-ledger4'], null],
   ['#41 Brood Bracers (ranger, coin): every third arrow that hits, the next shot costs none', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5v-muster-bracers3'], null],
   ['#37 Lychgate Leggings (healer, coin): under half mana, heals free for 5 s, 40 s clock', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5v-muster-leg50-5-40'], null],
   ['#25 The Cold Candle (mage, coin): Frost Lance uses no runes (scratch `saves.of`)', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5v-muster-candle-lance'], null],
-  ['#40 Hearth Mason's Cloak (healer), Bold: CLOAK_LABEL, 36 seeds', 'bold', ['Muster Barrows, Bold', 'b5-muster-bold', 'CLOAK_REPORT', 'b5-muster-steady36'], null],
+  ["#40 Hearth Mason's Cloak (healer), Bold: once every 90 minutes, 36 seeds", 'bold', ['Muster Barrows, Bold', 'b5-muster-bold', 'b5v-muster-cloak-90m36', 'b5-muster-steady36'], null],
 ];
 /* THE SHAPES AND RE-READS (b5v-*, b5-*): [label, kind, plain, worn] */
 const VARIANTS5 = [
@@ -391,14 +391,14 @@ const VARIANTS5 = [
   ['#43 a brute under half (Muster)', 'pace', 'b3-muster-mixed', 'b5v-muster-tooth50'],
   ['#43 the same (Wyvern Roost)', 'pace', 'b3-roost-crossbow', 'b5v-roost-tooth50'],
   ['#33 the Mitts on the tank four (Muster)', 'pace', 'b3-muster-tank', 'b5-muster-mitts-tank'],
-  ['#33 Power Strike on a monster attacking an ally: its next blow at half (Muster, the sword four; scratch `onAlly`)', 'pace', 'b4s-muster-sword', 'b5v-muster-mitts-blunt'],
+  ['#33 Power Strike on a monster attacking an ally: its next blow at half (Muster, the sword four, scratch `onAlly`)', 'pace', 'b4s-muster-sword', 'b5v-muster-mitts-blunt'],
   ['#33 the same (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b5v-muster-mitts-blunt-tank'],
   ['#19 Lock-Keeper\'s Chain as it stands, once every 30 s (Muster, batch 3)', 'pace', 'b3-muster-mixed', 'b3-muster-chain'],
   ['#19 once every 40 s (Muster)', 'pace', 'b3-muster-mixed', 'b5v-muster-chain40'],
   ['#19 once every 60 s (Muster)', 'pace', 'b3-muster-mixed', 'b5v-muster-chain60'],
   ['#19 once every 90 s (Muster)', 'pace', 'b3-muster-mixed', 'b5v-muster-chain90'],
   ['#4 Charred Saber as it stands, 24 seeds (Pyre, the sword four)', 'pace', 'b5-pyre-sword24', 'b5-pyre-sabre24'],
-  ['#33 Power Strike while you are under half health: heal 8% of your max (Muster, the sword four; scratch `selfBelowPm`)', 'pace', 'b4s-muster-sword', 'b5v-muster-mitts-heal8'],
+  ['#33 Power Strike while you are under half health: heal 8% of your max (Muster, the sword four, scratch `selfBelowPm`)', 'pace', 'b4s-muster-sword', 'b5v-muster-mitts-heal8'],
   ['#33 the same (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b5v-muster-mitts-heal8-tank'],
   ['#33 Power Strike: its target Sickened (takes 10% more, 6 s) (Muster, the sword four)', 'pace', 'b4s-muster-sword', 'b5v-muster-mitts-sick'],
   ['#26 monsters that hit a shield you cast: their next blow at half (Muster)', 'pace', 'b3-muster-mixed', 'b5v-muster-thrower-blunt'],
@@ -423,7 +423,7 @@ const COIN5 = [
   ['#37 under 40% mana, 10 s, 30 s clock (Muster)', 'b3-muster-mixed4', 'b5v-muster-leg40-10'],
   ['#37 under half mana, 5 s, 40 s clock (Muster)', 'b3-muster-mixed4', 'b5v-muster-leg50-5-40'],
   ['#37 under half mana, 5 s, 45 s clock (Muster)', 'b3-muster-mixed4', 'b5v-muster-leg50-5-45'],
-  ['#25 The Cold Candle, Frost Lance only (Muster; scratch `saves.of`)', 'b3-muster-mixed4', 'b5v-muster-candle-lance'],
+  ['#25 The Cold Candle, Frost Lance only (Muster, scratch `saves.of`)', 'b3-muster-mixed4', 'b5v-muster-candle-lance'],
 ];
 /* [label, the plain four on Bold, worn on Bold, the plain four on Steady]: the worn four against the plain stance that keeps more */
 const BOLD5 = [
@@ -431,6 +431,7 @@ const BOLD5 = [
   ['#40 once a hunt (a 10 h clock) (Muster, Bold)', 'b5-muster-bold', 'b5v-muster-cloak-hunt', 'b5-muster-steady'],
   /* (36 seeds: a death moves a seed's Level XP kept by about a fifth, so 12 seeds read se 22) */
   ['#40 once an hour, 36 seeds (Muster, Bold)', 'b5-muster-bold', 'b5-muster-cloak36', 'b5-muster-steady36'],
+  ['#40 once every 75 minutes, 36 seeds (Muster, Bold)', 'b5-muster-bold', 'b5v-muster-cloak-75m36', 'b5-muster-steady36'],
   ['#40 once every 90 minutes, 36 seeds (Muster, Bold)', 'b5-muster-bold', 'b5v-muster-cloak-90m36', 'b5-muster-steady36'],
   ['#40 once every 2 hours, 36 seeds (Muster, Bold)', 'b5-muster-bold', 'b5v-muster-cloak-2h36', 'b5-muster-steady36'],
   ['#40 once every 3 hours, 36 seeds (Muster, Bold)', 'b5-muster-bold', 'b5v-muster-cloak-3h36', 'b5-muster-steady36'],

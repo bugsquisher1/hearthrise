@@ -23,3 +23,15 @@ V1: 36 seed jobs (1 cells x 36 seeds x 8 h) on 6 workers; muster_barrows, Levels
 [22/36] base:bold#18 85 s, 310 s elapsed
 [23/36] base:bold#23 69 s, 328 s elapsed
 [24/36] base:bold#22 85 s, 337 s elapsed
+[25/36] base:bold#25 74 s, 376 s elapsed
+[26/36] base:bold#27 75 s, 385 s elapsed
+[27/36] base:bold#24 85 s, 386 s elapsed
+[28/36] base:bold#26 86 s, 394 s elapsed
+[29/36] base:bold#28 80 s, 408 s elapsed
+[30/36] base:bold#29 76 s, 413 s elapsed
+[31/36] base:bold#30 58 s, 434 s elapsed
+[32/36] base:bold#31 50 s, 435 s elapsed
+[33/36] base:bold#33 49 s, 443 s elapsed
+[34/36] base:bold#32 58 s, 444 s elapsed
+[35/36] base:bold#34 42 s, 449 s elapsed
+[36/36] base:bold#35 44 s, 458 s elapsed

@@ -105,3 +105,4 @@ SEEDS=36 RISK=bold run b5v-muster-cloak-2h36 muster_barrows 60 $X --signatures -
 SEEDS=36 run b5v-carters-leech-h60  carters_rest 117 $X --signatures -,-,-,zz_leech_h60
 SEEDS=36 run b5v-carters-leech-h70  carters_rest 117 $X --signatures -,-,-,zz_leech_h70
 SEEDS=36 RISK=bold run b5v-muster-cloak-90m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_90m --raw "$OUT/b5v-muster-cloak-90m36.raw.json"
+SEEDS=36 RISK=bold run b5v-muster-cloak-75m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_75m --raw "$OUT/b5v-muster-cloak-75m36.raw.json"

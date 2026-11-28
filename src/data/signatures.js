@@ -258,9 +258,11 @@ export const SIGNATURES = Object.freeze({
     tip: 'Water rune heals: you get back 0.5% of your max mana',
     reacts: [{ on: 'heal', family: 'water', do: 'mana', pm: 5 }] }),
   vault_leech_ring: sig({ id: 'vault_leech_ring', n: 28, name: 'Vault Leech Ring', slot: 'ring', family: 'poison',
-    home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Poison rune spells also Sicken the monster attacking the ally lowest on health',
-    reacts: [{ on: 'cast', family: 'poison', do: 'status', status: 'sickness', at: 'lowest' }] }),
+    home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'carters_rest' },
+    /* (reshaped, lane/designer-sig-batch5: the Sickness on the monster attacking the lowest ally read 3.2 pace steps on Muster; a heal on the
+       lowest ally reads where healing binds: 60% read 11.8 on Carter's Rest, 36 seeds, Muster 4.7 at 50%, the spread holds) */
+    tip: 'Poison rune spells: the hurt ally lowest on health heals for 60% of the damage they deal',
+    reacts: [{ on: 'cast', family: 'poison', do: 'heal', to: 'lowest', pm: 600 }] }),
   the_cellar_key: sig({ id: 'the_cellar_key', n: 31, name: 'The Cellar Key', slot: 'necklace',
     home: { kind: 'monster', id: 'the_landlord' }, best: { seat: 'healer', ground: 'carters_rest' },
     /* (3% once every 20 s since lane/designer-sig-batch5: 2% at 30 s read 5.7 pace steps on Carter's Rest, 36 seeds; 3% at 20 s 10.0) */
@@ -308,8 +310,10 @@ export const SIGNATURES = Object.freeze({
     costs: { of: 'heal', pay: 'none', belowManaPm: 500, ms: 5000, clockMs: 40000 }, reacts: [] }),
   hearth_masons_cloak: sig({ id: 'hearth_masons_cloak', n: 40, name: 'Hearth Mason\'s Cloak', slot: 'cape',
     home: { kind: 'chest', id: 'platinum' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Once an hour, a hero of your party who would die falls back instead',
-    save: { clockMs: 3600000 }, reacts: [] }),
+    /* (once every 75 minutes since lane/designer-sig-batch5, rule F: Level XP kept on Bold against the plain four's better stance, Steady,
+       36 seeds: an hour read +21.3 (11.8), 75 minutes +7.8 (12.4), 90 minutes +5.3, two hours -1.9) */
+    tip: 'Once every 75 minutes, a hero of your party who would die falls back instead',
+    save: { clockMs: 4500000 }, reacts: [] }),
   brood_bracers: sig({ id: 'brood_bracers', n: 41, name: 'Brood Bracers', slot: 'gloves',
     home: { kind: 'monster', id: 'brood_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
     /* (every third since lane/designer-sig-batch5: a credit after five landed read 12.5 coin steps, under the coin bar; after three 20.9) */

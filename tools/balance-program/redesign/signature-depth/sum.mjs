@@ -298,7 +298,9 @@ const ROWS4B = [
   ['#33 Teamster\'s Mitts (sword): Power Strike turns a monster on an ally, 4 s', 'pace', ['Muster Barrows', 'b4s-muster-sword', 'b4s-muster-mitts'], null],
   ['#42 Night Carter\'s Boots (healer): a stalker hits an ally under 45%, its next blow at half', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-boots'], ['Pyre Field', 'b3-pyre-mixed', 'b4s-pyre-boots']],
   ['#43 Bull\'s Tooth (ranger): single-target hits on a brute under 30% land twice', 'pace', ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b4s-roost-tooth'], ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-tooth']],
-  ['#35 Gatekeeper\'s Plate (tank): you and allies within 2 tiles take 8% less', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4s-muster-plate'], null],
+  /* (the Plate CUT to 4%: its reading is the 4% shape's, b4w-muster-plate4, the same rule under a temporary id; REPLAY=1 batch4.sh plays its
+     first two seeds by its real id, equal) */
+  ['#35 Gatekeeper\'s Plate (tank): you and allies within 2 tiles take 4% less (CUT from 8%)', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4w-muster-plate4'], null],
   ['#45 Convoy Bell + #46 Lead Rein (healer + tank), the pair', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4s-muster-pair'], null],
   ['#40 Hearth Mason\'s Cloak (healer), on Bold', 'pace', ['Muster Barrows, Bold', 'b4s-muster-bold', 'b4s-muster-cloak'], null],
   ['#44 Pyre Priest\'s Hood (mage): over 70% health, spells cost health', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-hood'], null],
@@ -311,11 +313,13 @@ const ROWS4B = [
 /* BATCH 4'S SHAPES (b4w-*: a temporary id on a scratch copy, batch4.sh): the over rows' numbers, and the pair's halves apart (each piece's
    effect with its partner worn inert, so the other half plays nothing) */
 const VARIANTS4B = [
-  ['#35 the Plate at 4% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate4'],
+  ['#35 the Plate as built, 8% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4s-muster-plate'],
+  ['#35 the Plate at 4% (Muster, the tank four) KEPT', 'pace', 'b3-muster-tank', 'b4w-muster-plate4'],
   ['#35 the Plate at 2.5% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate25'],
   ['#45 the Bell\'s half alone: +30% heals on the tank under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-bell'],
   ['#46 the Rein\'s half alone: the tank -15% under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein'],
   ['#45 + #46 at half size: +15% heals, -7.5% taken (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-pair-half'],
+  ['#46 the Rein\'s half alone at -7.5% (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein75'],
 ];
 if (BATCH === '4') {
   const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;

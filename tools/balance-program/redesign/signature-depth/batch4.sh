@@ -111,6 +111,8 @@ run b4s-muster-boots     muster_barrows 60 $X --signatures -,-,-,night_carters_b
 run b4s-pyre-boots       pyre_field 80 $X --signatures -,-,-,night_carters_boots
 run b4s-muster-plate     muster_barrows 60 $T --signatures gatekeepers_plate,-,-,-
 run b4s-muster-pair      muster_barrows 60 $T --signatures lead_rein,-,-,convoy_bell
+# (the pair as set: the Rein cut to 7.5% after its own half read 19.0 at 15%, the Bell kept at 30%; by their real ids on the lane's next commit)
+run b4s-muster-pair2     muster_barrows 60 $T --signatures lead_rein,-,-,convoy_bell
 run b4s-muster-hood      muster_barrows 60 $X --signatures -,-,pyre_priests_hood,-
 run b4s-muster-sword     muster_barrows 60 $S
 run b4s-muster-mitts     muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
@@ -128,3 +130,4 @@ run b4w-muster-plate25   muster_barrows 60 $T --signatures zz_plate25,-,-,-
 run b4w-muster-bell      muster_barrows 60 $T --signatures zz_rein0,-,-,zz_bell
 run b4w-muster-rein      muster_barrows 60 $T --signatures zz_rein,-,-,zz_bell0
 run b4w-muster-pair-half muster_barrows 60 $T --signatures zz_rein75,-,-,zz_bell15
+run b4w-muster-rein75    muster_barrows 60 $T --signatures zz_rein75x,-,-,zz_bell0

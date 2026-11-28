@@ -1163,7 +1163,7 @@ const cases = {
   },
   'pair-heal-guard': (M) => {
     /* #45 Convoy Bell and #46 Lead Rein (P1, the pair, `with`): with the Rein in the party, the Bell's heals on its wearer below half land
-       30% more, and with the Bell in the party, the Rein's wearer below half takes 15% less; neither alone, nor over the line */
+       30% more, and with the Bell in the party, the Rein's wearer below half takes 7.5% less; neither alone, nor over the line */
     const play = (bell, rein) => {
       const g = H(M, 1, 10, 3, 'healer'), k = H(M, 2, 12, 3, 'tank', { hp: 400, maxHp: 1000 }), o = H(M, 3, 11, 5, 'mage', { hp: 400, maxHp: 1000 }), m = E(M, 10, 0, 13, 3, 2);
       const inst = fight(M, [g, k, o, m]);
@@ -1175,7 +1175,8 @@ const cases = {
       return [heal(k, 400), heal(o, 400), heal(k, 600), cut(k, 400), cut(k, 600), cut(o, 400)].join();
     };
     const both = play(true, true), bell = play(true, false), rein = play(false, true);
-    if (both !== '130,100,100,-150,0,0') return 'the pair: heals on the Rein below half, on another, on the Rein over half, then its cut below and over half and another\'s: ' + both + ' (want 130,100,100,-150,0,0)';
+    /* (the Rein CUT to 7.5%, lane/signatures-batch-4: its own half read 19.0 pace steps at 15%) */
+    if (both !== '130,100,100,-75,0,0') return 'the pair: heals on the Rein below half, on another, on the Rein over half, then its cut below and over half and another\'s: ' + both + ' (want 130,100,100,-75,0,0)';
     if (bell !== '100,100,100,0,0,0') return 'the Bell with no Rein in the party: ' + bell;
     if (rein !== '100,100,100,0,0,0') return 'the Rein with no Bell in the party: ' + rein;
     return null;
@@ -1480,6 +1481,8 @@ const mutants = [
   { name: 'a blow reads no aura', case: 'aura-guard', edits: [[DM, "isHero(u) ? auraEffects(inst, u, 'takenPm') : null", 'null']] },
   { name: 'a standing effect is never folded into its key', case: 'aura-guard', edits: [[SE, '  for (const e of held) keys = foldStanding(keys, e);\n', '']] },
   { name: 'regen reads no aura', case: 'aura-regen', edits: [[AB, '  if (aura) pm = Math.floor((pm * (1000 + aura)) / 1000);\n', '']] },
+  /* (the Rein at the 15% whose own half read 19.0 pace steps, over the band) */
+  { name: 'the Rein at 15%', case: 'pair-heal-guard', edits: [[SG, "aura: { takenPm: -75, with: 'convoy_bell', belowPm: 500 }", "aura: { takenPm: -150, with: 'convoy_bell', belowPm: 500 }"]] },
   { name: 'with is never read', case: 'pair-heal-guard', edits: [[SA, '    if (a.with !== undefined && !partnerIn(inst, w, a.with)) continue;\n', '']] },
   { name: 'the Bell lifts its heals on every ally', case: 'pair-heal-guard', edits: [[SA, "a.to === 'with' ? unit !== w && unit.signature === a.with :", "a.to === 'with' ? unit !== w :"]] },
   { name: 'the pair\'s line is never read', case: 'pair-heal-guard', edits: [[SA, '    if (a.belowPm !== undefined && !(int(unit.hp) * 1000 < a.belowPm * int(unit.maxHp))) continue;\n', '']] },

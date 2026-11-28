@@ -311,8 +311,10 @@ export const SIGNATURES = Object.freeze({
     aura: { healPm: 300, to: 'with', with: 'lead_rein', belowPm: 500 }, reacts: [] }),
   lead_rein: sig({ id: 'lead_rein', n: 46, name: 'Lead Rein', slot: 'belt',
     home: { kind: 'monster', id: 'wagonmaster' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'With Convoy Bell in your party: below half health, you take 15% less damage',
-    aura: { takenPm: -150, with: 'convoy_bell', belowPm: 500 }, reacts: [] }),
+    /* (CUT from 15%: the Rein's own half read 19.0 pace steps, over the band; 7.5% read 10.0, the Bell's half at 30% 9.1: each piece of
+       the pair sized as one Signature, 15 "Batch 4, measured") */
+    tip: 'With Convoy Bell in your party: below half health, you take 7.5% less damage',
+    aura: { takenPm: -75, with: 'convoy_bell', belowPm: 500 }, reacts: [] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

@@ -713,6 +713,11 @@
         "bytes": 4072608,
         "on": "2026-11-28",
         "why": "designer-sig-batch5: reshaped Signature rows and longer tips in signatures.js"
+      },
+      {
+        "bytes": 3857982,
+        "on": "2026-11-28",
+        "why": "cut locked in (214626 bytes)"
       }
     ]
   }

@@ -675,9 +675,14 @@
         "why": "designer-sig-batch4: reshaped Signature rows and the stoked status (signatures.js, statuses.js)"
       },
       {
-        "bytes": 4030299,
+        "bytes": 4024578,
         "on": "2026-11-28",
-        "why": "lane/imbue-engine on the set with imbue-fee-timer and signatures batch 4 (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
+        "why": "kit-bands-4-5: 27 band 4-5 job recipes, faces and 3 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
+      },
+      {
+        "bytes": 4034282,
+        "on": "2026-11-28",
+        "why": "lane/imbue-engine on the set with kit-bands-4-5 and icons (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
       }
     ]
   }

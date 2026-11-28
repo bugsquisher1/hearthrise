@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 05f7a6cef8beab7bfc24ee6c3ab06e051174daf0921371ab54b0ca0e099448be
+--   digest: 1cc802b87a67f260295f57fab4897f1988ba919628cb60dbe0ceba1ad0ba2124
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   717 vendor values, 49 store supplies paid per use, 5 target modes,
+--   720 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -1860,8 +1860,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('eelskin_helmet', 248),
   ('eelskin_pants', 454),
   ('elderscale_heart', 9000),
+  ('ember_arrowheads', 80),
   ('ember_axe', 280),
-  ('ember_bar', 100),
+  ('ember_bar', 64),
   ('ember_belt', 156),
   ('ember_boots', 156),
   ('ember_earrings', 195),
@@ -2100,9 +2101,10 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ruby', 400),
   ('ruby_signet', 297),
   ('rubyfire_studs', 148),
+  ('rune_arrowheads', 80),
   ('rune_arrows', 1),
   ('rune_axe', 360),
-  ('rune_bar', 100),
+  ('rune_bar', 59),
   ('rune_belt', 82),
   ('rune_blank', 1),
   ('rune_boots', 82),
@@ -2114,6 +2116,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_helm', 124),
   ('rune_knife', 9200),
   ('rune_needle', 9200),
+  ('rune_ore', 10),
   ('rune_pickaxe', 360),
   ('rune_platebody', 311),
   ('rune_platelegs', 228),
@@ -2400,7 +2403,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 717
+     or (select count(*) from public.hr_hunt_vendor_value) <> 720
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

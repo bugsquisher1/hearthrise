@@ -30,7 +30,8 @@
 //   heads     a HEAD_ART id (src/data/monster-art.js) with no creature row, or an id in both head lists; the heads folder also runs
 //             the missing, orphan, size, palette, alpha and empty rules (32x32 busts, one file per listed id)
 //   drawn     the same for the icons tools/world-art/twin-icons.mjs, march-shield-icons.mjs, ladder-icons.mjs, ability-tiles.mjs and
-//             krell-icons.mjs (Lord Krell's two unique pieces) and step-tier-icons.mjs (the step tiers' re-dyed placeholders), job-face-icons.mjs and named-piece-icons.mjs (re-dyed placeholders)
+//             krell-icons.mjs (Lord Krell's two unique pieces) and step-tier-icons.mjs (the step tiers' re-dyed placeholders), job-face-icons.mjs and named-piece-icons.mjs (re-dyed placeholders),
+//             arrowhead-icons.mjs (the six arrowheads) and signature-icons.mjs (the Signatures, ahead of their rows)
 //             draw, and for the factions' icons tools/world-art/faction-icons.mjs finishes
 //   factions  src/data/item-art.js FACTION_ART is not exactly the sides (src/data/grounds/shape.js STANDING_SIDES) and the pieces
 //             standing buys (src/data/factions.js FACTION_OUTFITS); the factions folder also runs the missing, orphan, size, palette,
@@ -43,7 +44,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/march-shield-icons.mjs tools/world-art/ladder-icons.mjs tools/world-art/ability-tiles.mjs tools/world-art/krell-icons.mjs tools/world-art/step-tier-icons.mjs assets/icons-bundle/pixel/factions/ tools/world-art/faction-icons.mjs art/world-src/gen-2026-11-18/faction-icons/picks/ src/data/factions.js
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/march-shield-icons.mjs tools/world-art/ladder-icons.mjs tools/world-art/ability-tiles.mjs tools/world-art/krell-icons.mjs tools/world-art/step-tier-icons.mjs tools/world-art/arrowhead-icons.mjs tools/world-art/signature-icons.mjs assets/icons-bundle/pixel/factions/ tools/world-art/faction-icons.mjs art/world-src/gen-2026-11-18/faction-icons/picks/ src/data/factions.js
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -67,6 +68,8 @@ import { DRAW as STEP_TIER_ICONS } from '../tools/world-art/step-tier-icons.mjs'
 import { DRAW as JOB_FACE_ICONS } from '../tools/world-art/job-face-icons.mjs';
 /* the six named pieces past Dawnsteel (lane/retire-dawnsteel-lines, 28-named-pieces.md 2.7): re-dyed placeholders the Art Director may replace */
 import { DRAW as NAMED_PIECE_ICONS } from '../tools/world-art/named-piece-icons.mjs';
+import { DRAW as ARROWHEAD_ICONS, toImage as arrowheadImage } from '../tools/world-art/arrowhead-icons.mjs';
+import { DRAW as SIGNATURE_ICONS, toImage as signatureImage } from '../tools/world-art/signature-icons.mjs';
 import { factionIcon } from '../tools/world-art/faction-icons.mjs';
 import { FACTION_ART } from '../src/data/item-art.js';
 import { STANDING_SIDES } from '../src/data/grounds/shape.js';
@@ -403,6 +406,7 @@ const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(
   ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage), ...checkDrawn(join(ROOT, DIR), LADDER_ICONS, (img) => img),
   ...checkDrawn(join(ROOT, DIR), KRELL_ICONS, krellImage), ...checkDrawn(join(ROOT, DIR), STEP_TIER_ICONS, (img) => img),
   ...checkDrawn(join(ROOT, DIR), JOB_FACE_ICONS, (img) => img), ...checkDrawn(join(ROOT, DIR), NAMED_PIECE_ICONS, (img) => img),
+  ...checkDrawn(join(ROOT, DIR), ARROWHEAD_ICONS, arrowheadImage), ...checkDrawn(join(ROOT, DIR), SIGNATURE_ICONS, signatureImage),
   ...checkFactionList(FACTION_ART), ...checkIcons(join(ROOT, FACTION), FACTION_ART), ...checkDuplicates(join(ROOT, FACTION), FACTION_ART, []),
   ...checkDrawn(join(ROOT, FACTION), FACTION_DRAW, factionIcon)];
 report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads + ${FACTION_ART.length} faction icons`, findings);

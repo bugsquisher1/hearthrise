@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 758,
-  "typed": 17595,
+  "typed": 17621,
   "files": 263,
   "lever": 324,
   "notLever": 434,
@@ -983,7 +983,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -3159,9 +3159,10 @@
      "tests/hunt-core/abilities.mjs",
      "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/spell-rule.mjs",
-     "tests/hunt-sessions-settle.mjs"
+     "tests/hunt-sessions-settle.mjs",
+     "tests/kit-recipes.mjs"
     ],
-    "mentionCount": 6,
+    "mentionCount": 7,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11068,7 +11069,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11076,7 +11077,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11169,7 +11170,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 447,
       "distinct": 37,
       "low": 1,
@@ -11177,7 +11178,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 229,
       "distinct": 63,
       "low": 1,
@@ -13334,7 +13335,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13342,7 +13343,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 787,
+      "rows": 790,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,

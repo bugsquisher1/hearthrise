@@ -48,7 +48,9 @@
 //   SITE-11 THE DELIVERY IS FAITHFUL: no module minifies differently at the publish target than at esnext (syntax the target
 //           would lower or drop); every minified module keeps every relative specifier it had; every `new URL('….js',
 //           import.meta.url)` load in the source is a bundle entry or a listed runtime file (RUNTIME_MODULES / RUNTIME_FILES),
-//           and every row there is still loaded so; every import of the served graph resolves to a served file.
+//           and every row there is still loaded so; every import of the served graph resolves to a served file; every stylesheet
+//           is served minified (no comment, no line break) with its source's rules, every one in the source's order (site-delivery
+//           cssRules: a rule dropped, merged or moved, a selector or a condition rewritten, a declaration lost is red).
 //
 // No dotfile is published: a workflow deploy runs no Jekyll, so .nojekyll is not needed there (it stays in the
 // repository for a rollback to the branch source), and actions/upload-pages-artifact leaves dotfiles out.
@@ -65,7 +67,7 @@ import { lex } from './guard-anchors.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 import { readBuild, stampFile, stripFile, stampKind, moduleSpecifiers, moduleStamps, pageTags } from './lib/version-stamp.mjs';
 import { loadEsbuild, minifiable, minifyModule, bundleGame, gameListText, preloadBlock, moduleGraph, isEsm,
-  RUNTIME_MODULES, RUNTIME_FILES, GAME_LIST, ENTRY } from './lib/site-delivery.mjs';
+  minifiableCss, minifyStylesheet, cssUnminified, cssRules, RUNTIME_MODULES, RUNTIME_FILES, GAME_LIST, ENTRY } from './lib/site-delivery.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -366,8 +368,17 @@ export function bootPathProblems(measured, baseline) {
  * `new URL('….js', import.meta.url)` target the source loads (the logical audit's SITE-2 'new URL' needs); `missing` the
  * imports of the served graph no served file answers.
  */
-export function deliveryProblems({ minified = new Map(), newUrl = [], missing = [], bundled = false }) {
+export function deliveryProblems({ minified = new Map(), newUrl = [], missing = [], bundled = false, sheets = new Map() }) {
   const out = [];
+  for (const [file, { source, served }] of sheets) {
+    if (cssUnminified(served)) out.push('SITE-11 ' + file + ' is served as written (a comment or a line break): the delivery minifies every stylesheet (tools/lib/site-delivery.mjs minifyStylesheet).');
+    const want = cssRules(source), got = cssRules(served);
+    const at = Array.from({ length: Math.max(want.length, got.length) }, (_, i) => i).find((i) => want[i] !== got[i]) ?? -1;
+    if (at >= 0) {
+      out.push('SITE-11 ' + file + ' is served with ' + got.length + ' rules where its source has ' + want.length + ', and rule ' + (at + 1) + ' differs: the source has '
+        + JSON.stringify(String(want[at]).slice(0, 120)) + ', the served copy ' + JSON.stringify(String(got[at]).slice(0, 120)) + '. A stylesheet is minified by whitespace only, never merged, dropped or moved.');
+    }
+  }
   for (const [file, m] of minified) {
     if (m.drift) out.push('SITE-11 ' + file + ' minifies differently at the publish target than at esnext: it uses syntax the target lowers or drops (tools/lib/site-delivery.mjs TARGET / SUPPORTED).');
     const specs = (t) => moduleSpecifiers(t).map((s) => s.spec + s.query).sort().join('\n');
@@ -429,6 +440,7 @@ async function build(out, deliver = DELIVERIES[0], baseline = readBaseline()) {
   let bundled = null;
   if (esbuild) {
     for (const rel of copied.keys()) {
+      if (minifiableCss(rel)) { writeFileSync(join(out, rel), minifyStylesheet(esbuild, readFileSync(join(ROOT, rel), 'utf8'))); continue; }
       const before = logical(rel);
       if (!minifiable(rel, before)) continue;
       const { code, drift: d, parsed } = minifyModule(esbuild, before);
@@ -445,6 +457,8 @@ async function build(out, deliver = DELIVERIES[0], baseline = readBaseline()) {
   }
   const files = sizes(out), read = reader(out);
   const site = { files, read };
+  /* every stylesheet as served, beside its source (a stylesheet carries no stamp: the repository's file is what was copied) */
+  const sheets = new Map(esbuild ? Array.from(files.keys()).filter(minifiableCss).map((rel) => [rel, { source: readFileSync(join(ROOT, rel), 'utf8'), served: read(rel) }]) : []);
   /* the served graph, from the page, the game list and the runtime entries */
   const roots = pageLoads(read(BOOT_PAGE)).filter((l) => l.module).map((l) => l.file)
     .concat(files.has(GAME_LIST) ? gameList(read(GAME_LIST)) : [], Object.keys(RUNTIME_MODULES)).filter((f, i, a) => a.indexOf(f) === i && files.has(f));
@@ -454,7 +468,7 @@ async function build(out, deliver = DELIVERIES[0], baseline = readBaseline()) {
     const { graph, missing } = await moduleGraph(graphOf, read, (p) => files.has(p), roots);
     boot = bootPath(site, graph);
     const newUrl = got.needs.filter((n) => n.rule === 'SITE-2' && n.via === 'new URL').map((n) => n.path);
-    got.problems.push(...deliveryProblems({ minified, newUrl, missing, bundled: !!bundled }));
+    got.problems.push(...deliveryProblems({ minified, newUrl, missing, bundled: !!bundled, sheets }));
     if (esbuild) got.problems.push(...stampProblems(site, Array.from(files.keys()), false));   // the served stamps; the floors read the site as written
     if (deliver === DELIVERIES[0]) got.problems.push(...bootPathProblems(boot, baseline));
   }
@@ -596,6 +610,13 @@ async function deliveryCases(plan, read, clean) {
   const planted = (p) => (p === ENTRY ? read(p) + "\nimport './never-built.js';\n" : read(p));
   const minified = (file, text) => { const m = minifyModule(esbuild, text); return new Map([[file, { before: m.parsed, after: m.code, drift: m.drift }]]); };
   const newUrl = clean.needs.filter((n) => n.rule === 'SITE-2' && n.via === 'new URL').map((n) => n.path);
+  /* every published stylesheet as the delivery serves it; the planted cases change windows.css (the most rules) after the minify */
+  const css = Array.from(files.keys()).filter(minifiableCss);
+  const sheets = new Map(css.map((rel) => [rel, { source: read(rel), served: minifyStylesheet(esbuild, read(rel)) }]));
+  const SHEET = 'src/styles/windows.css', sheet = sheets.get(SHEET) || { source: '', served: '' };
+  const end = (k) => { let at = 0; for (let i = 0; i < k; i++) at = sheet.served.indexOf('}', at) + 1; return at; };   // past its k-th rule (its first rules are top-level)
+  const [r1, r2, r3] = [end(1), end(2), end(3)], cut = (a, b) => sheet.served.slice(a, b);
+  const servedAs = (text) => new Map(sheets).set(SHEET, { ...sheet, served: text });
   const cases = [
     ['CONTROL the boot path at its own measure', () => bootPathProblems(measured, pinAt()), null],
     ['CONTROL a cut inside the slack', () => bootPathProblems(measured, pinAt((s, m) => ({ modules: m.modules + BOOT_SLACK.modules, gzipBytes: m.gzipBytes + BOOT_SLACK.gzipBytes }))), null],
@@ -612,6 +633,11 @@ async function deliveryCases(plan, read, clean) {
     ['CONTROL import attributes survive the target (src/world/atlas.js)', () => deliveryProblems({ minified: minified('src/x.js', "export const j = (u) => import(u, { with: { type: 'json' } });") }), null],
     ['a minified module lost a specifier', () => deliveryProblems({ minified: new Map([['src/x.js', { before: "import './a.js?v=1';", after: '', drift: false }]]) }), 'SITE-11', 'lost or changed'],
     ['the served graph imports a file the site lacks', async () => deliveryProblems({ missing: (await moduleGraph(esbuild, planted, has, [ENTRY])).missing }), 'SITE-11', 'never-built.js'],
+    ['CONTROL every published stylesheet as the delivery minifies it', () => (css.length >= 10 && sheet.source ? deliveryProblems({ sheets }) : ['HARNESS ' + css.length + ' stylesheets']), null],
+    ['a stylesheet served as written (the minify step gone)', () => deliveryProblems({ sheets: servedAs(sheet.source) }), 'SITE-11', SHEET + ' is served as written'],
+    ['a minified stylesheet that dropped a rule', () => deliveryProblems({ sheets: servedAs(cut(0, r1) + cut(r2)) }), 'SITE-11', 'rules where its source has'],
+    ['a minified stylesheet with two rules swapped (the cascade order moved)', () => deliveryProblems({ sheets: servedAs(cut(0, r1) + cut(r2, r3) + cut(r1, r2) + cut(r3)) }), 'SITE-11', 'rule 2 differs'],
+    ['a minified stylesheet that lost a declaration', () => deliveryProblems({ sheets: servedAs(cut(0, r1) + cut(r1, r2).replace(/;[^;{}]*\}$/, '}') + cut(r2)) }), 'SITE-11', 'rule 2 differs'],
   ];
   let bad = 0;
   for (const [name, run, rule, needle] of cases) {

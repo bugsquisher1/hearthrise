@@ -6,14 +6,16 @@
 //
 // docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md, section "Scale" (the
 // stage 2/3 prerequisites of the gather widen: S1 due-only roster, S2 sharded
-// fires, S3 multi-window catch-up, S4 ledger fold). Every claim is re-measured
+// fires, S3 multi-window catch-up, S4 ledger fold). The characters are on the
+// ARTISAN channel (the Hearth's fuel run), the tick's one pointer channel since
+// the one-town-work cut retired gather; S4 retired with it (below). Every claim is re-measured
 // on the PGlite chain replay; the cost claims are STRUCTURAL (counted function
 // calls and ledger rows under pg_stat_user_functions), never wall-clock.
 //
 //   P-IDEM  the newest file of this lane re-applies byte-identically
 //
 //   S1 — supabase/migrations/2026-10-11-world-tick-due-roster.sql
-//   R1  ★ a due armed gatherer (10 min) is rostered and leased; `state` NULL
+//   R1  ★ a due armed Hearth hero (10 min) is rostered and leased; `state` NULL
 //   R2  ★ not due (30 s, 89 s): not rostered, lease untouched
 //   R3  the boundary: exactly one flush is due (same clock)
 //   R4  ★ shadow uses the chained mark (raw 2 h, chain 20 s -> not due;
@@ -61,31 +63,11 @@
 //   C6  MAX_CATCHUP_WINDOWS equals the CHECK, and a body asking 1000 gets 40
 //   C7  the CHECKs hold fold <= 8 (the lag judge) and fold <= catch-up
 //
-//   S4 — supabase/migrations/2026-10-11-world-tick-ledger-fold.sql + tick.js
-//        settleFolded + tick-gather.js foldWindowIntents / coalesceProgress
-//   F1  ★ THE FOLD DIFFERENTIAL (AWAY): ONE folded settle of 8 windows vs 8
-//           single fires, same frozen clock: gold/xp/items (columns and
-//           meta.delta), ticks, qty, ms, inventory, skills, progress, tool
-//           carry and watermark identical; 1 ledger row instead of 8 over the
-//           same [from, to]; the version moves once instead of 8 times
-//   F2  8 windows file > 64 progress ops; the fold carries one per (kind,
-//           key, period), each the sum of its windows' adds
-//   F3  the roster holds an AWAY armed gatherer until a fold is due; an
-//           ONLINE one and a SHADOW one keep the one-flush line; fold 1 = S1
-//   F4  ★ ATTENDED: the player's own settle (hr_apply) lands between the
-//           fold's compute and its settle: the fold is refused, pays nothing
-//   F5  a level-up ends the fold chain (renown may move), pay still equal
-//   F6  a SHADOW gather window never folds
-//   F7  MAX_FOLD_WINDOWS equals the CHECK
-//   F8  8c on a fold: past the cap nothing; inside it only windows inside it
-//   F9  ★ the PRESENCE HORIZON (8d): a fold crossing it is cut to exactly the
-//           windows single fires pay before parking (same pay, one row), the
-//           crossing is journalled once, and the parked character then leaves
-//           the roster (S1's parked skip)
-//   F11 (retired with companion XP, lane C2)
-//   F10 ★ a window carrying an unmodelled key (a real hearthfind, from a
-//           fixture engine whose copy rolls 1 in 25) is settled as its own row,
-//           never folded; pay equals 8 single fires
+//   S4 — RETIRED with the gather channel (the one-town-work cut). The ledger fold
+//        (tick.js settleFolded, tick-gather.js foldWindowIntents) folded ARMED
+//        GATHER windows only, and both left with the channel; its roster half
+//        (hr_tick_roster's gather fold wait) is inert with no gather pointer and
+//        leaves in the cut's F1 pass. The parked skip F9 also read is R9's.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -94,31 +76,13 @@ import { readFile, writeFile, cp, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { bootReplay, inventory, chainFiles, ROOT } from './schema-replay.mjs';
 import * as TICK from '../supabase/functions/hr-accrue/tick.js';
-import * as TICK_GATHER from '../supabase/functions/hr-accrue/tick-gather.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } from './world-tick-token-shims.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
-const HF_FIND = '  if (!rng.chance(1 / row.oneIn)) return null;';
-const HF_REPL = '  if (!rng.chance(1 / 25)) return null;';
-/* ...and the hook. accrueGather's fx has NO onHearthfind today (gather never
-   proposes a hearthfind away or on the tick; combat does, accrual.js
-   computeAccrual). The fixture adds the combat path's own line, which is what
-   any change closing that gap will do; FOLD_CHAIN_KEYS must already hold then. */
-const HF_HOOK_FIND = '    /* Still deliberately ABSENT:';
-const HF_HOOK_REPL = '    onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },\n'
-  + '    /* Still deliberately ABSENT:';
-/* ...and the one-per-window collapse the combat flush already does
-   (tick-combat.js foldCombatDelta / collapseHearthfind), in the window's own
-   poll fold, which is what that change would also need. */
-const HF_WIN_FIND = '  const folded = foldDeltas(deltas);\n';
-const HF_WIN_REPL = '  const folded = foldDeltas(deltas);\n'
-  + '  if (Array.isArray(folded.hearthfind)) { const l = folded.hearthfind; '
-  + 'folded.hearthfind = l.length > 1 ? { ...l[0], dropped: Math.min(99, l.length - 1) } : l[0]; }\n';
-
 /* This lane's files, OLDEST FIRST. The newest is the one P-IDEM re-applies
    (each file's §0 accepts its predecessor's body or its own, so an older file
    re-applied over a newer body refuses by design). */
@@ -132,10 +96,17 @@ const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f
 const SQL = Object.fromEntries(await Promise.all(LANE.map(async (f) => [f, await read(f)])));
 const NEWEST = LANE[LANE.length - 1];
 
-/** The chain-end `create or replace function public.<name>(` statement of this lane, verbatim. */
+/* THE WHOLE CHAIN'S FILES, IN REPLAY ORDER: the arms run on the chain end (the artisan channel, the tick's one pointer
+   channel since the one-town-work cut, arrives with 2027-02-10-artisan-tick.sql, after this lane), so a mutant re-creates
+   a function from its LAST definition anywhere in the chain, never from this lane's older text. */
+const CHAIN_FILES = await chainFiles();
+const CHAIN = CHAIN_FILES.map(([n]) => n);
+const CHAIN_SQL = Object.fromEntries(await Promise.all(CHAIN_FILES.map(async ([n, path]) => [n, (await readFile(path, 'utf8')).replace(/\r\n/g, '\n')])));
+
+/** The chain-end `create or replace function public.<name>(` statement, verbatim: its last definition in replay order. */
 function fnSource(name) {
-  for (const f of [...LANE].reverse()) {
-    const sql = SQL[f];
+  for (const f of [...CHAIN].reverse()) {
+    const sql = CHAIN_SQL[f];
     const start = sql.indexOf(`create or replace function public.${name}(`);
     if (start < 0) continue;
     const as = sql.indexOf('\nas $$', start);
@@ -143,7 +114,7 @@ function fnSource(name) {
     if (as < 0 || end < 0) break;
     return sql.slice(start, end + 3);
   }
-  throw Object.assign(new Error(`${name} not found in this lane's files`), { harness: true });
+  throw Object.assign(new Error(`${name} not found in the chain`), { harness: true });
 }
 
 /* A fresh character per run: player_ledger is append-only (hr_ledger_immutable),
@@ -153,7 +124,7 @@ const U = (n) => `00000000-0000-4000-8000-${(0x7200 + RUN).toString(16).padStart
 
 /* `only` (a Set of section letters R/H/C/F) is the --mutate seam: a mutant runs
    the sections its named arms live in, never fewer. */
-async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfTick = null, only = null } = {}) {
+async function arms(db, { log = true, tick = TICK, only = null } = {}) {
   RUN += 1;
   const red = [];
   const ok = (id, cond, okMsg, badMsg) => {
@@ -163,32 +134,36 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const one = async (sql, p) => (await q(sql, p))[0];
   const cfg = (set) => db.exec(`update public.hr_tick_config set ${set} where id;`);
-  /* A node a level-1 character can work (no level gate): a gated node answers
-     the engine's level stop, which ENDS the activity and would make every
-     catch-up arm below measure an idle transition instead of a yield. */
-  const gact = (await one("select activity_id from public.hr_activities where kind = 'gather' and coalesce(req_lv, 1) <= 1 order by activity_id limit 1"))?.activity_id;
+  /* The Hearth's Bones run: every character below fuels it from a bag far past what any arm can burn, so no
+     catch-up arm measures a supplies stop (which ENDS the run) instead of a window's pay. */
+  const gact = (await one("select activity_id from public.hr_activities where kind = 'artisan' and activity_id = 'fuel_bones'"))?.activity_id;
   const cact = (await one("select activity_id from public.hr_activities where kind = 'combat' order by activity_id limit 1"))?.activity_id;
-  if (!gact || !cact) throw Object.assign(new Error('hr_activities lacks a gather or combat row'), { harness: true });
+  if (!gact || !cact) throw Object.assign(new Error('hr_activities lacks a fuel_bones or combat row'), { harness: true });
   const HOLDER = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
 
   /* A clean tick cohort per run: every arm reads the roster, and earlier
      runs' (control, mutant) rows must not be in it. */
   await db.exec('delete from public.hr_tick_ownership;');
-  await cfg("enabled = true, channels = array['combat','gather','artisan'], armed_channels = array['gather'],"
+  await cfg("enabled = true, channels = array['combat','artisan'], armed_channels = array['artisan'],"
     + " flush_seconds = 90, cadence_seconds = 10, batch_limit = 200, lease_ms = 30000, shards = 1,"
     + " edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue'");
 
   /** A character `ageS` seconds behind; owned on its channel; optional shadow chain age. */
-  const char = async (u, { ageS = 600, kind = 'gather', chainS = null, sinceS = 10800 } = {}) => {
+  const char = async (u, { ageS = 600, kind = 'artisan', chainS = null, sinceS = 10800 } = {}) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+    /* (the purse is the ACCOUNT's since 2026-12-15-account-gold.sql: no gold column here) */
+    await q(`insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 1, date_trunc('milliseconds', now()) - make_interval(secs => $2), $3, $4,
+             values ($1, 0, 10, 1, date_trunc('milliseconds', now()) - make_interval(secs => $2), $3, $4,
                      now() - make_interval(secs => $5))
-             on conflict (user_id, slot) do update set version = 1, gold = 0,
+             on conflict (user_id, slot) do update set version = 1,
                accrued_to = excluded.accrued_to, active_kind = excluded.active_kind,
                active_id = excluded.active_id, active_since = excluded.active_since`,
     [u, ageS, kind, kind === 'combat' ? cact : gact, Math.max(sinceS, ageS + 3600)]);
+    if (kind === 'artisan') {
+      await q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 1000000)
+               on conflict (user_id, slot, item_id) do update set qty = 1000000`, [u]);
+    }
     await q(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, shadow_accrued_to)
              values ($1, 0, $2, true, case when $3::int is null then null
                                            else date_trunc('milliseconds', now()) - make_interval(secs => $3::int) end)`,
@@ -198,7 +173,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
   const roster = (kinds, holder = 'scale-proof', shard = 0) => q(
     `select * from public.hr_tick_roster($1::text[], $2, 500, $3, 30000, null::timestamptz, null::uuid, null::int)`,
     [kinds, shard, holder]);
-  const lease = async (u, ch = 'gather') => (await one(
+  const lease = async (u, ch = 'artisan') => (await one(
     'select lease_holder from public.hr_tick_ownership where user_id = $1 and slot = 0 and channel = $2', [u, ch]))?.lease_holder ?? null;
   const calls = async (fn) => {
     await q('select pg_stat_force_next_flush()');
@@ -234,15 +209,15 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     const chainFresh = await char(U(5), { ageS: 7200, kind: 'combat', chainS: 20 });
     const chainDue = await char(U(6), { ageS: 7200, kind: 'combat', chainS: 300 });
     const hydr0 = await calls('hr_state_of');
-    const rows = await roster(['gather', 'combat']);
+    const rows = await roster(['artisan', 'combat']);
     const hydr = (await calls('hr_state_of')) - hydr0;
     const by = Object.fromEntries(rows.map((r) => [String(r.user_id), r]));
 
     ok('R1', !!by[due] && by[due].state === null && (await lease(due)) === 'scale-proof',
-      'a gatherer 10 min behind is rostered and leased, and its row carries no hydrated state',
+      'a Hearth hero 10 min behind is rostered and leased, and its row carries no hydrated state',
       `due row ${JSON.stringify(by[due] ? { state: by[due].state } : null)} lease ${await lease(due)}`);
     ok('R2', !by[fresh] && !by[near] && (await lease(fresh)) === null && (await lease(near)) === null,
-      'gatherers 30 s and 89 s behind are neither rostered nor leased',
+      'Hearth heroes 30 s and 89 s behind are neither rostered nor leased',
       `fresh ${!!by[fresh]}/${await lease(fresh)} near ${!!by[near]}/${await lease(near)}`);
     /* THE BOUNDARY, ON ONE CLOCK. now() is the transaction's, so a mark set to
        now() - 90 s and read by the roster in the same transaction is EXACTLY
@@ -252,7 +227,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     try {
       await q("update public.player_state set accrued_to = now() - interval '90 seconds' where user_id = $1", [edge]);
       await q("update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1", [edge]);
-      atLine = (await roster(['gather'], 'scale-proof-line')).some((r) => String(r.user_id) === edge);
+      atLine = (await roster(['artisan'], 'scale-proof-line')).some((r) => String(r.user_id) === edge);
     } finally { await db.exec('commit'); }
     ok('R3', !!by[edge] && atLine, 'a mark exactly one flush (90 s) old is due, on the same clock',
       `the one-flush boundary was not served (later clock ${!!by[edge]}, same clock ${atLine})`);
@@ -269,18 +244,18 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     // R5 the line follows the config
     await db.exec('update public.hr_tick_ownership set lease_holder = null, lease_until = null;');
     await cfg('flush_seconds = 600');
-    const r600 = (await roster(['gather'])).map((r) => String(r.user_id));
+    const r600 = (await roster(['artisan'])).map((r) => String(r.user_id));
     const five = await char(U(7), { ageS: 300 });
-    const r600b = (await roster(['gather'], 'scale-proof-2')).map((r) => String(r.user_id));
+    const r600b = (await roster(['artisan'], 'scale-proof-2')).map((r) => String(r.user_id));
     await cfg('flush_seconds = 90');
     ok('R5', r600.includes(due) && !r600.includes(edge) && !r600b.includes(five),
-      'at flush 600 s the 10 min gatherer is due and the 90 s / 5 min ones are not',
+      'at flush 600 s the 10 min Hearth hero is due and the 90 s / 5 min ones are not',
       `flush 600: ${JSON.stringify({ due: r600.includes(due), edge: r600.includes(edge), five: r600b.includes(five) })}`);
 
     // R6 the edge agrees with the roster
     await db.exec('update public.hr_tick_ownership set lease_holder = null, lease_until = null;');
     await q("delete from public.hr_tick_ownership where channel = 'combat'");
-    const served = await roster(['gather'], HOLDER);
+    const served = await roster(['artisan'], HOLDER);
     const fire = await fireEdge({ op: 'tick', roster: served.map((r) => ({ user_id: String(r.user_id), slot: r.slot })),
       cadence_ms: 10000, flush_ms: 90000 });
     const reasons = (fire && fire.reasons) || {};
@@ -308,12 +283,12 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
              values ($1, 0, now() - interval '9 minutes' - make_interval(secs => $2::double precision))
              on conflict (user_id, slot) do update set real_return_at = excluded.real_return_at`, [pk, capP / 1000]);
     const logAt = (anchorExpr) => q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
-             select $1, 0, ${anchorExpr}, 'gather', ${anchorExpr} + make_interval(secs => $2::double precision), $3,
+             select $1, 0, ${anchorExpr}, 'artisan', ${anchorExpr} + make_interval(secs => $2::double precision), $3,
                     now() - interval '10 minutes'
                from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [pk, capP / 1000, capP]);
     const servedPk = async (h) => {
       await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [pk]);
-      return (await roster(['gather'], h)).some((r) => String(r.user_id) === pk);
+      return (await roster(['artisan'], h)).some((r) => String(r.user_id) === pk);
     };
     await logAt("a.real_return_at - interval '1 day'");
     const oldAnchorServed = await servedPk('r9-a');
@@ -440,12 +415,12 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     }
     if (!mover) throw Object.assign(new Error('H4: no fixture hashes to shard 3 of 4'), { harness: true });
     await char(mover, { ageS: 600 });
-    const r4a = (await roster(['gather'], await holderOf(3), 3)).some((r) => String(r.user_id) === mover);
+    const r4a = (await roster(['artisan'], await holderOf(3), 3)).some((r) => String(r.user_id) === mover);
     await cfg('shards = 2');
     const k2 = (await one('select public.hr_shard_of($1::uuid) as k', [mover])).k;
-    const r4b = (await roster(['gather'], await holderOf(k2), k2)).some((r) => String(r.user_id) === mover);
+    const r4b = (await roster(['artisan'], await holderOf(k2), k2)).some((r) => String(r.user_id) === mover);
     await q("update public.hr_tick_ownership set lease_until = now() - interval '1 second' where user_id = $1", [mover]);
-    const r4c = (await roster(['gather'], await holderOf(k2), k2)).some((r) => String(r.user_id) === mover);
+    const r4c = (await roster(['artisan'], await holderOf(k2), k2)).some((r) => String(r.user_id) === mover);
     ok('H4', r4a && !r4b && r4c,
       `a character leased by shard 3 of 4 is not served to its new shard ${k2} of 2 while that lease lives, and is once it ends`,
       JSON.stringify({ leasedBy3: r4a, servedWhileLeased: r4b, servedAfter: r4c }));
@@ -489,7 +464,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
   const snapshot = async (u) => ({
     ledger: await q(`select kind, intent, item_id, qty, gold, skill_id, xp, gold_in, xp_in, qty_in, gems_in, meta
                        from public.player_ledger where user_id = $1 order by id`, [u]),
-    state: await one('select gold, gems, version, accrued_to, tool_carry, hp from public.player_state where user_id = $1', [u]),
+    state: await one('select version, accrued_to, hp from public.player_state where user_id = $1', [u]),
     inv: await q('select item_id, qty from public.player_inventory where user_id = $1 order by item_id', [u]),
     skills: await q('select skill_id, xp from public.player_skills where user_id = $1 order by skill_id', [u]),
     progress: await q(`select kind, key, period_key, value, state from public.player_progress
@@ -566,18 +541,17 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     const f2c = await fireEdge(body1(inside, { catchup_windows: K, }));
     const inRows = await tickRows(inside);
     const earliest = Math.min(...inRows.map((r) => Date.parse(r.meta.from)));
-    /* The SHADOW character is a GATHERER on a shadow gather channel (F6's
-       pattern). Until lane C2 it was a combat character on the shadow combat
-       channel; the solo combat channel is retired (a solo fight is a hunt
-       session) and its rows are skipped `channel_not_driven`, so the only
-       driven channel that can be shadow is gather with the arm set emptied. */
+    /* The SHADOW character is a Hearth hero on a shadow artisan channel. Until lane C2 it was a combat character
+       on the shadow combat channel; the solo combat channel is retired (a solo fight is a hunt session), and the
+       gather channel with the one-town-work cut, so the only driven channel that can be shadow is artisan with the
+       arm set emptied. */
     await cfg("armed_channels = '{}'");
     const shadowC = await char(U(605), { ageS: 1800, chainS: 1200 });
     await leaseTo(shadowC);
     const sh0 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
     const f2d = await fireEdge(body1(shadowC, { catchup_windows: K }));
     const sh1 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
-    await cfg("armed_channels = array['gather']");
+    await cfg("armed_channels = array['artisan']");
     const lag5 = Number((await one('select extract(epoch from (now() - accrued_to)) as s from public.player_state where user_id = $1', [five])).s);
     ok('C2a', (await tickRows(five)).length >= 2 && lag5 < 90 && f2a.catchup && f2a.catchup.stops.below_flush === 1,
       `a character 5 min behind catches up ${(await tickRows(five)).length} full windows and stops at the flush line (lag now ${Math.round(lag5)} s)`,
@@ -625,7 +599,16 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     } catch (e) { f3 = { threw: e.message }; }
     const aRows = await tickRows(att);
     const aEnd = aRows.length ? Date.parse(aRows[aRows.length - 1].meta.to) : null;
-    const contiguous = aRows.every((r, i) => i === 0 || r.meta.from === aRows[i - 1].meta.to);
+    /* CONTIGUOUS ON THE WATERMARK: a fuel window's journal names its CREDITED window, and its sub-action remainder
+       is deferred (the watermark stops short of `to` by under one action), so the next window opens at most one
+       action before the last one's `to`, never after it (a gap) and never earlier (a re-pay). */
+    const ONE_ACTION_MS = 5000;
+    const contiguous = aRows.every((r, i) => {
+      if (i === 0) return true;
+      const prevTo = Date.parse(aRows[i - 1].meta.to);
+      const from = Date.parse(r.meta.from);
+      return from <= prevTo && prevTo - from < ONE_ACTION_MS && from > Date.parse(aRows[i - 1].meta.from);
+    });
     const finalMark = new Date((await one('select accrued_to from public.player_state where user_id = $1', [att])).accrued_to).getTime();
     ok('C3', how === 'hr_apply' && aRows.length === 2 && contiguous && aEnd <= stamp && finalMark === stamp
         && f3.catchup && f3.catchup.windows === 2 && (f3.catchup.stops.below_flush === 1),
@@ -683,277 +666,6 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
       JSON.stringify(c7));
   }
 
-  // ── S4 ──────────────────────────────────────────────────────────────────
-  if (!only || only.has('F')) {
-    await db.exec('delete from public.hr_tick_ownership;');
-    const F = 8;
-    const gskill = (await one('select req_skill from public.hr_activities where activity_id = $1', [gact]))?.req_skill
-      || 'woodcutting';
-    const setXp = (u, xp) => q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, $3)
-                                 on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [u, gskill, xp]);
-    const sumOf = (rows) => {
-      const out = { gold_in: 0, xp_in: 0, qty_in: 0, qty: 0, ticks: 0, ms: 0, i: {}, x: {} };
-      for (const r of rows) {
-        out.gold_in += Number(r.gold_in || 0); out.xp_in += Number(r.xp_in || 0); out.qty_in += Number(r.qty_in || 0);
-        out.qty += Number(r.meta.qty || 0); out.ticks += Number(r.meta.ticks || 0); out.ms += Number(r.meta.ms || 0);
-        for (const [k, v] of Object.entries((r.meta.delta || {}).i || {})) out.i[k] = (out.i[k] || 0) + Number(v);
-        for (const [k, v] of Object.entries((r.meta.delta || {}).x || {})) out.x[k] = (out.x[k] || 0) + Number(v);
-      }
-      for (const m of [out.i, out.x]) for (const k of Object.keys(m)) if (m[k] === 0) delete m[k];
-      const sort = (m) => Object.fromEntries(Object.keys(m).sort().map((k) => [k, m[k]]));
-      out.i = sort(out.i); out.x = sort(out.x);
-      return out;
-    };
-    const tickOnly = (snap) => snap.ledger.filter((l) => l.meta && l.meta.src === 'tick');
-    /* The pay a fold must equal: everything but the version (K settles bump
-       it K times, one fold once) and the ledger's row count. */
-    const value = (snap) => JSON.stringify({ state: { ...snap.state, version: null }, inv: snap.inv, skills: snap.skills,
-      progress: snap.progress, ledger: sumOf(tickOnly(snap)) });
-    const differential = async (u, fold, mod = tick) => {
-      const A = await inTxn(u, async (sexec) => {
-        const fires = [];
-        for (let i = 0; i < F; i++) fires.push((await mod.runTick({ exec: sexec, probe: false, body: body1(u) })).body);
-        return fires;
-      });
-      const C = await inTxn(u, async (sexec) => [(await mod.runTick({ exec: sexec, probe: false, catchupBudgetMs: 120000,
-        body: body1(u, { catchup_windows: F, fold_windows: fold }) })).body]);
-      return { A, C, a: tickOnly(A.snap), c: tickOnly(C.snap) };
-    };
-
-    // F1 ★ THE FOLD DIFFERENTIAL (AWAY): one fold of 8 == 8 single fires
-    const fd = await char(U(700), { ageS: 1200 });
-    await setXp(fd, xpForLevel(60) + 1);
-    await leaseTo(fd);
-    const v0 = (await one('select version from public.player_state where user_id = $1', [fd])).version;
-    const d1 = await differential(fd, F);
-    const sameValue = value(d1.A.snap) === value(d1.C.snap);
-    const cf = d1.C.fires[0] || {};
-    ok('F1', sameValue && d1.a.length === F && d1.c.length === 1
-        && d1.c[0].meta.from === d1.a[0].meta.from && d1.c[0].meta.to === d1.a[F - 1].meta.to
-        && Number(d1.A.snap.state.version) === Number(v0) + F && Number(d1.C.snap.state.version) === Number(v0) + 1
-        && cf.processed === 1 && cf.catchup && cf.catchup.windows === F,
-      `AWAY: ONE folded settle paid exactly what ${F} single fires paid — gold/xp/items in and in meta.delta, `
-      + 'ticks, qty, ms, inventory, skills, progress, tool carry and watermark — in 1 ledger row instead of '
-      + `${F}, spanning the same [from, to]`,
-      sameValue ? JSON.stringify({ rowsA: d1.a.length, rowsC: d1.c.length, v0, vA: d1.A.snap.state.version,
-        vC: d1.C.snap.state.version, cf })
-        : `DIFFERENT:\n             A ${value(d1.A.snap).slice(0, 500)}\n             C ${value(d1.C.snap).slice(0, 500)}`);
-
-    // F2 the fold's progress ops are coalesced under hr_apply's 64
-    {
-      const J = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8'));
-      const s0 = Object.assign({ activeKind: 'gather' }, J.sessions[0]);
-      const from = Date.parse('2026-10-01T00:00:00.000Z');
-      s0.accruedToMs = from; s0.activeSinceMs = from;
-      const geom = { cadenceMs: 10000, flushMs: 90000, maxPolls: 64, holder: 'f2' };
-      /* `raw` is the POLLS' concatenation — what the fold would carry with no
-         coalescing anywhere. Each window's own intent is coalesced too since
-         2026-10-08 (tests/progress-coalesce.mjs), so it is read off the polls. */
-      let s = s0; let m = from; const wins = []; const raw = [];
-      for (let w = 0; w < F; w++) {
-        const run = tickGather.settleGatherSession(s, m, m + 90000, geom);
-        if (!run.intents[0]) break;
-        for (const r of run.results) if (r.res && r.res.accrued) raw.push(...(r.res.delta.progress || []));
-        wins.push(run.intents[0]); m = Date.parse(run.intents[0].args.p_window_to);
-        s = Object.assign({}, run.char, { accruedToMs: m });
-      }
-      const folded = wins.length >= 2 ? tickGather.foldWindowIntents({ userId: s0.userId, slot: 0, shard: 0, version: 1, holder: 'f2' }, wins) : null;
-      const sumBy = (ops) => {
-        const out = {};
-        for (const o of ops) { const k = `${o.kind}|${o.key}|${o.period ?? ''}`; out[k] = (out[k] || 0) + Number(o.add); }
-        return JSON.stringify(Object.keys(out).sort().map((k) => [k, out[k]]));
-      };
-      const fp = (folded && folded.args.p_delta.progress) || [];
-      ok('F2', wins.length === F && raw.length > 64 && fp.length <= 64 && sumBy(fp) === sumBy(raw)
-          && fp.length === new Set(fp.map((o) => `${o.kind}|${o.key}|${o.period ?? ''}`)).size,
-        `${F} windows file ${raw.length} progress ops (hr_apply refuses > 64 per call); the fold carries `
-        + `${fp.length}, one per (kind, key, period), each the sum of its windows' adds`,
-        JSON.stringify({ windows: wins.length, raw: raw.length, folded: fp.length }));
-    }
-
-    // F3 the roster holds an AWAY gatherer for a fold; online and shadow keep one flush
-    await db.exec('delete from public.hr_tick_ownership;');
-    await cfg(`catchup_windows = ${F}, fold_windows = ${F}`);
-    const away3 = await char(U(710), { ageS: 270 });
-    const away8 = await char(U(711), { ageS: 721 });
-    const live = await char(U(712), { ageS: 95 });
-    await q("update public.player_state set last_seen_at = now() - interval '10 seconds' where user_id = $1", [live]);
-    const shadowG = await char(U(713), { ageS: 7200, kind: 'combat', chainS: 95 });
-    const served3 = (await roster(['gather', 'combat'], 'fold-proof')).map((r) => String(r.user_id));
-    await cfg('fold_windows = 1');
-    await db.exec('update public.hr_tick_ownership set lease_holder = null, lease_until = null;');
-    const served1 = (await roster(['gather'], 'fold-proof-1')).map((r) => String(r.user_id));
-    await cfg('fold_windows = 1, catchup_windows = 1');
-    ok('F3', !served3.includes(away3) && served3.includes(away8) && served3.includes(live)
-        && served3.includes(shadowG) && served1.includes(away3),
-      'fold 8: an AWAY gatherer 3 flushes behind waits, 8 flushes behind is served; an ONLINE one (heartbeat '
-      + '10 s ago) and a SHADOW combat one keep the one-flush line; fold 1 serves the 3-flush gatherer',
-      JSON.stringify({ away3: served3.includes(away3), away8: served3.includes(away8), live: served3.includes(live),
-        shadow: served3.includes(shadowG), away3AtFold1: served1.includes(away3) }));
-
-    // F4 ★ ATTENDED: the player's own settle lands between the fold's compute and its settle
-    const fa = await char(U(720), { ageS: 1200 });
-    await setXp(fa, xpForLevel(60) + 1);
-    await leaseTo(fa);
-    let raced = null;
-    const raceExec = async (text, params) => {
-      if (!raced && /hr_tick_settle/.test(text) && params && params[4] != null) {
-        const v = (await one('select version from public.player_state where user_id = $1', [fa])).version;
-        await db.exec('begin'); await db.exec('set local role hr_engine');
-        try {
-          raced = (await one(
-            "select public.hr_apply($1::uuid, 0, $2::bigint, gen_random_uuid(), jsonb_build_object('accrued_to', to_jsonb(now()))) as r",
-            [fa, v])).r;
-          await db.exec('commit');
-        } catch (e) { await db.exec('rollback'); raced = { threw: e.message }; }
-      }
-      return exec(text, params);
-    };
-    let f4;
-    try { f4 = (await tick.runTick({ exec: raceExec, probe: false, body: body1(fa, { catchup_windows: F, fold_windows: F }) })).body; }
-    catch (e) { f4 = { threw: e.message }; }
-    const f4rows = await tickRows(fa);
-    const f4mark = new Date((await one('select accrued_to from public.player_state where user_id = $1', [fa])).accrued_to).getTime();
-    const why4 = Object.keys(f4.reasons || {})[0] || '';
-    ok('F4', raced && raced.ok === true && f4.refused === 1 && /window_already_settled|version_conflict/.test(why4)
-        && f4rows.length === 0 && Math.abs(f4mark - Date.now()) < 120000,
-      `ATTENDED: the player's own settle landed first; the 8-window fold was refused (${why4}), paid nothing, `
-      + 'and the watermark is where the player put it',
-      JSON.stringify({ raced: raced && (raced.ok ?? raced), f4, rows: f4rows.length }));
-
-    // F5 a level-up ends the fold chain, and the pay is still the single fires'
-    const fl = await char(U(730), { ageS: 1200 });
-    await setXp(fl, xpForLevel(61) - 30);
-    await leaseTo(fl);
-    const d5 = await differential(fl, F);
-    ok('F5', value(d5.A.snap) === value(d5.C.snap) && d5.a.length === F && d5.c.length >= 2 && d5.c.length < F,
-      `a level-up inside the fold ends the chain (renown and the perk stack may move): ${d5.c.length} settles `
-      + `instead of 1, paying exactly what ${F} single fires paid`,
-      JSON.stringify({ rowsA: d5.a.length, rowsC: d5.c.length, same: value(d5.A.snap) === value(d5.C.snap) }));
-
-    // F6 a SHADOW gather window is never folded
-    await cfg("armed_channels = '{}'");
-    const sg = await char(U(740), { ageS: 1200 });
-    await setXp(sg, xpForLevel(60) + 1);   // no level-up: only the shadow rule can stop a fold
-    await leaseTo(sg);
-    const s0n = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [sg])).n);
-    const f6 = await fireEdge(body1(sg, { catchup_windows: F, fold_windows: F }));
-    const s1n = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [sg])).n);
-    const s6 = (await one('select extract(epoch from (window_to - window_from))::float8 as w from public.hr_tick_shadow where user_id = $1 order by id desc limit 1', [sg]));
-    await cfg("armed_channels = array['gather']");
-    const spanS = s6 && s6.w != null ? Number(s6.w) : null;
-    ok('F6', f6.shadowed === 1 && s1n - s0n === 1 && spanS !== null && spanS <= 90,
-      'SHADOW gather with fold 8: one shadow window of at most one flush (the carrier and probes untouched)',
-      JSON.stringify({ f6, rows: s1n - s0n, spanS }));
-
-    // F7 the edge's fold ceiling is the CHECK's
-    const ckf = (await one("select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'hr_tick_config_fold_ck'"))?.d || '';
-    const hiF = Number((ckf.match(/fold_windows <= (\d+)/) || [])[1]);
-    ok('F7', hiF === tick.MAX_FOLD_WINDOWS,
-      `tick.js MAX_FOLD_WINDOWS ${tick.MAX_FOLD_WINDOWS} equals the CHECK ceiling (${ckf})`,
-      `MAX_FOLD_WINDOWS ${tick.MAX_FOLD_WINDOWS} vs ${ckf}`);
-
-    // F8 8c on a fold: past the cap nothing, inside it only windows that start inside it
-    const fc = await char(U(750), { ageS: 600, sinceS: 30 * 3600 });
-    const capF = await capOf(fc);
-    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
-      [fc, capF / 1000 + 60]);
-    await leaseTo(fc);
-    const f8a = await fireEdge(body1(fc, { catchup_windows: F, fold_windows: F }));
-    const fi = await char(U(751), { ageS: 600, sinceS: 30 * 3600 });
-    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
-      [fi, capF / 1000 - 120]);
-    await setXp(fi, xpForLevel(60) + 1);
-    await leaseTo(fi);
-    const n8 = new Date((await one('select now() as t')).t).getTime();
-    const f8b = await fireEdge(body1(fi, { catchup_windows: F, fold_windows: F }));
-    const fiRows = await tickRows(fi);
-    ok('F8', (f8a.reasons || {}).fenced_cap === 1 && (await tickRows(fc)).length === 0
-        && fiRows.length === 1 && fiRows.every((r) => Date.parse(r.meta.from) >= n8 - capF - 1000)
-        && (f8b.catchup || {}).windows === F,
-      `a fold one minute past the cap is refused fenced_cap and pays nothing; two minutes inside it pays ${F} `
-      + `windows in ${fiRows.length} row(s), every one starting inside the cap`,
-      JSON.stringify({ f8a: f8a.reasons, rowsPast: (await tickRows(fc)).length, f8b: f8b.catchup, rowsInside: fiRows.length }));
-
-    // F9 ★ THE HORIZON (presence-horizon (8d)) cuts a fold exactly where single fires park,
-    //     and the parked character then leaves the roster (S1's parked skip)
-    await db.exec('delete from public.hr_tick_ownership;');
-    await cfg(`catchup_windows = ${F}, fold_windows = ${F}`);
-    const hz = await char(U(760), { ageS: 1200 });
-    await setXp(hz, xpForLevel(60) + 1);
-    const capH = await capOf(hz);
-    /* The tick "has paid" since the last real return: the horizon falls 405 s
-       (4.5 flushes) past the mark, so four windows fit and the fifth crosses. */
-    await q(`update public.hr_return_anchor a set real_return_at = ps.accrued_to + interval '405 seconds'
-                                                                - make_interval(secs => $2::double precision)
-               from public.player_state ps where ps.user_id = a.user_id and ps.slot = a.slot and a.user_id = $1`,
-    [hz, capH / 1000]);
-    const horizon = new Date((await one(`select a.real_return_at + make_interval(secs => $2::double precision) as h
-                                           from public.hr_return_anchor a where a.user_id = $1`, [hz, capH / 1000])).h).getTime();
-    const servedBefore = (await roster(['gather'], 'hz-proof')).some((r) => String(r.user_id) === hz);
-    await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [hz]);
-    await leaseTo(hz);
-    const d9 = await differential(hz, F);
-    const f9 = await fireEdge(body1(hz, { catchup_windows: F, fold_windows: F }));
-    const hzRows = await tickRows(hz);
-    const parked = Number((await one('select count(*)::int as n from public.hr_tick_horizon_log where user_id = $1', [hz])).n);
-    await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [hz]);
-    const servedAfter = (await roster(['gather'], 'hz-proof-2')).some((r) => String(r.user_id) === hz);
-    await cfg('fold_windows = 1, catchup_windows = 1');
-    ok('F9', value(d9.A.snap) === value(d9.C.snap) && d9.a.length === 4 && d9.c.length === 1
-        && hzRows.length === 1 && Date.parse(hzRows[0].meta.to) <= horizon && (f9.catchup || {}).windows === 4
-        && parked === 1 && servedBefore && !servedAfter,
-      'the fold is cut at the presence horizon to the 4 windows single fires pay before parking (same pay, 1 row), '
-      + 'the crossing is journalled once, and the parked character then leaves the roster',
-      JSON.stringify({ same: value(d9.A.snap) === value(d9.C.snap), singles: d9.a.length, folds: d9.c.length,
-        rows: hzRows.length, f9: f9.catchup, reasons: f9.reasons, parked, servedBefore, servedAfter }));
-
-    // F10 ★ A WINDOW CARRYING AN UNMODELLED KEY (`hearthfind`) IS NEVER FOLDED
-    //     (Security, secFoldNoKeyStop). The fixture engine (hfTick) is the
-    //     shipped edge with ONE data change in its copy: the hearthfind odds
-    //     are 1 in 25 per action instead of 1 in 100-400 hours, so a real
-    //     `hearthfind` delta appears inside 8 windows. Pay must equal 8 single
-    //     fires, and the find window must be its own row.
-    //     THE FIXTURE IS CHOSEN, NOT HOPED FOR (b567 flake, 2026-10-11). Each
-    //     window's PRNG is hr_seed(user, slot, 'accrue:'||accrued_to), and
-    //     accrued_to is now() - 1200 s, so the seed moves with the wall clock:
-    //     at 1 in 25 a window finds ~half the time, and ~3.5% of clocks gave
-    //     fewer than 2 find windows, which turned F10 (and the --mutate
-    //     control) red with nothing wrong. The clock cannot be pinned in
-    //     PGlite, so the fixture walks a fixed ladder of characters (770..777)
-    //     and keeps the first whose 8 single fires carry >= 2 finds. Every
-    //     candidate tried is held to the full pay-equality differential; a
-    //     ladder with no such seed (p ~ 0.035^8) reads RED, never green.
-    if (!hfTick) throw Object.assign(new Error('F10 needs the hearthfind fixture engine'), { harness: true });
-    const finds = (rows) => rows.filter((r) => ((r.meta.delta || {}).k || []).includes('hearthfind'));
-    const HF_LADDER = 8;
-    let d10 = null; let findsA = []; let findsC = []; const tried = [];
-    for (let k = 0; k < HF_LADDER; k++) {
-      await db.exec('delete from public.hr_tick_ownership;');
-      const hf = await char(U(770 + k), { ageS: 1200 });
-      await q("update public.player_state set active_id = 'normal_tree' where user_id = $1", [hf]);
-      await q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'woodcutting', $2)
-               on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [hf, xpForLevel(60) + 1]);
-      await leaseTo(hf);
-      d10 = await differential(hf, F, hfTick);
-      findsA = finds(d10.a); findsC = finds(d10.c);
-      const same = value(d10.A.snap) === value(d10.C.snap);
-      tried.push({ k, findsA: findsA.length, same });
-      if (!same || findsA.length >= 2) break;   // a pay mismatch is judged on the spot, never skipped
-    }
-    ok('F10', findsA.length >= 2 && value(d10.A.snap) === value(d10.C.snap)
-        && findsC.length === findsA.length && d10.c.length <= F
-        && JSON.stringify(findsC.map((r) => [r.meta.from, r.meta.to])) === JSON.stringify(findsA.map((r) => [r.meta.from, r.meta.to])),
-      `${findsA.length} hearthfind window(s) inside 8: each settled as its own row (same span as the single fire), `
-      + `${d10.c.length} rows in all, pay (trophies included, under the 3/day cap) identical to 8 single fires`,
-      JSON.stringify({ tried, findsA: findsA.length, findsC: findsC.length, rowsA: d10.a.length, rowsC: d10.c.length,
-        same: value(d10.A.snap) === value(d10.C.snap), fires: d10.C.fires.map((f) => ({ c: f.catchup, r: f.reasons })) }));
-
-    // F11 RETIRED (closed rebuild, lane C2): companion XP left the engine, so a
-    //     fold has no pet credit to carry; tests/hunt-sessions-settle.mjs TICK-2
-    //     refuses the companion-XP names in any edge file.
-  }
-
   return red;
 }
 
@@ -964,8 +676,9 @@ const bodies = async (db) => (await db.query(
       and p.proname in ('hr_tick_roster', 'hr_tick_cron_run', 'hr_shard_of', 'hr_tick_shard_of')
     order by 1`)).rows.map((r) => r.h).join(',');
 
-async function boot() {
-  const { db } = await bootReplay({ upTo: NEWEST });
+/* The arms run on the WHOLE chain (see CHAIN above); P-IDEM re-applies this lane's newest file on the chain as of it. */
+async function boot({ upTo } = {}) {
+  const { db } = await bootReplay(upTo ? { upTo } : {});
   /* What Supabase has and PGlite does not, from the ONE copy the token guards
      pin against node:crypto and the migration's own vector. */
   await db.exec(SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
@@ -973,26 +686,28 @@ async function boot() {
 }
 
 if (!MUTATE) {
-  console.log('\nworld-tick-scale: the tick serves only what is due, fans out, catches up and folds — paying exactly what single windows pay');
+  console.log('\nworld-tick-scale: the tick serves only what is due, fans out and catches up — paying exactly what single windows pay');
   let db;
-  try { db = await boot(); } catch (e) {
+  let idem; let err = null;
+  try {
+    const db0 = await boot({ upTo: NEWEST });
+    const inv0 = JSON.stringify(await inventory(db0));
+    const b0 = await bodies(db0);
+    try { await db0.exec(SQL[NEWEST]); } catch (e) { err = String(e.message).split('\n')[0]; }
+    idem = !err && JSON.stringify(await inventory(db0)) === inv0 && (await bodies(db0)) === b0;
+    await db0.close();
+    db = await boot();
+  } catch (e) {
     console.error(`harness: the migration chain did not replay — ${e.message}`); process.exit(2);
   }
-  const inv0 = JSON.stringify(await inventory(db));
-  const b0 = await bodies(db);
-  let err = null;
-  try { await db.exec(SQL[NEWEST]); } catch (e) { err = String(e.message).split('\n')[0]; }
-  const idem = !err && JSON.stringify(await inventory(db)) === inv0 && (await bodies(db)) === b0;
   console.log(idem
     ? `  ✓ P-IDEM — ${NEWEST} re-applied byte-identically (§0 accepted its own body, its self-check passed twice)`
     : `  ✗ P-IDEM — ${err || 'the re-apply moved the schema or a body'}`);
   let red;
-  const HF = await edgeCopy(null, null, null, null, true);
-  try { red = await arms(db, { hfTick: HF.mod }); } catch (e) {
+  try { red = await arms(db); } catch (e) {
     if (e.harness) { console.error(`harness: ${e.message}`); process.exit(2); }
     throw e;
   }
-  await rm(HF.base, { recursive: true, force: true });
   if (!idem) red.push('P-IDEM');
   console.log(red.length ? `\nRED: ${red.join(', ')}`
     : '\nGREEN: the roster serves only due characters without hydrating them; one fire fans out to disjoint, '
@@ -1080,44 +795,18 @@ const MUTANTS = [
   { name: 'foldPastLagJudge', raw: true, why: 'the CHECK admits a fold past the 15 min lag judge', expect: /C7/,
     sql: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 40 and fold_windows <= catchup_windows);',
     restore: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 8 and fold_windows <= catchup_windows);' },
-  // S4
-  { name: 'foldsOnline', fn: 'roster', why: 'an ONLINE player is held for a fold (a watching player sees no progress for 12 min)', expect: /F3/,
-    find: "                       and not coalesce(ps.last_seen_at >  now() - interval '75 seconds'\n"
-      + "                                    and ps.last_seen_at <= now() + interval '60 seconds', false)\n", repl: '' },
-  { name: 'foldsShadow', fn: 'roster', why: 'a SHADOW combat character is held for a fold it will never get', expect: /F3/,
-    find: "             case when a.armed and o.channel = 'gather'\n", repl: "             case when o.channel in ('gather', 'combat')\n" },
-  { name: 'noFoldWait', fn: 'roster', why: 'an away character is visited every flush (no ledger saving)', expect: /F3/,
-    find: '                  then v_fold else 1 end)\n', repl: '                  then 1 else 1 end)\n' },
-  { name: 'foldNoCoalesce', edge: 'tick-gather.js', why: 'the fold concatenates progress ops (hr_apply refuses > 64)', expect: /F1|F2/,
-    find: '  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n', repl: '' },
-  { name: 'foldIgnoresLevelUp', edge: 'tick.js', why: 'the fold chain runs through a level-up (renown/perks may move)', expect: /F5/,
-    find: '    if (levelledUp(session.skills, run.char.skills)) break;\n', repl: '' },
-  { name: 'foldChainsOnClock', edge: 'tick.js', why: 'the next folded window starts at the clock, not at the settled watermark', expect: /F1|F5/,
-    find: '    m = run.watermarkMs;\n', repl: '    m = to;\n' },
-  { name: 'foldInShadow', edge: 'tick.js', why: 'a SHADOW gather window folds (carrier and probes bypassed)', expect: /F6/,
-    find: '  const foldN = (probe.shadow === false && channel === GATHER_CHANNEL && maxWindows > 1)',
-    repl: '  const foldN = (channel === GATHER_CHANNEL && maxWindows > 1)' },
-  { name: 'parkedNotSkipped', fn: 'roster', why: 'a PARKED character (journalled horizon crossing) is rostered and refused every fire', expect: /F9/,
+  /* S4's mutants (the roster's gather fold wait, the edge fold) retired with the gather channel. */
+  { name: 'parkedNotSkipped', fn: 'roster', why: 'a PARKED character (journalled horizon crossing) is rostered and refused every fire', expect: /R9/,
     find: '       and not (a.armed and exists (\n', repl: '       and not (false and exists (\n' },
   // Security's review mutants (2026-10-08), both SURVIVED @c34efa5f.
   { name: 'secParkedAnyAnchor', fn: 'roster', why: 'a crossing logged under an OLDER anchor parks the new absence', expect: /R9/,
     find: '                and hl.anchor_at = ra.real_return_at\n', repl: '' },
   { name: 'parkedIgnoresMark', fn: 'roster', why: 'a logged character still owed windows below its horizon is parked', expect: /R9/,
     find: '                and m.mark + v_flush > hl.horizon_at))\n', repl: '                and true))\n' },
-  { name: 'secFoldNoKeyStop', edge: 'tick.js', why: 'a window carrying hearthfind/activity is folded with its neighbours', expect: /F10/,
-    find: '    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) {\n      if (i === 0) wins.push(it);\n      break;\n    }\n',
-    repl: '' },
-  { name: 'foldNoHorizonTrim', edge: 'tick.js', why: 'a fold crossing the horizon is refused whole (the 4 payable windows are lost)', expect: /F9/,
-    find: "  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {",
-    repl: '  if (false) {' },
-  { name: 'foldCeiling', edge: 'tick.js', why: 'the edge fold ceiling drifts from the CHECK', expect: /F7/,
-    find: 'export const MAX_FOLD_WINDOWS = 8;', repl: 'export const MAX_FOLD_WINDOWS = 16;' },
 ];
 
 /** A patched COPY of the edge, imported fresh. Returns the module and its temp root. */
-/* THE HEARTHFIND FIXTURE (F10): the one data change a copy may carry beyond its
-   mutant. Applied in the control run too, because it is the fixture, not a mutant. */
-async function edgeCopy(file, find, repl, and, hf = false) {
+async function edgeCopy(file, find, repl, and) {
   const base = await mkdtemp(join(tmpdir(), 'hr-wts-'));
   const dir = join(base, 'supabase', 'functions', 'hr-accrue');
   await cp(join(ROOT, 'supabase', 'functions', 'hr-accrue'), dir, { recursive: true });
@@ -1137,51 +826,32 @@ async function edgeCopy(file, find, repl, and, hf = false) {
     }
     await writeFile(join(dir, file), out, 'utf8');
   }
-  if (hf) {
-    const p = join(base, 'src', 'core', 'hearthfind.js');
-    const src = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
-    if (src.split(HF_FIND).length !== 2) throw Object.assign(new Error('hearthfind fixture anchor moved'), { harness: true });
-    await writeFile(p, src.replace(HF_FIND, () => HF_REPL), 'utf8');
-    const pa = join(dir, 'accrue-gather.js');
-    const sa = (await readFile(pa, 'utf8')).replace(/\r\n/g, '\n');
-    if (sa.split(HF_HOOK_FIND).length !== 2) throw Object.assign(new Error('gather hearthfind hook anchor moved'), { harness: true });
-    await writeFile(pa, sa.replace(HF_HOOK_FIND, () => HF_HOOK_REPL), 'utf8');
-    const pg = join(dir, 'tick-gather.js');
-    const sg = (await readFile(pg, 'utf8')).replace(/\r\n/g, '\n');
-    if (sg.split(HF_WIN_FIND).length !== 2) throw Object.assign(new Error('gather window fold anchor moved'), { harness: true });
-    await writeFile(pg, sg.replace(HF_WIN_FIND, () => HF_WIN_REPL), 'utf8');
-  }
   const mod = await import(pathToFileURL(join(dir, 'tick.js')).href);
-  const gather = await import(pathToFileURL(join(dir, 'tick-gather.js')).href);
-  return { mod, gather, base };
+  return { mod, base };
 }
 
 console.log('\nworld-tick-scale --mutate: every mutant must go RED on its named arm');
 let db;
 try { db = await boot(); } catch (e) { console.error(`harness: ${e.message}`); process.exit(2); }
-const HF0 = await edgeCopy(null, null, null, null, true);
-const control = await arms(db, { log: false, hfTick: HF0.mod });
+const control = await arms(db, { log: false });
 if (control.length) { console.error(`harness: the unmutated control is red (${control.join(', ')})`); process.exit(2); }
 console.log(`[mutants] ${MUTANTS.length}`);
 let survived = 0;
 for (const m of MUTANTS) {
   let red;
-  /* The sections the mutant's named arms live in (R1 -> R, F9 -> F, ...). */
-  const only = new Set((m.expect.source.match(/[RHCF](?=\d)/g) || []));
+  /* The sections the mutant's named arms live in (R1 -> R, C2 -> C, ...). */
+  const only = new Set((m.expect.source.match(/[RHC](?=\d)/g) || []));
   let tmp = null;
-  let tmp2 = null;
   try {
     if (m.edge) {
       const c = await edgeCopy(m.edge, m.find, m.repl, m.and);
       tmp = c.base;
-      const h = only.has('F') ? await edgeCopy(m.edge, m.find, m.repl, m.and, true) : null;
-      tmp2 = h && h.base;
-      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather, hfTick: h ? h.mod : HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, tick: c.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     } else if (m.raw) {
       if (!CONTROL) {
         try { await db.exec(m.sql); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false, hfTick: HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
       try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
       if (!CONTROL) await db.exec(m.restore);
     } else {
@@ -1195,14 +865,13 @@ for (const m of MUTANTS) {
       if (!CONTROL) {
         try { await db.exec(src); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false, hfTick: HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     }
   } catch (e) {
     if (e.harness) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
     throw e;
   } finally {
     if (tmp) await rm(tmp, { recursive: true, force: true });
-    if (tmp2) await rm(tmp2, { recursive: true, force: true });
   }
   try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
   await db.exec(RESTORE);
@@ -1211,10 +880,9 @@ for (const m of MUTANTS) {
   if (hit) console.log(`  ✓ ${m.name} — ${m.why}: RED via ${red.join(', ')}`);
   else { survived++; console.log(`  ✗ ${m.name} — ${m.why}: ${red.length ? `red only via ${red.join(', ')}` : 'SURVIVED'}`); }
 }
-const after = await arms(db, { log: false, hfTick: HF0.mod });
+const after = await arms(db, { log: false });
 if (after.length) { console.error(`harness: the restored bodies are red (${after.join(', ')})`); process.exit(2); }
 await db.close();
-await rm(HF0.base, { recursive: true, force: true });
 if (CONTROL) {
   console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${MUTANTS.length - survived} arm(s) read caught`);
   process.exit(survived === MUTANTS.length ? 0 : 1);

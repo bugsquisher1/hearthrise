@@ -13,8 +13,15 @@
 //                  chunks it imports, every literal import() becomes its own chunk under src/chunks/, and code two of them
 //                  share is one chunk, so each module still runs once. RUNTIME_MODULES (a module imported by a URL built at
 //                  run time) are entries too, at their own paths, sharing the same chunks. src/app/game-modules.js (the list
-//                  boot.js preloads) stays its own file, written with the chunks behind the sign-in screen; play.html's
-//                  preload block names the sign-in chunks.
+//                  boot.js preloads) stays its own file, written with the chunks behind the sign-in screen (what the entry's
+//                  literal import()s reach, never a chunk only a runtime entry needs); play.html's preload block names the
+//                  sign-in chunks.
+//
+// A RUNTIME ENTRY IS BUNDLED AFTER THE GAME HALF (lane/boot-path-diet, 2026-11-27). Each is loaded by a module of the game half,
+// so the game half is always there before it. esbuild splits code by the set of entries that reach it, and an entry reaching
+// some of the game half's modules cut its chunks in pieces (the hunt engine as a third entry: 25 files to the town became 31).
+// So each runtime entry is bundled with an import of the game half first (RUNTIME_AFTER): every module of the game half is
+// reached by it too, the game half's chunks stay whole, and the import is the page's own instance, already run.
 //   moduleGraph    the static and dynamic imports of any set of served modules, read by esbuild's own parser (minified
 //                  or not, comments never count): tools/build-site.mjs SITE-10 walks it.
 //
@@ -51,7 +58,10 @@ export const AS_IS = Object.freeze({
 export const RUNTIME_MODULES = Object.freeze({
   'src/shell/windows/game-master-body.js': 'src/shell/windows/game-master.js imports it by URL on the window\'s first open',
   'src/shell/windows/talents/index.js': 'src/shell/windows/talents.js imports the Roads map by URL on the Talents window\'s first open',
+  'src/hunt-view/live-engine.js': 'src/session/live-link.js imports the hunt prediction\'s engine by URL when a viewed hero\'s hunt first opens',
 });
+/* What every runtime entry's importer runs inside: the game half, the entry's literal import() (src/app/boot.js). */
+export const RUNTIME_AFTER = 'src/app/game-half.js';
 /* A .js file loaded by URL that is not a module of the graph. */
 export const RUNTIME_FILES = Object.freeze({
   'src/data/glyphs.js': 'a classic script src/app/glyphs-loader.js appends to the page',
@@ -113,6 +123,10 @@ export async function bundleGame(esbuild, siteDir, version, read = (rel) => read
       });
       b.onLoad({ filter: /\.js$/ }, (a) => {
         let text = read(site(a.path));
+        if (site(a.path) in RUNTIME_MODULES) {   // bundled after the game half (RUNTIME_AFTER): one line, ahead of its own imports
+          const up = posix.relative(posix.dirname(site(a.path)), RUNTIME_AFTER);
+          text = 'import ' + JSON.stringify(up.startsWith('.') ? up : './' + up) + ';\n' + text;
+        }
         if (text.includes('import.meta.url')) {
           const self = JSON.stringify(ROOT_MARK + site(a.path));
           text = text.split('import.meta.url').join('new URL(' + self + ' + new URL(import.meta.url).search, import.meta.url).href');
@@ -126,7 +140,7 @@ export async function bundleGame(esbuild, siteDir, version, read = (rel) => read
     charset: 'utf8', legalComments: 'none', outdir: siteDir, outbase: siteDir, entryNames: '[dir]/[name]', chunkNames: CHUNKS + '[name]-[hash]',
     write: false, metafile: true, logLevel: 'silent', plugins: [plugin], absWorkingDir: siteDir,
   });
-  const files = new Map(), inputs = new Map(), graph = new Map();
+  const files = new Map(), inputs = new Map(), graph = new Map(), loads = new Map();
   for (const f of got.outputFiles) {
     const rel = site(f.path);
     if (!rel.endsWith('.js')) continue;
@@ -137,11 +151,16 @@ export async function bundleGame(esbuild, siteDir, version, read = (rel) => read
     if (!out.endsWith('.js')) continue;
     for (const i of Object.keys(o.inputs)) inputs.set(i, out);
     graph.set(out, o.imports.filter((x) => x.kind === 'import-statement' && !x.external).map((x) => x.path));
+    loads.set(out, o.imports.filter((x) => (x.kind === 'import-statement' || x.kind === 'dynamic-import') && !x.external).map((x) => x.path));
   }
   for (const f of files.keys()) if (!graph.has(f)) throw new Error('the bundle wrote ' + f + ' and its metafile does not name it');
   const signIn = new Set([ENTRY]);
   for (const f of signIn) for (const t of graph.get(f) || []) signIn.add(t);
-  const game = Array.from(files.keys()).filter((f) => f.startsWith(CHUNKS) && !signIn.has(f)).sort();
+  /* The game list is what the entry's literal import()s reach (the source's list, tests/module-preload.mjs MP-5). A chunk only a
+     RUNTIME_MODULES entry reaches (code a window or the hunt view shares with no module of the page) loads with that entry, on need. */
+  const reached = new Set([ENTRY]);
+  for (const f of reached) for (const t of loads.get(f) || []) reached.add(t);
+  const game = Array.from(files.keys()).filter((f) => f.startsWith(CHUNKS) && reached.has(f) && !signIn.has(f)).sort();
   return { files, entries, signIn: Array.from(signIn), game, inputs };
 }
 

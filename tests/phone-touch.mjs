@@ -5,9 +5,20 @@
 //   node tests/phone-touch.mjs                the rules
 //   node tests/phone-touch.mjs --mutate       every planted defect must turn a NAMED rule RED; a plant that does not parse, a step
 //                                             that throws or a line with no PH id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
+//   ... --mutate --shard=K/N                  every Nth mutant from the Kth, with its own clean control (tests/_mutant-shard.mjs;
+//                                             tests/page-mutant-shards.mjs holds smoke.yml's shards to every mutant once, in budget)
 //   node tests/phone-touch.mjs --only PH-6    one rule's pages alone (with --shots, that rule's shots alone)
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
+//
+// TWO SHARDS (lane/ci-inpage-shard, 2026-11-28). In in-page-40 the plain run took 5.8 min, then --mutate a 5.8 min clean control
+// and 156 mutants in 20.2 (each on its own pages, BLOCKS_OF): 34.7 of the job's 45 on run 46132371081. Half the mutants stay
+// beside the plain run, about 25 min; the other half have a job of their own, about 19 min, x2 = 39.
+// ci-step: in-page-40 | Phone touch, the rules and mutants shard 1 of 2 (play.html)
+// ci-run: node tests/phone-touch.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=1/2
+// ci-step: in-page-57 | Phone touch, mutants shard 2 of 2 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=2/2
 //
 // mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher-coach.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — page mutants are served overrides
@@ -130,6 +141,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { RING_WORDS, RING_WORDS_WIDEST } from './_bar-probes.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { mutantShard, controlArgv } from './_mutant-shard.mjs';
 import { harnessFail, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
@@ -2321,11 +2333,15 @@ async function main() {
     process.exit(fails.length ? 1 : 0);
   }
   /* --mutate --only PH-n: that rule's own mutants over its own pages (the gate runs them all). */
-  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
-  const MINE = scopedMutants('tests/phone-touch.mjs', MUTANTS);
+  /* --shard=K/N: every Nth mutant from the Kth (tests/_mutant-shard.mjs), so N jobs hold every mutant once; then a gated push
+     proves only the shard's mutants its diff touches (tools/lib/mutant-scope.mjs), the nightly all of them. */
+  const shard = mutantShard('tests/phone-touch.mjs', MUTANTS);
+  if (shard.harness) { console.log('  ✗ ' + shard.harness); process.exit(2); }
+  if (shard.line) console.log(shard.line);
+  const MINE = scopedMutants('tests/phone-touch.mjs', shard.list, { tag: shard.tag });
   if (!MINE.length) process.exit(0);
   const planted = oi > 0 ? MINE.filter(([name]) => name.split(' ')[0] === process.argv[oi + 1]) : MINE;
-  const clean = await cleanControl(() => rules(null, null, { blocks }));
+  const clean = await cleanControl(() => rules(null, null, { blocks }), { argv: controlArgv() });
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   /* A mutant is caught only by a NAMED rule (PH-n); a plant that does not parse, a page step that throws, or a line with no rule id
@@ -2338,8 +2354,8 @@ async function main() {
     const plant = { [file]: text.replace(from, to) };
     console.log(report(name, await judgePlanted(plant, () => rules(plant, null, { stopAtFirst: true, blocks: only || BLOCKS_OF[name.split(' ')[0]] })), counts));
   }
-  console.log(exitOf(counts) ? 'phone-touch --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
-    : 'phone-touch --mutate: ' + planted.length + '/' + planted.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'phone-touch --mutate' + shard.tag + ': ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)'
+    : 'phone-touch --mutate' + shard.tag + ': ' + planted.length + '/' + planted.length + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 

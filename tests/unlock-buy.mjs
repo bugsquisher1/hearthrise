@@ -4,9 +4,10 @@
 //
 // THE CLAIM UNDER TEST, in one line:
 //   a player who BUYS a Kitchen rung through the real Edge module ends up with
-//   a server row that hr_perks_of reports and that the REAL simulateArtisanSpan
-//   then cooks with — burning NOTHING — and no second call, replay or forged
-//   request can climb that ladder or move gold twice.
+//   a server row that hr_perks_of reports and the real perk stack reads, and no
+//   second call, replay or forged request can climb that ladder or move gold
+//   twice. (The cooking span that measured the rung's `noBurn` against a burn
+//   roll retired with the bench, the one-town-work cut, 09-crafting.md 4.17.)
 //
 // Everything runs for real: a real PostgreSQL (PGlite/WASM, in process) with
 // THE WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json
@@ -20,7 +21,6 @@
 //     → player_progress row        (real table, real guard trigger)
 //     → public.hr_perks_of         (real seam)
 //     → makeBonus('noBurn')        (real src/core/perks.js)
-//     → simulateArtisanSpan        (real src/core/artisan-sim.js) — 0 burns
 //
 // ── WHAT THIS FILE DOES NOT PROVE ───────────────────────────────────────
 //   · TRUE CONCURRENCY. PGlite is one backend; the advisory lock in
@@ -43,11 +43,6 @@ import { pathToFileURL } from 'node:url';
 
 import { bootReplay, chainFiles, ROOT } from './schema-replay.mjs';
 import { goldOf, setGold } from './_gold.mjs';
-import { ARTISAN_RECIPES } from '../src/data/recipes.js';
-import { ITEMS } from '../src/data/items.js';
-import { recipeInputs } from '../src/core/artisan.js';
-import { mulberry32, rngFrom } from '../src/core/rng.js';
-import { xpForLevel } from '../src/core/xp.js';
 import { isMain as isEntryModule } from './_is-main.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: the newest file it names;
@@ -59,15 +54,6 @@ const REPLAY_UPTO = '2026-10-22-hunt-sessions-settle.sql';
    and then Storage, and the purse is taken last), so every mutant planted in that body replays up
    to that file: the chain the plain run stands on. */
 const BUY_FILE = '2027-01-10-house-from-storage.sql';
-
-/* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
-   that matters — cheapest inputs, so a long span never runs dry — rather than
-   by name or array position. Cooking is the only bench that burns, which is
-   why `noBurn` is the perk the whole unlock program was unblocked for. */
-const BURN_RECIPE = (ARTISAN_RECIPES.cooking || [])
-  .filter((r) => r && !r.gated && r.output && r.req)
-  .sort((a, b) => Object.keys(recipeInputs(a)).length - Object.keys(recipeInputs(b)).length
-                  || a.req - b.req || a.id.localeCompare(b.id))[0];
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
@@ -425,7 +411,6 @@ async function loadModules(patched) {
       it: await import(pathToFileURL(join(dir, 'intents.js')).href + bust),
       req: await import(pathToFileURL(join(dir, 'request.js')).href + bust),
       perks: await import(pathToFileURL(join(base, 'src', 'core', 'perks.js')).href + bust),
-      artisan: await import(pathToFileURL(join(base, 'src', 'core', 'artisan-sim.js')).href + bust),
       fnDir: dir,
     };
   };
@@ -480,7 +465,7 @@ const ledger = async (db, uid, slot = 0) => (await db.query(
 // ════════════════════════════════════════════════════════════════════════
 async function run(mutate) {
   fails.length = 0;
-  const { db, buy, cat, it, req, perks, artisan, fnDir } = await boot(mutate);
+  const { db, buy, cat, it, req, perks, fnDir } = await boot(mutate);
   const exec = makeExec(db);
   const doBuy = (o) => buy.runUnlockBuy({ exec, user: UID, slot: 0, ...o });
   const clearGate = () => db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
@@ -510,56 +495,6 @@ async function run(mutate) {
 
   const ver = async () => Number((await state(db, UID)).version);
   const gold = async () => Number((await state(db, UID)).gold);
-
-  /* ── THE REAL SPAN ──────────────────────────────────────────────────────
-     src/core/artisan-sim.js, driven with the bonus stack built from the
-     SERVER's own hr_perks_of envelope. `envPerks === null` is the SAME seeded
-     span with no server rung at all, which is the control that keeps "it burns
-     nothing" from being a statement about the seed.
-
-     ⚠ SUPPLY-LIMITED, NOT TIME-LIMITED. A Kitchen rung also pays `cookSpeed`,
-       so a fixed WINDOW yields a different tick COUNT with and without it and
-       the two burn counts would not be comparable — the false failure
-       tests/artisan-progress-model.mjs recorded on its first draft. Exactly
-       `ticks` cooks' worth of input makes both spans stop on SUPPLIES at the
-       same tick, so the only variable left is the burn roll. */
-  const RECIPE_INDEX = artisan.indexArtisanRecipes(ARTISAN_RECIPES);
-  const cook = (art, envPerks, ticks = 300, seed = 0xb354) => {
-    const inputs = recipeInputs(BURN_RECIPE);
-    const inventory = {};
-    for (const id of Object.keys(inputs)) inventory[id] = inputs[id] * ticks;
-    const st = {
-      activeSkill: 'cooking',
-      skillTargetId: BURN_RECIPE.id,
-      /* EXACTLY the recipe's req level, never 99: burn relief is also paid per
-         cooking level above req (BURN_PER_LEVEL_RELIEF), so a maxed cook burns
-         nothing whatever the Kitchen says — and the control below would then
-         pass vacuously while measuring mastery instead of the purchase. */
-      skills: { cooking: xpForLevel(BURN_RECIPE.req) },
-      inventory,
-      equipment: {},
-      unlockedRecipes: null,
-      toolCarry: {},
-      stats: {},
-    };
-    const fx = {
-      addItem: (id, n) => { st.inventory[id] = (st.inventory[id] || 0) + n; },
-      removeItem: (id, n) => { st.inventory[id] = (st.inventory[id] || 0) - n; },
-      addXp: () => {},
-    };
-    const from = Date.UTC(2026, 7, 16, 0, 0, 0);
-    const s = art.simulateArtisanSpan(st, {
-      fromMs: from,
-      toMs: from + ticks * ((BURN_RECIPE.ms || 3000) + 1) * 20,
-      recipes: RECIPE_INDEX,
-      items: ITEMS,
-      rng: rngFrom(mulberry32(seed)),
-      bonus: perks.makeBonus(envPerks),
-      fx,
-      away: true,
-    });
-    return { cooked: s.produced + s.burnt, burned: s.burnt };
-  };
 
   // ── U1 · THE CATALOGUE IS THE SERVER'S, AND THE TWO COPIES AGREE ───────
   try {
@@ -924,10 +859,12 @@ async function run(mutate) {
       + 'be refused BY NAME with the reason attached');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
-  // ── U9b · THE WHOLE POINT: A BOUGHT RUNG MAKES A REAL SPAN BURN NOTHING ─
-  // Rung 3 is the burn-proof rung. It is BOUGHT here, through the verb, and the
-  // burn count comes out of the REAL src/core/artisan-sim.js driven with the
-  // bonus stack built from the SERVER's own envelope — not from a row read back.
+  // ── U9b · A BOUGHT TOP RUNG REACHES THE SERVER'S PERK STACK ────────────
+  // Rung 3 is BOUGHT here, through the verb, and read back through the SERVER's
+  // own envelope and the real perk stack — not from a row. (Its burn measurement,
+  // a real cooking span burning nothing, retired with the cooking bench: the
+  // one-town-work cut, 09-crafting.md 4.17. Whether the Kitchen's `noBurn` keeps a
+  // consumer is the data lane's.)
   try {
     await clearGate();
     const k3 = (await db.query(
@@ -943,18 +880,6 @@ async function run(mutate) {
     ok(perks.makeBonus(envPerks)('noBurn') >= 0.25,
       `U9b: Kitchen 3 is the burn-proof rung and noBurn reads ${perks.makeBonus(envPerks)('noBurn')}`);
 
-    const paid = cook(artisan, envPerks);
-    const unpaid = cook(artisan, null);
-    ok(paid.cooked > 0 && unpaid.cooked > 0,
-      `U9b: the span produced nothing (${paid.cooked}/${unpaid.cooked}) — the burn comparison below `
-      + 'would pass vacuously');
-    ok(paid.burned === 0,
-      `U9b: THE BOUGHT RUNG DOES NOT REACH THE SIMULATION — a Cast-Iron Range cooked ${paid.burned} `
-      + `burns out of ${paid.cooked}. That is a quarter of the input destroyed on a server that the `
-      + "player's own client would have kept.");
-    ok(unpaid.burned > 0,
-      `U9b CONTROL: the SAME seeded span with NO server rung burned ${unpaid.burned} — if it burns `
-      + 'nothing either way, the assertion above proves nothing about the purchase');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U10 · THE JOURNAL, AND WHAT IT MAY NOT SAY ─────────────────────────

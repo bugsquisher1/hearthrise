@@ -2978,12 +2978,12 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
   /* No `?v=` here: a cache-buster is a browser mechanism, bump-version.sh walks
      src/ only so this one froze at ?v=328, and Node ignores the query anyway.
      tools/pack-edge.mjs `versionQueryGuard()` now fails the build on one. */
-  let computeAccrual; let ITEMS_DATA; let MONSTERS_DATA; let NODES;
+  let computeAccrual; let ITEMS_DATA; let MONSTERS_DATA; let FUEL;
   try {
     ({ computeAccrual } = await import('../supabase/functions/hr-accrue/accrual.js'));
     ({ ITEMS: ITEMS_DATA } = await import('../src/data/items.js'));
     ({ MONSTERS: MONSTERS_DATA } = await import('../src/data/monsters.js'));
-    ({ GATHER_NODES: NODES } = await import('../supabase/functions/hr-accrue/catalogue.js'));
+    ({ FUEL_RUNS: FUEL } = await import('../supabase/functions/hr-accrue/catalogue.js'));
   } catch (e) {
     divergences.push(`accrual phase skipped: ${e.message}`);
     return { ran: false };
@@ -3000,33 +3000,58 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
     return { ran: false };
   }
 
-  /* A GATHERING pointer (closed rebuild, lane C2): a fight outside a hunt
-     session is never priced, so the away ladder is walked on the payable kind
-     the away path still prices. */
-  const NODE = 'normal_tree';
-  const stats = { grants: 0, replays: 0, degraded: 0, forfeits: 0, minted: 0 };
+  /* A FUEL RUN (the one town kind the away path prices since the one-town-work
+     cut; a fight outside a hunt session is never priced, lane C2), so the away
+     ladder is walked on it. It SPENDS: each window burns the character's own
+     Bones, which the books carry as a burn, and mints no item. */
+  const RUN = 'fuel_bones';
+  const FUEL_ITEM = FUEL[RUN] && FUEL[RUN].recipe.input;
+  if (!FUEL_ITEM) {
+    divergences.push(`accrual phase: ${RUN} is not on the edge fuel index — the ladder driver has no run to price`);
+    return { ran: false };
+  }
+  const LIM = (await q('select hr_day_budget_limits() r'))[0].r;
+  const stats = { grants: 0, replays: 0, degraded: 0, forfeits: 0, minted: 0, burnt: 0 };
 
   for (const key of keys) {
     const c = books.char(key);
+    /* THE FUEL, through the real hr_apply and booked as a mint: six hours at 640 ms an action is 33,750 Bones, so
+       the clock is the only bound on either round. */
+    {
+      const intentId = uuidOf(rng);
+      const seedFuel = { items: { [FUEL_ITEM]: 40000 }, journal: { kind: 'accrue', intent: 'accrue' } };
+      const r = await applyAs(c, c.version, intentId, seedFuel);
+      if (r.ok !== true) {
+        divergences.push(`accrual phase: seeding ${FUEL_ITEM} for ${key} was refused ${JSON.stringify(r).slice(0, 160)}`);
+        continue;
+      }
+      c.version += 1; books.invAdd(c, FUEL_ITEM, 40000); books.mint(FUEL_ITEM, 40000);
+    }
     for (const round of [0, 1]) {
-      // Put the character on a real gathering activity with a real start clock.
+      // Put the character on a real fuel run with a real start clock.
       await db.query(
         `update player_state
-            set active_kind = 'gather', active_id = $3,
+            set active_kind = 'artisan', active_id = $3,
                 active_since = now() - interval '6 hours',
                 accrued_to   = now() - interval '6 hours'
-          where user_id = $1 and slot = $2`, [c.uid, c.slot, NODE]);
+          where user_id = $1 and slot = $2`, [c.uid, c.slot, RUN]);
       c.version += 0; // a direct UPDATE, not an intent: version is untouched
 
-      // ROUND 1 squeezes the bank to ONE stack so a real accrual delta trips
-      // the real `bank_full` clamp, which is on the DEGRADABLE list. That is
-      // the only way to walk the b328 ladder without fabricating a rejection —
-      // and halving the span never reduces the STACK COUNT, so this round is
+      // ROUND 1 fills the character's XP day budget (a planted ledger row dated
+      // now, gold 0 so every conservation aggregate is blind to it, the
+      // 'budget_yesterday' technique) so a real fuel delta trips the real
+      // `daily_budget` refusal, which is on the DEGRADABLE list. That is the only
+      // way to walk the b328 ladder on a kind that mints no item (the gather
+      // round squeezed the bank, and a fuel debit never needs a stack) — and
+      // halving the span never empties a full budget, so this round is
       // guaranteed to run the ladder all the way to `accrue_forfeit`, which is
       // precisely the path that must move the watermark and nothing else.
-      const cap = round === 1 ? 1 : 100;
-      await db.query('update player_state set bank_cap = $3 where user_id = $1 and slot = $2', [c.uid, c.slot, cap]);
-      c.bankCap = cap;
+      if (round === 1) {
+        await db.query(
+          `insert into player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, at)
+           values ($1, $2, 'accrue', 'accrual_budget_full', 0, 0, $3, 0, now())`,
+          [c.uid, c.slot, Number(LIM.xp)]);
+      }
 
       const st = (await db.query(
         `select coalesce((select w.gold from account_wallet w where w.user_id = $1), 0)::text gold, hp, level_xp::text level_xp, version::text version,
@@ -3040,19 +3065,14 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
 
       const env = {
         nowMs: Number(st.n), accruedToMs: Number(st.a), activeSinceMs: Number(st.s),
-        activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000,
+        activeKind: 'artisan', activeId: RUN, capMs: 12 * 3600000,
         seed: 1234567, hp: Number(st.hp), levelXp: Number(st.level_xp), gold: Number(st.gold),
-        skills, equipment, items: ITEMS_DATA, monsters: MONSTERS_DATA, nodes: NODES,
+        skills, equipment, inventory: Object.fromEntries(c.inv), items: ITEMS_DATA, monsters: MONSTERS_DATA, recipes: FUEL,
       };
 
       let out = computeAccrual(env);
       if (!out.accrued) {
-        /* Nothing to price: the squeezed cap must still be restored, or the
-           next phase inherits a one-stack bank (a skipped restore read as a
-           bank_full far from here). */
-        await db.query('update player_state set bank_cap = 100 where user_id = $1 and slot = $2', [c.uid, c.slot]);
-        c.bankCap = 100;
-        divergences.push(`accrual phase: the ${NODE} window for ${key} priced nothing (${out.reason}) — the ladder was not walked`);
+        divergences.push(`accrual phase: the ${RUN} window for ${key} priced nothing (${out.reason}) — the ladder was not walked`);
         continue;
       }
 
@@ -3089,7 +3109,11 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
         const d = out.delta;
         c.version += 1;
         if (d.gold) { c.gold += d.gold; books.mintGold += d.gold; stats.minted += d.gold; }
-        for (const [id, n] of Object.entries(d.items || {})) { books.invAdd(c, id, n); books.mint(id, n); }
+        /* A fuel window's items are a DEBIT (the burnt fuel): booked as a burn, never as a negative mint. */
+        for (const [id, n] of Object.entries(d.items || {})) {
+          books.invAdd(c, id, n);
+          if (n > 0) books.mint(id, n); else { books.burn(id, -n); stats.burnt += -n; }
+        }
         stats.grants++;
 
         // …and a REPLAY of the very same key must add nothing at all.
@@ -3097,10 +3121,6 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
         if (rep.replayed !== true) divergences.push(`accrual replay not marked replayed for ${key}`);
         stats.replays++;
       }
-
-      // Restore a workable bank cap for the next round.
-      await db.query('update player_state set bank_cap = 100 where user_id = $1 and slot = $2', [c.uid, c.slot]);
-      c.bankCap = 100;
 
       const rec = await reconcile(db, books, { i: `accrual/${key}/${round}`, op: 'accrual' });
       if (!rec.ok) throw Object.assign(new Error('accrual conservation violation'), { detail: rec.detail });

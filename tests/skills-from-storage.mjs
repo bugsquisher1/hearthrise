@@ -8,7 +8,7 @@
 //   node tests/skills-from-storage.mjs --mutate    every mutation must be CAUGHT
 //   node tests/skills-from-storage.mjs --mutate=<id>
 //
-// mutant-anchors: supabase/migrations/2027-01-24-skills-from-storage.sql supabase/functions/hr-accrue/envelope.js src/session/item-sections.js src/core/artisan-sim.js src/shell/windows/inventory/bury.js
+// mutant-anchors: supabase/migrations/2027-01-24-skills-from-storage.sql supabase/functions/hr-accrue/envelope.js src/session/item-sections.js src/shell/windows/inventory/bury.js
 //
 // Ships with supabase/migrations/2027-01-24-skills-from-storage.sql and the engine/client halves. Real RPCs on a
 // fully replayed PGlite chain (production untouched): the bench through the REAL edge verb (set-activity.js
@@ -98,12 +98,8 @@ const JS_MUTANTS = {
     find: '  if (drawsOnStorage(cs)) for (const r of bankOf(cs) || []) out[r.id] = (out[r.id] || 0) + r.qty;\n',
     repl: '',
   },
-  no_bag_full_stop: {
-    why: 'a full bag is not a stop: the engine proposes a stack the server refuses and nobody says why',
-    file: 'src/core/artisan-sim.js',
-    find: '  return stacks - freed + 1 > cap ? opens : null;',
-    repl: '  return null;',
-  },
+  /* (no_bag_full_stop retired with the bench, the one-town-work cut: the engine's bag-full stop priced a bench PRODUCT,
+     and a fuel run makes nothing, so src/core/artisan-sim.js has no stop for it to disarm. SS-6 is the bench's.) */
   bury_bag_only: {
     why: 'Burn all / Cook all counts the bag only (a stack in Storage reads "Burn")',
     file: 'src/shell/windows/inventory/bury.js',

@@ -158,13 +158,9 @@ const num = (v) => Number(v ?? 0);
    lane that moves one re-proves this gate in lane-done instead of at night. */
 // mutant-anchors: supabase/functions/hr-accrue/accrual.js supabase/functions/hr-accrue/vendor-sell.js supabase/functions/hr-accrue/catalogue.js supabase/functions/hr-accrue/equip.js src/core/action-rules.js
 const MUTATIONS = {
-  cooking_unpayable: {
-    file: 'catalogue.js', by: 'LOOP-1 step 3',
-    why: 'the cooking bench falls out of the payable set: a caught fish can never become a heal',
-    find: 'export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);',
-    repl: 'export const ARTISAN_RECIPES_PAYABLE = Object.fromEntries(Object.entries('
-      + "payableRecipeIndex(ARTISAN_RECIPES_ALL)).filter(([, r]) => r.skill !== 'cooking'));",
-  },
+  /* (cooking_unpayable retired with the bench, the one-town-work cut, 09-crafting.md 4.17: its anchor, the edge's
+     payable bench index in catalogue.js, is gone, and its subject, a fish cooked at a bench, is the cut's. The loop's
+     fish and cook steps re-aim at the trade job with the server lane's 1079.) */
   hunt_drops_nothing: {
     file: '../../../src/core/member.js', by: 'LOOP-1 step 6',
     why: 'kills stop dropping loot server-side: the hunt pays XP and nothing to sell',

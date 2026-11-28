@@ -6,8 +6,8 @@
 //
 // For each borrow: the four with nothing borrowed against the same four with the move borrowed, on the same seeds. Read on the two scales
 // a borrow's value is read on (src/data/talents.js BORROW_VALUES: "V0 = max(0, held, pace)"): the held step's paired delta, and PACE STEPS,
-// the paired delta of the held pace (v1-climb payX, hour 4 on, %) over PACE_STEP_PCT, the pace one held step buys on the reference cells
-// (signature-depth/sum.mjs, the designer's 11-27 scale). Each mean with its standard error over the seeds. VALUE = the larger of the two,
+// the paired delta of the held pace (v1-climb payX, hour 4 on, %) over the pace one held step buys on the report's ground
+// (signature-depth/pace-step.mjs, the designer's 11-28 scale). Each mean with its standard error over the seeds. VALUE = the larger of the two,
 // never under 0, so a borrow is sized on whichever way it pays. The borrower's casts of the move an hour say it fired.
 // Prints markdown. Exit 0 printed · 2 a report is missing.
 import { readFileSync, existsSync } from 'node:fs';
@@ -15,8 +15,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-/* (signature-depth/sum.mjs PACE_STEP_PCT: the ten defensive anchors' fit, 0.4335, se 0.0087) */
-const PACE_STEP_PCT = 0.43;
+/* (the pace a held step buys on the report's own ground: signature-depth/pace-step.mjs, lane/pace-step-per-ground) */
+import { paceStepPct } from '../../signature-depth/pace-step.mjs';
 /* [label, plain report, borrowed report, borrower seat, move] */
 const PAIRS = [
   ['Greater Mend on the hammer, a second healer (M, 19 V4)', 'm-plain', 'm-gm', 0, 'greater_mend'],
@@ -31,7 +31,8 @@ const PAIRS = [
 const cellOf = (name) => {
   const f = join(HERE, name + '.json');
   if (!existsSync(f)) return null;
-  return Object.values(JSON.parse(readFileSync(f, 'utf8')).cells)[0];
+  const r = JSON.parse(readFileSync(f, 'utf8'));
+  return { ground: r.ground, ...Object.values(r.cells)[0] };
 };
 const stats = (d) => {
   if (!d.length) return null;
@@ -41,8 +42,12 @@ const stats = (d) => {
 };
 const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; if (Number.isFinite(x) && Number.isFinite(y) && f(x, y) !== null) d.push(f(x, y)); }); return d; };
 const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
-const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
-  : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+const paceOf = (p, s) => {
+  const k = paceStepPct(p.ground);
+  if (k === null) { console.error('e5 sum: ' + p.ground + ' has no measured pace step (signature-depth/pace-step.mjs)'); process.exit(2); }
+  return p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
+    : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / k : null)));
+};
 const sgn = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
 const show = (d) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + ', ' + d.n + ')' : 'no hold');
 const pct = (a, b) => (b > 0 ? sgn((a / b - 1) * 100) + '%' : 'n/a');

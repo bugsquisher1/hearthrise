@@ -56,6 +56,11 @@ const TRAITS_KIND = arg('traits');
 const CENSUS = arg('trait-census') ? arg('trait-census').split(',') : [];
 /* --signatures a,b,c,d (lane/signatures-sample): the Signature each seat plays, seat by seat (src/data/signatures.js ids, '-' for none), played
    by the engine (src/core/hunt/signature-rules.js, dark in the game); paired against the same four with none on the same dice */
+/* --buffs type:magnitude[,type:magnitude] (lane/pace-step-per-ground): timed buff rows (src/core/buffs.js BUFFS_DEF) every seat keeps up all
+   hunt (cell.mjs `buffs`). `defense:N` is a flat N% cut off every blow at every hero, the steady cut a cape carries: a lever that moves only
+   depth, the one each cell's pace step is fit on (signature-depth/pace-step.mjs) */
+const BUFFS = arg('buffs') ? arg('buffs').split(',').map((x) => { const [type, m] = x.split(':'); return { type, magnitude: Number(m) }; }) : null;
+if (BUFFS) { const { BUFFS_DEF } = await import(pathToFileURL(join(ROOT, 'src/core/buffs.js')).href); for (const b of BUFFS) if (!BUFFS_DEF[b.type] || !(b.magnitude > 0)) { console.error('v1-climb: no buff ' + b.type + ' or no magnitude'); process.exit(2); } }
 const SIGS = arg('signatures') ? arg('signatures').split(',').map((x) => (x === '-' ? null : x)) : null;
 if (SIGS) { const { SIGNATURES } = await import(pathToFileURL(join(ROOT, 'src/data/signatures.js')).href); for (const x of SIGS) if (x !== null && !SIGNATURES[x]) { console.error('v1-climb: no Signature ' + x); process.exit(2); } }
 /* --add-moves a,b,c,d (lane/signatures-batch-2): moves a seat's played bar never casts, seat by seat ('-' for none, '+' between two: a
@@ -201,7 +206,7 @@ for (const v of variants) for (const risk of v.risks) {
   const traitsBySeat = TRAITS_KIND ? await K.traitPlans(TRAITS_KIND, b.plans, census || {}) : null;
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
     ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}), ...(traitsBySeat ? { traitsBySeat } : {}),
-    ...(SIGS ? { signatureBySeat: SIGS } : {}), ...(ADD_MOVES ? { addMovesBySeat: ADD_MOVES } : {}),
+    ...(SIGS ? { signatureBySeat: SIGS } : {}), ...(BUFFS ? { buffs: BUFFS } : {}), ...(ADD_MOVES ? { addMovesBySeat: ADD_MOVES } : {}),
     ...(BORROWED ? { borrowedBySeat: BORROWED, addSlotsBySeat: await lentSlots(b.cell, BORROWED) } : {}) };
   cells.push({ id, variant: v.id, risk, L: v.L, start, ...(traitsBySeat ? { traitsBySeat } : {}) });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });

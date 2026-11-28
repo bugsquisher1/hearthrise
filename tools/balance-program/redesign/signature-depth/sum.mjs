@@ -15,11 +15,12 @@
 //
 // THE METRIC (game designer, lane/designer-sig-metric, 2026-11-27; 15 "Decision: the scale a Signature is sized on"): PACE STEPS. The paired
 // delta of the held pace (v1-climb's payX: Level XP a hunted hero-hour from the held start, hour 4 to the four's end, a seed's against the
-// plain four's on the same seed, in %) divided by PACE_STEP_PCT, the pace one held step buys on the reference cells. A held step pays more a
-// kill and a faster kill pays more kills, so a shield and a damage rule read on one scale; a defensive row reads the same number as its held
-// delta (the ten anchors below fit 0.43% a held step, se 0.01). The size bar: 10 +- 3 pace steps on the best cell (+3.0% to +5.6% pace), the
-// se at most 3 pace steps (1.3% pace), 12 seeds. The spread bar: the second ground at most half the best, in pace steps. The held delta is
-// still printed: it says HOW a row pays (depth or speed), never whether it is in band. A report not yet played prints as owed.
+// plain four's on the same seed, in %) divided by the pace one held step buys ON THAT GROUND (pace-step.mjs PACE_STEP, lane/pace-step-per-
+// ground 2026-11-28: one global 0.43 read Carter's Rest twice too big). A held step pays more a kill and a faster kill pays more kills, so a
+// shield and a damage rule read on one scale; a defensive row reads the same number as its held delta. The size bar: 10 +- 3 pace steps on
+// the best cell, the se at most 3 pace steps, 12 seeds. The spread bar: the second ground at most half the best, in pace steps. The held
+// delta is still printed: it says HOW a row pays (depth or speed), never whether it is in band. A report not yet played prints as owed, a
+// ground with no measured pace step as "no pace step".
 // Prints markdown tables. Exit 0 printed · 2 a sample report is missing.
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -27,12 +28,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BATCH = process.argv.includes('--batch') ? process.argv[process.argv.indexOf('--batch') + 1] : '1';
-/* THE PACE A HELD STEP BUYS (%), fit through the origin on the ten defensive readings of the sample and batch 2, where a rule moves depth
-   and nothing else (Cairn Belt, Ossuary Helm at 3% and 2%, Grave Guard's Mail, the Saber's two Blunted shapes, Bargeman's Pole at -20% and
-   -15%, Ferry Pennies under half and under 45%): pace / held 0.39 to 0.48, fit 0.4335 (se 0.0087). A lever: re-fit it when the pay rule
-   (danger.js PAY) or the scale's step (powerStep) moves. The ledger's 0.7% (19 "Units") is a kill's pay a step; a held step also meets a
-   monster 0.35% tougher, so it buys less pace than that. */
-const PACE_STEP_PCT = 0.43;
+/* THE PACE A HELD STEP BUYS (%), GROUND BY GROUND (pace-step.mjs): measured on each ground's reference four with a lever that moves depth
+   and nothing else, 24 seeds paired. A ground's value reads every four on it (the plain report's `ground`) */
+import { paceStepPct } from './pace-step.mjs';
 const LO = 7, HI = 13, SE_MAX = 3;
 const PAIRS = [
   ['Cairn Belt (tank)', 'Muster Barrows', 'muster-tank', 'muster-cairn-belt'],
@@ -117,12 +115,13 @@ const cellOf = (name, need) => {
   const f = join(HERE, name + '.json');
   if (!existsSync(f)) { if (need) { console.error('sum: no report ' + f); process.exit(2); } return null; }
   const r = JSON.parse(readFileSync(f, 'utf8'));
-  return Object.values(r.cells)[0];
+  return { ground: r.ground, ...Object.values(r.cells)[0] };
 };
 const pct = (a, b) => (b > 0 ? ((a / b - 1) * 100).toFixed(1) + '%' : 'n/a');
 const sgn = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
 /* a paired reading of the worn four over the plain one on the seeds both read (a seed whose four never held reads nothing): its mean and standard error.
-   heldOf: the held step's delta. paceOf: the held pace's delta (payX, %) in PACE STEPS (PACE_STEP_PCT a step), the size bar's metric */
+   heldOf: the held step's delta. paceOf: the held pace's delta (payX, %) in PACE STEPS (the plain cell's ground's pace step), the size
+   bar's metric; { noStep } on a ground pace-step.mjs has not measured */
 const stats = (d) => {
   if (!d.length) return null;
   const m = d.reduce((x, y) => x + y, 0) / d.length;
@@ -136,8 +135,16 @@ const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y -
 /* (lane/signatures-batch-3) a report that carries each seed's pace to 5 places (v1-climb payX.exact) is read on it, both arms or neither:
    perSeed's hundredths move a paired delta in quanta of about 2.6 pace steps */
 const paysOf = (p, s) => (p.payX.exact && s.payX.exact ? [p.payX.exact, s.payX.exact] : [p.payX.perSeed, s.payX.perSeed]);
-const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
-  : stats(zip(...paysOf(p, s), (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+const stepOf = (p) => {
+  const k = paceStepPct(p.ground);
+  if (k === null) { console.error('sum: ' + p.ground + ' has no measured pace step (pace-step.mjs): measure it before a Signature is read there'); process.exit(2); }
+  return k;
+};
+const paceOf = (p, s) => {
+  const k = stepOf(p);
+  return p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
+    : stats(zip(...paysOf(p, s), (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / k : null)));
+};
 const show = (d, n) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + (n ? ', ' + d.n : '') + ')' : 'no hold');
 /* the size bar on a reading in pace steps (15 "Decision: the scale a Signature is sized on") */
 const sizeOf = (d) => (!d ? 'owed' : d.m > HI ? (d.se > SE_MAX ? 'over, se ' + d.se.toFixed(1) + ': more seeds' : 'OVER (cut its number)')
@@ -202,7 +209,7 @@ if (BATCH === '3') {
 /* BATCH 4 (game designer, lane/designer-sig-batch4, batch4.sh): batch 3's under rows reshaped, against batch 3's plain fours (the tree
    replays them exactly). A FIGHT row reads the size bar in pace steps, as batch 3. A COIN row (15 "Coin pieces: the bar") reads COIN STEPS:
    the store bill its four saves a hero-hour, x 4 (the whole saving is the wearer's own: it pays its own runes, drinks and arrows), over the
-   plain four's net coin a hero-hour (coin and loot at the store's price, less the store bill), in PACE_STEP_PCT steps. The coin bar is 20 +- 6
+   plain four's net coin a hero-hour (coin and loot at the store's price, less the store bill), in its ground's pace steps. The coin bar is 20 +- 6
    coin steps: a coin piece pays in coin alone, so it is sized on what a fight row in band pays its wearer in pace and coin together (the Chain
    12.0 pace and 9.9 coin, the Hat 9.2 and 16.9). The fight's own change (a coin row's pace) is printed beside it, never added.
    [name, kind, [best ground, plain, worn], [second ground, plain, worn] | null] */
@@ -213,7 +220,10 @@ const ROWS4 = [
   ['#42 Night Carter\'s Boots (on the healer): an ally hit under 45%, its striker Blunted', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-boots-ally45'], ['Pyre Field', 'b3-pyre-mixed', 'b4-pyre-boots']],
   ['#24 Stoker\'s Ring (mage): Ice spells Stoke the next Fire spell, +45%', 'pace', ['Pyre Field, its home', 'b3-pyre-mixed', 'b4v-pyre-stoker-45'], ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-stoker-45']],
   ['#43 Bull\'s Tooth (ranger): single-target hits under 30% land twice', 'pace', ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b4-roost-tooth'], ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-tooth-x2']],
-  ['#31 The Cellar Key (healer): an ally hit under 30% heals 2%, 30 s an ally', 'pace', ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b4v-carters-key-k3'], null],
+  /* (lane/pace-step-per-ground: the Key's 36 seeds owed at home, by its real id; its 12-seed shape is k3 below. The Apron, #18, read at home
+     once Carter's Rest had its own pace step, its second ground the 12-seed Muster reading of lane/designer-sig-metric) */
+  ['#31 The Cellar Key (healer): an ally hit under 30% heals 2%, 30 s an ally, 36 seeds', 'pace', ['Carter\'s Rest, its home', 'b4-carters-mixed36', 'b4-carters-key36'], null],
+  ['#18 Brewer\'s Apron (healer): Circle of Renewal, Emboldened 4 s, 36 seeds', 'pace', ['Carter\'s Rest, its home', 'b4-carters-mixed36', 'b4-carters-apron36'], ['Muster Barrows', 'b2-muster-mixed', 'b2m-muster-apron']],
   ['#25 The Cold Candle (mage, coin): every Ice rune spell uses no rune', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4v-muster-candle-all'], null],
   ['#27 Riverstone Earrings (healer, coin): a Water heal, 0.5% of your max mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4v-muster-river-s5'], null],
 ];
@@ -270,7 +280,7 @@ const VARIANTS4 = [
 ];
 if (BATCH === '4') {
   const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
-  const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / PACE_STEP_PCT;
+  const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / stepOf(p);
   const coinBar = (x) => (x > COIN_HI ? 'OVER (cut its number)' : x < COIN_LO ? 'UNDER (raise or reshape)' : 'in band');
   const read = (x) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
   console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace steps (se) | Coin steps | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');

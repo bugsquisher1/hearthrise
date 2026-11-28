@@ -43,6 +43,7 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { runPureGuard } from './_pure-guard.mjs';
+import { harnessFail } from './_mutant-verdict.mjs';
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
@@ -120,7 +121,7 @@ async function pure(base) {
   if (JSON.stringify(worn) !== want) out.push('IM-8 the worn set is ' + JSON.stringify(worn) + ': want each one to the read\'s settled_to plus its msLeft, and no msLeft carried on (a peer\'s frozen key)');
   /* ...and heroSetup (the settle's door, hunt-settle.js) hands exactly that set (loaded here alone: it reads the whole catalogue) */
   let SP = null;
-  try { SP = await imp('src/core/hunt-spawn.js'); } catch (e) { out.push('IM-8 the hero builder does not load: ' + String(e && e.message).slice(0, 120)); }
+  try { SP = await imp('src/core/hunt-spawn.js'); } catch (e) { out.push(harnessFail('IM-8 loading the hero builder', e)); }
   const hero = SP ? SP.heroSetup({ weaponType: 'sword', options: {}, bar: [], wornImbues: read, readAtMs: T0 }) : null;
   if (SP && JSON.stringify(hero && hero.wornImbues) !== want) out.push('IM-8 heroSetup hands the fight ' + JSON.stringify(hero && hero.wornImbues) + ', want ' + want);
   /* the engine re-reads its own set at every boundary (combat-sim.js syncUnit): the set heroSetup made must survive it whole */
@@ -161,7 +162,7 @@ async function pure(base) {
   if (pays.join() !== '0/600,1/200,0/800,1/400,1/0') out.push('IM-10 five 30 HP blows at 20 permille pay ' + pays.join() + ', want 0/600,1/200,0/800,1/400,1/0');
   if (C.leechPay(1234, 20, 999).back !== Math.floor((1234 * 20 + 999) / 1000) || C.leechPay(1234, 20, 999).carry !== (1234 * 20 + 999) % 1000) out.push('IM-10 a 1,234 HP blow on 999 carried pays ' + JSON.stringify(C.leechPay(1234, 20, 999)));
   let LE = null;
-  try { LE = await imp('src/core/hunt/imbue-leech.js'); } catch (e) { out.push('IM-10 the fight\'s leech does not load: ' + String(e && e.message).slice(0, 120)); }
+  try { LE = await imp('src/core/hunt/imbue-leech.js'); } catch (e) { out.push(harnessFail('IM-10 loading the fight\'s leech', e)); }
   if (LE) {
     const life = C.wornImbuesOf([{ id: 'life_leech', band: 50, msLeft: 5 }]);
     const foe = { side: 'mon', id: 9, alive: true };

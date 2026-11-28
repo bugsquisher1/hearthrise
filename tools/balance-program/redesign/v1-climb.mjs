@@ -364,7 +364,10 @@ for (const c of cells) {
   report.cells[c.id] = {
     ...c, seedsRead: seeds.length,
     /* perSeed keeps a seed's place (null: no settled four-hour of its own), so the power moves below pair the same dice */
-    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 10000) / 10000 : null, sd: Math.round(sd(p) * 10000) / 10000, n: p.length, perSeed: p.map((x) => Math.round(x * 10000) / 10000), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
+    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 10000) / 10000 : null, sd: Math.round(sd(p) * 10000) / 10000, n: p.length, perSeed: p.map((x) => Math.round(x * 10000) / 10000),
+      /* (lane/signatures-batch-3) each seed to 5 places: a paired pace delta read off perSeed's hundredths moves in quanta of about 2.6 pace
+         steps (15 "Decision: the scale a Signature is sized on"), so signature-depth/sum.mjs reads this one when a report has it */
+      exact: p.map((x) => Math.round(x * 1e5) / 1e5), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
     held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: seeds.map((x) => (x.held === null ? null : r0(x.held))) },
     drift: r1(mean(seeds.map((x) => (x.halves[1] !== null && x.halves[0] !== null ? x.halves[1] - x.halves[0] : 0)))),
     within10: r1(100 * within(10)), within20: r1(100 * within(20)),

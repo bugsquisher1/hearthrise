@@ -27,6 +27,11 @@
 //   reflect pm of the moment's damage (an `absorb`: what the hero's shell took) back on the monster that dealt it, exact (Drover's Hat)
 //   ready   `move` ready now; pass  what the fallen carried moves on; boon  `status` on the moment's hero, `ms` long, at `pw` permille of
 //           its strength when named (a branch's status strength, status-effects.js)
+// WHERE IT LANDS (`to`, lane/signatures-batch-3): a heal to the moment's hero ('target', pm of its max health) or each living hero of the
+// party ('party'); mana to the moment's hero ('target', pm of the moment's amount: a heal's HP landed); a boon on the wearer ('self') or
+// the party ('party'). A status lands on the moment's monsters when it names them (`list`: a pull's pack, a Challenge's taunted).
+// ONCE EVERY `every` MOMENTS (lane/signatures-batch-3): the moments that pass a row's filters counted on the hero's cooldowns, the row
+// doing its work on each `every`-th (a chance played with no dice).
 // Numbers that can land (heal, shield, mana, echo, carry) are x ramp(L) already (src/core/talents.js grantsOf).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
@@ -66,6 +71,14 @@ function runOne(inst, sc, { u, row, ctx }) {
   if (row.melee && !ctx.melee) return;
   const key = '~r:' + row.id + (row.per === 'target' && ctx.t ? ':' + ctx.t.id : '');
   if (row.clockMs && readyAt(u.cds, key) > sc.atMs) return;
+  /* ONCE EVERY `every` MOMENTS (lane/signatures-batch-3: The Cellar Key, "a 20% chance" played as every fifth, so nothing is drawn): the
+     moments that passed the row's filters are counted on the hero's cooldowns ('~n:<id>', persisted with them, so a settle cut keeps the
+     count), and the row does its work on the last of each `every` */
+  if (row.every) {
+    const n = '~n:' + row.id, c = (readyAt(u.cds, n) + 1) % row.every;
+    u.cds = Object.assign({}, u.cds || {}, { [n]: c });
+    if (c !== 0) return;
+  }
   const did = DO[row.do](inst, sc, u, row, ctx);
   if (did && row.clockMs) u.cds = Object.assign({}, u.cds || {}, { [key]: sc.atMs + row.clockMs });
 }
@@ -99,7 +112,9 @@ const blowOf = (inst, u) => (stepsOn(inst) ? PIPE_TOP : Math.max(1, int(u.maxHit
 /* THE MONSTERS A `status` LANDS ON (the header): every living engaged foe within `r` tiles of the hero (in id order) when the row names a
    reach, else the moment's source or target; never an ally, never a fallen one */
 function foesFor(inst, u, row, ctx) {
-  const list = Number.isInteger(row.r) ? inst.world.units.filter((o) => isMonster(o) && Number.isInteger(o.target) && cheb(o, u) <= row.r) : [ctx.src || ctx.t];
+  const list = Number.isInteger(row.r) ? inst.world.units.filter((o) => isMonster(o) && Number.isInteger(o.target) && cheb(o, u) <= row.r)
+    /* (lane/signatures-batch-3) a moment that names its monsters (a pull's pack, a Challenge's taunted: `list`) lands on each of them */
+    : Array.isArray(ctx.list) ? ctx.list : [ctx.src || ctx.t];
   return list.filter((m) => !!m && m.alive === true && !isAlly(u, m));
 }
 
@@ -119,7 +134,9 @@ function statusOn(inst, sc, u, row, ctx, st, m) {
 const DO = Object.freeze({
   cast: (inst, sc, u, row, ctx) => castNow(inst, sc, u, row.move, { target: ctx.t || null, free: row.free === true }),
   reset: (inst, sc, u, row) => cutCooldown(u, row.move, row.ms, row.capMs || row.ms, sc.atMs),
-  mana: (inst, sc, u, row) => {
+  mana: (inst, sc, u, row, ctx) => {
+    /* (lane/signatures-batch-3) to 'target': pm of the moment's amount (a heal's HP landed) on the moment's hero (Riverstone Earrings) */
+    if (row.to === 'target') return manaTo(ctx.t && ctx.t.alive === true && (ctx.t === u || isAlly(u, ctx.t)) ? ctx.t : null, Math.floor((int(ctx.dmg) * row.pm) / 1000));
     const max = int(u.maxMana);
     if (!(max > 0) || int(u.mana) >= max) return false;
     u.mana = Math.min(max, int(u.mana) + Math.max(1, Math.floor((max * row.pm) / 1000)));
@@ -127,6 +144,15 @@ const DO = Object.freeze({
   },
   heal: (inst, sc, u, row, ctx) => {
     if (row.to === 'self') return healNow(inst, sc, u, u, Math.max(1, Math.floor((int(u.maxHp) * row.pm) / 1000)), row.id) > 0;
+    /* (lane/signatures-batch-3) to the moment's hero (Thrower's Ring: a broken shell's) or each living hero of the party (The Cellar Key),
+       pm of that hero's own max health */
+    if (row.to === 'target' || row.to === 'party') {
+      let did = false;
+      for (const t of row.to === 'party' ? partyOf(inst, u) : [ctx.t]) {
+        if (t && t.alive === true && (t === u || isAlly(u, t)) && healNow(inst, sc, u, t, Math.max(1, Math.floor((int(t.maxHp) * row.pm) / 1000)), row.id) > 0) did = true;
+      }
+      return did;
+    }
     let t = null;
     for (const a of inst.world.units) if (a.alive === true && isAlly(u, a) && int(a.hp) < int(a.maxHp) && (!t || share(a) - share(t) < 0 || (share(a) === share(t) && a.id < t.id))) t = a;
     const n = Math.floor((int(ctx.dmg) * row.pm) / 1000);
@@ -172,16 +198,37 @@ const DO = Object.freeze({
   ready: (inst, sc, u, row) => readyNow(u, row.move, sc.atMs),
   pass: (inst, sc, u, row, ctx) => passOn(inst, sc, u, row.what, ctx),
   boon: (inst, sc, u, row, ctx) => {
-    const t = ctx.t;
-    if (!t || t.alive !== true || (t !== u && !isAlly(u, t))) return false;
-    const st = statusRow(row.status);
-    if (applyStatus(inst, t, st, { u: u.id, maxHit: 1, runeTier: 1 }, sc) === null) return false;
-    /* (its strength, a branch's share of what the row does: status-effects.js reads `pw`; Bargeman's Pole's Guarded at twice its row) */
-    if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;
-    if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
-    return true;
+    /* (lane/signatures-batch-3) to the wearer ('self': Greened Bracers, whose moment is a cast at a monster) or each living hero of the
+       party ('party': Drowned Signet), else the moment's hero */
+    if (row.to === 'self' || row.to === 'party') {
+      let did = false;
+      for (const t of row.to === 'party' ? partyOf(inst, u) : [u]) if (boonOn(inst, sc, u, row, t)) did = true;
+      return did;
+    }
+    return boonOn(inst, sc, u, row, ctx.t);
   },
 });
+
+/* the living heroes of `u`'s side, `u` first then in id order (a party heal, a party boon) */
+const partyOf = (inst, u) => [u].concat(inst.world.units.filter((o) => o !== u && o.alive === true && isAlly(u, o)).sort((a, b) => a.id - b.id));
+/* `n` mana to hero `t`, never past its max: answers whether any landed */
+function manaTo(t, n) {
+  const max = t ? int(t.maxMana) : 0;
+  if (!t || !(max > 0) || !(n > 0) || int(t.mana) >= max) return false;
+  t.mana = Math.min(max, int(t.mana) + n);
+  return true;
+}
+
+/* A BOON on hero `t` from `u` (the `boon` doer): `status` at the row's strength and time; answers whether it landed */
+function boonOn(inst, sc, u, row, t) {
+  if (!t || t.alive !== true || (t !== u && !isAlly(u, t))) return false;
+  const st = statusRow(row.status);
+  if (applyStatus(inst, t, st, { u: u.id, maxHit: 1, runeTier: 1 }, sc) === null) return false;
+  /* (its strength, a branch's share of what the row does: status-effects.js reads `pw`; Bargeman's Pole's Guarded at twice its row) */
+  if (row.pw) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.pw = row.pw;
+  if (row.ms) for (const s of t.statuses) if (s.s === st.id && s.src === u.id && s.left === st.durationMs) s.left = row.ms;
+  return true;
+}
 
 /* THE NEAREST LIVING ENGAGED MONSTER to `from` within `r` tiles (Infinity: any) that `ok` takes, ties by id; null with none */
 function nearestEngaged(inst, from, r, ok) {

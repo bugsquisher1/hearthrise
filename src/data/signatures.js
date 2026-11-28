@@ -60,9 +60,32 @@
 //                                         from 50%, lane/designer-sig-metric: 19.6 pace steps on Ox Road, over the band; 25% read 9.2)
 //   #23 Ferry Pennies           any       RESHAPED (Mend under 20% read +0.3: Steady falls back at 25%; a Chill under 40% +2.0): heal (of
 //                                         Mend) under 45% -> Blunted (the next blow at half) on every monster next to the wearer
-// NOT BUILT here: #19 Passing Bell and #20 Greened Bracers (their mana rules CUT, 15 "Batch 2's design calls": drinks are always sold, so
-// mana is a coin cost and never binds a hunt; Spring Tide and Green Sickness keep a Signature each, a new rule in batch 3), #8 (Stagger's),
-// #22 (an Alone Signature, batch 3).
+// NOT BUILT in batch 2: #19 and #20 (their mana rules CUT, 15 "Batch 2's design calls": drinks are always sold, so mana is a coin cost and
+// never binds a hunt; batch 3 wrote each a new rule), #8 (Stagger's).
+// BATCH 3 (15 "Decision: count and size" batch 3, lane/signatures-batch-3, 2026-11-27: the runes, procs, low health, utility and alone rows,
+// #19 and #20's new rules, the Challenge's; the readings are 15 "Batch 3, measured"). Every rule a reaction row on the pieces above or a new
+// general one (a `pull` moment, the moment's monsters `list`, the filters `family` `single` `boss` `alone`, `every` moments, the doers'
+// `to`), except two that are no reaction and read `signature` where they act: `saves` (abilities.js fire) and `stackPlus` (status.js):
+//   #1  Bannerman's Pavise      tank      taunt -> Armor Break on each monster the Challenge took (#1's Blunted read 0: a new rule, its home kept)
+//   #19 Lock-Keeper's Chain     healer    near_fall (a hero crossing its near-fall line) -> Spring Tide ready, once a 30 s clock (the name new:
+//                                         the Tower's Gold lock already holds the Passing-Bell Hammer)
+//   #20 Greened Bracers         healer    cast (of Green Sickness) -> Steeped on the wearer: its next Greater Mend +30%
+//   #22 Slake Waders            any       kill, alone (no other hero of its side in the world) -> heal 4% of its max health
+//   #24 Stoker's Ring           mage      hit (a Fire rune spell, on a chilled monster) -> echo 20% of the hit a sub-step later
+//   #25 The Cold Candle         mage      saves: every third Ice rune spell buys or spends no rune (a coin piece: the market's, 13-security-list N-14)
+//   #26 Thrower's Ring          healer    shield_break (a shell the wearer cast) -> that shell's hero heals 6% of its max health
+//   #27 Riverstone Earrings     healer    heal (a Water rune heal) -> the hero healed gets mana of 10% of the HP it landed (a coin piece)
+//   #28 Vault Leech Ring        healer    death (a monster carrying the wearer's Sickness) -> pass the Sickness on
+//   #29 Fledgling Claw          axes      stackPlus: the wearer's Bleed lands a sixth stack on a monster at five
+//   #31 The Cellar Key          healer    death, every fifth -> heal each hero of the party 3% of its max health ("a 20% chance" drawn by no dice)
+//   #33 Teamster's Mitts        tank      kill -> 2% of the wearer's max mana (a coin piece)
+//   #38 Drowned Signet          ranger    hit (a boss, left under 25%) -> Emboldened at 1.5 times its row, 10 s, on each hero of the party, once a boss
+//   #42 Night Carter's Boots    tank      pull -> Chill 3 s on every monster of the pull's pack
+//   #43 Bull's Tooth            ranger    kill (a single-target blow) -> carry its overkill to the nearest monster
+// LEFT FOR BATCH 4 (their pieces are no reaction): the auras #34 and #35 and the pair #45 and #46 (a standing effect, by distance or by a
+// partner in the party), the mana-cost rows #32, #37 and #44 (a cast that costs no mana or costs health), #40 (the drop roller's remains,
+// lane/drop-formula's roller) and #41 (an arrow returned: the reference ranger shoots store arrows bought a shot, so a returned arrow is a
+// refund or a minted item, a money call). #30 and #8 wait on their moves; #36 and #39 are the sample's and cut.
 //
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
@@ -79,6 +102,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 const sig = (row) => Object.freeze({ ...row, home: Object.freeze(row.home), best: Object.freeze(row.best),
+  ...(row.saves ? { saves: Object.freeze({ ...row.saves }) } : {}), ...(row.stackPlus ? { stackPlus: Object.freeze({ ...row.stackPlus }) } : {}),
   reacts: Object.freeze(row.reacts.map((r) => Object.freeze({ ...r }))) });
 
 export const SIGNATURES = Object.freeze({
@@ -161,6 +185,68 @@ export const SIGNATURES = Object.freeze({
     home: { kind: 'monster', id: 'fordsunk' }, best: { seat: 'tank', ground: 'muster_barrows' },
     tip: 'Mend below 45% health: the next blow of every monster next to you lands at half',
     reacts: [{ on: 'heal', of: 'mend', belowPm: 450, do: 'status', status: 'blunted', r: 1 }] }),
+
+  /* ── BATCH 3 (lane/signatures-batch-3) ── */
+  bannermans_pavise: sig({ id: 'bannermans_pavise', n: 1, name: 'Bannerman\'s Pavise', slot: 'shield', move: 'challenge',
+    home: { kind: 'monster', id: 'bannerman' }, best: { seat: 'tank', ground: 'muster_barrows' },
+    tip: 'Challenge: monsters it taunts lose a quarter of their armor for 6 s',
+    reacts: [{ on: 'taunt', do: 'status', status: 'armor_break' }] }),
+  lock_keepers_chain: sig({ id: 'lock_keepers_chain', n: 19, name: 'Lock-Keeper\'s Chain', slot: 'necklace', move: 'spring_tide',
+    home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'A hero near fall-back: Spring Tide is ready again (once every 30 s)',
+    reacts: [{ on: 'near_fall', do: 'ready', move: 'spring_tide', clockMs: 30000 }] }),
+  greened_bracers: sig({ id: 'greened_bracers', n: 20, name: 'Greened Bracers', slot: 'gloves', move: 'green_sickness',
+    home: { kind: 'monster', id: 'greened_pikeman' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Green Sickness: your next Greater Mend heals 30% more',
+    reacts: [{ on: 'cast', of: 'green_sickness', do: 'boon', to: 'self', status: 'steeped' }] }),
+  slake_waders: sig({ id: 'slake_waders', n: 22, name: 'Slake Waders', slot: 'boots',
+    home: { kind: 'monster', id: 'mudlark' }, best: { seat: 'melee_dps', ground: 'the_slake' },
+    tip: 'While you hunt alone: each kill heals you for 4% of max health',
+    reacts: [{ on: 'kill', alone: true, do: 'heal', to: 'self', pm: 40 }] }),
+  stokers_ring: sig({ id: 'stokers_ring', n: 24, name: 'Stoker\'s Ring', slot: 'ring', family: 'fire',
+    home: { kind: 'monster', id: 'stoker' }, best: { seat: 'mage', ground: 'muster_barrows' },
+    tip: 'Fire rune spells vs a chilled target: +20% damage',
+    reacts: [{ on: 'hit', family: 'fire', has: 'chill', do: 'echo', pm: 200, ms: 100 }] }),
+  throwers_ring: sig({ id: 'throwers_ring', n: 26, name: 'Thrower\'s Ring', slot: 'ring', family: 'earth',
+    home: { kind: 'monster', id: 'slate_thrower' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'When a shield you cast breaks, its wearer heals 6% of max health',
+    reacts: [{ on: 'shield_break', do: 'heal', to: 'target', pm: 60 }] }),
+  the_cold_candle: sig({ id: 'the_cold_candle', n: 25, name: 'The Cold Candle', slot: 'necklace', family: 'ice',
+    home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
+    tip: 'Ice rune spells: every third one uses no rune',
+    saves: { family: 'ice', every: 3 }, reacts: [] }),
+  fledgling_claw: sig({ id: 'fledgling_claw', n: 29, name: 'Fledgling Claw', slot: 'necklace', family: 'rupture',
+    home: { kind: 'monster', id: 'wyvern_fledgling' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
+    tip: 'Rupture rune spells: Bleed on the target can stack to 6 instead of 5',
+    stackPlus: { status: 'bleed', n: 1 }, reacts: [] }),
+  riverstone_earrings: sig({ id: 'riverstone_earrings', n: 27, name: 'Riverstone Earrings', slot: 'earrings', family: 'water',
+    home: { kind: 'monster', id: 'banded_pikeman' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Water rune heals: the hero healed gets mana equal to 10% of the healing',
+    reacts: [{ on: 'heal', family: 'water', do: 'mana', to: 'target', pm: 100 }] }),
+  vault_leech_ring: sig({ id: 'vault_leech_ring', n: 28, name: 'Vault Leech Ring', slot: 'ring', family: 'poison',
+    home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'When a monster with your Sickness dies, the Sickness moves to the nearest monster',
+    reacts: [{ on: 'death', do: 'pass', what: 'sickness' }] }),
+  the_cellar_key: sig({ id: 'the_cellar_key', n: 31, name: 'The Cellar Key', slot: 'necklace',
+    home: { kind: 'monster', id: 'the_landlord' }, best: { seat: 'healer', ground: 'muster_barrows' },
+    tip: 'Every fifth monster that dies heals your party for 3% of max health',
+    reacts: [{ on: 'death', every: 5, do: 'heal', to: 'party', pm: 30 }] }),
+  teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves',
+    home: { kind: 'monster', id: 'dead_teamster' }, best: { seat: 'tank', ground: 'muster_barrows' },
+    tip: 'On kill: restore 2% of your max mana',
+    reacts: [{ on: 'kill', do: 'mana', pm: 20 }] }),
+  drowned_signet: sig({ id: 'drowned_signet', n: 38, name: 'Drowned Signet', slot: 'ring',
+    home: { kind: 'monster', id: 'captain_hask' }, best: { seat: 'ranger', ground: 'muster_barrows' },
+    tip: 'Your target boss below 25% health: you and your party deal 15% more damage for 10 s (once per boss)',
+    reacts: [{ on: 'hit', boss: true, belowPm: 250, do: 'boon', to: 'party', status: 'emboldened', pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }] }),
+  night_carters_boots: sig({ id: 'night_carters_boots', n: 42, name: 'Night Carter\'s Boots', slot: 'boots',
+    home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'tank', ground: 'muster_barrows' },
+    tip: 'Pull start: every monster in the pull is Chilled for 3 s',
+    reacts: [{ on: 'pull', do: 'status', status: 'chill', ms: 3000 }] }),
+  bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',
+    home: { kind: 'monster', id: 'bull_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
+    tip: 'Single-target hits: overkill damage carries over to the nearest monster',
+    reacts: [{ on: 'kill', single: true, do: 'carry', pm: 1000, capPm: 1000, r: 8 }] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

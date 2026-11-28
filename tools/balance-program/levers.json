@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "dfd7265df487d3b1",
+ "authored": "ea7d262329939e04",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 756,
-  "typed": 17648,
+  "typed": 17658,
   "files": 263,
   "lever": 321,
   "notLever": 435,
@@ -3193,7 +3193,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 120,
+     "line": 122,
      "text": "sickness: Object.freeze({ id: 'sickness', name: 'Sickness', key: 'monster_takes_more', durationMs: 6000, maxStacks: 1, takenPm: 100 }),",
      "binding": "STATUSES"
     }
@@ -3260,13 +3260,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 114,
+     "line": 116,
      "text": "blowPm: 33,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 101,
+     "line": 103,
      "text": "const TIERS = Object.freeze([1000, 1100, 1200, 1300, 1400]);",
      "binding": "TIERS"
     }
@@ -3322,102 +3322,114 @@
   {
    "id": "spell.statuses-hidden",
    "category": "spells",
-   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled, Steeped, Stoked",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled, Steeped, Stoked, Whetted, Braced",
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 144,
+     "line": 146,
      "text": "poison: Object.freeze({ id: 'poison', name: 'Poison', key: 'poison', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 147,
+     "line": 149,
      "text": "armor_break: Object.freeze({ id: 'armor_break', name: 'Armor Break', key: 'armor_break', durationMs: 6000, maxStacks: 1, armorPm: -250 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 149,
+     "line": 151,
      "text": "weakened: Object.freeze({ id: 'weakened', name: 'Weakened', key: 'monster_deals_less', durationMs: 8000, maxStacks: 1, dealtPm: -80 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 151,
+     "line": 153,
      "text": "silenced: Object.freeze({ id: 'silenced', name: 'Silenced', key: 'silenced', durationMs: 3000, maxStacks: 1, silence: true }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 154,
+     "line": 156,
      "text": "burning_ground: Object.freeze({ id: 'burning_ground', name: 'Burning Ground', key: 'burning_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 159,
+     "line": 161,
      "text": "guarded: Object.freeze({ id: 'guarded', name: 'Guarded', key: 'hero_takes_less', hidden: true, durationMs: 4000, maxStacks: 1, takenPm: -100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 160,
+     "line": 162,
      "text": "emboldened: Object.freeze({ id: 'emboldened', name: 'Emboldened', key: 'hero_deals_more', hidden: true, durationMs: 6000, maxStacks: 1, dealtPm: 100 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 161,
+     "line": 163,
      "text": "renewing: Object.freeze({ id: 'renewing', name: 'Renewing', key: 'heal_over_time', hidden: true,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 167,
+     "line": 169,
      "text": "mending: Object.freeze({ id: 'mending', name: 'Mending', key: 'mending', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 170,
+     "line": 172,
      "text": "echo: Object.freeze({ id: 'echo', name: 'Echo', key: 'echo', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 173,
+     "line": 175,
      "text": "sapped: Object.freeze({ id: 'sapped', name: 'Sapped', key: 'monster_deals_less', durationMs: 6000, maxStacks: 1, dealtPm: -60 }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 176,
+     "line": 178,
      "text": "frozen_ground: Object.freeze({ id: 'frozen_ground', name: 'Frozen Ground', key: 'frozen_ground', hidden: true, refresh: 'keep',",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 181,
+     "line": 183,
      "text": "blunted: Object.freeze({ id: 'blunted', name: 'Blunted', key: 'blunted', hidden: true, durationMs: 10000, maxStacks: 1, dealtPm: -500, once: true }),",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 183,
+     "line": 185,
      "text": "kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 187,
+     "line": 189,
      "text": "steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 191,
+     "line": 193,
      "text": "stoked: Object.freeze({ id: 'stoked', name: 'Stoked', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 450,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 197,
+     "text": "whetted: Object.freeze({ id: 'whetted', name: 'Whetted', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 400,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 202,
+     "text": "braced: Object.freeze({ id: 'braced', name: 'Braced', key: 'braced', hidden: true, durationMs: 10000, maxStacks: 1, takenPm: -500, once: true }),",
      "binding": "STATUSES"
     }
    ],
@@ -3508,13 +3520,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 91,
+     "line": 93,
      "text": "hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 92,
+     "line": 94,
      "text": "hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),",
      "binding": "STATUS_KEYS"
     }
@@ -3584,13 +3596,13 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 129,
+     "line": 131,
      "text": "chill: Object.freeze({ id: 'chill', name: 'Chill', key: 'chill', durationMs: 4000, maxStacks: 1, slowPm: 300,",
      "binding": "STATUSES"
     },
     {
      "file": "src/data/statuses.js",
-     "line": 130,
+     "line": 132,
      "text": "tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),",
      "binding": "STATUSES"
     }
@@ -3650,7 +3662,7 @@
    "sites": [
     {
      "file": "src/data/statuses.js",
-     "line": 125,
+     "line": 127,
      "text": "parried: Object.freeze({ id: 'parried', name: 'Parried', key: 'parried', durationMs: 2100, maxStacks: 1, parry: true }),",
      "binding": "STATUSES"
     },
@@ -4534,7 +4546,7 @@
     },
     {
      "file": "src/data/statuses.js",
-     "line": 137,
+     "line": 139,
      "text": "healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),",
      "binding": "STATUSES"
     }
@@ -6479,10 +6491,10 @@
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
      "tests/hunt-core/side-seam.mjs",
-     "tests/hunt-core/spell-rows.mjs",
-     "tests/hunt-live.mjs"
+     "tests/hunt-core/signature-rules.mjs",
+     "tests/hunt-core/spell-rows.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 10,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11566,7 +11578,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut, its count of moments `every`; a rune it saves every `saves.every` casts; a stack cap raised by `stackPlus.n`; lane/signatures-sample, lane/signatures-batch-2, lane/signatures-batch-3; lane/signatures-batch-4: the cost of a cast `costs` (its `every`, `aboveHpPm`, `belowManaPm`, `ms`, `clockMs`), an aura `aura` (its `takenPm`, `regenPm` or `healPm`, its reach `r` and line `belowPm`), a saved shot `saves.every`, the clock of a fall-back save `save.clockMs`)",
+    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut, its count of moments `every`; a rune it saves every `saves.every` casts; a stack cap raised by `stackPlus.n`; lane/signatures-sample, lane/signatures-batch-2, lane/signatures-batch-3; lane/signatures-batch-4: the cost of a cast `costs` (its `every`, `aboveHpPm`, `belowManaPm`, `ms`, `clockMs`), an aura `aura` (its `takenPm`, `regenPm` or `healPm`, its reach `r` and line `belowPm`), a saved shot `saves.every`, the clock of a fall-back save `save.clockMs`; lane/signatures-batch-5: a count floor `min`, the reach to the moment hero `within`, a standing raise on one family of casts `raise.pm`)",
     "homes": [
      "src/data/signatures.js#SIGNATURES"
     ]
@@ -17878,6 +17890,7 @@
     "clockMs",
     "every",
     "healPm",
+    "min",
     "ms",
     "n",
     "pm",
@@ -18768,10 +18781,11 @@
     "maxStacks",
     "monster",
     "slowPm",
+    "takenPm",
     "tick",
     "tierPermille"
    ],
-   "typed": 45,
+   "typed": 49,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {

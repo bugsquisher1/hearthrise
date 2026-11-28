@@ -27,20 +27,23 @@ run() {
     --json "$OUT/$name.json" > "$OUT/$name.txt" 2> "$OUT/$name.err"
 }
 T=tank,bow,mage,healer; X=hammer,bow,mage,healer
-# ── the kept rows on their best cells, by their real ids (the size bar), against batch 3's plain fours ──
-run b4-muster-pavise     muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
-run b4-muster-boots      muster_barrows 60 $T --signatures night_carters_boots,-,-,-
-run b4-muster-thrower    muster_barrows 60 $X --signatures -,-,-,throwers_ring
-run b4-muster-key        muster_barrows 60 $X --signatures -,-,-,the_cellar_key
-run b4-muster-stoker     muster_barrows 60 $X --signatures -,-,stokers_ring,-
-run b4-muster-tooth      muster_barrows 60 $X --signatures -,bulls_tooth,-,-
-# ── the second scale ground (the spread bar), for the rows in band on their best cell ──
-run b4-pyre-stoker       pyre_field 80 $X --signatures -,-,stokers_ring,-
-run b4-pyre-thrower      pyre_field 80 $X --signatures -,-,-,throwers_ring
-run b4-pyre-key          pyre_field 80 $X --signatures -,-,-,the_cellar_key
-run b4-pyre-tooth        pyre_field 80 $X --signatures -,bulls_tooth,-,-
-# (the coin pieces, at 4 seeds against batch 3's 4-seed plains, read on the coin bar: 15 "Coin pieces: the bar")
-SEEDS=4 run b4-muster-riverstone muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
+# ── THE KEPT ROWS, BY THEIR REAL IDS. A kept row's best-cell reading is its shape's b4v-* report (the same rule under a temporary id).
+#    REPLAY=1 plays each kept row's first 2 seeds from the tree into OUT_REPLAY (default ./replay), to prove it plays that report exactly ──
+if [ -n "$REPLAY" ]; then
+  OUT="${OUT_REPLAY:-$HERE/replay}"; mkdir -p "$OUT"
+  SEEDS=2 run b4r-muster-pavise   muster_barrows 60 $T --signatures bannermans_pavise,-,-,-
+  SEEDS=2 run b4r-muster-boots    muster_barrows 60 $X --signatures -,-,-,night_carters_boots
+  SEEDS=2 run b4r-muster-stoker   muster_barrows 60 $X --signatures -,-,stokers_ring,-
+  SEEDS=2 run b4r-muster-tooth    muster_barrows 60 $X --signatures -,bulls_tooth,-,-
+  SEEDS=2 run b4r-carters-key     carters_rest 117 $X --signatures -,-,-,the_cellar_key
+  SEEDS=2 run b4r-muster-candle   muster_barrows 60 $X --signatures -,-,the_cold_candle,-
+  SEEDS=2 run b4r-muster-river    muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
+  exit 0
+fi
+# ── the second scale ground (the spread bar), by the real id ──
+run b4-roost-tooth       wyvern_roost 140 hammer,crossbow,mage,healer --signatures -,bulls_tooth,-,-
+run b4-pyre-boots        pyre_field 80 $X --signatures -,-,-,night_carters_boots
+# (the Mitts' mana rule on the two seats that are no tank, at 4 seeds against batch 3's 4-seed plains: the coin bar)
 SEEDS=4 run b4-muster-mitts-hammer muster_barrows 60 $X --signatures teamsters_mitts,-,-,-
 SEEDS=4 run b4-muster-mitts-mage   muster_barrows 60 $X --signatures -,-,teamsters_mitts,-
 # ── THE SHAPES TRIED (b4v-*): temporary ids on a scratch copy (ROOT=<copy>, sum.mjs VARIANTS4 names each), never committed as rows ──
@@ -66,3 +69,24 @@ run b4v-muster-pav-lowblunt  muster_barrows 60 $T --signatures zz_pav_lowblunt,-
 run b4v-muster-boots-back    muster_barrows 60 $X --signatures -,zz_boots_back,-,-
 run b4v-muster-boots-back8   muster_barrows 60 $X --signatures -,zz_boots_back_blunt,-,-
 run b4v-muster-stoker-60     muster_barrows 60 $X --signatures -,-,zz_stoker_60,-
+run b4v-muster-pav-g10       muster_barrows 60 $T --signatures zz_pav_g10,-,-,-
+run b4v-muster-pav-g10s3     muster_barrows 60 $T --signatures zz_pav_g10s3,-,-,-
+run b4v-muster-tooth-x2      muster_barrows 60 $X --signatures -,zz_tooth_x2,-,-
+run b4v-muster-key-save2     muster_barrows 60 $X --signatures -,-,-,zz_key_save2
+run b4v-muster-boots-lowchill muster_barrows 60 $T --signatures zz_boots_lowchill,-,-,-
+SEEDS=4 run b4v-muster-river-s5 muster_barrows 60 $X --signatures -,-,-,zz_river_s5
+SEEDS=4 run b4v-muster-river-s3 muster_barrows 60 $X --signatures -,-,-,zz_river_s3
+run b4v-muster-pav-g12       muster_barrows 60 $T --signatures zz_pav_g12,-,-,-
+run b4v-muster-key-blunt5    muster_barrows 60 $X --signatures -,-,-,zz_key_blunt5
+run b4v-muster-pav-g11       muster_barrows 60 $T --signatures zz_pav_g11,-,-,-
+run b4v-muster-pav-g12s3     muster_barrows 60 $T --signatures zz_pav_g12s3,-,-,-
+run b4v-muster-boots-ally35  muster_barrows 60 $X --signatures -,-,-,zz_boots_ally35
+run b4v-muster-boots-ally30  muster_barrows 60 $X --signatures -,-,-,zz_boots_ally30
+run b4v-pyre-stoker-45       pyre_field 80 $X --signatures -,-,zz_stoker_45,-
+run b4v-muster-stoker-45     muster_barrows 60 $X --signatures -,-,zz_stoker_45,-
+run b4v-carters-key-k1       carters_rest 117 $X --signatures -,-,-,zz_key_k1
+run b4v-carters-key-k2       carters_rest 117 $X --signatures -,-,-,zz_key_k2
+run b4v-muster-boots-ally45  muster_barrows 60 $X --signatures -,-,-,zz_boots_ally45
+run b4v-muster-boots-ally40  muster_barrows 60 $X --signatures -,-,-,zz_boots_ally40
+run b4v-carters-key-k3       carters_rest 117 $X --signatures -,-,-,zz_key_k3
+run b4v-carters-key-k4       carters_rest 117 $X --signatures -,-,-,zz_key_k4

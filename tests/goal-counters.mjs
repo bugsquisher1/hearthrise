@@ -5,14 +5,14 @@
 // THE CLAIM UNDER TEST, in three lines:
 //   · a seeded away COMBAT night advances 'slay N' counters by EXACTLY the
 //     kill count — not approximately, not the tick count;
-//   · a seeded away GATHER night advances its counter by exactly the YIELD
-//     (tool doubles included), and touches no combat counter;
+//   · a seeded away HEARTH night (the town night since the one-town-work cut;
+//     a gather night, counted by its yield, before it) moves NO goal counter;
 //   · a counter a night should not touch is ABSENT afterwards, which is the
 //     only shape of "untouched" a database can prove.
 //
 // Everything runs for real: the REAL engine bytes (`computeAccrual` from
 // supabase/functions/hr-accrue/accrual.js), the REAL simulation
-// (src/core/combat-sim.js, src/core/skill-sim.js), and the REAL `hr_apply` on
+// (src/core/combat-sim.js, src/core/artisan-sim.js), and the REAL `hr_apply` on
 // a real PostgreSQL (PGlite/WASM, in process) with THE WHOLE MIGRATION CHAIN
 // applied verbatim through tests/schema-replay.mjs — so every migration's own
 // self-verifying block EXECUTES on every run of this guard.
@@ -28,7 +28,7 @@
 // ── WHY "UNTOUCHED" NEEDS ITS OWN BLOCK ─────────────────────────────────
 // A counter model is trivially satisfiable by a bug that increments
 // everything. G5 is the control: the combat night must produce NO gather op
-// and NO gather row, and the gather night must produce no kill row. Without
+// and NO gather row, and the Hearth night no counter at all. Without
 // it every other assertion here would pass against a handler that counted
 // every event under every key.
 //
@@ -59,8 +59,7 @@ import {
 } from '../src/core/goals.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
-import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
-import { indexGatherNodes } from '../src/core/skill-sim.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 import { MIN_ACTION_MS } from '../src/core/pacing.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { huntAccrual } from './hunt-fixture.mjs';
@@ -86,7 +85,6 @@ let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoa
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
-const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
 
 /* THE FIXTURES, DERIVED — never named. A fixture chosen by literal is a
    fixture that goes vacuous the day the content is renamed, and the monster/
@@ -95,19 +93,8 @@ const MONSTER = Object.keys(MONSTERS)
   .filter((id) => MONSTERS[id] && MONSTERS[id].hp > 0)
   .sort((a, b) => (MONSTERS[a].hp || 0) - (MONSTERS[b].hp || 0))[0];
 
-/* A gathering node with the LOWEST requirement, so the level gate never fires
-   and the span is time-bounded rather than refused at tick 0. */
-const NODE = Object.keys(GATHER_INDEX)
-  .filter((id) => GATHER_INDEX[id].skill === 'woodcutting')
-  .sort((a, b) => (GATHER_INDEX[a].node.req || 0) - (GATHER_INDEX[b].node.req || 0))[0];
-
-/* The best woodcutting tool in the data — its `toolDouble` is what makes the
-   gather YIELD exceed the ACTION COUNT, which is the only thing that can tell
-   `updateDaily('gather', qty)` apart from `updateDaily('gather', 1)`. M9
-   plants exactly that defect. */
-const TOOL = Object.keys(ITEMS)
-  .filter((id) => ITEMS[id] && ITEMS[id].type === 'tool' && ITEMS[id].toolSkill === 'woodcutting')
-  .sort((a, b) => (ITEMS[b].toolTier || 0) - (ITEMS[a].toolTier || 0))[0] || null;
+/* The Hearth's fuel run: the one town night the engine prices since the one-town-work cut. */
+const FUEL = FUEL_RUNS.fuel_bones ? 'fuel_bones' : Object.keys(FUEL_RUNS)[0];
 
 const HOUR = 3600000;
 /* A Sunday in the middle of a month, at 09:00 UTC, so a 2h window neither
@@ -186,22 +173,21 @@ function combatNight(over) {
     skills: { attack: xpForLevel(70), strength: xpForLevel(70), defence: xpForLevel(70),
               hitpoints: xpForLevel(70) },
     equipment: {}, inventory: {},
-    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    items: ITEMS, monsters: MONSTERS,
     ...over,
   }, { seed: SEED, engine: engineMod || undefined });
 }
 
-function gatherNight(over) {
+function hearthNight(over) {
   return computeAccrualFn({
     userId: USER, slot: 0,
     nowMs: NOW_MS, accruedToMs: NOW_MS - 2 * HOUR, activeSinceMs: NOW_MS - 2 * HOUR,
-    activeKind: 'gather', activeId: NODE,
+    activeKind: 'artisan', activeId: FUEL,
     capMs: 12 * HOUR, seed: SEED,
     hp: 999, maxHp: 999, gold: 0,
-    skills: { woodcutting: xpForLevel(70) },
-    equipment: {}, inventory: TOOL ? { [TOOL]: 1 } : {},
-    toolCarry: {},
-    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+    skills: { inner_flame: xpForLevel(70) },
+    equipment: {}, inventory: { bones: 1000000 },
+    items: ITEMS, monsters: MONSTERS, recipes: FUEL_RUNS,
     ...over,
   });
 }
@@ -225,9 +211,7 @@ async function runOn(db, patches) {
   // Everything below is derived from src/data; a derivation that came back
   // empty would make every later block pass vacuously.
   ok(!!MONSTER, 'G0: no monster in the catalogue — the combat night has no target');
-  ok(!!NODE, 'G0: no woodcutting node in the gather index — the gather night has no target');
-  ok(!!TOOL, 'G0: no woodcutting tool in ITEMS — the yield can never exceed the action count and '
-    + 'M9 (amt ignored) would be undetectable');
+  ok(!!FUEL, 'G0: no fuel run in the catalogue — the Hearth night has no target');
   ok(G.GOAL_EVENTS.length >= 6,
     `G0: the vocabulary holds ${G.GOAL_EVENTS.length} events, expected at least 6`);
   ok(G.GOAL_EVENTS.every((t) => !G.UNCOUNTED_EVENTS.includes(t)),
@@ -273,7 +257,7 @@ async function runOn(db, patches) {
   // that stopped matching would report a clean bill on a broken contract.
   {
     /* hunt-rewards.js: lane S1 moved the kill emits out of the world step into the payer (2026-10-17). */
-    const coreFiles = ['combat-sim.js', 'hunt-rewards.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
+    const coreFiles = ['combat-sim.js', 'hunt-rewards.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
     const emitted = new Set();
     let sites = 0;
     for (const f of coreFiles) {
@@ -283,9 +267,9 @@ async function runOn(db, patches) {
         emitted.add(m[1]); sites++;
       }
     }
-    /* 3 since 2026-10-22: the updateDaily twins of the kill and gather emits were cut
-       (hunt-rewards kill_any + kill_monster, skill-sim gather remain). */
-    ok(sites >= 3,
+    /* 2 since the one-town-work cut: the updateDaily twins of the kill and gather emits were cut 2026-10-22,
+       and skill-sim's gather emit left with gathering (hunt-rewards kill_any + kill_monster remain). */
+    ok(sites >= 2,
       `G2 CONTROL: only ${sites} updateDaily/updateQuest emit sites found in src/core — the scan is `
       + 'blind, and every classification check below would pass for free');
     for (const t of emitted) {
@@ -345,31 +329,17 @@ async function runOn(db, patches) {
       + 'event from the same span through two independent paths and must agree.');
   }
 
-  // ── G4 · A GATHER NIGHT ADVANCES ITS COUNTER BY THE YIELD ─────────────
-  let gather;
+  // ── G4 · A HEARTH NIGHT MOVES NO GOAL COUNTER ─────────────────────────
+  // (A gather night advanced ev:gather by its yield until the one-town-work cut retired gathering; the
+  // Hearth's fuel run emits no goal event, so the honest claim is that it files none.)
+  let hearth;
   {
-    gather = gatherNight();
-    ok(gather.accrued === true, `G4: the gather night accrued nothing (reason: ${gather.reason})`);
-    if (!gather.accrued) { return; }
-    const qty = gather.summary.gathered;
-    ok(qty > 0, `G4: the fixture gathered ${qty} — vacuous`);
-    ok(qty > gather.summary.ticks,
-      `G4 CONTROL: the fixture yielded ${qty} from ${gather.summary.ticks} actions — with no tool `
-      + 'double the yield equals the action count, and a handler that passed 1 instead of `amt` '
-      + 'would be indistinguishable from a correct one. Pick a tool with a double rate.');
-
-    const life = findOp(gather.delta, 'stat', 'gather');
-    ok(!opsOf(gather.delta).some((o) => o.kind === 'daily'),
-      "G4: the gather night proposed a kind='daily' op — the daily counters were cut (2026-10-22)");
-    ok(!!life, "G4: no {kind:'stat', key:'ev:gather'} op — the gather lifetime counter never moves");
-    ok(!life || life.add === qty,
-      `G4: the lifetime gather counter advanced by ${life?.add} for a yield of ${qty}. The seam is `
-      + '`updateQuest(\'gather\', res.qty)` — the AMOUNT is the yield, not 1, so a tool double '
-      + 'moves the counter by 2.');
-    const gStat = opsOf(gather.delta).find((o) => o.kind === 'stat' && o.key === 'gathered');
-    ok(!!gStat && !!life && gStat.add === life.add,
-      `G4: stat:gathered = ${gStat?.add} but stat:ev:gather = ${life?.add} — two paths counting `
-      + 'one span must agree');
+    hearth = hearthNight();
+    ok(hearth.accrued === true, `G4: the Hearth night accrued nothing (reason: ${hearth.reason})`);
+    if (!hearth.accrued) { return; }
+    ok(hearth.summary.ticks > 0, `G4: the fixture burnt ${hearth.summary.ticks} fuel — vacuous`);
+    ok(goalOps(hearth.delta).length === 0 && !opsOf(hearth.delta).some((o) => o.kind === 'daily'),
+      `G4: the Hearth night proposed goal ops ${JSON.stringify(goalOps(hearth.delta))} — a fuel run emits no goal event`);
   }
 
   // ── G5 · THE CONTROL — A NIGHT TOUCHES NOTHING IT SHOULD NOT ──────────
@@ -377,27 +347,19 @@ async function runOn(db, patches) {
   // would pass G3 and G4 outright.
   {
     const cKeys = goalOps(combat.delta).map((o) => o.key).sort();
-    const gKeys = goalOps(gather.delta).map((o) => o.key).sort();
     /* The b461 modal-goal daily keys (goal-period.js) were cut 2026-10-22 with the
        daily goals: each night may move only its own lifetime counter. */
     const C_ALLOWED = [goalKey('kill_any')];
-    const G_ALLOWED = [goalKey('gather')];
     ok(cKeys.every((k) => C_ALLOWED.includes(k)),
       `G5: the COMBAT night proposed goal ops ${JSON.stringify(cKeys)} — it may move only `
       + `${JSON.stringify(C_ALLOWED)}. A counter a night should not touch must stay untouched.`);
-    ok(gKeys.every((k) => G_ALLOWED.includes(k)),
-      `G5: the GATHER night (woodcutting) proposed goal ops ${JSON.stringify(gKeys)} — it may move `
-      + `only ${JSON.stringify(G_ALLOWED)}. A mining or fishing counter here would be a per-skill `
-      + 'counter attributed to the wrong skill.');
     ok(!cKeys.includes('ev:chopped') && !cKeys.includes('ev:mined') && !cKeys.includes('ev:fished')
        && !cKeys.includes('ev:planted'),
       `G5: the combat night moved a GATHERING modal counter: ${JSON.stringify(cKeys)}`);
-    ok(!gKeys.includes('ev:rare_drops') && !gKeys.includes('ev:mined') && !gKeys.includes('ev:fished'),
-      `G5: the gather night moved a counter that is not its own: ${JSON.stringify(gKeys)}`);
     ok(!findOp(combat.delta, 'daily', 'gather') && !findOp(combat.delta, 'stat', 'gather'),
       "G5: the combat night moved a 'gather' counter");
-    ok(!findOp(gather.delta, 'daily', 'kill_any') && !findOp(gather.delta, 'stat', 'kill_any'),
-      "G5: the gather night moved a 'kill_any' counter");
+    ok(!findOp(hearth.delta, 'daily', 'kill_any') && !findOp(hearth.delta, 'stat', 'kill_any'),
+      "G5: the Hearth night moved a 'kill_any' counter");
     // And the uncounted event stays uncounted. resolveKill emits
     // `updateQuest('kill_monster', …)` on every kill; a handler that counted
     // it would mint a key with no authored consumer.
@@ -595,24 +557,8 @@ async function runOn(db, patches) {
   // anchor. G3/G4 assert no night proposes a daily op; tests/old-rewards-gone.mjs
   // OR-5 keeps the engine from proposing one again.
 
-  // ── G11 · THE GATHER NIGHT ROUND-TRIPS TOO ────────────────────────────
-  // The gather path is a separate delta builder in accrual.js. A model wired
-  // into one of them and not the other is exactly the b350 "gather declaration
-  // gap" in miniature, so it gets its own end-to-end pass rather than being
-  // assumed to follow.
-  {
-    const r = await apply(db, {
-      progress: opsOf(gather.delta),
-      journal: { kind: 'gather', intent: 'goal:test:gather' },
-    });
-    ok(r?.ok === true, `G11: hr_apply refused the gather night's progress array — ${JSON.stringify(r)}`);
-    const rows = await progressRows(db);
-    ok(Number(rows.get(`stat|${goalKey('gather')}|`)?.value) === gather.summary.gathered,
-      `G11: the gather lifetime counter reads ${rows.get(`stat|${goalKey('gather')}|`)?.value}, `
-      + `expected ${gather.summary.gathered}`);
-    ok(!rows.has(`daily|${goalKey('gather')}|${G.utcDayKey(NOW_MS)}`),
-      'G11: a gather daily counter landed — the daily counters were cut (2026-10-22)');
-  }
+  // ── G11 · (retired with gathering, the one-town-work cut) ─────────────
+  // The gather night's own round trip: the Hearth night G4 grades files no counter to round-trip.
 
   // ══════════════════════════════════════════════════════════════════════
   // BESTIARY — per-monster kill counts (live-settlement Slice 1). Same real
@@ -702,12 +648,12 @@ async function runOn(db, patches) {
       + 'the night fought one monster, all three count the same kills and must agree');
   }
 
-  // ── B3 · THE CONTROL, THE ROUND TRIP, AND THE GATHER NIGHT TOUCHES NONE ─
+  // ── B3 · THE CONTROL, THE ROUND TRIP, AND THE HEARTH NIGHT TOUCHES NONE ─
   {
-    // A gather night emits no kill_monster, so no bestiary op — the G5 control
+    // A Hearth night emits no kill_monster, so no bestiary op — the G5 control
     // for this model.
-    ok(bestOps(gather.delta).length === 0,
-      'B3: the GATHER night proposed a bestiary op — only combat kills feed the bestiary');
+    ok(bestOps(hearth.delta).length === 0,
+      'B3: the HEARTH night proposed a bestiary op — only combat kills feed the bestiary');
 
     // hr_apply accepts the op verbatim, and hr_bestiary_of reads it back by
     // prefix — the projection this slice ships, exercised end to end.
@@ -954,12 +900,7 @@ const MUTATIONS = [
   { name: 'M3 combat: the goal ops never reach the delta',
     file: 'accrue-hunt.js', from: "  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);\n",
     to: "" },
-  { name: 'M4 gather: the goal ops never reach the delta',
-    file: 'accrue-gather.js', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see",
-    to: "\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see" },
-  { name: 'M5 gather: the yield is ignored and every action counts 1',
-    file: 'accrue-gather.js', from: "    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
-    to: "    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
+  /* (M4 and M5, the gather night's goal ops and its yield, retired with gathering: the one-town-work cut.) */
   /* (M6, the daily day-anchor mutant, retired 2026-10-22 with the daily arm: G10.) */
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
     file: 'goals', from: "return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;",
@@ -1121,5 +1062,5 @@ if (isMain(import.meta.url)) {
     process.exit(1);
   }
   console.log('Goal counters guard — an away combat night moves \'slay N\' by exactly the kill count, '
-    + 'a gather night moves its own counter by the yield, and neither touches the other\'s.');
+    + 'a Hearth night moves none, and neither touches the other\'s.');
 }

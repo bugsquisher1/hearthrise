@@ -143,7 +143,7 @@ import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, buffQueueFromServer, buffBonusFor, tickBu
   from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { huntAccrual } from './hunt-fixture.mjs';
-import { GATHER_CATALOGUES } from '../supabase/functions/hr-accrue/tick-gather.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
    guard can see the two halves of the feature drift apart. */
@@ -641,7 +641,7 @@ export function r6Core(B) {
   const ctx = { away: true };
   if (B.nextBuffExpiryMs(q) !== NOW6 - FROM6) {
     bad.push(`[R6] the first payout boundary is ${B.nextBuffExpiryMs(q)} ms into the window, want `
-      + `${NOW6 - FROM6} (the segment's start) — a gather/artisan slice would run the whole absence at one rate`);
+      + `${NOW6 - FROM6} (the segment's start) — a fuel run's slice would run the whole absence at one rate`);
   }
   let paidBefore = 0; let paidAfter = 0;
   for (let t = FROM6; t < END6 + 60000; t += 10000) {
@@ -662,30 +662,30 @@ export function r6Core(B) {
   return bad;
 }
 
-/* The same fact through the REAL engine: a mining night whose only buff was eaten
-   at return is byte-identical to one with no buff at all, and a buff that was
-   running when the window opened still pays (so the equality is not vacuous). */
+/* The same fact through the REAL engine: a Hearth night (the town night since the one-town-work cut; a mining
+   night before it) whose only buff was eaten at return is byte-identical to one with no buff at all, and a buff
+   that was running when the window opened still pays (so the equality is not vacuous). */
 export function r6Engine() {
   const bad = [];
   const FROM6 = Date.UTC(2026, 8, 26, 17, 45, 0);
   const NOW6 = FROM6 + 7.25 * 3600000;
   const night6 = (buffs) => computeAccrual({
     userId: U, slot: 0, nowMs: NOW6, accruedToMs: FROM6, activeSinceMs: FROM6,
-    activeKind: 'gather', activeId: 'mithril_rock', capMs: 12 * 3600000, seed: 55512345,
+    activeKind: 'artisan', activeId: 'fuel_bones', capMs: 12 * 3600000, seed: 55512345,
     hp: 50, maxHp: 50, gold: 0,
-    skills: { mining: 5000000, hitpoints: 200000 }, inventory: {}, equipment: {},
-    items: GATHER_CATALOGUES.items, monsters: {}, nodes: GATHER_CATALOGUES.nodes, buffs,
+    skills: { inner_flame: 5000000 }, inventory: { bones: 1000000 }, equipment: {},
+    items: ITEMS, monsters: {}, recipes: FUEL_RUNS, buffs,
   });
   const pay = (o) => JSON.stringify({ xp: o.delta && o.delta.xp, items: o.delta && o.delta.items,
     ticks: o.summary && o.summary.ticks });
-  const seg = (fromMs) => [{ type: 'gather_speed', magnitude: 4,
+  const seg = (fromMs) => [{ type: 'all_xp', magnitude: 4,
     from: new Date(fromMs).toISOString(), until: new Date(fromMs + 15 * 60000).toISOString() }];
   const bare = night6(undefined);
-  if (!bare.accrued) { bad.push(`[R6] the mining fixture did not accrue (${bare.reason})`); return bad; }
+  if (!bare.accrued) { bad.push(`[R6] the Hearth fixture did not accrue (${bare.reason})`); return bad; }
   const atReturn = night6(seg(NOW6));
   const onTheWayOut = night6(seg(FROM6));
   if (pay(atReturn) !== pay(bare)) {
-    bad.push(`[R6] a gather_speed segment with from = nowMs changed the night: ${pay(atReturn)} vs no buff `
+    bad.push(`[R6] an all_xp segment with from = nowMs changed the night: ${pay(atReturn)} vs no buff `
       + `${pay(bare)} — the absence was priced at a buff eaten at return`);
   }
   if (pay(onTheWayOut) === pay(bare)) {

@@ -20,15 +20,17 @@
 //   hr_party_tick_settle c_delta_ok    SQL, installed body   refuses unknown_delta_key
 //                       c_stamp        SQL                   refuses delta_would_stamp
 //                                                            (BY DESIGN, invariant 8)
-//   foldDeltas          tick-contract.js classification      throws "unclassified"
+//   (foldDeltas, the tick-contract.js poll fold, left with the gather channel: the one-town-work cut. The
+//   artisan channel settles ONE engine call a window and folds nothing.)
 // Not allowlists, and why: hr_tick_settle (solo) names no key and forwards the
 // delta to hr_apply; FOLD_CHAIN_KEYS (tick.js) ENDS a fold chain on any other
 // key, it refuses nothing; STAMPING_DELTA_KEYS (intents.js) is a deny list.
 //
 // THE PROPOSABLE SETS, derived from supabase/functions/hr-accrue/accrual.js:
 // every `delta.<key> =` and every top-level key of a `const delta = {…}` inside
-// computeAccrual (COMBAT — the only engine a party runs), accrueGather and
-// accrueArtisan, plus tick-gather.js's own `p_delta.<key> =` rewrites.
+// computeAccrual (COMBAT — the only engine a party runs) and accrueArtisan (the
+// Hearth's fuel run; accrueGather left with gathering), plus the tick layer's
+// own `p_delta.<key> =` rewrites.
 //
 // THE ARMS
 //   K0  the derivation is not vacuous (known keys of each engine are found),
@@ -43,7 +45,7 @@
 //   KB  hr_party_tick_settle's c_delta_ok, plus its c_stamp, covers every COMBAT
 //       key but the dormant ones; c_stamp is STAMPING_DELTA_KEYS exactly
 //   KC  c_delta_ok is a subset of hr_apply's c_delta_keys (Security S-1)
-//   KD  foldDeltas classifies every proposable key
+//   KD  RETIRED with foldDeltas (the gather poll fold, the one-town-work cut)
 //   KE  a DORMANT key is dormant for a reason the replay can see: hr_apply does
 //       not accept it AND the column the engine's self-configuring switch reads
 //       does not exist, so the engine cannot propose it
@@ -198,37 +200,23 @@ export function proposable({ accrual, ticks }) {
   /* LANE S1 (hunt instances): a fight is a hunt instance, and each member's
      combat delta is built by accrual.js `memberDelta`. Both bodies are read. */
   const combat = new Set([...of('computeAccrual'), ...of('memberDelta')]);
-  const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
   /* THE TICK LAYER rewrites a settled delta in place in three shapes —
      `folded.<key> = ` (writeIntent / foldCombatDelta, the window's folded
      delta, where `progress` is coalesced since 2026-10-08),
      `it.args.p_delta.<key> = ` and a local copy's `delta.<key> = `
      (tick-party's journal). Every key is collected into every set
-     (conservative: a party is combat). A bracket write on any of them is RED.
-     foldDeltas, the only whole-delta builder there, throws on an unclassified
-     key (KD). */
+     (conservative: a party is combat). A bracket write on any of them is RED. */
   for (const [file, text] of Object.entries(ticks)) {
     const t = stripComments(text);
     for (const k of [...assignedKeys(t, 'p_delta'), ...assignedKeys(t, 'delta'), ...assignedKeys(t, 'folded')]) {
-      combat.add(k); gather.add(k); artisan.add(k);
+      combat.add(k); artisan.add(k);
     }
     for (const m of t.matchAll(/\b(?:(?:p_)?delta|folded)\s*\[[^\]]*\]\s*=(?!=)|Object\.assign\(\s*[A-Za-z_.]*\b(?:(?:p_)?delta|folded)\b/g)) {
       bad.push(`${file}: a non-literal delta write: ${m[0].slice(0, 60)}`);
     }
   }
-  return { combat, gather, artisan, all: new Set([...combat, ...gather, ...artisan]), bad };
-}
-/** foldDeltas' classification, read from tick-contract.js's own source. */
-export function foldClassified(contract) {
-  const out = new Set(['journal']);           // folded separately, by name, in foldDeltas
-  for (const name of ['ADDITIVE_SCALAR', 'ADDITIVE_MAP', 'ABSOLUTE', 'APPEND', 'ABSOLUTE_MAP']) {
-    const m = new RegExp(`export const ${name} = Object\\.freeze\\(\\[([^\\]]*)\\]\\)`).exec(contract);
-    if (!m) throw Object.assign(new Error(`tick-contract.js: ${name} not found`), { harness: true });
-    for (const q of m[1].matchAll(/'([a-z_]+)'/g)) out.add(q[1]);
-  }
-  if (!/if \(k === 'journal'\) continue;/.test(contract)) out.delete('journal');
-  return out;
+  return { combat, artisan, all: new Set([...combat, ...artisan]), bad };
 }
 /** A PL/pgSQL `NAME constant text[] := array[…]` declaration's quoted words,
     comments stripped first (hr_apply's list carries prose with quotes and
@@ -245,7 +233,6 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   const red = [];
   const fail = (id, msg) => red.push(`${id}: ${msg}`);
   const P = proposable(src);
-  const fold = foldClassified(src.contract);
   const apply = sqlArray(applyDef, 'c_delta_keys');
   const party = settleDef !== null;
   const ok = party ? sqlArray(settleDef, 'c_delta_ok') : new Set();
@@ -253,7 +240,7 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   if (!apply || !ok || !stamp) { fail('K0', 'an allowlist could not be read out of an installed body'); return { red, P }; }
   /* (`fight` left the combat set with the single-foe span, lane S1: the world carries the fight.) */
   const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'deaths', 'xp_frac'],
-                 gather: ['items', 'xp', 'xp_frac', 'tool_carry', 'progress'], artisan: ['items', 'xp', 'xp_frac'] };
+                 artisan: ['items', 'xp', 'xp_frac', 'activity', 'work_to'] };
   for (const [eng, keys] of Object.entries(need)) {
     const miss = keys.filter((k) => !P[eng].has(k));
     if (miss.length) fail('K0', `the ${eng} derivation found no ${miss.join(', ')} — the parser is blind, not the engine`);
@@ -282,13 +269,11 @@ function staticArms({ src, applyDef, settleDef, columns }) {
     const extraC = [...ok].filter((k) => !apply.has(k));
     if (extraC.length) fail('KC', `c_delta_ok accepts ${extraC.join(', ')} which hr_apply refuses (S-1: shadow evidence for an unpayable payload)`);
   }
-  const missD = [...P.all].filter((k) => !fold.has(k));
-  if (missD.length) fail('KD', `foldDeltas does not classify ${missD.join(', ')} — a tick fold throws on it`);
   for (const [k, { table, column }] of Object.entries(DORMANT)) {
     if (apply.has(k)) fail('KE', `${k} is listed DORMANT but hr_apply accepts it — take it off the dormant list`);
     if (columns.has(`${table}.${column}`)) fail('KE', `${table}.${column} exists, so the engine proposes ${k} — it is not dormant`);
   }
-  return { red, P, sets: { apply, ok, stamp, fold } };
+  return { red, P, sets: { apply, ok, stamp } };
 }
 
 // ── THE DATABASE ARMS ───────────────────────────────────────────────────────
@@ -479,7 +464,6 @@ async function readSources() {
     ticks: Object.fromEntries(await Promise.all(
       (await readdir(join(ROOT, FN))).filter((f) => /^tick.*\.js$/.test(f)).sort()
         .map(async (f) => [f, await readText(`${FN}/${f}`)]))),
-    contract: await readText(`${FN}/tick-contract.js`),
   };
 }
 async function installed(db) {
@@ -504,10 +488,10 @@ async function everything(db, src, fracSql, { log = () => {} } = {}) {
   const st = staticArms(Object.assign({ src }, inst));
   const red = [...st.red];
   if (!st.red.length) {
-    log(`  ✓ K0 — derived: combat {${[...st.P.combat].sort()}}; gather+artisan add {${[...st.P.all].filter((k) => !st.P.combat.has(k)).sort()}}`);
+    log(`  ✓ K0 — derived: combat {${[...st.P.combat].sort()}}; artisan adds {${[...st.P.all].filter((k) => !st.P.combat.has(k)).sort()}}`);
     log(inst.settleDef !== null
-      ? '  ✓ KA/KB/KC/KD/KE — hr_apply, the party settle (c_delta_ok + c_stamp), and foldDeltas cover every proposable key; c_delta_ok ⊆ hr_apply; ammo_carry is dormant (no column, no hr_apply key)'
-      : '  ✓ KA/KD/KE — hr_apply and foldDeltas cover every proposable key; ammo_carry is dormant. (KR/KB/KC/P/PS RETIRED: hr_party_tick_settle is dropped by the core rebuild)');
+      ? '  ✓ KA/KB/KC/KE — hr_apply and the party settle (c_delta_ok + c_stamp) cover every proposable key; c_delta_ok ⊆ hr_apply; ammo_carry is dormant (no column, no hr_apply key)'
+      : '  ✓ KA/KE — hr_apply covers every proposable key; ammo_carry is dormant. (KR/KB/KC/P/PS RETIRED: hr_party_tick_settle is dropped by the core rebuild; KD with the gather poll fold)');
   }
   red.push(...await scanArm(db, fracSql));
   if (inst.settleDef !== null) red.push(...await dbArms(db, { log }));
@@ -591,7 +575,7 @@ async function main() {
       ['camelCase', '  delta.zzDyn = 1;'],
       ['spaced dot', '  delta . zz_spaced = 1;'],
       ['split dot', '  delta\n    .zz_split = 1;'],
-    ].map(([what, line]) => ({ name: `key write: ${what}`, arms: /^(KA|KB|KD):/,
+    ].map(([what, line]) => ({ name: `key write: ${what}`, arms: /^(KA|KB):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', `  if (goldDelta > 0) delta.gold = goldDelta;\n${line}`) } })),
     /* Security 2026-10-13 #5: every way to write a key the source does not spell. */
     ...[
@@ -607,13 +591,11 @@ async function main() {
     { name: 'non-literal key write: a spread in the literal', arms: /^K0:/,
       src: { accrual: src.accrual.replace('  const delta = {\n', '  const delta = {\n    ...extras,\n') } },
     { name: 'non-literal key write: a bracket write in the tick layer', arms: /^K0:/,
-      src: { ticks: Object.assign({}, src.ticks, { 'tick-gather.js': src.ticks['tick-gather.js'].replace(
-        '  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);',
-        "  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n  folded['zz'] = 1;") }) } },
+      src: { ticks: Object.assign({}, src.ticks, { 'tick-artisan.js': src.ticks['tick-artisan.js'].replace(
+        '  d.accrued_to = new Date(windowToMs).toISOString();',
+        "  d.accrued_to = new Date(windowToMs).toISOString();\n  delta['zz'] = 1;") }) } },
     { party: true, name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
       plant: bodyMutant(settleDef, '  v_role     text;', "  v_role     text; v_dyn text := format('%I', c_delta_ok[14]);") },
-    { name: 'foldDeltas stops classifying xp_frac', arms: /^KD:/,
-      src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze([]);") } },
     { name: 'a dormant key\'s column appears', arms: /^KE:/,
       plant: async () => { await db.exec('alter table public.player_state add column ammo_carry numeric'); return async () => { await db.exec('alter table public.player_state drop column ammo_carry'); }; } },
     { party: true, name: 'the single-writer scan is narrowed to nothing', arms: /^KW:/,

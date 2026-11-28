@@ -7,8 +7,9 @@
 //   §2-3  the per-action rule in src/core/companion-xp.js (still the one
 //         definition; progress-coalesce reads it), integer and clamped under
 //         hr_apply's progress ceiling;
-//   §4    no hunt, gather or bench night — attended or away, with the old arm
-//         input set — proposes a companion_xp op or companion_xp_frac.
+//   §4    no hunt or Hearth night — attended or away, with the old arm
+//         input set — proposes a companion_xp op or companion_xp_frac (the
+//         gather and bench nights left with the one-town-work cut).
 // History: b550 armed the writer after "the pets are still not getting exp";
 // the wipe removes the levelled pet with it (client half: D1/R1).
 //
@@ -26,12 +27,11 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { onTrainingHunt } from './hunt-fixture.mjs';
 /* Lane C2: combat accrues only on a hunt session — the fixture runs as a training hunt. */
 const computeAccrualOnHunt = (inp) => onTrainingHunt(inp);   // a fight is a hunt instance (lane S1); anything else is computeAccrual
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 import {
   companionActionXp, companionSpanXp, COMPANION_XP_CAP,
 } from '../src/core/companion-xp.js';
 import { companionXpToReach } from '../src/core/companion-perk.js';
-import { benchPayable } from '../src/core/artisan-sim.js';
 import { COMPANIONS } from '../src/data/companions.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -66,8 +66,7 @@ const BASE = {
   nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
   capMs: 12 * 3600000, seed: SEED, hp: 990, maxHp: 990, gold: 0,
   autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
-  toolCarry: {}, unlockedRecipes: {},
-  items: ITEMS, monsters: MONSTERS, nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+  items: ITEMS, monsters: MONSTERS, recipes: FUEL_RUNS,
 };
 
 const COMBAT_SKILLS = { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED };
@@ -144,43 +143,24 @@ export function companionXpGuard() {
     'companion-xp: an absurd action count must still clamp under the hr_apply progress ceiling');
 
   // ── 4. THE ENGINE WRITES NO COMPANION XP (lane C2, deleted outright) ──
-  /* Not a dormancy claim: there is no writer and no arm. A hunt (combat), a
-     gather night and a bench night, each with a role-matched pet equipped and
-     the old arm input set, must carry NO companion_xp op and NO
+  /* Not a dormancy claim: there is no writer and no arm. A hunt (combat) and a
+     Hearth night (the town night since the one-town-work cut), each with a pet
+     equipped and the old arm input set, must carry NO companion_xp op and NO
      companion_xp_frac key — a writer that crept back would mint a stat the
      wipe deleted, unreviewed. Both paths (attended and away) are asserted. */
-  const gatherNode = Object.keys(GATHER_NODES).find((id) => {
-    const r = computeAccrual({
-      ...BASE, activeKind: 'gather', activeId: id,
-      skills: { woodcutting: MAXED, mining: MAXED, fishing: MAXED, farming: MAXED },
-      equipment: {}, perks: { ok: true, companion: { id: 'sparrow', xp: 0 } }, companionXpBacked: true,
-    });
-    return r.accrued === true;
-  });
-  ok(gatherNode, 'companion-xp: no gather node accrued in 12h — cannot exercise the gather path');
-  const recipeId = Object.entries(ARTISAN_RECIPES_ALL).find(([, e]) => {
-    const rc = e && e.recipe;
-    return e && e.skill && benchPayable(e.skill) && rc && !rc.gated && (rc.inputs || rc.input);
-  })?.[0];
-  ok(recipeId, 'companion-xp: no payable ungated recipe found — cannot exercise the bench path');
+  const recipeId = FUEL_RUNS.fuel_bones ? 'fuel_bones' : Object.keys(FUEL_RUNS)[0];
+  ok(recipeId, 'companion-xp: no fuel run found — cannot exercise the Hearth path');
   const nights = [];
   for (const away of [false, true]) {
     nights.push(['combat (hunt)', runCombat({ id: 'wolf_pup', xp: 0 }, true, away), away]);
-    if (gatherNode) {
-      nights.push(['gather', computeAccrual({
-        ...BASE, activeKind: 'gather', activeId: gatherNode,
-        skills: { woodcutting: MAXED, mining: MAXED, fishing: MAXED, farming: MAXED },
-        equipment: {}, perks: { ok: true, companion: { id: 'sparrow', xp: 0 } }, companionXpBacked: true, away,
-      }), away]);
-    }
     if (recipeId) {
-      const entry = ARTISAN_RECIPES_ALL[recipeId];
+      const entry = FUEL_RUNS[recipeId];
       const rc = entry.recipe;
       const bag = {};
       const inputs = rc.inputs ? rc.inputs : (rc.input ? { [rc.input]: rc.inputQty || 1 } : {});
       for (const [id, q] of Object.entries(inputs)) bag[id] = q * 100000;
       const skills = { ...COMBAT_SKILLS, [entry.skill]: MAXED };
-      nights.push(['bench', computeAccrual({
+      nights.push(['Hearth', computeAccrual({
         ...BASE, activeKind: 'artisan', activeId: recipeId, skills,
         equipment: {}, inventory: bag, perks: { ok: true, companion: { id: 'honeybee', xp: 0 } },
         companionXpBacked: true, away,
@@ -196,7 +176,7 @@ export function companionXpGuard() {
   }
   if (!problems.length) {
     console.log(`Companion XP — the per-action rule is pinned; the engine writes no companion XP on ${nights.length} nights `
-      + '(hunt, gather, bench; attended and away).');
+      + '(hunt, Hearth; attended and away).');
   }
   return problems;
 }

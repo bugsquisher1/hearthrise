@@ -16,9 +16,10 @@ export const DOOR = 'accrual.js';
 /* Siblings the engine imports that are not engine: the one catalogue-lookup guard and the hunt's keyed seeder. Each is
    read by its own guards; reading them here would hold their text to the engine's rules. */
 export const NOT_ENGINE = Object.freeze(['intents.js', 'hunt-seed.js']);
-/* The engine has five pieces since 2026-11-21 (accrual-contract, accrual-window, accrue-gather, accrue-artisan, accrue-hunt):
-   accrue-rested.js left with the rested bank (Tyler S-9 c). The floor is the count, so a reader that found fewer is blind. */
-const MIN_PIECES = 5;
+/* The engine has four pieces since the one-town-work cut (accrual-contract, accrual-window, accrue-artisan, accrue-hunt):
+   accrue-rested.js left with the rested bank (Tyler S-9 c), accrue-gather.js with gathering. The floor is the count, so a
+   reader that found fewer is blind. */
+const MIN_PIECES = 4;
 
 const SIBLING = /(?:^|\n)\s*(?:import|export)\s[^;]*?\sfrom\s+'\.\/([\w.-]+\.js)'/g;
 

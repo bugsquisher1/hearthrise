@@ -133,7 +133,7 @@
 const sig = (row) => Object.freeze({ ...row, home: Object.freeze(row.home), best: Object.freeze(row.best),
   ...(row.saves ? { saves: Object.freeze({ ...row.saves }) } : {}), ...(row.stackPlus ? { stackPlus: Object.freeze({ ...row.stackPlus }) } : {}),
   ...(row.costs ? { costs: Object.freeze({ ...row.costs }) } : {}), ...(row.aura ? { aura: Object.freeze({ ...row.aura }) } : {}), ...(row.save ? { save: Object.freeze({ ...row.save }) } : {}),
-  ...(row.raise ? { raise: Object.freeze({ ...row.raise }) } : {}), ...(row.aim ? { aim: Object.freeze({ ...row.aim }) } : {}),
+  ...(row.raise ? { raise: Object.freeze({ ...row.raise }) } : {}),
   reacts: Object.freeze(row.reacts.map((r) => Object.freeze({ ...r }))) });
 
 export const SIGNATURES = Object.freeze({
@@ -328,7 +328,7 @@ export const SIGNATURES = Object.freeze({
   ledgehide_breeches: sig({ id: 'ledgehide_breeches', n: 47, name: 'Ledgehide Breeches', slot: 'pants', move: 'parry',
     home: { kind: 'monster', id: 'ledge_wyvern' }, best: { seat: 'melee_dps', ground: 'wyvern_roost' },
     tip: 'Parry also guards an ally: it can answer a monster next to you winding up a blow at another hero',
-    aim: { move: 'parry', r: 1 }, reacts: [] }),
+    reacts: [{ on: 'windup', within: 1, do: 'cast', move: 'parry' }] }),
   troll_pickers_hooks: sig({ id: 'troll_pickers_hooks', n: 48, name: 'Troll Picker\'s Hooks', slot: 'weapon', weapon: 'axe', move: 'gash',
     home: { kind: 'monster', id: 'troll_picker' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
     tip: 'Gash hits 3 or more: your next Rend deals 40% more damage',

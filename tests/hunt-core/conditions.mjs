@@ -1344,7 +1344,7 @@ const mutants = [
   { name: 'a Mark is read with no clock (a run-out Mark still holds)', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', 'int(t.markPm) > 0 && int(t.markUntil) > cx.atMs', 'int(t.markPm) > 0']] },
   { name: 'the last move is read off any lane for every slot', case: 'roads-metrics', edits: [['src/core/hunt/conditions.js', "cx.u.lastMove[row ? row.lane : 'any']", "cx.u.lastMove.any"]] },
   /* lane/moves-wave-3: my target's wind-up */
-  { name: 'a landed wind-up still reads as winding up', case: 'winding-up-metric', edits: [['src/core/hunt/conditions.js', 'return (!!t && isObj(t.cast) && int(t.cast.left) > 0) || guarding(cx); },', 'return (!!t && isObj(t.cast)) || guarding(cx); },']] },
+  { name: 'a landed wind-up still reads as winding up', case: 'winding-up-metric', edits: [['src/core/hunt/conditions.js', 'return !!t && isObj(t.cast) && int(t.cast.left) > 0; },', 'return !!t && isObj(t.cast); },']] },
   { name: 'any monster\'s wind-up reads as my target\'s', case: 'winding-up-metric', edits: [['src/core/hunt/conditions.js', 'target_winding_up: (cx) => { const t = foeTarget(cx);', "target_winding_up: (cx) => { const t = cx.inst.world.units.find((x) => x.alive && x.cast && sideOf(x) !== sideOf(cx.u));"]] },
   { name: 'a cast never writes the last move (no rotation)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', '{ [row.lane]: row.id, any: row.id });', '{});']] },
   { name: 'the last move is not persisted (a settle cut forgets it)', case: 'roads-rotation-span', edits: [['src/core/hunt/abilities.js', ", ['lastMove', 'json']]),", ']),']] },

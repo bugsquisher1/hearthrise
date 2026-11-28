@@ -68,7 +68,7 @@ import { ammoPerShot } from '../ammo.js';
 import { ITEMS } from '../../data/items.js';
 import { SIGNATURES } from '../../data/signatures.js';
 import { castCostOf } from './signature-costs.js';
-import { castRaiseOf, guardOf } from './signature-casts.js';
+import { castRaiseOf } from './signature-casts.js';
 import { auraPm } from './signature-auras.js';
 import { isRune } from '../../data/supplies.js';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
@@ -142,8 +142,8 @@ function targetFor(inst, hero, h, row, sc, cx) {
     /* ONE TARGET THAT LANDS ONLY ITS STATUS (Parry): never a monster still holding that status, so a cast never lands for nothing. */
     case 'enemy': {
       const fresh = landsBlow(row) || !row.status ? near : near.filter((m) => !holds(m, row.status));
-      /* (lane/signatures-batch-5) A GUARD (signature-casts.js guardOf, Ledgehide Breeches' Parry): the slot held on another hero's wind-up
-         beside the wearer (conditions.js target_winding_up names it, `cx.guard`), so the cast takes that monster */
+      /* (lane/signatures-batch-5) A REACTION'S MONSTER (castNow `foe`, `cx.guard`: Ledgehide Breeches' Parry at a monster winding up at an
+         ally): the cast takes that monster, while it is in reach and fresh, else castNow casts nothing */
       if (cx && cx.guard && fresh.includes(cx.guard)) return cx.guard;
       if (Array.isArray(row.prefers)) {
         const picked = fresh.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
@@ -426,9 +426,6 @@ export function firstUsable(inst, hero, sc, only) {
      is its mirror: a hero alone in the world never tests it (the bar says "Party only"), and a row party only
      for some roles (Brand and Reave: the tank) a lone hero of those roles (partyOnly, the unit's own role). */
   const solo = aloneIn(inst.world, hero);
-  /* (lane/signatures-batch-5) A GUARDING AIM (signature-casts.js guardOf, Ledgehide Breeches): the wind-up beside the wearer its move answers
-     this sub-step, which the move's slot reads as "my target is winding up" (conditions.js); never written for a hero with no Signature */
-  if (typeof hero.signature === 'string' || h.guard) h.guard = typeof hero.signature === 'string' ? guardOf(inst, hero, (m) => inReach(inst, hero, h.range, m)) : null;
   /* (an AURA move is never cast: it holds while slotted, src/core/hunt/auras.js) */
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
     && !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].target === 'aura')
@@ -444,8 +441,9 @@ export function firstUsable(inst, hero, sc, only) {
  * (an ability id, or '*heal': its first heal on the bar that can take the target) NOW, out of turn, from the slot on its bar that holds
  * it: the slot's supplies and versions, the row's own cooldown and target rule, never its lane, and never the slot's conditions (the
  * moment is the condition). `o` = { target (the unit the moment names: an ally heal takes it, a self heal only the hero itself, a party
- * row only a target in its radius), free (no mana, no lane) }. A move not on the bar, cooling down or with no target casts nothing.
- * Answers whether it cast.
+ * row only a target in its radius), foe (the moment's monster: a one-target strike takes it or casts nothing, lane/signatures-batch-5:
+ * Ledgehide Breeches' Parry at a monster winding up at an ally), free (no mana, no lane) }. A move not on the bar, cooling down or with no
+ * target casts nothing. Answers whether it cast.
  */
 export function castNow(inst, sc, u, move, o) {
   const h = u && u.alive === true && inst.heroes ? inst.heroes[u.id] : null;
@@ -459,8 +457,9 @@ export function castNow(inst, sc, u, move, o) {
     if (!castsNow(row, u.role, solo)) continue;
     if (t && row.target === 'self' && t !== u) continue;
     if (t && row.target === 'party' && !(t === u || dist2(t, u) <= row.radius * row.radius)) continue;
-    const pick = tryCast(inst, u, h, row, r.slot, t && row.target === 'ally' ? { ally: t } : null, sc, { free: !!(o && o.free) });
-    if (!pick || pick.why) continue;
+    const foe = o && o.foe && row.target === 'enemy' ? o.foe : null;
+    const pick = tryCast(inst, u, h, row, r.slot, t && row.target === 'ally' ? { ally: t } : foe ? { guard: foe } : null, sc, { free: !!(o && o.free) });
+    if (!pick || pick.why || (foe && pick.target !== foe)) continue;
     return fire(inst, u, pick, sc);
   }
   return false;

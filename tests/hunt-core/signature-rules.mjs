@@ -99,8 +99,8 @@
 //                     trains on its written mana (`xpMana`), credited by the settle's reward as the plain hero's; a Storm spell's mana back
 //                     still comes off it
 //   interrupt-shield  #8 Stable Troll's Maul (`interrupt`): a Stagger that ends a wind-up shields 10% for each one it ended
-//   guard-parry       Ledgehide Breeches (`aim`): Parry on its own rule answers a monster beside the wearer winding up at an ally within
-//                     1 tile; not one 3 tiles off, a mend, or a monster out of reach; the wearer's own target first
+//   guard-parry       Ledgehide Breeches (a cast on `windup`, `within`, castNow's `foe`): a monster beside the wearer winding up at an ally
+//                     within 1 tile is Parried at once; not one at an ally 2 tiles off, nor by a monster out of reach
 //   gash-whetted      Troll Picker's Hooks (`min`, Whetted): a Gash that Bleeds 3 Whets the wearer's next Rend +40%; 2 nothing
 //   power-braced      #33 Teamster's Mitts (Braced, a hero's `once` on the taken side): Power Strike Braces, the next blow at half, spent
 //   earth-shell-raise #26 Thrower's Ring (`raise`): Earth rune shells +30%; a Water heal and an Earth strike as written
@@ -116,7 +116,7 @@
 //                     with none writes no field (the switch off plays as before: engine-parity holds with no re-pin)
 //
 // mutant-anchors: src/core/hunt/signature-auras.js src/core/hunt/signature-costs.js src/core/hunt/fall-save.js src/core/hunt/status-effects.js
-// mutant-anchors: src/core/hunt/signature-casts.js src/core/hunt/conditions.js src/core/hunt/monster-spells.js src/core/hunt-rewards.js
+// mutant-anchors: src/core/hunt/signature-casts.js src/core/hunt/monster-spells.js src/core/hunt-rewards.js
 // mutant-anchors: src/core/hunt/signature-rules.js src/core/hunt/reactions.js src/core/hunt/react-queue.js src/core/hunt/damage.js src/core/hunt/heal-rules.js src/core/hunt-spawn.js src/core/member.js src/core/combat-sim.js src/data/signatures.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/core/hunt/abilities.js src/core/hunt/status.js src/data/statuses.js src/core/hunt/targeting.js src/core/hunt/pull-cycle.js
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -232,11 +232,9 @@ const cases = {
       if (s.saves && !(Number.isInteger(s.saves.every) && s.saves.every >= 1 && s.saves.every <= 10)) return id + ': saves ' + JSON.stringify(s.saves);
       /* (batch 5) a rune save narrowed to one move (`of`, The Cold Candle): a live move that spends a rune of the save's family */
       if (s.saves && s.saves.of !== undefined && !(M.AD.ABILITIES[s.saves.of] && M.AD.ABILITIES[s.saves.of].rune && M.ITEMS[M.AD.ABILITIES[s.saves.of].rune].family === s.saves.family)) return id + ': saves of ' + s.saves.of;
-      /* (batch 5) a standing raise on a family's casts (signature-casts.js castRaiseOf) and a guarding aim (guardOf) */
+      /* (batch 5) a standing raise on a family's casts (signature-casts.js castRaiseOf) */
       const rz = s.raise;
       if (rz && !(Object.keys(rz).every((k) => ['family', 'pm', 'of'].includes(k)) && fams.includes(rz.family) && Number.isInteger(rz.pm) && rz.pm > 0 && rz.pm <= 1000 && (rz.of === undefined || rz.of === 'shell'))) return id + ': raise ' + JSON.stringify(rz);
-      const am = s.aim;
-      if (am && !(Object.keys(am).join() === 'move,r' && M.AD.ABILITIES[am.move] && am.move === s.move && Number.isInteger(am.r) && am.r >= 1 && am.r <= 3)) return id + ': aim ' + JSON.stringify(am);
       if (s.stackPlus && !(M.ST.STATUSES[s.stackPlus.status] && Number.isInteger(s.stackPlus.n) && s.stackPlus.n >= 1 && s.stackPlus.n <= 3)) return id + ': stackPlus ' + JSON.stringify(s.stackPlus);
       /* (batch 4) a cast's cost, an aura and a fall-back save, each in the shape its reader reads (signature-costs.js, signature-auras.js, fall-save.js) */
       const c = s.costs;
@@ -251,7 +249,7 @@ const cases = {
         && (a.to === undefined || (a.to === 'with' && a.with !== undefined && a.r === undefined)) && (a.with === undefined || (M.SG.SIGNATURES[a.with] && a.with !== id))
         && (a.belowPm === undefined || (Number.isInteger(a.belowPm) && a.belowPm > 0 && a.belowPm < 1000)))) return id + ': aura ' + JSON.stringify(a);
       if (s.save && !(Object.keys(s.save).join() === 'clockMs' && Number.isInteger(s.save.clockMs) && s.save.clockMs >= 60000 && s.save.clockMs % 100 === 0)) return id + ': save ' + JSON.stringify(s.save);
-      if (!s.reacts.length && !s.saves && !s.stackPlus && !c && !a && !s.save && !rz && !am) return id + ': a Signature with no rule';
+      if (!s.reacts.length && !s.saves && !s.stackPlus && !c && !a && !s.save && !rz) return id + ': a Signature with no rule';
     }
     const slots = new Set(Object.values(M.ITEMS).map((it) => it.slot).filter(Boolean)), kinds = new Set(Object.values(M.ITEMS).map((it) => it.weaponType).filter(Boolean));
     const keys = new Set(M.CH.HEARTH_CHEST_KEYS.map((k) => k.id));
@@ -1395,31 +1393,38 @@ const cases = {
     return null;
   },
   'guard-parry': (M) => {
-    /* Ledgehide Breeches (Parry's aim): the wearer's Parry slot on its own rule ("my target is winding up") answers a monster beside it
-       winding up a blow at another hero within 1 tile, and its Parry lands on that monster; a plain sword waits; a wind-up at a hero 3
-       tiles off, a mend, or a monster 2 tiles off, nothing; the wearer's own target winding up is answered first */
-    const windup = (kind) => ({ s: 'heavy_blow', ms: 1600, left: 900, kind: kind || 'cone', x: 13, y: 4, dx: 0, dy: 1, r: 0, len: 2 });
-    const play = (worn, o) => {
-      const u = H(M, 1, 12, 3, 'melee_dps', { hp: 1000, maxHp: 1000, mana: 900, maxMana: 900 }), a = H(M, 2, 13, 4, 'mage', { hp: 1000, maxHp: 1000 });
-      const f = H(M, 3, 15, 6, 'healer', { hp: 1000, maxHp: 1000 });
-      const own = E(M, 10, 0, 11, 3, 1, { hp: 90000, maxHp: 90000 }), m = E(M, 11, 0, o.mx || 13, 3, o.at || 2, { hp: 90000, maxHp: 90000 });
-      const inst = fight(M, [u, a, f, own, m]);
-      const slots = [{ action: { type: 'ability', id: 'parry' }, conditions: M.AD.suggestedTrigger(M.AD.ABILITIES.parry), join: 'and' }];
-      inst.heroes = { 1: { hs: supplySession(M, { runes: true }), actionSet: 'hunt', range: 1, slots: M.conditions.heroSlots(slots, null) } };
-      u.target = 10;
-      m.cast = windup(o.kind);
-      if (o.ownWinds) own.cast = windup();
-      if (worn) wear(M, u, 'ledgehide_breeches');
-      const sc = sc2(M, 102);
-      M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
-      const c = sc.events.find((e) => e.type === 'cast' && e.ability === 'parry');
-      return c ? c.t : null;
-    };
-    if (M.AD.suggestedTrigger(M.AD.ABILITIES.parry)[0].metric !== 'target_winding_up') return 'CONTROL: Parry\'s own rule';
-    const got = { worn: play(true, {}), plain: play(false, {}), far: play(true, { at: 3 }), mend: play(true, { kind: 'mend' }), off: play(true, { mx: 14 }), own: play(true, { ownWinds: true }) };
-    if (got.worn !== 11 || got.plain !== null) return 'a monster beside the sword winding up at the mage beside it: the Breeches\' Parry on ' + got.worn + ', a plain sword\'s on ' + got.plain + ' (want 11, none)';
-    if (got.far !== null || got.mend !== null || got.off !== null) return 'a wind-up at a hero 3 tiles off, a mend, or a monster 2 tiles off was guarded: ' + JSON.stringify(got);
-    if (got.own !== 10) return 'with its own target winding up too the Breeches\' Parry landed on ' + got.own + ' (want its own target, 10)';
+    /* Ledgehide Breeches (a cast on the `windup` moment, `within`, castNow's `foe`): a monster beside the sword that begins a wind-up at an
+       ally within 1 tile is Parried at once by the wearer (the Parry on its bar, its cooldown and mana as written, no lane waited on); a plain
+       sword's Parry on its own rule waits (that monster is not its target); a wind-up at an ally 2 tiles off, or by a monster out of the
+       sword's reach, nothing (never a Parry at another monster instead) */
+    const T = M.MSD.MONSTER_SPELLS, was = M.MSD.SPELL_SWITCH.live, span = M.MSD.SPELL_STAGGER.spanPm, had = Object.prototype.hasOwnProperty.call(M.MONSTERS.rat, 'spells'), list = M.MONSTERS.rat.spells;
+    T.zz_heavy = { n: 'Heavy Blow', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 2000, element: null };
+    M.MSD.SPELL_SWITCH.live = true; M.MSD.SPELL_STAGGER.spanPm = 0; M.MONSTERS.rat.spells = ['zz_heavy'];
+    try {
+      const play = (worn, o) => {
+        const u = H(M, 1, 12, 3, 'melee_dps', { hp: 1000, maxHp: 1000, mana: 900, maxMana: 900 }), a = H(M, 2, o.ax || 13, 4, 'mage', { hp: 1000, maxHp: 1000 });
+        /* (its own target casts nothing: a Cairn Wight) */
+        const own = E(M, 10, 0, 11, 3, 1, { kind: 'cairn_wight', hp: 90000, maxHp: 90000 }), m = E(M, 11, 0, o.mx || 13, 3, 2, { hp: 90000, maxHp: 90000 });
+        const inst = fight(M, [u, a, own, m], { risk: null });
+        const slots = [{ action: { type: 'ability', id: 'parry' }, conditions: M.AD.suggestedTrigger(M.AD.ABILITIES.parry), join: 'and' }];
+        inst.heroes = { 1: { hs: supplySession(M, { runes: true }), actionSet: 'hunt', range: 1, slots: M.conditions.heroSlots(slots, null) } };
+        u.target = 10;
+        if (worn) wear(M, u, 'ledgehide_breeches');
+        M.movement.occupancy(inst);
+        const sc = sc2(M, 102);
+        at(inst, sc, 0); M.MSP.castSpells(inst, sc); M.RX.drainReactions(inst, sc); M.abilities.castAbilities(inst, sc); M.RX.drainReactions(inst, sc);
+        const c = sc.events.find((e) => e.type === 'cast' && e.ability === 'parry');
+        return { winds: sc.events.some((e) => e.type === 'spell' && e.u === 11 && e.t === 2), t: c ? c.t : null, parried: stacksOf(m, 'parried').length };
+      };
+      if (M.AD.suggestedTrigger(M.AD.ABILITIES.parry)[0].metric !== 'target_winding_up') return 'CONTROL: Parry\'s own rule';
+      const got = { worn: play(true, {}), plain: play(false, {}), far: play(true, { ax: 14 }), off: play(true, { mx: 14 }) };
+      if (!Object.values(got).every((g) => g.winds)) return 'CONTROL: the wind-ups ' + JSON.stringify(got);
+      if (got.worn.t !== 11 || got.worn.parried !== 1 || got.plain.t !== null) return 'a monster beside the sword winding up at the mage beside it: the Breeches\' Parry on ' + got.worn.t + ', a plain sword\'s on ' + got.plain.t + ' (want 11, none)';
+      if (got.far.t !== null || got.off.t !== null) return 'a wind-up at an ally 2 tiles off, or by a monster out of reach, was answered: ' + JSON.stringify(got);
+    } finally {
+      delete T.zz_heavy; M.MSD.SPELL_SWITCH.live = was; M.MSD.SPELL_STAGGER.spanPm = span;
+      if (had) M.MONSTERS.rat.spells = list; else delete M.MONSTERS.rat.spells;
+    }
     return null;
   },
   'gash-whetted': (M) => {
@@ -1494,6 +1499,11 @@ const cases = {
     if (wW.power !== Math.floor((wP.power * 1300) / 1000) || !(wW.shield > wP.shield)) return 'the Ring\'s Protective Ward cast at ' + wW.power + ' for a shell of ' + wW.shield + ' (want 30% over ' + wP.power + ', more than ' + wP.shield + ')';
     if (hW.power !== hP.power || hW.hp !== hP.hp) return 'a Water heal under the Ring: ' + JSON.stringify([hW, hP]);
     if (sW.power !== sP.power) return 'an Earth rune strike under the Ring cast at ' + sW.power + ' (want ' + sP.power + ': shells only)';
+    /* (every shell today spends an Earth rune, so the family is read on a planted shell of another: a Water rune ward) */
+    const u = H(M, 1, 10, 3, 'healer');
+    wear(M, u, 'throwers_ring');
+    const ward = M.AD.ABILITIES.protective_ward;
+    if (M.SCA.castRaiseOf(u, ward) !== 300 || M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) !== 0) return 'the Ring raises an Earth ward by ' + M.SCA.castRaiseOf(u, ward) + ' and a Water one by ' + M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) + ' (want 300, 0)';
     return null;
   },
   'windup-blunt': (M) => {
@@ -1505,7 +1515,8 @@ const cases = {
     M.MSD.SPELL_SWITCH.live = true; M.MSD.SPELL_STAGGER.spanPm = 0; M.MONSTERS.rat.spells = ['zz_heavy'];
     try {
       const play = (worn, hp, on) => {
-        const g = H(M, 1, 9, 6, 'healer', { hp: 400, maxHp: 1000 }), a = H(M, 2, 12, 3, 'tank', { hp, maxHp: 1000 }), b = H(M, 3, 14, 3, 'mage', { hp: 400, maxHp: 1000 });
+        /* (the healer beside the caster too, so a wind-up at the wearer itself begins in its 1-tile range) */
+        const g = H(M, 1, 13, 4, 'healer', { hp: 400, maxHp: 1000 }), a = H(M, 2, 12, 3, 'tank', { hp, maxHp: 1000 }), b = H(M, 3, 14, 3, 'mage', { hp: 400, maxHp: 1000 });
         const m = E(M, 10, 0, 13, 3, on || 2, { hp: 90000, maxHp: 90000 });
         const inst = fight(M, [g, a, b, m], { risk: null });
         if (worn) wear(M, g, 'night_carters_boots');
@@ -1518,7 +1529,7 @@ const cases = {
         return { started: sc.events.some((e) => e.type === 'spell' && e.spell === 'zz_heavy'), blunted, end: end && end.why, took, left: stacksOf(m, 'blunted').length };
       };
       const w = play(true, 400), p = play(false, 400), over = play(true, 600), self = play(true, 400, 1);
-      if (!w.started || !p.started || w.end !== 'landed' || p.end !== 'landed' || !(p.took >= 4)) return 'CONTROL: the wind-ups ' + JSON.stringify([w, p]);
+      if (!w.started || !p.started || !self.started || w.end !== 'landed' || p.end !== 'landed' || !(p.took >= 4)) return 'CONTROL: the wind-ups ' + JSON.stringify([w, p, self]);
       if (w.blunted !== 1 || p.blunted || over.blunted || self.blunted) return 'Blunted as the wind-up began at an ally at 40%, for a plain healer, at an ally at 60% and at the wearer: ' + [w.blunted, p.blunted, over.blunted, self.blunted] + ' (want 1, 0, 0, 0)';
       if (w.left || Math.abs(w.took - Math.floor(p.took / 2)) > 2) return 'the Blunted wind-up landed ' + w.took + ' where the plain one landed ' + p.took + ', its stack ' + w.left + ' (want half, spent)';
     } finally {
@@ -1745,7 +1756,6 @@ const SCO = 'src/core/hunt/signature-costs.js';
 const FSV = 'src/core/hunt/fall-save.js';
 const SE = 'src/core/hunt/status-effects.js';
 const DZ = 'src/core/hunt/danger.js';
-const CD = 'src/core/hunt/conditions.js';
 const SCA = 'src/core/hunt/signature-casts.js';
 const MSP = 'src/core/hunt/monster-spells.js';
 const REW = 'src/core/hunt-rewards.js';
@@ -1901,11 +1911,11 @@ const mutants = [
   { name: 'a cast counts no wind-up it ended', case: 'interrupt-shield', edits: [[AB, '    if (winding && !m.cast) ended++;\n', '']] },
   { name: 'the interrupt moment is never queued', case: 'interrupt-shield', edits: [[AB, "  if (ended > 0) queueOn(inst, u, 'interrupt', { t, ability: row.id, n: ended });\n", '']] },
   { name: 'the Maul shields 6%', case: 'interrupt-shield', edits: [[SG, "{ on: 'interrupt', of: 'stagger', do: 'shield', pm: 100 }", "{ on: 'interrupt', of: 'stagger', do: 'shield', pm: 60 }"]] },
-  { name: 'a guard never holds the slot', case: 'guard-parry', edits: [[CD, 'return (!!t && isObj(t.cast) && int(t.cast.left) > 0) || guarding(cx); },', 'return (!!t && isObj(t.cast) && int(t.cast.left) > 0); },']] },
-  { name: 'a guarded Parry lands on its own target', case: 'guard-parry', edits: [[AB, '      if (cx && cx.guard && fresh.includes(cx.guard)) return cx.guard;\n', '']] },
-  { name: 'a guard reads a wind-up at any hero', case: 'guard-parry', edits: [[SCA, ' || cheb(u, t) > a.r) continue;', ') continue;']] },
-  { name: 'a mend is guarded', case: 'guard-parry', edits: [[SCA, "    if (m.cast.kind === 'mend' || (st && holds(m, st)) || !reach(m)) continue;", '    if ((st && holds(m, st)) || !reach(m)) continue;']] },
-  { name: 'a guard reaches past the wearer\'s reach', case: 'guard-parry', edits: [[SCA, "    if (m.cast.kind === 'mend' || (st && holds(m, st)) || !reach(m)) continue;", "    if (m.cast.kind === 'mend' || (st && holds(m, st))) continue;"]] },
+  { name: 'a reaction\'s monster is never aimed at', case: 'guard-parry', edits: [[AB, '      if (cx && cx.guard && fresh.includes(cx.guard)) return cx.guard;\n', '']] },
+  { name: 'a reaction\'s strike takes another monster', case: 'guard-parry', edits: [[AB, '    if (!pick || pick.why || (foe && pick.target !== foe)) continue;', '    if (!pick || pick.why) continue;']] },
+  { name: 'a cast reaction names no monster', case: 'guard-parry', edits: [[RX, "{ target: ctx.t || null, foe: monsterOf(ctx), free: row.free === true }", "{ target: ctx.t || null, free: row.free === true }"]] },
+  { name: 'within is never read', case: 'guard-parry', edits: [[RX, '  if (row.within !== undefined && !(ctx.t && cheb(u, ctx.t) <= row.within)) return;\n', '']] },
+  { name: 'the Breeches guard 2 tiles', case: 'guard-parry', edits: [[SG, "{ on: 'windup', within: 1, do: 'cast', move: 'parry' }", "{ on: 'windup', within: 2, do: 'cast', move: 'parry' }"]] },
   { name: 'min is never read', case: 'gash-whetted', edits: [[RX, '  if (row.min !== undefined && !(int(ctx.n) >= row.min)) return;\n', '']] },
   { name: 'Whetted at 30%', case: 'gash-whetted', edits: [[STD, "castPm: 400,\n    castOf: Object.freeze(['rend'])", "castPm: 300,\n    castOf: Object.freeze(['rend'])"]] },
   { name: 'the Hooks Whet on any Gash', case: 'gash-whetted', edits: [[SG, "{ on: 'cast', of: 'gash', min: 3, do: 'boon'", "{ on: 'cast', of: 'gash', do: 'boon'"]] },

@@ -117,3 +117,23 @@ run b5s-roost-sword-parry   wyvern_roost 140 $SW --add-moves parry@t,-,-,-
 run b5s-pyre-sword-parry    pyre_field 80 $S --add-moves parry@t,-,-,-
 run b5s-muster-axes-gash    muster_barrows 60 $A --add-moves gash@t,-,-,-
 run b5s-flood-axes-gash     catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,-
+run b5s-muster-tank-shelter muster_barrows 60 $T --add-moves shelter@t,-,-,-
+# (each row by its real id against the plain above with the same bar, or the batch 3 / 4 / 5 plain this tree replays seed for seed:
+#  b3-muster-mixed, b3-muster-tank, b4s-muster-sword, b4-carters-mixed36, b5-bone-mixed, b5-flood-axes, b3-pyre-mixed, b3-muster-mixed4)
+SEEDS=36 run b5s-carters-maul36     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures stable_trolls_maul,-,-,-
+run b5s-krell-maul          krells_hold 97 $X --add-moves stagger@t,-,-,- --signatures stable_trolls_maul,-,-,-
+run b5s-roost-breeches      wyvern_roost 140 $SW --add-moves parry@t,-,-,- --signatures ledgehide_breeches,-,-,-
+run b5s-pyre-breeches       pyre_field 80 $S --add-moves parry@t,-,-,- --signatures ledgehide_breeches,-,-,-
+run b5s-muster-hooks        muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures troll_pickers_hooks,-,-,-
+run b5s-flood-hooks         catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,- --signatures troll_pickers_hooks,-,-,-
+run b5s-muster-claw         muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures fledgling_claw,-,-,-
+run b5s-flood-claw          catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,- --signatures fledgling_claw,-,-,-
+run b5s-muster-mitts-sword  muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
+run b5s-muster-mitts-tank   muster_barrows 60 $T --signatures teamsters_mitts,-,-,-
+run b5s-muster-ring-healer  muster_barrows 60 $X --signatures -,-,-,throwers_ring
+run b5s-muster-ring-tank    muster_barrows 60 $T --add-moves shelter@t,-,-,- --signatures throwers_ring,-,-,-
+run b5s-bone-boots          catacomb_bone_wing 175 $X --signatures -,-,-,night_carters_boots
+run b5s-flood-boots         catacomb_flooded_wing 160 $A --signatures -,-,-,night_carters_boots
+run b5s-pyre-boots          pyre_field 80 $X --signatures -,-,-,night_carters_boots
+SEEDS=36 run b5s-carters-apron36    carters_rest 117 $X --signatures -,-,-,brewers_apron
+SEEDS=4 run b5s-muster-candle       muster_barrows 60 $X --signatures -,-,the_cold_candle,-

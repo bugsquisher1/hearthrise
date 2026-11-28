@@ -10,7 +10,8 @@
 //                                                                           rows reshaped, fight rows on pace steps, coin rows on coin steps;
 //                                                                           and batch 4's own 14 rows (lane/signatures-batch-4, b4s-*) first
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 5  batch 5 (batch5.sh, lane/designer-sig-batch5): the out-of-band
-//                                                                           rows reshaped, and the Cloak on rule F's Bold measure
+//                                                                           rows reshaped, and the Cloak on rule F's Bold measure; and batch
+//                                                                           5's own rows (lane/signatures-batch-5, b5s-*) first
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -425,6 +426,23 @@ const COIN5 = [
   ['#37 under half mana, 5 s, 45 s clock (Muster)', 'b3-muster-mixed4', 'b5v-muster-leg50-5-45'],
   ['#25 The Cold Candle, Frost Lance only (Muster, scratch `saves.of`)', 'b3-muster-mixed4', 'b5v-muster-candle-lance'],
 ];
+/* BATCH 5 BUILT (systems, lane/signatures-batch-5, b5s-*): each row by its real id on its cell, against the same four with none and the
+   same bar (a move no recorded bar casts added to both arms on its own trigger, batch5.sh `move@t`). Printed first, as ROWS5's table */
+const ROWS5S = [
+  ["#8 Stable Troll's Maul (hammer): Stagger ends a wind-up, a shield of 10% a wind-up, 36 seeds", 'pace', ["Carter's Rest, its home", 'b5s-carters-stagger36', 'b5s-carters-maul36'], ["Krell's Hold", 'b5s-krell-stagger', 'b5s-krell-maul']],
+  ["#47 Ledgehide Breeches (sword): Parry answers a wind-up at an ally beside you", 'pace', ['Wyvern Roost, its home', 'b5s-roost-sword-parry', 'b5s-roost-breeches'], ['Pyre Field', 'b5s-pyre-sword-parry', 'b5s-pyre-breeches']],
+  ["#48 Troll Picker's Hooks (axes): Gash hits 3 or more, the next Rend +40%", 'pace', ['Muster Barrows', 'b5s-muster-axes-gash', 'b5s-muster-hooks'], ['the Flooded Wing', 'b5s-flood-axes-gash', 'b5s-flood-hooks']],
+  ['#29 Fledgling Claw (axes): Bleed to 6, as built, Gash on the bar', 'pace', ['Muster Barrows', 'b5s-muster-axes-gash', 'b5s-muster-claw'], ['the Flooded Wing', 'b5s-flood-axes-gash', 'b5s-flood-claw']],
+  ["#33 Teamster's Mitts (sword): Power Strike, the next blow you take at half", 'pace', ['Muster Barrows, the sword four', 'b4s-muster-sword', 'b5s-muster-mitts-sword'], ['Muster Barrows, the tank four', 'b3-muster-tank', 'b5s-muster-mitts-tank']],
+  ["#26 Thrower's Ring (healer): Earth rune shields you cast 30% stronger", 'pace', ['Muster Barrows, the healer', 'b3-muster-mixed', 'b5s-muster-ring-healer'], ['Muster Barrows, the tank (+ Shelter)', 'b5s-muster-tank-shelter', 'b5s-muster-ring-tank']],
+  ["#42 Night Carter's Boots (healer): a wind-up at an ally under half lands at half", 'pace', ['the Bone Wing', 'b5-bone-mixed', 'b5s-bone-boots'], ['the Flooded Wing, the axes four', 'b5-flood-axes', 'b5s-flood-boots']],
+  ["#42 the same, Pyre Field", 'pace', ['Pyre Field', 'b3-pyre-mixed', 'b5s-pyre-boots'], null],
+  ["#18 Brewer's Apron (healer): Circle of Renewal heals the lowest hurt ally again, 36 seeds", 'pace', ["Carter's Rest, its home", 'b4-carters-mixed36', 'b5s-carters-apron36'], null],
+  ['#25 The Cold Candle (mage, coin): Frost Lance uses no runes, by its real id', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5s-muster-candle'], null],
+];
+/* the shapes batch 5's build tried on a row out of band (b5w-*: temporary ids on a scratch copy, batch5.sh): [label, kind, plain, worn] */
+const VARIANTS5S = [
+];
 /* [label, the plain four on Bold, worn on Bold, the plain four on Steady]: the worn four against the plain stance that keeps more */
 const BOLD5 = [
   ['#40 the Cloak as built, once an hour (Muster, Bold)', 'b5-muster-bold', 'b5-muster-cloak', 'b5-muster-steady'],
@@ -466,9 +484,10 @@ if (BATCH === '5') {
     return { q: stats(d), vs, deaths: deaths(pb) + ' in ' + Object.keys(pb).length + ' seeds to ' + deaths(s) + ' in ' + Object.keys(s).length, kept: [meanKept(pb), ps ? meanKept(ps) : null, meanKept(s)].map((x) => (x === null ? 'n/a' : Math.round(x))) };
   };
   const read = (x, bp) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s, bp) } : { g, owed: true }; };
-  console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace, coin or Bold steps (se) | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
+  for (const rows of [ROWS5S, ROWS5]) {
+  console.log((rows === ROWS5 ? '\n' : '') + '| Signature | Kind | Best cell | Held delta (se, seeds) | Pace, coin or Bold steps (se) | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
   console.log('|---|---|---|---|---|---|---|---|---|---|');
-  for (const [name, kind, best, other] of ROWS5) {
+  for (const [name, kind, best, other] of rows) {
     const B = read(best), O = read(other, B.p);
     if (B.owed) { console.log('| ' + [name, kind, best[0], 'owed', '', '', '', '', '', ''].join(' | ') + ' |'); continue; }
     const bold = kind === 'bold' ? boldOf(best[1], best[2], best[3]) : null;
@@ -481,8 +500,9 @@ if (BATCH === '5') {
     console.log('| ' + [name, kind, B.g, show(B.h, true), val, pct(B.s.killsPerH, B.p.killsPerH), O.none ? '' : O.g,
       O.none ? '' : O.owed ? 'owed' : show(O.q), bar, spread].join(' | ') + ' |');
   }
+  }
   console.log('\n| Shape or re-read | Kind | Held delta (se, seeds) | Pace steps (se) | Bar | Kills/h |\n|---|---|---|---|---|---|');
-  for (const [name, kind, a, b] of VARIANTS5) {
+  for (const [name, kind, a, b] of VARIANTS5S.concat(VARIANTS5)) {
     const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
     console.log('| ' + [name, kind, h ? show(h, true) : 'owed', q ? show(q) : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
   }

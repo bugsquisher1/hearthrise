@@ -31,8 +31,10 @@
 //           (lane/signatures-batch-4, tauntOne below: Teamster's Mitts on Power Strike)
 // BATCH 4 (lane/signatures-batch-4): the filter `role` (the moment's monster plays that role: its striker, else the monster it names), a
 // status `at: 'lowest'` (on the monster attacking the lowest hero of the party), and a broken shell's moment carries its breaker (`src`).
-// BATCH 5 (lane/signatures-batch-5): the filter `min` (a moment that counts, `n`, at least that many: Gash's three), and a heal `to: 'again'`
-// (a cast's own heals: the hurt hero lowest on health of those it healed, healed pm of its own heal's amount, once a cast: Brewer's Apron).
+// BATCH 5 (lane/signatures-batch-5): the filters `min` (a moment that counts, `n`, at least that many: Gash's three) and `within` (the
+// moment's hero that near the wearer: Ledgehide Breeches), a heal `to: 'again'` (a cast's own heals: the hurt hero lowest on health of those
+// it healed, healed pm of its own heal's amount, once a cast: Brewer's Apron), and a `cast` of a one-target strike at the moment's monster
+// (castNow `foe`: the Breeches' Parry at a monster winding up, on the `windup` moment).
 // WHERE IT LANDS (`to`, lane/signatures-batch-3): a heal to the moment's hero ('target', pm of its max health) or each living hero of the
 // party ('party'); mana to the moment's hero ('target', pm of the moment's amount: a heal's HP landed); a boon on the wearer ('self') or
 // the party ('party'). A status lands on the moment's monsters when it names them (`list`: a pull's pack, a Challenge's taunted).
@@ -78,8 +80,10 @@ function runOne(inst, sc, { u, row, ctx }) {
   if (row.of && ctx.ability !== row.of) return;
   if (row.row && !(ctx.t && standsIn(ctx.t) === row.row)) return;
   if (row.melee && !ctx.melee) return;
-  /* (lane/signatures-batch-5) a count floor on a moment that counts (Troll Picker's Hooks: a Gash that hits 3 or more) */
+  /* (lane/signatures-batch-5) a count floor on a moment that counts (Troll Picker's Hooks: a Gash that hits 3 or more), and the moment's
+     hero within `within` tiles of the wearer (Ledgehide Breeches: a wind-up at an ally beside you) */
   if (row.min !== undefined && !(int(ctx.n) >= row.min)) return;
+  if (row.within !== undefined && !(ctx.t && cheb(u, ctx.t) <= row.within)) return;
   /* (lane/signatures-batch-4) `role`: the moment's monster plays that role (monster-roles.js roleIdOf, the Danger scale's: none off it), its
      striker for a blow at a hero (an ally hit, a broken shell), else the monster hit or fallen (Night Carter's Boots: a stalker; Bull's
      Tooth: a brute). A role never changes, so it is read here */
@@ -166,7 +170,9 @@ function onLowest(inst, u) {
 }
 
 const DO = Object.freeze({
-  cast: (inst, sc, u, row, ctx) => castNow(inst, sc, u, row.move, { target: ctx.t || null, free: row.free === true }),
+  /* (lane/signatures-batch-5) a one-target strike takes the moment's monster or casts nothing (abilities.js castNow `foe`): Ledgehide
+     Breeches' Parry at the monster winding up */
+  cast: (inst, sc, u, row, ctx) => castNow(inst, sc, u, row.move, { target: ctx.t || null, foe: monsterOf(ctx), free: row.free === true }),
   reset: (inst, sc, u, row) => cutCooldown(u, row.move, row.ms, row.capMs || row.ms, sc.atMs),
   mana: (inst, sc, u, row, ctx) => {
     /* (lane/signatures-batch-3) to 'target': pm of the moment's amount (a heal's HP landed) on the moment's hero (Riverstone Earrings) */

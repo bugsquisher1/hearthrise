@@ -757,7 +757,7 @@ export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally
    the lowest hero of the side) */
 export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect', 'taunt']);
 const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
-  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every', 'role', 'at', 'min']);
+  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every', 'role', 'at', 'min', 'within']);
 /* WHERE A DOER LANDS (`to`), by doer (lane/signatures-batch-3): a heal to 'self' (pm of its max health), the 'lowest' ally (pm of the moment's
    amount), the moment's hero ('target': pm of its max health) or each living hero of the party ('party': pm of each one's max health); mana
    to the moment's hero ('target': pm of the moment's amount); a boon to the wearer ('self') or each living hero of the party ('party') */
@@ -811,6 +811,8 @@ export function reactProblems(e, moves = null) {
   /* (lane/signatures-batch-5) `min`: a count floor on a moment that counts (a cast's monsters, the wind-ups it ended, a taunt's, a pull's) */
   if (e.min !== undefined && !(Number.isInteger(e.min) && e.min >= 2 && e.min <= 20 && COUNTED.includes(e.on))) out.push('min is a count 2..20 on a moment that counts (' + COUNTED.join(', ') + ')');
   if (e.to === 'again' && e.on !== 'cast') out.push('a heal again reads the heals of a cast (on cast)');
+  /* (lane/signatures-batch-5) `within`: the moment's hero that many tiles of the wearer at most */
+  if (e.within !== undefined && !(Number.isInteger(e.within) && e.within >= 1 && e.within <= 8)) out.push('within is 1..8 tiles of the hero (how near the moment\'s hero stands)');
   return out;
 }
 

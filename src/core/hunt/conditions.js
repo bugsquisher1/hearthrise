@@ -546,10 +546,6 @@ function elementVs(cx) {
   return elementPermille(MONSTERS[t.kind], el);
 }
 
-/* (lane/signatures-batch-5) A GUARD'S WIND-UP on the slot of a worn Signature's guarding move (abilities.js firstUsable writes `h.guard`:
-   Ledgehide Breeches' Parry), named for the slot's cast (`cx.guard`, abilities.js targetFor) */
-const guarding = (cx) => { const g = cx.h && cx.h.guard; return !!g && !!cx.slot && !!cx.slot.action && cx.slot.action.id === g.move && !!(cx.guard = g.m); };
-
 /* The hero's own target, while it stands and is a foe (sides.js), else null. */
 function foeTarget(cx) {
   const t = Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null;
@@ -604,9 +600,8 @@ const EVAL = Object.freeze({
   target_hp_pct: (cx) => { const t = foeTarget(cx); return t ? share(t.hp, t.maxHp) : null; },
   /* a Mark still running at this instant (damage.js landHit reads the same: markUntil after now); no instant known, no Mark */
   target_marked: (cx) => { const t = foeTarget(cx); return !!t && Number.isInteger(cx.atMs) && int(t.markPm) > 0 && int(t.markUntil) > cx.atMs; },
-  /* a wind-up still to land (monster-spells.js `cast`: its time left), a spell or a heavy blow, the moment Stagger and Parry answer; else
-     a worn Signature's guard (guarding) */
-  target_winding_up: (cx) => { const t = foeTarget(cx); return (!!t && isObj(t.cast) && int(t.cast.left) > 0) || guarding(cx); },
+  /* a wind-up still to land (monster-spells.js `cast`: its time left), a spell or a heavy blow, the moment Stagger and Parry answer */
+  target_winding_up: (cx) => { const t = foeTarget(cx); return !!t && isObj(t.cast) && int(t.cast.left) > 0; },
   target_stacks: (cx, c) => {
     const t = foeTarget(cx);
     const id = c.subject || Object.keys(METRIC.get('target_stacks').subject)[0];

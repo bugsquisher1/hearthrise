@@ -49,8 +49,7 @@ import { aloneIn } from '../core/hunt/abilities.js';
 import { xpMultFor } from '../core/live-events.js';
 import { towerOf, towerEndsAt } from '../core/hunt/tower.js';
 import { noteGains, hudGainsSince } from './hud-ledger.js';
-/* what a diverged start point differs in: the link reads it only from a running prediction, so it loads with the engine */
-export { worldDiff } from './live-diff.js';
+export { worldDiff } from './live-diff.js';   // what a diverged start point differs in: loads with the engine (live-link.js)
 import { dangerOn, dangerDial } from '../core/hunt/danger.js';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
@@ -190,31 +189,14 @@ export function slotTesterOf(world, grid, member, items, atMs) {
   };
 }
 
-/**
- * THE ENGINE AS ITS LINK DRIVES IT (src/session/live-link.js): what this engine answers and what the link's stand-in answers
- * before the engine has loaded (live-link.js IDLE), one type for both. The engine has more (heroUnits, tower, spellWait,
- * gainsSince ...); its readers ask `typeof engine.x === 'function'` first, so the stand-in leaves them out.
- * @typedef {object} LiveEngine
- * @property {() => boolean} running
- * @property {() => boolean} ended
- * @property {() => boolean} stalled
- * @property {() => (string | null)} failed
- * @property {() => (number | null)} seededUntil
- * @property {(live: any) => boolean} seed
- * @property {() => void} stop
- * @property {() => boolean} catchingUp
- * @property {(serverNowMs: number) => number} behindMs
- * @property {() => object[]} openCasts
- * @property {(live: any) => boolean} sameSetup
- * @property {(hc: any) => boolean} peersStale
- * @property {(hc: any) => string} reconcile
- * @property {(hc: any) => string} check
- * @property {(swingIndex: number) => (string | null)} worldAt
- * @property {() => (number | null)} selfUnit
- * @property {(serverNowMs: number, aheadMs: number, more: () => boolean) => any} catchUpSlice
- * @property {(serverNowMs: number, feed: (b: any) => void) => number} advance
- * @property {(live: any, serverNowMs: number, aheadMs: number) => any} reseed
- */
+/** THE ENGINE AS ITS LINK DRIVES IT: this engine and the link's stand-in before it loads (live-link.js IDLE) share it. The rest
+ * (heroUnits, tower, spellWait, gainsSince) its readers test with `typeof` first, so the stand-in leaves them out.
+ * @typedef {{ running: () => boolean, ended: () => boolean, stalled: () => boolean, failed: () => (string | null),
+ *   seededUntil: () => (number | null), seed: (live: any) => boolean, stop: () => void, catchingUp: () => boolean,
+ *   behindMs: (serverNowMs: number) => number, openCasts: () => object[], sameSetup: (live: any) => boolean, peersStale: (hc: any) => boolean,
+ *   reconcile: (hc: any) => string, check: (hc: any) => string, worldAt: (swingIndex: number) => (string | null), selfUnit: () => (number | null),
+ *   catchUpSlice: (serverNowMs: number, aheadMs: number, more: () => boolean) => any, advance: (serverNowMs: number, feed: (b: any) => void) => number,
+ *   reseed: (live: any, serverNowMs: number, aheadMs: number) => any }} LiveEngine */
 
 /**
  * @param {{items: object, monsters: object}} o  the catalogues the edge prices with

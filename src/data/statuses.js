@@ -186,6 +186,10 @@ export const STATUSES = Object.freeze({
      healer's next cast raised, spent on it; 30 s to use it */
   steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,
     castOf: Object.freeze(['greater_mend']) }),
+  /* STOKED (15 #24 Stoker's Ring, lane/designer-sig-batch4: "Ice rune spells: your next Fire rune spell deals 45% more damage"): Kindled's
+     key, a hero's next cast raised, on the three Fire rune spells, spent on it; 30 s to use it */
+  stoked: Object.freeze({ id: 'stoked', name: 'Stoked', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 450,
+    castOf: Object.freeze(['fireball', 'flame_strike', 'flame_volley']) }),
 });
 
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */

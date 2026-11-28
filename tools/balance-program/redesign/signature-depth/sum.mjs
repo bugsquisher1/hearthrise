@@ -6,6 +6,8 @@
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 2  batch 2 (batch2.sh): the size bar and the spread bar a row
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 3  batch 3 (batch3.sh, lane/signatures-batch-3): the same bars, the
 //                                                                           coin pieces' coin a hero-hour, the shapes tried
+//   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 4  batch 4 (batch4.sh, lane/designer-sig-batch4): batch 3's under
+//                                                                           rows reshaped, fight rows on pace steps, coin rows on coin steps
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -193,6 +195,103 @@ if (BATCH === '3') {
   for (const [name, a, b] of VARIANTS3) {
     const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
     console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : p && s ? 'no pay window' : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+  }
+  process.exit(0);
+}
+
+/* BATCH 4 (game designer, lane/designer-sig-batch4, batch4.sh): batch 3's under rows reshaped, against batch 3's plain fours (the tree
+   replays them exactly). A FIGHT row reads the size bar in pace steps, as batch 3. A COIN row (15 "Coin pieces: the bar") reads COIN STEPS:
+   the store bill its four saves a hero-hour, x 4 (the whole saving is the wearer's own: it pays its own runes, drinks and arrows), over the
+   plain four's net coin a hero-hour (coin and loot at the store's price, less the store bill), in PACE_STEP_PCT steps. The coin bar is 20 +- 6
+   coin steps: a coin piece pays in coin alone, so it is sized on what a fight row in band pays its wearer in pace and coin together (the Chain
+   12.0 pace and 9.9 coin, the Hat 9.2 and 16.9). The fight's own change (a coin row's pace) is printed beside it, never added.
+   [name, kind, [best ground, plain, worn], [second ground, plain, worn] | null] */
+const COIN_LO = 14, COIN_HI = 26;
+const ROWS4 = [
+  /* (each kept row reads from its shape's report, the same rule under a temporary id; REPLAY=1 batch4.sh proves the real id plays it) */
+  ['#1 Bannerman\'s Pavise (tank): a Challenge, the party -12.5% for 3 s', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4v-muster-pav-g12s3'], null],
+  ['#42 Night Carter\'s Boots (on the healer): an ally hit under 45%, its striker Blunted', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-boots-ally45'], ['Pyre Field', 'b3-pyre-mixed', 'b4-pyre-boots']],
+  ['#24 Stoker\'s Ring (mage): Ice spells Stoke the next Fire spell, +45%', 'pace', ['Pyre Field, its home', 'b3-pyre-mixed', 'b4v-pyre-stoker-45'], ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-stoker-45']],
+  ['#43 Bull\'s Tooth (ranger): single-target hits under 30% land twice', 'pace', ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b4-roost-tooth'], ['Muster Barrows', 'b3-muster-mixed', 'b4v-muster-tooth-x2']],
+  ['#31 The Cellar Key (healer): an ally hit under 30% heals 2%, 30 s an ally', 'pace', ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b4v-carters-key-k3'], null],
+  ['#25 The Cold Candle (mage, coin): every Ice rune spell uses no rune', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4v-muster-candle-all'], null],
+  ['#27 Riverstone Earrings (healer, coin): a Water heal, 0.5% of your max mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4v-muster-river-s5'], null],
+];
+/* THE SHAPES TRIED (b4v-*: a temporary id on a scratch copy, ROOT=<copy>): [label, kind, plain, worn] */
+const VARIANTS4 = [
+  ['#1 a Challenge: the taunted Blunted (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-blunt'],
+  ['#1 a Challenge: Mend ready (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-mend'],
+  ['#1 a Challenge below half health: the taunted Chilled 6 s (scratch filter, Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-lowchill'],
+  ['#1 a Challenge below half health: the taunted Blunted (scratch filter, Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-lowblunt'],
+  ['#1 a Challenge: the party -10% 4 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-g10'],
+  ['#1 a Challenge: the party -10% 3 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-g10s3'],
+  ['#1 a Challenge: the party -11% 4 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-g11'],
+  ['#1 a Challenge: the party -12.5% 3 s (Muster) KEPT', 'pace', 'b3-muster-tank', 'b4v-muster-pav-g12s3'],
+  ['#1 a Challenge: the party -12.5% 4 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-g12'],
+  ['#1 a Challenge: the party -15% 4 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-pav-pguard'],
+  ['#42 a pull: a shield of 2% a monster, up to 10% (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-boots-shield'],
+  ['#42 a pull: you take 30% less for 6 s (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-boots-guard'],
+  ['#42 under 45%: monsters within 2 tiles Chilled 8 s, 10 s clock (Muster)', 'pace', 'b3-muster-tank', 'b4v-muster-boots-lowchill'],
+  ['#42 on the bow: a monster next to you that hits you, Chilled 4 s (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-back'],
+  ['#42 on the bow: the same, 8 s (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-back8'],
+  ['#42 on the healer: an ally hit under half, its striker Blunted (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-leech-ub'],
+  ['#42 the same under 45% (Muster) KEPT', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-ally45'],
+  ['#42 the same under 40% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-ally40'],
+  ['#42 the same under 35% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-ally35'],
+  ['#42 the same under 30% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-boots-ally30'],
+  ['#42 the same under half, once every 5 s an ally (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-key-blunt5'],
+  ['#26 a shell you cast breaks: Protective Ward ready, 10 s clock (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-thrower-w10'],
+  ['#26 the same, 6 s clock (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-thrower-w6'],
+  ['#31 an ally hit under 35%: it heals 6%, 8 s an ally (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-key-save'],
+  ['#31 an ally hit under 40%: it heals 8%, 8 s an ally (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-key-save2'],
+  ['#31 the same (Carter\'s Rest)', 'pace', 'b3-carters-mixed', 'b4v-carters-key-save2'],
+  ['#31 under 30%: 4%, 10 s an ally (Carter\'s Rest)', 'pace', 'b3-carters-mixed', 'b4v-carters-key-k1'],
+  ['#31 under 30%: 3%, 15 s an ally (Carter\'s Rest)', 'pace', 'b3-carters-mixed', 'b4v-carters-key-k2'],
+  ['#31 under 30%: 2%, 30 s an ally (Carter\'s Rest) KEPT', 'pace', 'b3-carters-mixed', 'b4v-carters-key-k3'],
+  ['#31 under 30%: 2%, 60 s for the party (Carter\'s Rest)', 'pace', 'b3-carters-mixed', 'b4v-carters-key-k4'],
+  ['#24 Ice spells: the next Fire spell +30% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-stoker-stoked'],
+  ['#24 +60% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-stoker-60'],
+  ['#24 +60% (Pyre Field)', 'pace', 'b3-pyre-mixed', 'b4v-pyre-stoker-60'],
+  ['#24 +45% (Muster) KEPT', 'pace', 'b3-muster-mixed', 'b4v-muster-stoker-45'],
+  ['#24 +45% (Pyre Field) KEPT', 'pace', 'b3-pyre-mixed', 'b4v-pyre-stoker-45'],
+  ['#43 single-target hits under 30%: +50% (Muster)', 'pace', 'b3-muster-mixed', 'b4v-muster-tooth-exec'],
+  ['#43 single-target hits under 30%: +100% (Muster) KEPT', 'pace', 'b3-muster-mixed', 'b4v-muster-tooth-x2'],
+  ['#29 Rupture rune spells lay a second Bleed stack (Muster axes)', 'pace', 'b3-muster-axes', 'b4v-muster-claw-two'],
+  ['#25 every other Ice rune spell uses no rune (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4v-muster-candle-two'],
+  ['#25 every Ice rune spell uses no rune (Muster, 4 seeds) KEPT', 'coin', 'b3-muster-mixed4', 'b4v-muster-candle-all'],
+  ['#25 as built, every third (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b3-muster-candle'],
+  ['#27 as built, 10% of the heal to the hero healed (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b3-muster-riverstone'],
+  ['#27 a Water heal: 2% of your max mana (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4v-muster-river-s20'],
+  ['#27 4% (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4v-muster-river-s40'],
+  ['#27 0.5% (Muster, 4 seeds) KEPT', 'coin', 'b3-muster-mixed4', 'b4v-muster-river-s5'],
+  ['#27 0.3% (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4v-muster-river-s3'],
+  ['#33 the Mitts on the hammer (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4-muster-mitts-hammer'],
+  ['#33 the Mitts on the mage (Muster, 4 seeds)', 'coin', 'b3-muster-mixed4', 'b4-muster-mitts-mage'],
+];
+if (BATCH === '4') {
+  const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
+  const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / PACE_STEP_PCT;
+  const coinBar = (x) => (x > COIN_HI ? 'OVER (cut its number)' : x < COIN_LO ? 'UNDER (raise or reshape)' : 'in band');
+  const read = (x) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
+  console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace steps (se) | Coin steps | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const [name, kind, best, other] of ROWS4) {
+    const B = read(best), O = read(other);
+    if (B.owed) { console.log('| ' + [name, kind, best[0], 'owed', '', '', '', '', '', '', ''].join(' | ') + ' |'); continue; }
+    const coin = coinSteps(B.p, B.s);
+    const bar = kind === 'coin' ? coinBar(coin) + ' (coin bar 20 +- 6)' : sizeOf(B.q);
+    const under = kind === 'pace' && !!B.q && B.q.m < LO;
+    const spread = kind === 'coin' ? 'n/a (the coin bar)' : under ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read'
+      : O.q.m <= B.q.m / 2 ? 'holds' : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+    console.log('| ' + [name, kind, B.g, show(B.h, true), show(B.q), sgn(coin), pct(B.s.killsPerH, B.p.killsPerH), O.none ? '' : O.g,
+      O.none ? '' : O.owed ? 'owed' : show(O.q), bar, spread].join(' | ') + ' |');
+  }
+  console.log('\n| Shape tried | Kind | Held delta (se, seeds) | Pace steps (se) | Coin steps | Bar | Kills/h |\n|---|---|---|---|---|---|---|');
+  for (const [name, kind, a, b] of VARIANTS4) {
+    const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+    const coin = p && s ? coinSteps(p, s) : null;
+    console.log('| ' + [name, kind, h ? show(h, true) : 'owed', q ? show(q) : 'owed', coin === null ? 'owed' : sgn(coin),
+      !p || !s ? '' : kind === 'coin' ? coinBar(coin) : q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
   }
   process.exit(0);
 }

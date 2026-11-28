@@ -134,6 +134,12 @@
         "gzipBytes": 206926,
         "on": "2026-11-28",
         "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206932,
+        "on": "2026-11-28",
+        "why": "worn-imbues: src/core/imbue.js imbuesAt/untilMs (the client shows worn imbuements running out at the server's instant)"
       }
     ],
     "town": [
@@ -616,6 +622,12 @@
         "gzipBytes": 985213,
         "on": "2026-11-28",
         "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985336,
+        "on": "2026-11-28",
+        "why": "worn-imbues: src/core/imbue.js imbuesAt/untilMs (the client shows worn imbuements running out at the server's instant)"
       }
     ]
   }

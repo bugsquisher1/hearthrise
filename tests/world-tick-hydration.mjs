@@ -526,6 +526,7 @@ try {
   {
     const u = U(5);
     await seedFighter(u);
+    await db.exec(`update public.player_state set active_left = 7 where user_id = '${u}' and slot = 0;`);
     await db.exec(`insert into public.account_bank (user_id, item_id, qty) values ('${u}', 'bones', 3) on conflict (user_id, item_id) do update set qty = 3;`);
     const { env, nowMs } = await envelopeOf(u);
 
@@ -572,8 +573,12 @@ try {
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
       /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql): the account's Storage a fuel run burns from, read
          off the top-level `bank` only where the `skill_inputs` section names it (the probe holds a Storage stack so
-         the swap arm is not vacuous). (The bench's count, job end, bag cap and tax left with the one-town-work cut.) */
+         the swap arm is not vacuous). (The bench's bag cap and tax left with the one-town-work cut.) */
       storage: { from: 'bank', level: 'top' },
+      /* THE HEARTH RUN'S COUNT (2026-12-01-bench-count.sql; it stays, 09-crafting.md 4.17's bridge): `bench_run.left`
+         (the probe carries 7 so the swap arm is not vacuous), and its end, the same section naming `count` (1026). */
+      activeLeft: { from: 'bench_run', level: 'top' },
+      jobEnds: { from: 'bench_run', level: 'top' },
       /* THE HERO'S WORK DAY (1059-company-trades.sql): the `work_day` section, read at the top level (src/core/work-day.js workStateOf). */
       workDay: { from: 'work_day', level: 'top' },
     };
@@ -646,6 +651,9 @@ try {
       buffs: env.buffs,
       ammoCarry: null,
       storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
+      activeLeft: env.bench_run && env.bench_run.left,
+      /* the replayed chain ends past 1026-job-counts.sql, so its envelope's bench_run names `count`: job ends are on */
+      jobEnds: true,
       workDay: WORK.workStateOf(env.work_day),
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));

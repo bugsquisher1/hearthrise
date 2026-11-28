@@ -99,7 +99,12 @@ export function patchJobsPane(root, ctx, sc) {
   text(pane.querySelector('.hw-jobs-last'), !last || job ? '' : t('work.job_last', { made: made.join(', '),
     name: last.face ? itemNameFor(last.face, last.plain + last.fine + last.master) : last.name,
     xp: whole(last.xp), trade: lastRecipe ? tradeName(lastRecipe.trade) : '' }));
-  rows(pane.querySelector('.hw-jobs-rows'), s.recipes, {
+  /* WHAT THE HERO CAN START, FIRST (the bench's old Can make order; played on a local world: a new hero's list opened on five shut
+     imbuements and its Cook Shrimp sat below the fold): the jobs the server quotes open, then the shut ones, each by the Level that
+     opens it, the server's order kept between equals. Display order only: every row and number is the server's. */
+  const open = (r) => (r.quote && r.quote.ok ? 1 : 0);
+  const order = s.recipes.map((r, i) => [r, i]).sort(([a, i], [b, j]) => open(b) - open(a) || a.rLevel - b.rLevel || i - j).map(([r]) => r);
+  rows(pane.querySelector('.hw-jobs-rows'), order, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, rowHtml(ctx.glyphs, r)),
     patch: (li, r) => patchRow(li, r, sc, job, now),

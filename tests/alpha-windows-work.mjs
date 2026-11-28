@@ -160,6 +160,9 @@ async function checks(overrides, shots, opts) {
         e.inventory = Object.assign({}, e.inventory, { shrimp: 30, bones: 5 });
         e.work_day = { cap_ms: 36000000, today_ms: 7200000, left_ms: 28800000, premium: false };
         e.trade_jobs = tradeJobsFixture(e.now, { cooking: 3, smithing: 5 });
+        /* a shut job the server lists FIRST (the imbuements lead its list): the page shows what the hero can start before it */
+        e.trade_jobs.recipes.unshift({ id: 'imbuement_fire_ward', name: 'Make Fire Ward', trade: 'artificing', kind: 'imbuement', band: 0, face: 'fire_ward', r_level: 1,
+          inputs: { bones: 4 }, quote: { ok: false, error: 'band_locked' } });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       /* the server takes the job: the next read holds it running (the stub moves its own record, as hr_trade_job_start does) */
@@ -188,6 +191,8 @@ async function checks(overrides, shots, opts) {
         if (trades.length !== 9 || !trades.includes('cooking:3') || !trades.includes('smithing:5')) fails.push('AW-22 the trades read ' + JSON.stringify(trades));
         const row = await jobRow();
         if (!row || row.name !== 'Cook Shrimp' || row.inputs !== 'Uses 1 Raw Shrimp each' || !/^10 · \d+ h/.test(row.quote) || row.off) fails.push('AW-22 the job row reads ' + JSON.stringify(row));
+        const order = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-jobs-rows .hw-job')).map((li) => li.getAttribute('data-key') + (li.classList.contains('is-off') ? ':shut' : '')), W);
+        if (order.join() !== 'meal_b0,imbuement_fire_ward:shut') fails.push('AW-22 the Jobs list reads ' + JSON.stringify(order) + ', want what the hero can start first');
         if (shots) await shot(page, 'work-1440x900-jobs');
         /* Start: ONE hr_trade_job_start naming the server's quote, never a number of the page's own */
         await page.click(W + ' .hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]');
@@ -295,6 +300,7 @@ const MUTANTS = [
   /* AW-22 the Jobs list in the page */
   ['AW-22 Start sends a count of its own', 'src/shell/windows/work-jobs.js', 'startTradeJob(ctx.account, cs, r.id, r.quote.count, r.quote.fee)', 'startTradeJob(ctx.account, cs, r.id, r.quote.count + 1, r.quote.fee)'],
   ['AW-22 a second Start while a job runs', 'src/shell/windows/work-jobs.js', "prop(li.querySelector('[data-hs-act=\"tjob-start\"]'), 'disabled', !(q && q.ok) || !!job || sc.pending);", "prop(li.querySelector('[data-hs-act=\"tjob-start\"]'), 'disabled', !(q && q.ok) || sc.pending);"],
+  ['AW-22 the shut jobs lead the list again', 'src/shell/windows/work-jobs.js', 'sort(([a, i], [b, j]) => open(b) - open(a) || a.rLevel - b.rLevel || i - j)', 'sort(([a, i], [b, j]) => i - j)'],
   ['AW-22 the running job has no line', 'src/shell/windows/work-jobs.js', "  cls(line, 'is-on', !!job);", "  cls(line, 'is-on', false);"],
   ['AW-22 Stop collects instead', 'src/shell/windows/work-jobs.js', "() => endTradeJob(ctx.account, cs, true)", "() => endTradeJob(ctx.account, cs, false)"],
   ['AW-22 the work day is not said', 'src/shell/windows/work.js', "  text(dayEl, !day ? '' : day.leftMs > 0", "  text(dayEl, true ? '' : day.leftMs > 0"],

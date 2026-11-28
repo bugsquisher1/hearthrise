@@ -22,6 +22,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DIR = join(HERE, 'pace-step');
@@ -115,7 +116,7 @@ export function readings() {
   });
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   const R = readings();
   if (process.argv.includes('--check')) {
     let bad = 0;

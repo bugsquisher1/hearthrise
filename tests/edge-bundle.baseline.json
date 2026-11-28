@@ -668,6 +668,11 @@
         "bytes": 4018856,
         "on": "2026-11-28",
         "why": "signatures-batch-3 on the set with designer-imbue-calls: 15 Signature rules (signature-rules.js, reactions.js, abilities.js) plus their data"
+      },
+      {
+        "bytes": 4020595,
+        "on": "2026-11-28",
+        "why": "designer-sig-batch4: reshaped Signature rows and the stoked status (signatures.js, statuses.js)"
       }
     ]
   }

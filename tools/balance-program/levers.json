@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "cccd08566ad0c7ee",
+ "authored": "f1eae01a9c95de95",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 758,
-  "typed": 17591,
+  "typed": 17595,
   "files": 263,
   "lever": 324,
   "notLever": 434,
@@ -3328,7 +3328,7 @@
   {
    "id": "spell.statuses-hidden",
    "category": "spells",
-   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled",
+   "name": "The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled, Steeped, Stoked",
    "sites": [
     {
      "file": "src/data/statuses.js",
@@ -3418,6 +3418,12 @@
      "file": "src/data/statuses.js",
      "line": 187,
      "text": "steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
+     "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 191,
+     "text": "stoked: Object.freeze({ id: 'stoked', name: 'Stoked', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 450,",
      "binding": "STATUSES"
     }
    ],
@@ -17885,12 +17891,10 @@
     "belowPm",
     "capMs",
     "clockMs",
-    "every",
     "ms",
     "n",
     "pm",
-    "pw",
-    "r"
+    "pw"
    ],
    "bindings": 1
   },
@@ -18786,7 +18790,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 43,
+   "typed": 45,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {

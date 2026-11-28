@@ -5,9 +5,9 @@
 //   node tools/balance-program/redesign/imbue/sum.mjs
 //
 // Each set of three against the same four wearing nothing, on the same seeds: the held step's paired delta and PACE STEPS (the paired
-// delta of the held pace, v1-climb payX from hour 4, %, over PACE_STEP_PCT: the pace one held step buys, signature-depth/sum.mjs), each a
+// delta of the held pace, v1-climb payX from hour 4, %, over the pace one held step buys on the report's ground, signature-depth/pace-step.mjs), each a
 // mean with its standard error; I3's bar is a held move of 0.4 or more (21 3.8) and the designer's 6 +- 2 pace steps on Krell's Hold (11.4),
-// read on 36 seeds with its se at most 3 (11.6: on 12 the plain four's draw alone moved it by 13 pace steps).
+// read on 36 seeds with its se at most 3 (11.6: on 12 the plain four's draw alone moved it by 6.5 pace steps).
 // Beside them what the set did: damage dealt a second by seat, the share of the damage taken that heal spells and leech covered (sustain
 // spellPm: a Life Leech's heal is the hero's own, healIn.self), Level XP an hour, deaths. Prints markdown. Exit 0 printed · 2 a report is missing.
 import { readFileSync, existsSync } from 'node:fs';
@@ -15,8 +15,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-/* (signature-depth/sum.mjs PACE_STEP_PCT: the ten defensive anchors' fit, 0.4335, se 0.0087) */
-const PACE_STEP_PCT = 0.43;
+/* (the pace a held step buys on the report's own ground: signature-depth/pace-step.mjs, lane/pace-step-per-ground) */
+import { paceStepPct } from '../signature-depth/pace-step.mjs';
 const PAIRS = [
   ['I3 Krell\'s Hold L97: Brute Edge, Fire Ward, Life Leech (im-krell-fire)', 'k-plain', 'k-fire'],
   ['I3 as ruled: the Leech on the contest curve (im-krell-curve, 21 D-21)', 'k-plain', 'k-curve'],
@@ -24,7 +24,9 @@ const PAIRS = [
 ];
 const cellOf = (name) => {
   const f = join(HERE, name + '.json');
-  return existsSync(f) ? Object.values(JSON.parse(readFileSync(f, 'utf8')).cells)[0] : null;
+  if (!existsSync(f)) return null;
+  const r = JSON.parse(readFileSync(f, 'utf8'));
+  return { ground: r.ground, ...Object.values(r.cells)[0] };
 };
 const stats = (d) => {
   if (!d.length) return null;
@@ -34,8 +36,12 @@ const stats = (d) => {
 };
 const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; if (Number.isFinite(x) && Number.isFinite(y) && f(x, y) !== null) d.push(f(x, y)); }); return d; };
 const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
-const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
-  : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+const paceOf = (p, s) => {
+  const k = paceStepPct(p.ground, p.seats.length);
+  if (typeof k !== 'number') { console.error('imbue sum: ' + p.ground + ' has no measured pace step (signature-depth/pace-step.mjs)'); process.exit(2); }
+  return p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
+    : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / k : null)));
+};
 const sgn = (x) => (x >= 0 ? '+' : '') + x.toFixed(1);
 const show = (d) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + ', ' + d.n + ')' : 'no hold');
 const pct = (a, b) => (b > 0 ? sgn((a / b - 1) * 100) + '%' : 'n/a');

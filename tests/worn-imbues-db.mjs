@@ -45,7 +45,7 @@
 // mutant-anchors: supabase/migrations/1078-imbue-fee-timer.sql supabase/migrations/1069-gear-phase-b-flame-temper-catalogue.generated.sql
 // mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js supabase/migrations/2027-03-21-scaled-hunts.sql
 // mutant-anchors: src/core/hunt/world-state.js src/core/hunt/damage.js src/data/imbue-rules.js
-// ci-step: db-replay | Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
+// ci-step: db-replay-17 | Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
 // ci-run: node tests/worn-imbues-db.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
 import { isMain } from './_is-main.mjs';

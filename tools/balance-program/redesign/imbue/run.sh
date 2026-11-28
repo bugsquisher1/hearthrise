@@ -10,7 +10,7 @@
 #   m-plain / m-fire   Muster Barrows, Level 60: Brute Edge 70, Fire Ward 45, Mana Leech 55 (im-muster-fire)
 #
 # The Krell's Hold steps play KSEEDS (36) seeds: on 12 the plain four drew four seeds trapped one fall down (held 28 to 32) and the set
-# read 17.8 (5.7) pace steps; seeds 13 to 36 read 4.0 and 4.1 (21 section 11.6). The bar wants its se at most 3.
+# read 12.6 (4.0) pace steps on Krell's 0.610; seeds 13 to 36 read 2.8 and 2.9 (21 section 11.6). The bar wants its se at most 3.
 #
 #   bash run.sh [step ...]     every step, or only the named ones
 # W: workers (default 3). SEEDS (12, Muster), KSEEDS (36, Krell's Hold), HOURS (8). OUT: where reports go (default this directory). A step whose report exists is kept

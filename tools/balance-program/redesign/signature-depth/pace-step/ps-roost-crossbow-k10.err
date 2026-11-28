@@ -1,0 +1,25 @@
+V1: 24 seed jobs (1 cells x 24 seeds x 8 h) on 2 workers; wyvern_roost, Levels 140 / 143 / 70
+[1/24] base:steady#0 58 s, 59 s elapsed
+[2/24] base:steady#1 58 s, 59 s elapsed
+[3/24] base:steady#2 56 s, 115 s elapsed
+[4/24] base:steady#3 57 s, 115 s elapsed
+[5/24] base:steady#4 57 s, 172 s elapsed
+[6/24] base:steady#5 57 s, 173 s elapsed
+[7/24] base:steady#7 62 s, 235 s elapsed
+[8/24] base:steady#6 63 s, 235 s elapsed
+[9/24] base:steady#8 60 s, 295 s elapsed
+[10/24] base:steady#9 60 s, 295 s elapsed
+[11/24] base:steady#10 60 s, 355 s elapsed
+[12/24] base:steady#11 61 s, 357 s elapsed
+[13/24] base:steady#12 62 s, 416 s elapsed
+[14/24] base:steady#13 62 s, 419 s elapsed
+[15/24] base:steady#14 61 s, 477 s elapsed
+[16/24] base:steady#15 63 s, 482 s elapsed
+[17/24] base:steady#16 62 s, 539 s elapsed
+[18/24] base:steady#17 63 s, 545 s elapsed
+[19/24] base:steady#18 60 s, 599 s elapsed
+[20/24] base:steady#19 59 s, 604 s elapsed
+[21/24] base:steady#20 58 s, 657 s elapsed
+[22/24] base:steady#21 61 s, 665 s elapsed
+[23/24] base:steady#22 68 s, 725 s elapsed
+[24/24] base:steady#23 71 s, 737 s elapsed

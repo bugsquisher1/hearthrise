@@ -11,7 +11,7 @@
 // mutant-anchors: none — every mutant is planted in a live function body read from the replayed chain (pg_get_functiondef), inside the
 //   arm's rolled-back transaction; no tracked file is patched
 //
-// ci-step: db-replay | Trade jobs - a kit-trade job on the server's quote, its refusals in order, the same goods viewed and closed, a stop returns the rest
+// ci-step: db-replay-17 | Trade jobs - a kit-trade job on the server's quote, its refusals in order, the same goods viewed and closed, a stop returns the rest
 // ci-run: node tests/trade-jobs.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/trade-jobs.mjs --mutate
 //

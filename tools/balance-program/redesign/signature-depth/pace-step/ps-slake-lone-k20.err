@@ -1,0 +1,25 @@
+V1: 24 seed jobs (1 cells x 24 seeds x 8 h) on 3 workers; the_slake, Levels 57 / 60 / 70
+[1/24] base:steady#1 13 s, 15 s elapsed
+[2/24] base:steady#0 14 s, 15 s elapsed
+[3/24] base:steady#2 14 s, 15 s elapsed
+[4/24] base:steady#5 13 s, 27 s elapsed
+[5/24] base:steady#4 13 s, 27 s elapsed
+[6/24] base:steady#3 13 s, 28 s elapsed
+[7/24] base:steady#7 12 s, 40 s elapsed
+[8/24] base:steady#8 12 s, 40 s elapsed
+[9/24] base:steady#6 12 s, 40 s elapsed
+[10/24] base:steady#9 12 s, 51 s elapsed
+[11/24] base:steady#11 12 s, 52 s elapsed
+[12/24] base:steady#10 12 s, 52 s elapsed
+[13/24] base:steady#12 11 s, 63 s elapsed
+[14/24] base:steady#13 12 s, 63 s elapsed
+[15/24] base:steady#14 12 s, 64 s elapsed
+[16/24] base:steady#15 12 s, 75 s elapsed
+[17/24] base:steady#16 12 s, 76 s elapsed
+[18/24] base:steady#17 13 s, 77 s elapsed
+[19/24] base:steady#18 12 s, 87 s elapsed
+[20/24] base:steady#19 12 s, 88 s elapsed
+[21/24] base:steady#20 13 s, 89 s elapsed
+[22/24] base:steady#21 12 s, 99 s elapsed
+[23/24] base:steady#22 12 s, 100 s elapsed
+[24/24] base:steady#23 12 s, 101 s elapsed

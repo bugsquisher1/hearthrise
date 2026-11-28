@@ -184,11 +184,11 @@ Every shape tried on a row that missed (`sum.mjs --batch 2`, the shapes table):
 
 | Call | Ruling |
 |---|---|
-| The metric | **Pace steps.** The paired change in held pace (Level XP a hunted hero-hour from hour 4 to the four's end, v1-climb's `payX`), divided by **0.43%**, the pace one held step buys on the reference cells. A shield, a Blunted and a Poison read on one scale |
-| The size bar | **10 +- 3 pace steps** on the best cell (+3.0% to +5.6% held pace), 12 seeds x 8 h, its se at most 3 pace steps (1.3% pace). Over 13 is cut in its number, under 7 is raised or reshaped. A reading inside one se of the band with its se over 3 gets more seeds before any number moves |
+| The metric | **Pace steps.** The paired change in held pace (Level XP a hunted hero-hour from hour 4 to the four's end, v1-climb's `payX`), divided by the pace one held step buys **on that ground** (since 2026-11-28, "Decision: the pace step, ground by ground": 0.40% on Muster Barrows, 1.06% on Carter's Rest). A shield, a Blunted and a Poison read on one scale |
+| The size bar | **10 +- 3 pace steps** on the best cell (on Muster +2.8% to +5.2% held pace), 12 seeds x 8 h, its se at most 3 pace steps. Over 13 is cut in its number, under 7 is raised or reshaped. A reading inside one se of the band with its se over 3 gets more seeds before any number moves |
 | The spread bar | Unchanged in kind: the second ground at most half the best, both in pace steps |
 | The held delta | Still printed beside it. It says how a row pays (depth or speed), never whether it is in band |
-| The conversion | `PACE_STEP_PCT` 0.43 in `tools/balance-program/redesign/signature-depth/sum.mjs`, fit through the origin on the ten readings where a rule moved depth only (Cairn Belt, the Helm at 3% and 2%, the Mail, the Saber's two Blunted shapes, the Pole at -20% and -15%, the Pennies under half and under 45%): pace over held 0.39 to 0.48, fit 0.4335, se 0.0087. A lever, re-fit when `PAY` or `powerStep` moves |
+| The conversion | **Ground by ground** since 2026-11-28: `PACE_STEP` in `tools/balance-program/redesign/signature-depth/pace-step.mjs`, measured on every ground with one depth-only lever (below). It replaces the one 0.4335 fit on ten Muster and Pyre rows, which read Carter's Rest at two and a half times its size |
 | Coin | Not on the bar. Coin a hero-hour moved with Level XP on every row read (the Hat +8.9% coin, +8.4% pace). A row whose only effect is the supply bill is sized with the market, never on this bar |
 | Where batch 3 reads it | Here, and `sum.mjs` (every table prints pace steps and the bars on them). Batch 3's harness copies `batch2.sh` and adds its rows to `sum.mjs` |
 
@@ -197,7 +197,7 @@ Every shape tried on a row that missed (`sum.mjs --batch 2`, the shapes table):
 - Held depth is worth what it pays. The Danger scale pays a deeper step more a kill, so a player's reward for depth is pace, the same reward a faster kill gives. The bar now reads the reward, not one of its two roads.
 - One scale keeps the pool a choice. On held depth every damage rule read near zero, so the pool would have turned into shields and Blunted, and every build would wear the same few ("Why the whole pool").
 - Nothing that read in band moves. Every defensive row reads its held delta within its se on pace (the Helm 10.8 held and 11.7 pace, the Mail 9.3 and 9.4, the Pennies 12.3 and 12.7, the Pole 10.5 and 10.1, the Saber 7.4 and 7.2), since a held step is what the conversion is fit on.
-- The luck ceiling is a pace ceiling. A lucky hero is ahead by how much faster it levels. The gear slice's 20 steps is about 8.6% held pace on this scale (`19` "Units" now says why a held step buys 0.43% and not the 0.7% a kill pays).
+- The luck ceiling is a pace ceiling. A lucky hero is ahead by how much faster it levels. The gear slice's 20 steps is about 8% held pace on Muster Barrows and 21% on Carter's Rest (`19` "Units" says why a held step buys less than the 0.7% a kill pays).
 
 ## Batch 2, re-read on pace steps (game designer, 2026-11-27, lane/designer-sig-metric)
 
@@ -420,7 +420,7 @@ Every shape read (`sum.mjs --batch 4` prints both tables; a kept row reads from 
 
 - **The danger moment is the size, again.** Every row in band pays when a hero is about to drop or the whole pack is on the party: an ally hit under 45% (the Boots), the line braced each time the tank calls (the Pavise), a monster finished under 30% (the Tooth: the threat dies sooner). Every shape that paid at the pull's start, on a taunt's own monsters, or once a slow clock read under.
 - **The line is a cliff.** The Boots read 17.5 under half, 10.9 under 45%, 3.1 under 40% and nothing under 35%. Steady falls back at 25%, so a line close to it meets almost no blow. The Pavise's Guarded read 4.8 at 10% and 14.2 at 12.5% for 4 s. A rule that reads moves fast near its edge, so each one is set on its own measured point, never interpolated.
-- **Carter's Rest reads every heal at five times the size and a third of the certainty.** The Key's 8% heal read 7.7 on Muster and 84.2 at home, with se 7 to 10 on every Carter's shape. Its four falls back 1.6 times an hour and a held step there buys about 0.95% pace, twice the 0.43% fit. The Key is set on its home (rule A puts a heal on its seat's best cell) and waits for 36 seeds there. **For the Lab:** `PACE_STEP_PCT` is fit on Muster-like cells, and Carter's narrow band (0 / 60 / 100) pays a held step about twice as much. Re-fit it per ground or read Carter's in held steps before the Apron (#18) is re-read there.
+- **Carter's Rest reads every heal at five times the size and a third of the certainty.** The Key's 8% heal read 7.7 on Muster and 84.2 at home, with se 7 to 10 on every Carter's shape. Its four falls back 1.6 times an hour and a held step there buys about 0.95% pace, twice the 0.43% fit. The Key is set on its home (rule A puts a heal on its seat's best cell) and waits for 36 seeds there. **For the Lab:** `PACE_STEP_PCT` is fit on Muster-like cells, and Carter's narrow band (0 / 60 / 100) pays a held step about twice as much. Re-fit it per ground or read Carter's in held steps before the Apron (#18) is re-read there. (Ruled 2026-11-28, "Decision: the pace step, ground by ground": Carter's Rest 1.056, the Key 5.7 on 36 seeds.)
 - **A save is big everywhere.** The Boots read 10.9 on Muster and 12.0 on Pyre Field, the Tooth 9.2 and 9.7. Danger comes on every ground, so a save with no filter is a stat by the spread bar. Each gets a monster-role filter in batch 4 (stalkers for the Boots, brutes for the Tooth), so it is big where its monsters are. The Pavise has no second cell (the tank's others are pinned) and the Key's home is the only cell where it reads.
 - **Damage reads on pace when it is big and lands often.** The Stoker's Ring at +45% on the next Fire spell read 12.5 on Pyre Field and 6.1 on Muster with held depth flat: the frost mage kills faster where packs stand together.
 - **Mana is coin, and the drink bill is big.** The healer's drinks are about 1,100 coin a hero-hour of the four's 1,773. 2% of max mana a Water heal erased nearly all of it (88.3 coin steps), 0.5% is in band.
@@ -473,6 +473,75 @@ The pieces (each once, for all its rows; HANDOFFS 2026-11-28 designer-sig-batch4
 ### The Security list (`13` N-14)
 
 #25 now saves every Ice rune spell (a bigger discount, nothing minted). #27 gives its wearer mana (no money). #40 leaves the list: it no longer touches drops. #41 is ruled a saved shot, never a minted arrow. #32, #34, #37 and #44 cut the drink bill (no money moves). P7 moves Level XP lost to deaths, not money. N-14 says so.
+
+## Decision: the pace step, ground by ground (game designer, 2026-11-28, lane/pace-step-per-ground)
+
+**How it plays:** a Signature is worth about half a gear tier wherever its home is. A step of depth pays far more Level XP on some grounds than on others (Carter's Rest pays about two and a half times what Muster Barrows does). Read on one ruler, a heal there looked huge and every heal looked like noise. Now each ground has its own ruler, measured the same way on every one.
+
+| Call | Ruling |
+|---|---|
+| The scale | A Signature's paired pace delta over **its cell's own pace step**: the pace one held step buys on that ground (`tools/balance-program/redesign/signature-depth/pace-step.mjs` `PACE_STEP`, read by `sum.mjs` and `roads/e5/sum.mjs`). The bars (size 10 +- 3, spread at most half, coin 20 +- 6) are unchanged and read in these steps |
+| How it is measured | One lever that moves depth and nothing else: every blow at every hero 10 and 20 power steps lower (`pace-step/defense-k10.json`, `defense-k20.json`, a line edit on a scratch copy, so the companies are the tree's). On the ground's reference four (MID kits at its refLevel, Steady, 8 h, held from hour 4), 24 seeds paired on the same dice. The pace moves over the held moves of both sizes, a fit through the origin (`pace-step/run.sh`, then `pace-step.mjs`) |
+| The key | One value a ground for a party of four. A lone hero has its own (`<ground>:1`): it can sit far from the band the reference four was cut on |
+| A cell paid at the floor | A four held under its band's floor earns the floor pay (`danger.js` `PAY.floor`), so a deeper step there pays nothing and meets a tougher monster: a held step costs pace (a lone sword on Muster Barrows holds 367 under a floor of 520 and reads -0.29%). No Signature is sized on one. As a second ground it reads in its best cell's steps, so the spread bar compares pace itself |
+| An unmeasured ground | No Signature cell. `sum.mjs` stops and names it until `pace-step/run.sh` measures it |
+| A lever | Re-measure when `PAY`, `powerStep`, `CLIMB` or `RISKS`, or a ground's band moves. `pace-step.mjs --check` holds the table to its reports |
+
+MEASURED on `lane/pace-step-per-ground` (the hunt engine of `set/v0.2.144` d501d3754; the plain fours replay batch 3's `b3-*` reports seed for seed), `pace-step.mjs`:
+
+| Ground | Four the value is fit on | Plain held | Falls/h plain, -10, -20 | Held move (se), both sizes | Pace move (se) | **Pace a held step buys (se)** |
+|---|---|---|---|---|---|---|
+| Muster Barrows | hammer, bow, mage, healer | 606 | 0.7, 0.6, 0.6 | +15.2 (1.5) | +6.1% (0.6) | **0.398% (0.007)** |
+| Muster Barrows, the tank four (a check) | tank, bow, mage, healer | 668 | 1.6, 1.4, 1.2 | +15.8 (1.6) | +6.4% (0.7) | 0.407% (0.009) |
+| Muster Barrows, alone | a lone sword | 367 | 0 | +7.6 (0.9) | -2.2% (0.3) | **none: paid at the floor** (-0.288) |
+| Hask's Ford | hammer, bow, mage, healer | 600 | 0.1 | +10.5 (1.2) | +4.2% (0.5) | **0.397% (0.005)** |
+| The Slake | hammer, bow, mage, healer | 101 | 0.4, 0.4, 0.5 | +11.9 (1.1) | +4.9% (0.4) | **0.415% (0.007)** |
+| The Slake, alone | a lone sword | 53 | 0 | +7.9 (0.5) | +3.4% (0.2) | **0.427% (0.007)** |
+| Pyre Field | hammer, bow, mage, healer | 51 | 0.8, 0.7, 0.6 | +15.4 (1.5) | +7.5% (0.9) | **0.487% (0.020)** |
+| Pyre Field, the sword four (a check) | sword, bow, mage, healer | 45 | 0.7, 0.7, 0.6 | +17.3 (1.4) | +11.0% (1.1) | 0.634% (0.031) |
+| Krell's Hold | hammer, bow, mage, healer | 42 | 0.7, 0.6, 0.6 | +13.1 (1.7) | +8.0% (1.2) | **0.610% (0.036)** |
+| Carter's Rest | hammer, bow, mage, healer | 66 | 1.7, 1.4, 0.8 | +19.9 (2.1) | +21.0% (2.1) | **1.056% (0.020)** |
+| Ox Road | hammer, bow, mage, healer | 96 | 1.0, 0.8, 0.8 | +12.1 (1.0) | +4.2% (0.4) | **0.346% (0.006)** |
+| Wyvern Roost | hammer, crossbow, mage, healer | 107 | 1.4, 1.1, 1.1 | +13.0 (0.9) | +5.6% (0.4) | **0.429% (0.004)** |
+| The Bone Wing | hammer, bow, mage, healer | 505 | 1.1, 1.3, 1.1 | +9.7 (0.9) | +4.4% (0.5) | **0.453% (0.015)** |
+| The Flooded Wing | axes, bow, mage, healer | 476 | 1.8, 1.7, 1.8 | +5.3 (0.8) | +4.7% (0.9) | **0.874% (0.087)** |
+
+**Why ground by ground.**
+
+- **The grounds differ, and nothing cheaper predicts it.** 0.35% to 1.06%. Pyre Field and Krell's Hold share gear tier 4 and read 0.49 and 0.61. The two Catacomb wings share tier 8 and read 0.45 and 0.87. Falls an hour do not predict it either (Muster's tank four falls 1.6 an hour and reads 0.41). A per-band value would carry the very error this removes, so each ground is measured.
+- **Not raw pace.** A Signature is half a gear tier of power ("Decision: count and size"). On Carter's Rest every power step buys two and a half times the pace, gear and Traits included. Sized in raw pace, a Carter's Signature would get 40% of the power a Muster one gets.
+- **The four barely moves it.** Muster's mixed and tank fours read 0.398 and 0.407, so one value serves every four on a ground. Pyre Field's sword four reads 0.634 to its mixed four's 0.487. Its rows read on the ground's value, the kinder of the two (the Saber reads 6.4 there and 4.9 on its own four), and both are under the band, so the choice changes no verdict.
+- **It matches the Signatures themselves.** Each kept row's own pace over its held move (the rows that move depth) sits near its ground's lever: the Pole 0.41 and the Boots 0.38 on Muster's mixed four (0.398), the Key's four shapes and its 36 seeds 0.96 to 1.12 on Carter's Rest (1.056), the Boots 0.55 on Pyre Field (0.487), the Pole 0.40 on the Slake (0.415). Rows that guard one seat scatter more: the tank rows on Muster read 0.39 to 0.48 (0.407), the Saber's two Blunted shapes 0.42 on Pyre's sword four (0.634). That scatter is inside the bar's +- 3.
+- **Muster moves too.** Measured the same way it reads 0.398, not the 0.4335 fit on ten rows. Every Muster reading rises 8%. Keeping 0.43 for Muster alone would be two methods on one scale.
+- **For the Lab:** the Lab (`tools/balance-lab/`) reads no pace step. Only the sum tools do, so the value lives in tools, beside them. The game never reads it.
+
+### The rows re-read (MEASURED, `sum.mjs --batch 2`, `--batch 3`, `--batch 4`)
+
+The Cellar Key got its 36 seeds at home and Brewer's Apron its first reading there (`batch4.sh` `b4-carters-*36`, by their real ids; the plain four's first 12 seeds replay `b3-carters-mixed` exactly). Every other row is its own report read again on the new steps. Every row whose verdict moved is here.
+
+| # | Signature | Best cell | Was (0.43) | Now (se) | Second ground: was, now | Verdict now |
+|---|---|---|---|---|---|---|
+| 31 | The Cellar Key (an ally hit under 30% heals 2%, 30 s an ally) | Carter's Rest, **36 seeds** | +16.2 (8.3), 12 seeds | **+5.7 (2.0)** | | **Under.** The old ruler alone read it 2.5 times too big. Dark. On the new steps its shapes read 4% at 10 s 13.3 (3.5) and 3% at 15 s 13.4 (3.9), so its number sits between 2% at 30 s and those |
+| 18 | Brewer's Apron (Circle of Renewal, Emboldened 4 s) | Carter's Rest, its first reading, **36 seeds** | | **+2.8 (1.6)** | Muster +2.1 (1.9), now +2.3 (2.0) | **Under at home too.** Dark. It reads under on both cells it was played on, its home included, so its boon is reshaped in the next batch |
+| 22 | Slake Waders (a lone sword) | The Slake, alone | +7.5 (0.8) | **+7.5 (0.8)** | Muster -0.0 (1.5), now -0.0 (1.5) in the Slake's steps (Muster's lone sword is paid at the floor) | **In band, the spread holds.** Unchanged |
+| 42 | Night Carter's Boots (an ally hit under 45%, its striker Blunted) | Muster Barrows | +10.9 (2.5) | **+11.8 (2.7)** | Pyre +12.0 (3.6), now +10.6 (3.2) | **In band, fails the spread.** Unchanged. P9's stalker filter still owed |
+| 43 | Bull's Tooth (single-target hits under 30% land twice) | Wyvern Roost | +9.7 (1.4) | **+9.7 (1.4)** | Muster +9.2 (2.3), now +9.9 (2.5) | **In band, fails the spread.** Unchanged. P9's brute filter still owed |
+| 24 | Stoker's Ring (+45%) | Pyre Field | +12.5 (5.1) | **+11.0 (4.5)** | Muster +6.1 (2.4), now +6.6 (2.6) | In band, the spread holds within its se. 24 seeds still owed |
+| 4 | Charred Saber (Flame Strike's target's next blow at half) | Pyre Field | +7.2 (2.2) | **+6.4 (1.9)** | Muster +3.5 (3.3), now +3.7 (3.6) | **Under (moved).** Dark. Raise its number |
+| 23 | Ferry Pennies (a Mend under 45%, Blunted next to you) | Muster Barrows | +12.7 (2.4) | **+13.7 (2.6)** | | **Over (moved)**, by 0.7. Dark. Cut its line |
+| 19 | Lock-Keeper's Chain | Muster Barrows | +12.0 (2.7) | **+13.0 (2.9)** | The Slake +3.3 (1.7), now +3.5 (1.8) | **Over (moved)**, by 0.02: at the edge. Dark |
+| 20 | Greened Bracers | Muster Barrows | +7.2 (2.8) | **+7.8 (3.0)** | The Slake +5.0 (1.6), now +5.2 (1.7) | In band, its se at the bar |
+| 25 | The Cold Candle (coin: every Ice rune spell uses no rune) | Muster Barrows | 25.7 coin steps | **27.8** | | **Over the coin bar (moved)**, by 1.8. Every other spell reads 13.9, under. Dark |
+| 27 | Riverstone Earrings (coin) | Muster Barrows | 23.7 | **25.6** | | In band |
+| 15 | Catacomb Shroud | Krell's Hold | +12.7 (2.1) | **+8.9 (1.5)** | Bone Wing +1.5, now +1.4 | In band, the spread holds |
+| 21 | Drover's Hat (25%) | Ox Road | +9.2 (2.4) | **+11.4 (3.0)** | Muster +4.0, now +4.3 | In band, the spread holds |
+| 1, 2, 3, 9, 17 | the Pavise, Helm, Mail, Collar, Pole (Muster) | Muster Barrows | 9.3, 11.7, 9.4, 9.3, 10.1 | 10.1, 12.7, 10.2, 10.1, 10.9 | | In band, as before (the Pavise's 24 seeds still owed) |
+
+**What it rules.**
+
+- **The Key does not light.** Its 36 seeds read 5.7 at home, under the band. The Apron does not either. Neither was ever the big heal Carter's Rest made it look.
+- **Four kept rows left the band, all by the re-measure, none by play:** the Saber under, the Pennies and the Chain just over, the Candle over the coin bar. Each is dark (`SIGNATURE_RULES.live` false), so no player meets a number out of band. Each is set again on its own cell, on these steps, as the next Signature batch's first rows, with the Key and the Apron. A dial is set where it reads, never by moving the ruler.
+- **The roads' borrow values** (`roads/e5/sum.mjs`, Muster) rise 8% on pace and none changes its verdict. The held step is the larger on every row but the second healer's, whose value moves from 7.5 to 7.7, under its 10.
 
 ## How Signatures work
 

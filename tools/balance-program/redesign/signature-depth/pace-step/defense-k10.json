@@ -1,0 +1,8 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "pace-step-defense-k10",
+ "why": "A lever that moves depth only (game designer, lane/pace-step-per-ground): every blow at every hero lands 10 power steps lower, so the four holds deeper and nothing else changes. The pace that held move buys, cell by cell, is the pace step a Signature is sized on (signature-depth/pace-step.mjs)",
+ "base": "tree",
+ "edits": [{ "file": "src/core/hunt/amount.js", "from": "    gap = (R - defensePm(target, c.ward)) / 1000;", "to": "    gap = (R - defensePm(target, c.ward)) / 1000 - 10;" }],
+ "assumptions": ["A flat cut on every blow at a hero, on the Danger scale's own step, moves the held step and nothing a Signature's size is read on besides (offense, heals and the store are the tree's)"]
+}

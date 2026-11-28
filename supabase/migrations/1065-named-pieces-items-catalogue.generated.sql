@@ -1953,10 +1953,8 @@ begin
   if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'b8b7ac9d1d7fbc96792c7dc946c71276' then
     raise exception 'hr_items names differ from src/data (expected digest b8b7ac9d1d7fbc96792c7dc946c71276)';
   end if;
-  -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
-  if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
-    raise exception 'hr_activities artisan:cook_wolf_meat req_lv is not the source''s (1)';
-  end if;
+  -- SMALL CALLS (2026-11-11): the row this file exists for, pinned to the source row's value (never hand-typed). The Cook Wolf Meat
+  -- bench row's pin left with the bench (lane/bench-cut-server, 09 4.17): a pin on a bench row would die when the data lane cuts it.
   if (select name from public.hr_items where item_id = 'jarls_rimetorc') is distinct from 'Jarl''s Collar' then
     raise exception 'hr_items jarls_rimetorc name is not the source''s (Jarl''s Collar)';
   end if;

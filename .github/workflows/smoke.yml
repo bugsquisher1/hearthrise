@@ -2839,18 +2839,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs
 
-      # MOVED FROM client-guards-3 2026-11-28 (lane/ci-midnight-shard): client-guards-3 took 26.4 of 35 min on the fallback
-      # run 46117646677 (75%), this step 5.5 of it.
-      # THE WORK BENCH TAX (Tyler 2026-11-01): a public bench takes a share of what a job sells for, viewed or with the
-      # browser closed, from the account's purse, journalled, stopping before a craft it cannot pay; a house bench is free.
-      - name: Bench tax - the fee, both paths, the stop, the house, a forged value
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-bench-tax.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-bench-tax.mjs --selftest
-          node tests/bench-tax.mjs
-          node tools/mutant-gate.mjs node tests/bench-tax.mjs --mutate
-
   # 2026-11-18 (lane/ci-speed): timeout 40 -> 47: the full sweep measured 23.5 min, x2.
   in-page-6:
     runs-on: ubuntu-latest
@@ -6513,41 +6501,6 @@ jobs:
           node tests/world-finds-projection.mjs
           node tools/mutant-gate.mjs node tests/world-finds-projection.mjs --selftest
 
-      # AND DOES THE NIGHT KNOW WHICH RECIPES YOU HAVE READ?
-      # 2026-08-16-artisan-progress-model.sql built the STORAGE for a learned
-      # recipe and left the WRITE to a later author who never arrived: nothing has
-      # ever written a `recipe:<scroll>` flag for anybody. Attended, the client
-      # flips G.unlockedRecipes (residue) and deletes the scroll locally; away,
-      # hr-accrue reads hr_perks_of.unlockedRecipes = {} and src/core/artisan-sim
-      # .js stops the span at tick 0 — so all eight gated recipes pay NOTHING for
-      # the night while the browser shows them unlocked. CLAUDE.md §6, 2026-09-14.
-      #
-      # The two assertions that matter are the ones a key-exists check cannot
-      # make: that the ENVELOPE, the verb's verdict and hr_perks_of (what the away
-      # engine prices from) all carry the SAME set, and that the REAL shipped
-      # reader — src/core/artisan.js gateOk, the same pure function the browser
-      # and the simulation both call — flips from locked to open off that
-      # envelope. Plus: exactly one of two scrolls consumed, an uncatalogued
-      # `recipe:` flag row is NOT a capability (the hr_unlocks join is the
-      # allowlist), and a re-learn and a replay each eat nothing.
-      # --selftest plants twelve defects, each twice, plus a negative control.
-      #
-      # No credentials; production untouched. Base AND selftest, per C4.
-      # MEASURED 2026-09-14 on this machine: base 12 s, --selftest 39 s.
-      - name: Recipe learn — a gated recipe is learned on the server or the night ignores it
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/recipe-learn.mjs
-          node tools/mutant-gate.mjs node tests/recipe-learn.mjs --selftest
-
-      # PATTERNS (src/data/patterns.js; designer 2026-11-19: learned PER HERO through hr_recipe_learn). The patterns ship hidden; this
-      # holds the hidden tree and plays a planted copy switched on: the Kingsgrate Rivets is an item (never `recipe`, the engine's
-      # auto-unlock scroll) a Rat King kill credits to a bag, and on the replayed chain the bag's own Learn opens the Steelgrate bench for
-      # the hero who read it and for no other hero of the account, on screen and on the engine. Happy path; PGlite, no credential.
-      - name: Pattern learn — a pattern teaches the hero who reads it, and no other
-        if: ${{ !cancelled() }}
-        run: node tests/pattern-learn.mjs
-
       # THE PROJECTED KEY SET, BY EXECUTION. hr_state_of is created once and then
       # programmatically PATCHED by later migrations, so its shipped body is in no
       # file and a grep is a guess. This replays the chain, calls hr_state_of on a
@@ -7740,8 +7693,6 @@ jobs:
         run: |
           node tools/gen-jewelry.mjs --check
           node tools/mutant-gate.mjs node tools/gen-jewelry.mjs --selftest
-          node tests/jewelry-rolls.mjs
-          node tools/mutant-gate.mjs node tests/jewelry-rolls.mjs --mutate
           node tests/jewelry-sources.mjs
           node tools/mutant-gate.mjs node tests/jewelry-sources.mjs --mutate
           node tools/world-art/jewelry-icons.mjs --check

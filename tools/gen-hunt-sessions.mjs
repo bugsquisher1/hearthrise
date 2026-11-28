@@ -29,6 +29,10 @@
 //   hr_hunt_lanes          the cooldown lanes, ONE source each: consumables.js
 //                          CONSUMABLE_RULES.laneMs (food and drink, `consumable`)
 //                          and abilities.js ABILITY_LANES (`offense`, `heal`)
+//   hr_hunt_action_ids     what a bar slot may name (hr_hunt_slot_check): condition-metrics.js ATTACK_KINDS, every food and
+//                          drink of consumables.js CONSUMABLES, every ammo some weapon can shoot (src/core/hunt/conditions.js
+//                          attackItem: no rune, no whetstone). Moved here from the APPLIED 2027-01-13-slot-truth.sql
+//                          (lane/bench-cut-server, HANDOFFS 2026-11-28 kit-bands-6-9 item 7), so a new drink is a data row again
 //   hr_hunt_abilities      abilities.js ABILITIES (the bar's vocabulary; `ord` = its order there,
 //                          the default bar's order)
 //   hr_hunt_weapon_roles   hunt-roles.js ROLE_KEYS: each role key's roles, ability discipline
@@ -140,7 +144,9 @@ import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } f
 import { SESSION_LIMITS, END_ORDER, NO_FIGHT_END_MIN, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
-import { CONSUMABLE_RULES } from '../src/data/consumables.js';
+import { CONSUMABLE_RULES, CONSUMABLES } from '../src/data/consumables.js';
+import { ATTACK_KINDS } from '../src/data/condition-metrics.js';
+import { attackItem } from '../src/core/hunt/conditions.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES, AREA_TARGETS } from '../src/data/abilities.js';
 import { MONSTER_SPELLS, SPELL_BOUNDS } from '../src/data/monster-spells.js';
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hunt-roles.js';
@@ -1102,9 +1108,22 @@ function trainingRows(S, groundRowsOut) {
     xpPerHour: R.xpPerHour, minLevel: R.minLevel, boostPm: GR.boostPermille, buyPerDay: GR.buyPerDay, bidShare: GR.bidShare }, grounds: rows, gear };
 }
 
+/** THE BAR'S ACTION IDS (hr_hunt_action_ids, read by hr_hunt_slot_check): [type, id] pairs, sorted. ONE item a slot (Tyler 2026-10-21):
+    every crafted and store food and drink; an attack item is an ammo some weapon can shoot (runes fuel spells only, Tyler 2026-10-23;
+    a whetstone is no one's shot, Andy a41). tests/hunt-core/conditions.mjs sql-rows derives the same list its own way and pins the block. */
+export function actionIdRows() {
+  const ids = [];
+  for (const k of Object.keys(ATTACK_KINDS)) ids.push(['attack_with_item', k]);
+  for (const r of Object.values(CONSUMABLES)) ids.push(['consume', r.id]);
+  for (const x of Object.values(SUPPLIES)) if (attackItem(x.id)) ids.push(['attack_with_item', x.id]);
+  return ids.sort((a, b) => (a[0] + ':' + a[1] < b[0] + ':' + b[1] ? -1 : 1));
+}
+
 export function render(src) {
   const r = catalogueRows(src);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
+  const actionIds = actionIdRows();
+  const actionValues = actionIds.map(([t, i]) => `  (${sq(t)}, ${sq(i)})`).join(',\n');
   const supplyValues = r.supplies.map((s) => `  (${sq(s.id)}, ${sq(s.kind)}, ${s.essential}, ${s.heals}, ${s.bt ? sq(s.bt) : 'null'})`).join(',\n');
   const basicValues = r.basics.map((b) => `  (${sq(b.id)}, ${sq(b.kind)}, ${sq(b.partner)}, ${b.heals}, ${b.mana}, ${b.price})`).join(',\n');
   const coverValues = r.cover.map((c) => `  (${sq(c.id)}, ${c.unit})`).join(',\n');
@@ -1844,6 +1863,10 @@ ${supplyValues};
 delete from public.hr_hunt_basic_supplies;
 insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
 ${basicValues};
+-- the bar's action ids (hr_hunt_slot_check): moved here from 2027-01-13-slot-truth.sql's block, the same rows from the same data
+delete from public.hr_hunt_action_ids;
+insert into public.hr_hunt_action_ids (type, id) values
+${actionValues};
 delete from public.hr_hunt_cover_items;
 ${r.cover.length ? `insert into public.hr_hunt_cover_items (item_id, unit) values
 ${coverValues};` : '-- (no item is flagged junk: sell-to-cover is inert until one is)'}
@@ -1956,7 +1979,11 @@ ${hallValues ? `insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, 
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> ${r.supplies.length}
+  if (select count(*) from public.hr_hunt_action_ids) <> ${actionIds.length}
+     or exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and (id like '%\\_rune' or id like '%\\_whetstone'))
+     or exists (select 1 from public.hr_hunt_action_ids a where not (a.type = 'attack_with_item' and a.id = 'loaded')
+                 and not exists (select 1 from public.hr_items i where i.item_id = a.id))
+     or (select count(*) from public.hr_hunt_supplies) <> ${r.supplies.length}
      or (select count(*) from public.hr_hunt_travel) <> ${r.travel.length}
      or (select count(*) from public.hr_hunt_limits) <> ${nLim}
      or (select count(*) from public.hr_hunt_end_reasons) <> ${r.ends.length}

@@ -39,6 +39,8 @@ export const PACK_TABLES = Object.freeze({
   hr_item_levels: ['item_id'],
   hr_flame_fuel: ['item_id'],
   hr_tally_tiers: ['item_id'],
+  /* a pack's own food, drink or arrow on the bar (tools/gen-hunt-sessions.mjs hr_hunt_action_ids, lane/bench-cut-server): its slot row */
+  hr_hunt_action_ids: ['type', 'id'],
 });
 
 /* THE ROWS A PACK MAY MOVE (Coordinator ruling 2026-11-17, set/v0.2.135): an item sells at the highest income dial of the grounds that

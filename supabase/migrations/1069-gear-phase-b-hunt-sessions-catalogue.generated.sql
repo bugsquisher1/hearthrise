@@ -829,6 +829,55 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 288, 75),
   ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 216, 44),
   ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 72, 9);
+-- the bar's action ids (hr_hunt_slot_check): moved here from 2027-01-13-slot-truth.sql's block, the same rows from the same data
+delete from public.hr_hunt_action_ids;
+insert into public.hr_hunt_action_ids (type, id) values
+  ('attack_with_item', 'barbed_arrows'),
+  ('attack_with_item', 'bronze_arrows'),
+  ('attack_with_item', 'dawnpoint_arrows'),
+  ('attack_with_item', 'emberhead_arrows'),
+  ('attack_with_item', 'iron_arrows'),
+  ('attack_with_item', 'iron_bolts'),
+  ('attack_with_item', 'loaded'),
+  ('attack_with_item', 'mithril_arrows'),
+  ('attack_with_item', 'rune_arrows'),
+  ('attack_with_item', 'steel_arrows'),
+  ('consume', 'baked_potato'),
+  ('consume', 'carrot_juice'),
+  ('consume', 'cooked_bear_meat'),
+  ('consume', 'cooked_copper_crab'),
+  ('consume', 'cooked_frostfin'),
+  ('consume', 'cooked_goldgill'),
+  ('consume', 'cooked_herring'),
+  ('consume', 'cooked_lobster'),
+  ('consume', 'cooked_moonfish'),
+  ('consume', 'cooked_panther_meat'),
+  ('consume', 'cooked_pikeperch'),
+  ('consume', 'cooked_shark'),
+  ('consume', 'cooked_shrimp'),
+  ('consume', 'cooked_silverfin'),
+  ('consume', 'cooked_swordfish'),
+  ('consume', 'cooked_trout'),
+  ('consume', 'cooked_wolf_meat'),
+  ('consume', 'emberfruit_cordial'),
+  ('consume', 'goldenroot_tea'),
+  ('consume', 'pumpkin_cider'),
+  ('consume', 'river_chowder'),
+  ('consume', 'salted_lobster'),
+  ('consume', 'salted_shark'),
+  ('consume', 'salted_shrimp'),
+  ('consume', 'salted_swordfish'),
+  ('consume', 'salted_trout'),
+  ('consume', 'thin_carrot_juice'),
+  ('consume', 'thin_emberfruit_cordial'),
+  ('consume', 'thin_goldenroot_tea'),
+  ('consume', 'thin_pumpkin_cider'),
+  ('consume', 'thin_tomato_juice'),
+  ('consume', 'thin_turnip_juice'),
+  ('consume', 'tomato_juice'),
+  ('consume', 'turnip_juice'),
+  ('consume', 'turnip_mash'),
+  ('consume', 'wheat_bread');
 delete from public.hr_hunt_cover_items;
 -- (no item is flagged junk: sell-to-cover is inert until one is)
 delete from public.hr_hunt_lanes;
@@ -2408,7 +2457,11 @@ insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 80
+  if (select count(*) from public.hr_hunt_action_ids) <> 46
+     or exists (select 1 from public.hr_hunt_action_ids where type = 'attack_with_item' and (id like '%\_rune' or id like '%\_whetstone'))
+     or exists (select 1 from public.hr_hunt_action_ids a where not (a.type = 'attack_with_item' and a.id = 'loaded')
+                 and not exists (select 1 from public.hr_items i where i.item_id = a.id))
+     or (select count(*) from public.hr_hunt_supplies) <> 80
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18

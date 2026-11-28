@@ -769,10 +769,8 @@ begin
   if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '${ITEM_NAMES_MD5}' then
     raise exception 'hr_items names differ from src/data (expected digest ${ITEM_NAMES_MD5})';
   end if;
-  -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
-  if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from ${n(activities.find((r) => r.kind === 'artisan' && r.activity_id === 'cook_wolf_meat').req_lv)} then
-    raise exception 'hr_activities artisan:cook_wolf_meat req_lv is not the source''s (${n(activities.find((r) => r.kind === 'artisan' && r.activity_id === 'cook_wolf_meat').req_lv)})';
-  end if;
+  -- SMALL CALLS (2026-11-11): the row this file exists for, pinned to the source row's value (never hand-typed). The Cook Wolf Meat
+  -- bench row's pin left with the bench (lane/bench-cut-server, 09 4.17): a pin on a bench row would die when the data lane cuts it.
   if (select name from public.hr_items where item_id = 'jarls_rimetorc') is distinct from ${q(items.find((r) => r.item_id === 'jarls_rimetorc').name)} then
     raise exception 'hr_items jarls_rimetorc name is not the source''s (${items.find((r) => r.item_id === 'jarls_rimetorc').name.replace(/'/g, "''")})';
   end if;
@@ -1334,119 +1332,11 @@ begin
 end $$;
 `;
 
-/* THE FOURTH GENERATED FILE (lane c-tutorial-facts, 2026-10-25): WHAT ONE ACTION OF EACH BENCH CONSUMES.
-   A hunt's automatic end resumes the hero's last town activity (hr_hunt_apply_member step 7); a bench
-   resumed with nothing to work on read "working on Cook Shrimp" with 0 Raw Shrimp and held a play-cap seat
-   with the browser closed (no artisan settler clears it). The server knew no recipe input, so the rule
-   "resume a bench only with the inputs for one action" needs them: derived HERE through the engine's own
-   recipeInputs (src/core/artisan.js, the function missingInput reads), first id wins as indexArtisanRecipes
-   does, so the server's check and the bench's stop cannot disagree. A function, not a table: one constant,
-   read by one SQL body, no rows to census. */
-const { recipeInputs } = await imp('src/core/artisan.js');
-const { ARTISAN_RECIPES_EVERY: BENCH_RECIPES } = await imp('src/data/recipes.js');   // the dark (switched) jobs too: a resume reads their inputs
-/* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
-/* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
-/* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */
-/* KLAPPA'S CLUB (lane/c-klappa-club, 2026-11-03): 2027-02-18 is APPLIED history; the reforge's inputs. */
-/* THE GLADE'S RUNG (lane/c-pre-wipe, 2026-11-04): 2027-02-23-klappa is APPLIED history; the cloak's twelve pelts and a Bear Pelt. */
-/* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
-/* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
-/* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
-/* THE BURNING TOWER'S CHEST AND THE MARCH'S MADE PIECES (lane/c-tower-chest; lane/a-next-steps with d-audit-balance-2; set v0.2.135): 2027-03-27-phase0-tier4
-   is APPLIED history. ONE forward file for both: the Tower Cinders' Inner Flame bench (fuel_tower_cinders), the Mithril-Faced Shield's forge and the March
-   salts' mixes and packs (2027-05-01-v0135-bench-inputs, never applied, folded in here on the assembled set). */
-/* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none): 2027-04-27-tower-chest is
-   APPLIED history; the 24 cut recipes' inputs leave the function, no other recipe's inputs move. */
-/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-inputs (APPLIED with v0.2.139) is the file before; the five new
-   pieces' jobs bring their inputs, and the Banded Signet's keep theirs on Smithing's bench. */
-/* THE JEWEL GUARANTEES (lane/d-jewelry-2b, rescued from lane/c-crafted-jewelry, 2026-11-18): 2027-05-09-jewelry-sample-bench-inputs (APPLIED with v0.2.140)
-   is the file before; the three guarantee jobs on the Banded Signet's Smithing bench (dark behind jewel_guarantees) bring their inputs, no other
-   recipe's move. It replaces lane/c-crafted-jewelry's 2027-04-24-jewel-guarantees-bench-inputs, which was never merged or applied. */
-/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2027-05-16-jewel-guarantees-bench-inputs (STAGED, applied first) is the file before; the three cut Cooking recipes leave. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-bench-inputs.generated.sql');
-const benchInputs = {};
-{
-  const known = new Set(itemIds);
-  const seen = new Set();
-  for (const skill of Object.keys(BENCH_RECIPES)) {
-    for (const r of BENCH_RECIPES[skill] || []) {
-      if (!r || typeof r.id !== 'string' || !r.id || seen.has(r.id)) continue;
-      seen.add(r.id);
-      const inp = recipeInputs(r);
-      const keys = Object.keys(inp).sort();
-      if (!keys.length) continue;
-      const row = {};
-      for (const k of keys) {
-        if (!known.has(k)) die(`bench ${r.id} consumes ${JSON.stringify(k)}, which is no hr_items row`);
-        if (!Number.isInteger(inp[k]) || inp[k] < 1) die(`bench ${r.id} consumes ${JSON.stringify(inp[k])} of ${k}, not a whole positive count`);
-        row[k] = inp[k];
-      }
-      benchInputs[r.id] = row;
-    }
-  }
-}
-const BENCH_IDS = Object.keys(benchInputs).sort();
-const benchJson = JSON.stringify(Object.fromEntries(BENCH_IDS.map((id) => [id, benchInputs[id]])));
-const BENCH_DIGEST = createHash('sha256').update(benchJson).digest('hex');
-if (BENCH_IDS.length < 1) die('no bench consumes anything: the bench-inputs catalogue would be empty');
-const sqlBenchInputs = `-- ════════════════════════════════════════════════════════════════════════
--- Hearthrise — hr_bench_inputs(), WHAT ONE ACTION OF EACH BENCH CONSUMES  (GENERATED — DO NOT EDIT)
---
---   Generated by tools/gen-catalogues.mjs from src/data/recipes.js through the
---   engine's own recipeInputs (src/core/artisan.js). Any hand edit here is
---   reverted by the next generation and FAILS \`node tools/gen-catalogues.mjs --check\`,
---   a preflight in tests/run-sql-tests.mjs and tests/run-smoke.mjs.
---
---   catalogue digest: ${BENCH_DIGEST}
---   benches: ${BENCH_IDS.length} (every artisan recipe that consumes an input)
---
--- WHAT THIS IS FOR. hr_resume_has_inputs (2027-01-20-tutorial-facts.sql): a hunt's
--- automatic end resumes a bench only when the hero holds the inputs for one action,
--- the same test the engine's missingInput makes before every action. Server-only.
---
--- APPLY ORDER: after 2027-01-19-play-cap.sql; BEFORE 2027-01-20-tutorial-facts.sql,
---              whose §0 refuses without it. SAFE TO RE-RUN (create or replace).
--- ════════════════════════════════════════════════════════════════════════
-
-create or replace function public.hr_bench_inputs()
-returns jsonb language sql immutable parallel safe set search_path = public, pg_catalog as $$
-  select '${benchJson.replace(/'/g, "''")}'::jsonb
-$$;
-
--- ── Grants: the server's alone (revoke before nothing is granted) ─────────
-do $$
-begin
-  revoke all on function public.hr_bench_inputs() from public, anon, authenticated, service_role;
-  if exists (select 1 from pg_roles where rolname = 'hr_engine') then
-    revoke all on function public.hr_bench_inputs() from hr_engine;
-  end if;
-end $$;
-
--- ── Self-verification ────────────────────────────────────────────────────
-do $$
-declare v_n int; v_bad text;
-begin
-  select count(*) into v_n from jsonb_object_keys(public.hr_bench_inputs());
-  if v_n <> ${BENCH_IDS.length} then
-    raise exception 'hr_bench_inputs() holds % benches, the generator emitted ${BENCH_IDS.length}', v_n;
-  end if;
-  -- Every bench is a real artisan activity, every input a real item, every count whole and positive.
-  select string_agg(b.key, ', ') into v_bad from jsonb_each(public.hr_bench_inputs()) b
-   where not exists (select 1 from public.hr_activities a where a.kind = 'artisan' and a.activity_id = b.key);
-  if v_bad is not null then raise exception 'hr_bench_inputs() names benches hr_activities does not hold: %', v_bad; end if;
-  select string_agg(b.key || '.' || i.key, ', ') into v_bad
-    from jsonb_each(public.hr_bench_inputs()) b, jsonb_each(b.value) i
-   where not exists (select 1 from public.hr_items t where t.item_id = i.key)
-      or jsonb_typeof(i.value) <> 'number' or (i.value #>> '{}')::numeric < 1
-      or (i.value #>> '{}')::numeric <> floor((i.value #>> '{}')::numeric);
-  if v_bad is not null then raise exception 'hr_bench_inputs() has bad inputs: %', v_bad; end if;
-  if has_function_privilege('anon', 'public.hr_bench_inputs()', 'execute')
-     or has_function_privilege('authenticated', 'public.hr_bench_inputs()', 'execute') then
-    raise exception 'hr_bench_inputs() is executable by a client role';
-  end if;
-  raise notice 'hr_bench_inputs OK — % benches, digest ${BENCH_DIGEST}', v_n;
-end $$;
-`;
+/* THE FOURTH GENERATED FILE RETIRED (lane/bench-cut-server, 2026-11-28; 09-crafting.md 4.17): hr_bench_inputs(), what one action of
+   each bench consumed, left the server with the bench (1079-one-town-work-cut.sql drops it). The one artisan run the cut keeps, the
+   Great Hearth's fuel run, burns the one item its id names (hr_hearth_fuel_of, a rule, not a catalogue), so no recipe list is embedded
+   in any function body and a ground pack's recipes move no frame (tools/pack/ship.mjs: the four staged packs shipped only with a world
+   move of this file). Its last file, 2027-05-22-cookbook-cut-bench-inputs.generated.sql, stays APPLIED history; nothing renders it. */
 
 /* THE FIFTH GENERATED FILE (lane c-town-defaults, 2026-10-25): WHAT A HERO'S UNSET BAR OPTIONS ARE. Out of a hunt (and
    before a hunt's first settle) hr_hunt_settings_view read target, stance, distance and chase as null: the catalogue has
@@ -1991,14 +1881,6 @@ if (CHECK) {
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
     process.exit(1);
   }
-  // THE FOURTH FILE, same rigour, reported SEPARATELY: a stale bench list would resume a bench the engine stops at once.
-  const existingBench = await readFile(OUT_BENCH_INPUTS, 'utf8').catch(() => null);
-  if (existingBench === null || norm(existingBench) !== norm(sqlBenchInputs)) {
-    console.error(`bench-input catalogue drift: ${OUT_BENCH_INPUTS} ${existingBench === null ? 'is missing' : 'no longer matches src/data/recipes.js'}.`);
-    console.error(`  expected digest ${BENCH_DIGEST}`);
-    console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
-    process.exit(1);
-  }
   // THE FIFTH FILE, same rigour, reported SEPARATELY: a stale role-default row would show a bar setting the engine does not play.
   const existingRoleDefaults = await readFile(OUT_ROLE_DEFAULTS, 'utf8').catch(() => null);
   if (existingRoleDefaults === null || norm(existingRoleDefaults) !== norm(sqlRoleDefaults)) {
@@ -2034,7 +1916,6 @@ if (CHECK) {
   console.log(`catalogue in sync (${items.length} items, digest ${DIGEST.slice(0, 12)}…)`);
   console.log(`recruits in sync (${recruitJobs.length} jobs, ${recruitNames.length} names, digest ${RECRUITS_DIGEST.slice(0, 12)}…)`);
   console.log(`kit lines in sync (${kitLines.length} lines, digest ${KIT_LINES_DIGEST.slice(0, 12)}…)`);
-  console.log(`bench inputs in sync (${BENCH_IDS.length} benches, digest ${BENCH_DIGEST.slice(0, 12)}…)`);
   console.log(`role defaults in sync (${ROLE_IDS.length} roles, digest ${ROLE_DEFAULTS_DIGEST.slice(0, 12)}…)`);
   console.log(`rune spells in sync (${RUNE_SPELL_IDS.length} spells, digest ${RUNE_SPELLS_DIGEST.slice(0, 12)}…)`);
   console.log(`item buffs in sync (${itemBuffs.length} foods, digest ${BUFF_DIGEST.slice(0, 12)}…)`);
@@ -2052,9 +1933,6 @@ if (CHECK) {
   console.log(`wrote ${OUT_ROOM_PERKS}`);
   console.log(`  ${roomPerks.length} rung payloads · rooms ${ROOM_IDS.join(', ')}`);
   console.log(`  digest ${ROOM_PERK_DIGEST}`);
-  await writeFile(OUT_BENCH_INPUTS, sqlBenchInputs, 'utf8');
-  console.log(`wrote ${OUT_BENCH_INPUTS}`);
-  console.log(`  ${BENCH_IDS.length} benches · digest ${BENCH_DIGEST}`);
   await writeFile(OUT_ROLE_DEFAULTS, sqlRoleDefaults, 'utf8');
   console.log(`wrote ${OUT_ROLE_DEFAULTS}`);
   console.log(`  ${ROLE_IDS.length} roles · digest ${ROLE_DEFAULTS_DIGEST}`);

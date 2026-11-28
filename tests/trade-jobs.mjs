@@ -23,7 +23,7 @@
 //              dark as shipped, every good Plain, and the cascade lit in a rolled-back transaction: 09 4.11 row 6),
 //              hr_trade_band_rung is bandRung for every kind and band 0 to 12, hr_trade_work_stop is workStopMs over day states and times
 //   TJ-ORDER   the start's refusals in the spec's order, each moving nothing: bad_recipe, busy, rung_locked, band_locked, work_cap,
-//              count_cap, quote_changed, short_inputs; dark, not_open and no section
+//              count_cap, quote_changed, short_inputs; the chain ends lit (1079, the cut), and dark, not_open and no section
 //   TJ-BOTH    THE DONE LINE, BOTH DOORS: one hero starts a job from the Work window's quote (a real CharacterSession: one RPC, its answer
 //              taken as the envelope, no hr_load); then (a) VIEWED, the window's Collect at the job's end, and (b) CLOSED, nothing from the
 //              browser and the server's sweep a while after the end: the same goods by quality, XP and work day on both, and both are
@@ -287,6 +287,9 @@ const ARMS = {
     await pin(db, at('10:00'));
     const u = await makeHero(db);
     await setPurse(db, u, 50000000);
+    /* THE CUT LIGHTS IT (1079-one-town-work-cut.sql's last statement, 09 4.17): the replayed chain ends lit; the dark arm turns it off */
+    if ((await one(db, "select enabled::text from public.hr_flags where key = 'trade_jobs'")) !== 'true') p.push('the chain end leaves trade_jobs dark: the cut did not light it');
+    await lit(db, false);
     const dark = await start(db, u, 'meal_b0', 1, 0);
     if (!dark || dark.error !== 'not_open' || (await section(db, u)) !== null) p.push('dark: the start answered ' + js(dark) + ' and the section ' + js(await section(db, u)));
     await lit(db);

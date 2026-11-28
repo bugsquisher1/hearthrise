@@ -91,7 +91,6 @@ const REGISTERED = Object.freeze({
   'tests/perf-budget.mjs': ['PROBES'],
   'tests/phone-touch.mjs': ['WORLD_HOOK'],
   'tests/readonly-rpc.mjs': ['BACK_TO_STABLE'],
-  'tests/recipe-learn.mjs': ['NEGATIVE_CONTROL'],
   'tests/renown-kill-faucet.mjs': ['CONTROLS'],
   'tests/schema-drift.mjs': ['DROP_CANARY'],
   'tests/shared-farm.mjs': ['BODY'],

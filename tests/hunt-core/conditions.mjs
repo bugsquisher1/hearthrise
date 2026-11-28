@@ -47,6 +47,7 @@ import { supplySession } from './fixtures/h4.js';
 import { loadPlay } from './fixtures/play-ground.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
+import { newestOwned } from '../../tools/lib/generated-target.mjs';
 
 const V = sourceQuery(ROOT);
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
@@ -55,6 +56,9 @@ const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 /* The limits (+ max_ignored), the action ids (no rune and no whetstone is an attack item) and the role rule sets (their triggers
    written as real conditions) moved forward: lane b-spell-core, Tyler 2026-10-23. */
 const SLOT_MIGRATION = 'supabase/migrations/2027-01-13-slot-truth.sql';
+/* The action ids moved forward again (lane/bench-cut-server, HANDOFFS 2026-11-28 kit-bands-6-9 item 7): tools/gen-hunt-sessions.mjs
+   renders them into its staged catalogue, so a new drink or arrow is a data row; the block read is the generator's newest file. */
+const ACTION_IDS_MIGRATION = () => newestOwned(ROOT, 'gen-hunt-sessions.mjs').file;
 /* The metrics (Green Sickness's mark, the heal aimed at yourself; 2027-01-13-spell-content.sql, lane b-spell-content, Tyler
    2026-10-23), then the area spells' five conditions and Chill (2027-04-15-area-conditions.sql, lane/b-area-engine, Tyler 2026-11-08),
    then the Roads' four bar tests (lane/bar-metrics, 2026-11-22), then wave 3's "my target is winding up" and its moves (lane/moves-wave-3,
@@ -284,6 +288,11 @@ export function limitRowsSql(M) {
     ['stop_hold_max_ms', M.CM.STOP_HOLD_MS.max], ['stop_hold_step_ms', M.CM.STOP_HOLD_MS.step],
     ['max_ignored', M.CM.MAX_IGNORED]].map(([k, v]) => '  (' + q(k) + ', ' + v + ')').join(',\n');
 }
+const insertRows = (src, table) => {
+  const head = 'insert into public.' + table + ' (type, id) values\n';
+  const a = src.indexOf(head);
+  return a < 0 ? null : src.slice(a + head.length, src.indexOf(';\n', a + head.length));
+};
 const between = (src, tag) => {
   const a = src.indexOf('-- ⟦' + tag + '⟧\n'); const b = src.indexOf('-- ⟦/' + tag + '⟧');
   return a < 0 || b < 0 ? null : src.slice(a + tag.length + 6, b).replace(/\n$/, '');
@@ -1174,9 +1183,12 @@ const cases = {
     try { roles = readFileSync(join(M.root, VIEW_MIGRATION), 'utf8'); } catch { return VIEW_MIGRATION + ' is missing'; }
     let bars;
     try { bars = readFileSync(join(M.root, BAR_MIGRATION), 'utf8'); } catch { return BAR_MIGRATION + ' is missing'; }
-    const from = { limits: truth, 'action-ids': truth, 'role-rules': bars, metrics: area };
+    let acts;
+    try { acts = readFileSync(join(M.root, 'supabase/migrations', ACTION_IDS_MIGRATION()), 'utf8'); } catch { return 'the hunt-sessions catalogue is missing'; }
+    const from = { limits: truth, 'action-ids': acts, 'role-rules': bars, metrics: area };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
-      const got = between(from[tag] || sql, tag);
+      /* the action ids are the generator's plain insert (a ground pack's ship reads its rows, so no marker sits between them) */
+      const got = tag === 'action-ids' ? insertRows(acts, 'hr_hunt_action_ids') : between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */

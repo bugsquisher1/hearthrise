@@ -80,6 +80,11 @@ export const TALENTS_TEXT = Object.freeze({
   picked: '{name} (Picked)',
   take_more: 'Take +1',
   opens_at: 'Opens at Level {level}',
+  /* a lent move's band at a town or the crossing (card.js): its opening Level once reached, its price, or none offered here */
+  open_from: 'From Level {level}',
+  price: '−{pct}% power',
+  full_power: 'Full power',
+  not_offered: 'Not offered',
   /* the route to a stone (18-roads-review-ux.md section 5) */
   route: 'Route',
   cost: 'Cost',

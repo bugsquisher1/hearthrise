@@ -13,7 +13,7 @@ import { NODE_INDEX, PICK_KINDS, TALENT_RULES } from '../../../data/talents.js';
 import { ABILITIES } from '../../../data/abilities.js';
 import { optionsOf, spendProblem, borrowBand } from '../../../core/talents.js';
 import { rows, text, prop, cls, attr, element } from '../../../render/paint.js';
-import { whole } from '../../../render/format.js';
+import { whole, sepHtml } from '../../../render/format.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { t } from '../../../render/player-text.js';
 import { planFor, patchPlanNone, patchPlanPick } from './road-plan.js';
@@ -124,7 +124,8 @@ export function patchCard(root, ctx, v) {
   const isPick = PICK_KINDS.includes(n.kind);
   rows(root.querySelector('.rdw-opts'), isPick ? optionsOf(n) : [], {
     key: (o) => sel + ':' + o.id,
-    build: (o) => element(ctx.doc, '<li class="rdw-opt"><span class="rdw-opt-name"><b></b><small></small><small class="rdw-opt-at"></small></span>'
+    build: (o) => element(ctx.doc, '<li class="rdw-opt"><span class="rdw-opt-name"><b></b><small></small><small class="rdw-opt-at"><span class="rdw-opt-lv"></span>' + sepHtml('rdw-opt-sep', true)
+      + '<span class="rdw-opt-price"></span></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="rd-take" data-pick="' + o.id + '"></button>'
       + '<button type="button" class="hh-tool rdw-opt-plan" data-hs-act="rd-plan" data-pick="' + o.id + '"></button></li>'),
     patch: (li, o) => {
@@ -135,10 +136,17 @@ export function patchCard(root, ctx, v) {
       const inPlan = !held && !!v.plan.draft && v.plan.draft[sel] === o.id;
       text(li.querySelector('b'), picked ? t('talents.picked', { name: o.n }) : inPlan ? t('talents.planned_pick', { name: o.n }) : o.n);
       text(li.querySelector('small'), o.tip);
-      /* a lent move opens at a Level (17 section 3: by value): the card says which */
+      /* a lent move's band here (17 section 3, by value): the Level it opens at and its price, the power it lands with. Both are the
+         catalogue's: src/core/talents.js borrowBand, the one function the server's engine prices a borrow by (grantsOf's penalty) and
+         gen-talents writes hr_talent_options.opens_at from. A move this town never lends says so (borrowBand null: not_offered) */
       const lend = o.effects.find((e) => e.kind === 'borrow');
       const band = lend ? borrowBand(lend.move, n.kind === 'crossing' ? 'havora' : 'border') : null;
-      text(li.querySelector('.rdw-opt-at'), band && band.opensAt > level ? t('talents.opens_at', { level: whole(band.opensAt) }) : '');
+      const at = li.querySelector('.rdw-opt-at');
+      text(at.querySelector('.rdw-opt-lv'), !lend ? '' : !band ? t('talents.not_offered')
+        : t(band.opensAt > level ? 'talents.opens_at' : 'talents.open_from', { level: whole(band.opensAt) }));
+      text(at.querySelector('.rdw-opt-price'), !band ? '' : band.penaltyPm > 0 ? t('talents.price', { pct: whole(band.penaltyPm / 10) }) : t('talents.full_power'));
+      attr(at.querySelector('.rdw-opt-sep'), 'hidden', band ? null : '');
+      attr(at, 'hidden', lend ? null : '');
       const b = li.querySelector('[data-hs-act="rd-take"]');
       const now = !held && problemOf(o.id) === null;
       text(b, t('talents.take'));

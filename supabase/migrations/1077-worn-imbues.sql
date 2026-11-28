@@ -43,7 +43,9 @@
 --   and counts a band past wearAhead 0. The band is the row's, written by hr_imbue_apply from the catalogue. Removed: a mid-hunt apply
 --   that would have played retroactively from the window's start. ON THE PRE-EA SECURITY LIST (13-security-list.md S-32, N-8).
 -- KNOWN, NOT CLOSED HERE: the switch imbuements is read afresh each window (as trait_drops is); flipping it mid-hunt moves the window that
---   holds the flip by its start on each door. It is an operator switch, off until the pre-EA Security GO.
+--   holds the flip by its start on each door. It is an operator switch, off until the pre-EA Security GO. And the 1074 timer counts a party
+--   hero whose hunt ended mid-window to the window's end (hr_hunt_apply_member's settled_to), so its next hunt reads up to one window less
+--   life closed than viewed; the fight itself is exact (CONFLICTS 2026-11-27 worn imbuements (5), the timer's owner's).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes x 10 h) ────────────────────────────
 -- Dark: one hr_flag_on (an hr_flags primary-key read) a member a settle read; no row, no statement the edge sends, no byte on the wire

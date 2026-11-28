@@ -507,7 +507,7 @@ const mutants = [
   { name: 'a second hit lands at once', case: 'echo-and-carry', edits: [[STS, '  const every = once ? ms : row.everyMs;', '  const every = once ? 100 : row.everyMs;']] },
   { name: 'an overkill carries uncapped', case: 'echo-and-carry', edits: [[RX, ', Math.floor((int(dead && dead.maxHp) * row.capPm) / 1000));', ', 1e9);']] },
   { name: 'an exact amount goes through the chain', case: 'echo-and-carry', edits: [[DM, '  if (ability && ability.exact === true) return landOn(inst, target, source, Math.max(1, Math.floor(amount)), true);\n', '']] },
-  { name: 'Hold Fast holds nothing', case: 'unit-rules', edits: [[TG, '  return inReachOf(inst, k).filter((m) => !lockedOn(unitById(inst, m.target)));', '  return inReachOf(inst, k);']] },
+  { name: 'Hold Fast holds nothing', case: 'unit-rules', edits: [[TG, '  return inReachOf(inst, k, row).filter((m) => !lockedOn(unitById(inst, m.target)));', '  return inReachOf(inst, k, row);']] },
   { name: 'the guard takes no share', case: 'unit-rules', edits: [[DM, '  const g = exact ? null : guardFor(inst, target, source);', '  const g = null;']] },
   { name: 'the full hold is never written', case: 'unit-rules', edits: [[TR, '  if (ch && ch.holdAll) u.tauntFull = true; else if (u.tauntFull !== undefined) delete u.tauntFull;', '  if (u.tauntFull !== undefined) delete u.tauntFull;']] },
   { name: 'a mapped row stays a held rule', case: 'every-option-playable', edits: [['src/data/talents.js', "[mod('spring_tide', { cleanse: 1 })]", "[rule('cleanse')]"]] },

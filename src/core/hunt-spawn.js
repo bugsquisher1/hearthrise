@@ -36,8 +36,11 @@ export function huntFor(activeId) {
  * by combat-sim.js syncUnit and heroUnit): a hero is the same whatever party read it.
  * Null when the weapon has no role.
  *
- * BORROWED MOVES (src/core/borrow-blow.js): `o.borrowed`, the server's list of ability ids this hero may hold from another weapon
- * (the Roads write it; absent until they do), joins its discipline's for the bar, and each one reads its native weapon's blow.
+ * BORROWED MOVES (src/core/borrow-blow.js, src/core/hunt/talent-rows.js lend): the moves of another weapon this hero may hold, ONE list
+ * (`borrowed`): the ones the server's build lends at its Level (`talents`, hr_talents_view's nodes: src/core/talents.js grantsOf, each at
+ * its band's penalty and opening Level), and `o.borrowed`, a borrow handed whole (the Lab's and the tests' seam: an ability id, or
+ * { move, penaltyPm } to price it; the edge's settle never hands one, hr-accrue/hunt-settle.js). They join its discipline's for the bar,
+ * each reads its native weapon's blow, and each plays 17 section 3's rules (heals on Mend's clock, Magic at Mend's rate, native reach).
  *
  * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), lead (leads its party), borrowed,
  *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns),
@@ -54,9 +57,16 @@ export function heroSetup(o) {
      moves it lends at the hero's Level (`level`: the window's start; a borrow only opens, so the bar holds every one it may cast) */
   const talents = o.talents && typeof o.talents === 'object' ? normalize(o.talents) : null;
   const lent = talents ? grantsOf(talents, discipline, o.level).borrowed : [];
+  /* a borrow handed whole: an id, or { move, penaltyPm } (its price, permille off what it lands, 1..999) */
+  const handed = Array.isArray(o.borrowed) ? o.borrowed : [];
+  const handedId = (b) => (typeof b === 'string' ? b : b && typeof b === 'object' && typeof b.move === 'string' ? b.move : null);
   /* a borrowed move: an ability row of another discipline, once (a universal row is every weapon's already) */
-  const borrowed = [...new Set([...(Array.isArray(o.borrowed) ? o.borrowed : []), ...lent])].filter((id) => typeof id === 'string'
+  const borrowed = [...new Set([...handed.map(handedId), ...lent])].filter((id) => typeof id === 'string'
     && Object.prototype.hasOwnProperty.call(ABILITIES, id) && !ABILITIES[id].universal && !native.includes(id));
+  /* the handed prices, for the borrowed moves the build does not lend (the build's own band prices those: lentModsOf) */
+  const lentPm = {};
+  for (const b of handed) if (b && typeof b === 'object' && borrowed.includes(b.move) && !lent.includes(b.move)
+    && Number.isInteger(b.penaltyPm) && b.penaltyPm > 0 && b.penaltyPm < 1000) lentPm[b.move] = b.penaltyPm;
   const allowed = native.concat(borrowed);
   /* THE TRAITS IT WEARS (src/core/hunt/trait-rules.js): the server's projection of its worn pieces' Traits, [{ id, rank }]. DARK: nothing
      hands one while GEAR_STEPS.traitsLive is false (tests/hunt-core/trait-rules.mjs dark); the Lab and the tests do */
@@ -78,6 +88,8 @@ export function heroSetup(o) {
        (ROLE_RULES) and, for a hero whose bar holds nothing, the start kit's bar. */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     borrowed,
+    /* a handed borrow's price (talent-rows.js lentModsOf); absent with none */
+    ...(Object.keys(lentPm).length ? { lentPm: Object.freeze(lentPm) } : {}),
     /* the build and the weapon's discipline the settle grants it on at every boundary (combat-sim.js syncUnit); absent with no build */
     ...(talents ? { talents: Object.freeze(talents), discipline } : {}),
     /* the Traits as the engine plays them (unknown ids and ranks dropped, the key rule applied); absent with none */

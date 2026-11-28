@@ -20,27 +20,19 @@ try {
     console.log((ok ? 'ok  ' : 'BAD ') + lentId(id, d, pm, reach) + '  ' + nums);
     if (!ok) bad++;
   }
+  /* (the reach and the lent taunt are the engine's own since lane/e5-borrowing: the fields it reads, in the tree as shipped) */
   const core = readFileSync(join(T.root, 'src/core/hunt/abilities.js'), 'utf8'), tg = readFileSync(join(T.root, 'src/core/hunt/targeting.js'), 'utf8');
-  const ct = readFileSync(join(T.root, 'src/core/hunt/cast-targets.js'), 'utf8');
-  for (const [f, s] of [[ct, '(row.reach || Math.max(1,'], [core, 'challengeable(inst, hero, row.lent)'], [tg, 'row && row.holdPm'], [tg, '(!isTank(k) && !lent)']]) { const ok = f.includes(s); console.log((ok ? 'ok  ' : 'BAD ') + 'seam ' + s); if (!ok) bad++; }
-  { const cd = readFileSync(join(T.root, 'src/core/hunt/conditions.js'), 'utf8'), ok = cd.includes('ABILITIES[cx.slot.action.id].reach'); console.log((ok ? 'ok  ' : 'BAD ') + 'seam conditions reach'); if (!ok) bad++; }
+  const ct = readFileSync(join(T.root, 'src/core/hunt/cast-targets.js'), 'utf8'), cd = readFileSync(join(T.root, 'src/core/hunt/conditions.js'), 'utf8');
+  for (const [f, s] of [[ct, 'Number.isInteger(row.reach)'], [core, 'challengeable(inst, hero, row)'], [tg, 'Number.isInteger(row.holdPm)'], [tg, "!(row && row.lent === true)"], [cd, 'slotReach(cx)']]) { const ok = f.includes(s); console.log((ok ? 'ok  ' : 'BAD ') + 'engine reads ' + s); if (!ok) bad++; }
 } finally { T.done(); }
 /* roads-lend-rules.json (lane/roads-borrow-values): the same plant, the lent shot's seam and Greater Mend's native reach */
 const S = await C.treeOf(C.readCandidate(join(HERE, 'roads-lend-rules.json')));
 try {
   const ok = readFileSync(join(S.root, 'src/core/hunt/abilities.js'), 'utf8').includes("h.hs.bag.bronze_arrows ? 'bronze_arrows' : null");
   console.log((ok ? 'ok  ' : 'BAD ') + 'seam the lent shot (roads-lend-rules.json)');
-  const A = await import(pathToFileURL(join(S.root, 'src/data/abilities.js')).href);
-  const reach = A.ABILITIES.greater_mend.reach === 7;
-  console.log((reach ? 'ok  ' : 'BAD ') + 'greater_mend reach 7 (roads-lend-rules.json)');
   if (!ok) bad++;
-  if (!reach) bad++;
-  /* lane/roads-v0-remeasure: Protective Ward's native reach and the taunt from any seat on the engine's borrow */
-  const ward = A.ABILITIES.protective_ward.reach === 7, core = readFileSync(join(S.root, 'src/core/hunt/abilities.js'), 'utf8');
-  const taunt = core.includes('row.lent || !!(hero.borrowBlows && Number.isInteger(hero.borrowBlows[row.id]))') && core.includes('{ ...row, lent: true } : row); break;');
-  console.log((ward ? 'ok  ' : 'BAD ') + 'protective_ward reach 7 (roads-lend-rules.json)');
-  console.log((taunt ? 'ok  ' : 'BAD ') + 'seam a borrowed Challenge taunts from any seat (roads-lend-rules.json)');
-  if (!ward) bad++;
-  if (!taunt) bad++;
+  /* (the native reach and the taunt from any seat an engine borrow plays are the engine's own since lane/e5-borrowing: talent-rows.js lend) */
+  const tr = readFileSync(join(S.root, 'src/core/hunt/talent-rows.js'), 'utf8');
+  for (const s of ['o.reach = reach', 'o.lent = true']) { const k = tr.includes(s); console.log((k ? 'ok  ' : 'BAD ') + 'engine lends ' + s); if (!k) bad++; }
 } finally { S.done(); }
 process.exit(bad ? 1 : 0);

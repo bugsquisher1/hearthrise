@@ -73,7 +73,7 @@
 --   XP, still server-priced (the catalogue lever, never the client) and per crop harvested; a plant or a watering pays none (a fuse
 --   on the old curve's XP is no longer needed, so the harvest's day budget counts items only). The hearth's Storage take is narrower
 --   than the bench's (one item, named by the server's pointer). LIGHTING trade_jobs opens 1073's two verbs and its sweep, ON THE
---   PRE-EA SECURITY LIST (13-security-list.md S-10, S-27, S-28, S-33 and S-36, the cut's row).
+--   PRE-EA SECURITY LIST (13-security-list.md S-10, S-27, S-28, S-33 and S-34, the cut's row).
 --
 -- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
 -- Less than before: a hearth settle reads one helper instead of the 160-bench jsonb; no bench tax read or write on any settle; the

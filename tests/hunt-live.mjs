@@ -1331,10 +1331,18 @@ function rules(M) {
       const o = JSON.parse(process.env.LV_E);
       const { HARNESS: H } = await import(o.test);
       const M = await H.load(o.base);
-      const { LiveLink } = await import(pathToFileURL(join(o.base, 'src/session/live-link.js')).href);
+      const { LiveLink, loadLiveEngine } = await import(pathToFileURL(join(o.base, 'src/session/live-link.js')).href);
       const mis = o.mis;
       const srv = H.server(M, mis, { hunt: 'coppercap_warrens' });
       const start = srv.live('b');   // the server never settles: the start point stays the one before the death
+      /* THE ENGINE ON NEED (live-link.js): a start point that lands before the engine predicts nothing, and seeds it when it arrives */
+      const early = new LiveLink({ timeline: M.TL.createTimeline(), now: () => o.T0, emit: () => {} });
+      early.from({ hunt_live: start, hunt_server_now_ms: o.T0 });
+      const idle = early.running() || early.ended();
+      await loadLiveEngine();
+      await null;
+      const late = early.running() || early.ended();
+      early.off();
       const once = (from, toMs) => {
         let clock = from;
         const link = new LiveLink({ timeline: M.TL.createTimeline(), now: () => clock, emit: () => {} });
@@ -1360,7 +1368,7 @@ function rules(M) {
       };
       const viewed = play(o.T0, o.T0 + 20000);
       const reload = play(o.T0 + 20000, o.T0 + 22000);
-      console.log(JSON.stringify({ viewed, reload }));`;
+      console.log(JSON.stringify({ viewed, reload, early: { idle, late } }));`;
     const { spawnSync } = process.getBuiltinModule('node:child_process');
     const ch = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', timeout: 20000,
       env: Object.assign({}, process.env, { LV_E: JSON.stringify({ test: import.meta.url, base: M.base || ROOT, mis, T0 }) }) });
@@ -1373,6 +1381,8 @@ function rules(M) {
       console.log(`  LV-E tank died: viewed ${r.viewed.frames} frames, ${r.viewed.swings} swing(s) run, slowest frame ${r.viewed.worst} ms, ended ${r.viewed.ended}; reload 20 s later: slowest frame ${r.reload.worst} ms, ended ${r.reload.ended}`);
       ok('LV-E', r.viewed.ended && !r.viewed.running && r.reload.ended && !r.reload.running,
         `after the tank died the prediction reads ended ${r.viewed.ended} / running ${r.viewed.running} (viewed), ${r.reload.ended} / ${r.reload.running} (reload), want ended and not running`);
+      ok('LV-E', r.early && r.early.idle === false && r.early.late === true,
+        `a start point that landed before the engine (it loads on need): ${JSON.stringify(r.early)}, want it held (no prediction) and seeding the engine when it arrives`);
       ok('LV-E', r.viewed.swings <= 3, `the viewed live view ran ${r.viewed.swings} swings for a hunt that ended at its second boundary (empty swings after the end)`);
       ok('LV-E', r.viewed.same && r.reload.same, 'the five plays of one start point did not run the same frames and swings (the fastest-of-five reading needs a deterministic play)');
       ok('LV-E', r.viewed.worst < 50 && r.reload.worst < 50, `a frame step took ${r.viewed.worst} ms (viewed) / ${r.reload.worst} ms (reload), budget 50 ms`);

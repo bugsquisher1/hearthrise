@@ -34,6 +34,9 @@
 //         under BOOT_BUDGET in count and bytes. A big eager import into the entry's graph (the session, the shell, a
 //         data table) goes red here with the file that brought it, instead of quietly putting it back in front of the
 //         sign-in form. The game half has no ceiling here: it loads behind the first screen.
+//   MP-7  ON NEED STAYS ON NEED (lane/boot-path-diet 2026-11-27: the town's ceiling rose ten times in two days, mostly code a hero in
+//         town never runs): no module of ON_NEED is in either half and no stylesheet of ON_NEED is linked by the page. Each loads by
+//         URL when its window opens or a viewed hunt starts (tools/lib/site-delivery.mjs RUNTIME_MODULES), never with the page.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -52,6 +55,18 @@ const MIN_MODULES = 100;   // MP-3: the client is ~500 modules
 /* MP-6: measured 2026-11-13 at 34 modules + 3 classic scripts, 430 KB on disk (the 520-file 5.6 MB first load before the split).
    About a fifth of headroom: a few small modules pass, one big table or the session's graph does not. */
 export const BOOT_BUDGET = Object.freeze({ files: 45, bytes: 520 * 1024 });
+/* MP-7: what loads on need, and what loads it. A module here imported into either half, or a sheet linked by the page, is red. */
+export const ON_NEED = Object.freeze({
+  'src/hunt-view/live-engine.js': 'the hunt prediction: src/session/live-link.js loads it when a viewed hero\'s hunt opens',
+  'src/core/combat-sim.js': 'the instance engine, run in the browser only by the prediction',
+  'src/core/hunt/signature-rules.js': 'Signature rules (the engine\'s)',
+  'src/core/hunt/reactions.js': 'monster reactions (the engine\'s)',
+  'src/core/hunt-rewards.js': 'the reward roll (the engine\'s)',
+  'src/core/trait-roll.js': 'trait pieces (the engine\'s)',
+  'src/core/personal-loot.js': 'personal loot dealing (the engine\'s)',
+  'src/shell/windows/talents/index.js': 'the Roads map: src/shell/windows/talents.js loads it on the window\'s first open',
+  'src/styles/roads.css': 'the Roads map\'s stylesheet, loaded with the map',
+});
 
 /* Line-start import/export statements with a `from` (multi-line named lists included), bare
    side-effect imports, and literal dynamic import(): relative specifiers only. */
@@ -177,6 +192,11 @@ export function check(html, read, query, list, size) {
       + Math.round(BOOT_BUDGET.bytes / 1024) + ' KB; heaviest ' + w.heaviest.map(([f, n]) => f + ' ' + Math.round(n / 1024) + ' KB').join(', ')
       + '): import the game\'s modules through src/app/game-half.js, not into ' + entry + '\'s static graph');
   }
+  const halves = new Set(boot.concat(game));
+  const back = Object.keys(ON_NEED).filter((f) => halves.has(f));
+  const sheets = new Set([...html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<link rel="stylesheet" href="([^"?]+)/g)].map((m) => m[1]));
+  back.push(...Object.keys(ON_NEED).filter((f) => f.endsWith('.css') && sheets.has(f)));
+  if (back.length) problems.push('MP-7 ' + back.join(', ') + ' now load(s) with the page, not on need (' + ON_NEED[back[0]] + '): import it by URL where it is needed, never statically or by a literal import()');
   return problems;
 }
 
@@ -233,6 +253,14 @@ if (process.argv.includes('--selftest')) {
       const page = html.slice(0, html.indexOf(BEGIN)) + blockFor(h.boot, version, classicOf(html)) + html.slice(html.indexOf(END) + END.length);
       return [['a big eager import into the sign-in half (the session), block and list regenerated', page, heavy, listFor(h.game), sizeOf, 'MP-6'],
         ['one big file in the sign-in half (a 600 KB module)', html, readFile, list, (f) => (f === deep ? 600 * 1024 : sizeOf(f)), 'MP-6']];
+    })(),
+    /* MP-7: the hunt engine imported statically by its link again (block and list regenerated, so only MP-7 sees it), and the map's sheet linked by the page */
+    ...(() => {
+      const eager = (f) => (f === 'src/session/live-link.js' ? "import { createLiveEngine } from '../hunt-view/live-engine.js" + version + "';\n" + readFile(f) : readFile(f));
+      const h = halvesOf('src/app/boot.js', eager);
+      const page = html.slice(0, html.indexOf(BEGIN)) + blockFor(h.boot, version, classicOf(html)) + html.slice(html.indexOf(END) + END.length);
+      return [['the hunt engine back on the town path (live-link imports it), list regenerated', page, eager, listFor(h.game), sizeOf, 'MP-7'],
+        ['the Roads stylesheet linked by the page again', html.replace('</head>', '<link rel="stylesheet" href="src/styles/roads.css">\n</head>'), readFile, list, sizeOf, 'MP-7']];
     })(),
   ];
   let bad = 0;

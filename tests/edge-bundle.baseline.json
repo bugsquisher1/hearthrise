@@ -693,6 +693,11 @@
         "bytes": 4064237,
         "on": "2026-11-28",
         "why": "lane/signatures-batch-4: the Plate (8% to 4%) and the Rein (15% to 7.5%) cut into band, each row's measured note in src/data/signatures.js"
+      },
+      {
+        "bytes": 4064757,
+        "on": "2026-11-28",
+        "why": "sig4-followups: damage.js's BasicCost typedef (the type ratchet's two TS2339), and tauntOne and fallBackNow moved beside their engine readers in reactions.js and fall-save.js (their own imports) so the town path loads neither"
       }
     ]
   }

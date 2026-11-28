@@ -36,7 +36,7 @@ import { cheb } from './grid.js';
 import { atRest, unitById } from './movement.js';
 import { makeEvent } from './events.js';
 import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js';
-import { fallen, fallBackNow } from './pull-cycle.js';
+import { fallen } from './pull-cycle.js';
 import { shareKillXp } from './xp-share.js';
 import { payBasic, shotLine, ownShotLine } from './abilities.js';
 import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js';
@@ -61,7 +61,7 @@ import { nearFall } from './talent-rows.js';
 import { leechOn } from './imbue-leech.js';
 import { shotCredit, noteShot } from './signature-costs.js';
 import { auraEffects } from './signature-auras.js';
-import { saversOf, saveFall } from './fall-save.js';
+import { saversOf, saveFall, fallBackNow } from './fall-save.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -293,7 +293,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* THE GUARD'S SHARE (landOn `guard`, Bodyguard): what it took off this blow lands on the guard as it is, after it */
   if (r.guard) landHit(inst, sc, source, r.guard.u, r.guard.n, element, { id: 'bodyguard', dot: true, exact: true });
   if (reactorsOf(inst).length) noteMoments(inst, source, target, before, r, ability, crit, shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0) ? shieldBy : null, shieldBy);
-  /* (the save's fall back: the pull breaks off now, on the scale, in a fight: pull-cycle.js fallBackNow) */
+  /* (the save's fall back: the pull breaks off now, on the scale, in a fight: fall-save.js fallBackNow) */
   if (saved) fallBackNow(inst, sc);
   return r;
 }
@@ -435,6 +435,7 @@ export function resolveAttacks(inst, sc) {
     if (!shot) continue;
     /* (lane/signatures-batch-4) A SAVED SHOT (signature-costs.js, Brood Bracers): a hero holding its worn Signature's credit looses this shot
        from nowhere (`free`: no arrow taken, none bought) */
+    /** @type {BasicCost | null} */
     const cost = shot.pick.mana > 0 ? { mana: shot.pick.mana } : shot.pick.ammo !== null ? { ammo: shot.pick.ammo, ...(typeof u.signature === 'string' && shotCredit(u) ? { free: true } : {}) } : null;
     const paid = cost ? payBasic(inst, u, cost, sc) : true;
     if (!paid) continue;
@@ -452,11 +453,13 @@ export function resolveAttacks(inst, sc) {
     let landed = false;
     for (const m of hits) if (m.alive && landsOn(blow(inst, sc, u, h, m, shot.pick.price, sharePm))) landed = true;
     /* (the saved shot's count: a shot that spent the credit back to 0, a shot of an arrow that landed one more) */
-    if (cost && cost.ammo && typeof u.signature === 'string') noteShot(u, paid !== true && paid.saved === true, landed);
+    if (cost && cost.ammo && typeof u.signature === 'string') noteShot(u, paid !== true && 'saved' in paid && paid.saved === true, landed);
     if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
     peel(inst, sc, u);
   }
 }
+
+/** a basic swing's price (payBasic): mana, or a shot of ammo, free when saved @typedef {{ mana?: number, ammo?: string | boolean, free?: boolean }} BasicCost */
 
 /* a blow that landed (a roll that missed answers null, a dodge lands nothing) */
 const landsOn = (r) => !!r && r.dodged !== true;

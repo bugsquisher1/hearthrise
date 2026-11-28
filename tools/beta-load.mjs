@@ -629,8 +629,9 @@ const CRONS = [
   { name: 'hr_party_reap_stale', ms: 600000, sql: 'select public.hr_party_reap_stale(200)' },
 ];
 
-/** THIS RUNNER'S SPEED in per-player-cost's unit (its calibrate: a fixed SQL + JSON workload that runs no engine) on a bare PGlite,
-    the median of three readings, ms. */
+/** THIS RUNNER'S SPEED with per-player-cost's calibrate (a fixed SQL + JSON workload that runs no engine), taken cold in this fresh
+    process on a bare PGlite, before the chain: LT_REF's unit (per-player-cost's own reading is warm, after its fixtures, and reads
+    higher). The median of three readings, ms. */
 async function runnerCalibration() {
   const [{ calibrate }, { PGlite }] = await Promise.all([import('../tests/per-player-cost.mjs'), import('@electric-sql/pglite')]);
   const db = new PGlite();

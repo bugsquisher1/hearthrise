@@ -35,8 +35,20 @@
 //   cores busy, worker loops 0.91), the engine's wall per run inflates to 1.2 s, bodies defer on the 800 ms engine budget and every
 //   watched confirm simulates the growing lag, so the nightly runs 2% open: the tick's whole closed load, the door's locks still met.
 //   The watched door's cost a tab is the heavy four band's (40 fours, half open) and the fixtures'. Costs are per PAID hero-hour.
-//   PERSONAL LOOT AS BUILT: each hero rolls its own Trait finds with its own pity (src/core/trait-roll.js, hero_pity). The per-hero
-//   ordinary drop roll (20-v030 lane P1) is not built and nothing reads `personal_loot` yet: when P1 lands, this re-runs.
+//   PERSONAL LOOT AS BUILT (lane/p1-personal-loot, 1076): each hero that took part in a kill rolls the kill's table at 1 / (the rollers)
+//   into its own bag, and its own Trait finds with its own pity (src/core/trait-roll.js, hero_pity); the instance freezes the rule at
+//   its insert, so the switch is lit before anyone enters.
+//   THE RUNNER, NORMALISED (lane/rel-cost-lt, 2026-11-27). The engine budget (hunt-settle.js HUNT_ENGINE_BUDGET_MS, 800 ms) is wall
+//   time, and GitHub's 4-vCPU runners are not one speed: per-player-cost's calibration read 206 to 249 ms on the green 1,000 x 4 runs
+//   and 313 to 324 on the red ones, where a body's engine ran 1.5 to 2x, 55% of the tick's selectors deferred, the 3 edge workers
+//   saturated (event loops 0.93) and the lag ran away (runs 46008533430, 46010895303). So --shape=lt first reads THIS runner with that
+//   same calibration (tests/per-player-cost.mjs calibrate, a fixed SQL + JSON workload that runs no engine, on a bare PGlite, the median
+//   of three) and runs at LT_REF's speed (ltNormalise): every engine budget x (calibration / reference), so a body defers at the
+//   reference's engine work, and on a runner slower than the reference the accounts the same engine load a core asks (never more than
+//   --accounts). A slower runner reads as the reference; a slower ENGINE does not, since the calibration does not move with it.
+//   THE ENGINE FIT. Red when more than LT_FIT_DEFER of the tick bodies' selectors deferred on that budget (cpu_budget): a body's fours
+//   no longer fit it at the reference's speed (a planted slow body, --selftest). Its body engine times are reported raw and in
+//   reference ms (Backend reads them against the 800).
 // ci-step: pg17-lt | The v0.3.0 load test, 1,000 accounts x 4 heroes with the drop switches on, settle lag and per-hero cost in budget (nightly, PostgreSQL 17)
 // ci-run: node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.02 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
 //
@@ -196,7 +208,9 @@ async function workerMain() {
     /* the shipped client's ask names the version its record holds whole (character-session.js `have`): the last answer that carried it;
        its landed poll runs a prediction, so it CONFIRMS (hunt-ask.js `confirm`: saved at the flush, hunt-settle.js flushDue) */
     const v = await HS.settleHunt({ exec: x, user: a.uid, slot: a.viewed, mode: 'settle', bucket: null, project: true, live: true,
-      ...(early ? { minWindowMs: 1e15 } : { confirm: true }), ...(Number.isSafeInteger(a.held) ? { have: a.held } : {}) });
+      ...(early ? { minWindowMs: 1e15 } : { confirm: true }), ...(Number.isSafeInteger(a.held) ? { have: a.held } : {}),
+      /* --shape=lt: the runner's engine budget (ltNormalise), as each tick body gets */
+      ...(Number.isFinite(workerData.engineBudgetMs) ? { budget: HS.engineBudget(workerData.engineBudgetMs) } : {}) });
     if (v && v.body && v.body.state && Number.isSafeInteger(v.body.version)) a.held = v.body.version;
     s.settle = (s.settle || 0) + performance.now() - t;
     s.outcomes = s.outcomes || {}; s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] = (s.outcomes[v.outcome + (v.reason ? ':' + v.reason : '')] || 0) + 1;
@@ -246,7 +260,8 @@ async function workerMain() {
   }
   const body = (b) => invoke('tick_body', async (s) => {
     const t0 = performance.now();
-    const r = (await TK.runTick({ exec: execOf(s, null), body: b })).body;
+    const { r, selectors } = await runBody(TK, execOf(s, null), b, { engineBudgetMs: workerData.engineBudgetMs });
+    s.selectors = (s.selectors || 0) + selectors;
     s.walls = s.walls || []; s.walls.push(performance.now() - t0);
     if (r && r.hunts) {
       const h = r.hunts;
@@ -276,6 +291,13 @@ async function workerMain() {
     }
   });
   parentPort.postMessage({ t: 'ready' });
+}
+
+/** One tick body through the shipped tick.js, as the bench's edge runs it: `engineBudgetMs` the runner's engine budget (ltNormalise;
+    absent, tick.js's own HUNT_ENGINE_BUDGET_MS). Answers its summary and its selectors (the fit verdict's denominator). */
+async function runBody(TK, exec, b, { engineBudgetMs } = {}) {
+  const r = (await TK.runTick({ exec, body: b, ...(Number.isFinite(engineBudgetMs) ? { engineBudgetMs } : {}) })).body;
+  return { r, selectors: Array.isArray(b && b.hunts) ? b.hunts.length : 0 };
 }
 
 /* ── THE AUDIT: nothing lost, nothing paid twice ──────────────────────────────────────────────────────────────────────── */
@@ -526,6 +548,48 @@ function ltCostVerdict(measured, base, groups, band) {
   }
   return { red, low, expected };
 }
+/* THE REFERENCE RUNNER (header, THE RUNNER NORMALISED): per-player-cost's calibration on the slowest runner a green 1,000 x 4 load test
+   ran on (249.1 ms, run 45999848869: lag past the flush max 18 s of 32, edge workers at 0.73). A runner outside x0.4 to x2.5 of it is
+   not one this reference describes: the run refuses (exit 2) rather than call 400 accounts gate 10. */
+const LT_REF = Object.freeze({ calibration_ms: 250, scale_min: 0.4, scale_max: 2.5 });
+/* THE ENGINE FIT's line: the share of the tick bodies' selectors a body may defer on its engine budget. MEASURED: 0.1% and 1.7% on the
+   green runs (12 and 211 of ~12,600; the second on a runner at the reference), 55% on the saturated slow ones before this
+   normalisation; a body of four fours whose engine is 1.4x the reference's defers one in four (25%), 2x two in four (50%). */
+const LT_FIT_DEFER = 0.2;
+/**
+ * The run a runner whose calibration reads `calibrationMs` makes at the reference's speed: `budgetMs` (the engine budget) x the
+ * runner's scale, so a body defers at the same engine work, and on a runner slower than the reference the `accounts` that ask the
+ * same engine load a core (never more than named). Answers { scale, accounts, budgetMs } or { refused }. Pure.
+ */
+function ltNormalise({ calibrationMs, refMs = LT_REF.calibration_ms, accounts, budgetMs }) {
+  const scale = Number(calibrationMs) / Number(refMs);
+  if (!(Number.isFinite(scale) && scale > 0)) return { refused: `the runner's calibration ${calibrationMs} ms is not a reading` };
+  if (scale < LT_REF.scale_min || scale > LT_REF.scale_max) {
+    return { refused: `the runner's calibration ${calibrationMs} ms is x${scale.toFixed(2)} the reference's ${refMs} ms, outside x${LT_REF.scale_min} to x${LT_REF.scale_max}: not a runner the reference describes` };
+  }
+  return { scale, accounts: scale > 1 ? Math.max(1, Math.round(Number(accounts) / scale)) : Number(accounts), budgetMs: Math.round(Number(budgetMs) * scale) };
+}
+/** THE ENGINE FIT. `tick`: the tick bodies' { selectors, reasons.cpu_budget }. Red past `band` of the selectors deferred on the engine
+    budget, or with no body measured. Pure. */
+function ltFitVerdict(tick, band = LT_FIT_DEFER) {
+  const n = Number(tick && tick.selectors) || 0;
+  const d = Number(tick && tick.reasons && tick.reasons.cpu_budget) || 0;
+  const share = n ? d / n : NaN;
+  const red = [];
+  if (!n) red.push('engine fit: no tick body measured');
+  else if (share > band) red.push(`engine fit: ${d} of ${n} body selectors (${(share * 100).toFixed(1)}%) deferred on the engine budget, past ${band * 100}%: a body's fours no longer fit it at the reference runner's speed`);
+  return { selectors: n, deferred: d, share: n ? Math.round(share * 1000) / 1000 : null, band, red };
+}
+/* THE BODY AS tick.js RUNS IT, for the pure proof: no engine run STARTS at or past the budget (tick.js `engine.spentMs >= engine.limitMs`
+   before each selector). FIT-PIN holds the rule to the file. Answers how many of `runsMs` (a body's fours, in order) started. Pure. */
+const bodyStarts = (runsMs, budgetMs) => { let spent = 0; let n = 0; for (const ms of runsMs) { if (spent >= budgetMs) break; spent += ms; n += 1; } return n; };
+/** FIT-PIN: tick.js still defers a body's next settle on the spent engine budget, with the reason the fit verdict reads. Null = it does. */
+function fitPin(src) {
+  const at = src.indexOf('if (engine.spentMs >= engine.limitMs) {');
+  const block = at < 0 ? '' : src.slice(at, at + 400);
+  return at >= 0 && /hunts\.reasons\.cpu_budget = \(hunts\.reasons\.cpu_budget \|\| 0\) \+ 1/.test(block) && /continue;/.test(block)
+    ? null : 'tick.js no longer defers a body\'s settle on engine.spentMs >= engine.limitMs under reasons.cpu_budget (the fit verdict and bodyStarts model it)';
+}
 const r1 = (x) => Math.round(Number(x) * 10) / 10;
 const r2 = (x) => Math.round(Number(x) * 100) / 100;
 /* THE BENCH'S OWN CPU, Linux only (a GitHub runner): the whole box's busy jiffies, and the postgres processes' (utime + stime, USER_HZ
@@ -561,15 +625,41 @@ const CRONS = [
   { name: 'hr_party_reap_stale', ms: 600000, sql: 'select public.hr_party_reap_stale(200)' },
 ];
 
+/** THIS RUNNER'S SPEED in per-player-cost's unit (its calibrate: a fixed SQL + JSON workload that runs no engine) on a bare PGlite,
+    the median of three readings, ms. */
+async function runnerCalibration() {
+  const [{ calibrate }, { PGlite }] = await Promise.all([import('../tests/per-player-cost.mjs'), import('@electric-sql/pglite')]);
+  const db = new PGlite();
+  try {
+    const readings = [await calibrate(db), await calibrate(db), await calibrate(db)];
+    return { ms: [...readings].sort((a, b) => a - b)[1], readings };
+  } finally { await db.close().catch(() => {}); }
+}
+
 async function main() {
-  const accounts = Number(arg('accounts', 20)); const heroes = Number(arg('heroes', 4)); const minutes = Number(arg('minutes', 5));
+  const named = Number(arg('accounts', 20)); const heroes = Number(arg('heroes', 4)); const minutes = Number(arg('minutes', 5));
   const shape = arg('shape', 'mixed');
   if (!['mixed', 'krell4', 'lt'].includes(shape)) throw new Error(`--shape is mixed | krell4 | lt, not ${shape}`);
   const partyShare = Number(arg('party', 0.4)); const townShare = Number(arg('town', 0.25)); const online = Number(arg('online', shape === 'lt' ? 0.1 : 1));
-  const W = Number(arg('workers', accounts > 40 ? 3 : 2)); const drill = arg('drill', ''); const jsonOut = arg('json', '');
+  const W = Number(arg('workers', named > 40 ? 3 : 2)); const drill = arg('drill', ''); const jsonOut = arg('json', '');
   const fours = shape === 'krell4' || shape === 'lt';
-  const report = { args: { shape, accounts, heroes: fours ? 4 : heroes, minutes, partyShare, townShare, online, drill, workers: W }, at: new Date().toISOString() };
+  const report = { args: { shape, accounts: named, heroes: fours ? 4 : heroes, minutes, partyShare, townShare, online, drill, workers: W }, at: new Date().toISOString() };
   const log = (s) => process.stdout.write(`[${new Date().toISOString().slice(11, 19)}] ${s}\n`);
+
+  /* --shape=lt: THE RUNNER, NORMALISED (header), read before the chain and the world load the box */
+  let runner = null;
+  if (shape === 'lt') {
+    const { HUNT_ENGINE_BUDGET_MS } = await import('../supabase/functions/hr-accrue/hunt-settle.js');
+    const cal = await runnerCalibration();
+    const norm = ltNormalise({ calibrationMs: cal.ms, accounts: named, budgetMs: HUNT_ENGINE_BUDGET_MS });
+    if (norm.refused) { log(`REFUSED ${norm.refused} (readings ${cal.readings.join(' / ')} ms)`); process.exit(2); }
+    runner = { calibration_ms: cal.ms, readings: cal.readings, reference_ms: LT_REF.calibration_ms, scale: r2(norm.scale),
+      accounts_named: named, accounts: norm.accounts, engine_budget_ms: norm.budgetMs, shipped_budget_ms: HUNT_ENGINE_BUDGET_MS };
+    report.runner = runner;
+    log(`the runner: calibration ${cal.ms} ms (${cal.readings.join(' / ')}), x${runner.scale} the reference's ${LT_REF.calibration_ms} ms: `
+      + `${norm.accounts} of ${named} accounts, an engine budget of ${norm.budgetMs} ms (${HUNT_ENGINE_BUDGET_MS} at the reference)`);
+  }
+  const accounts = runner ? runner.accounts : named;
 
   const { bootPg } = await import('./pg-replay.mjs');
   log('booting the chain on PG17');
@@ -613,7 +703,7 @@ async function main() {
   const workers = [];
   for (let i = 0; i < W; i++) {
     const w = new Worker(fileURLToPath(import.meta.url), { workerData: { hrBetaLoad: true, dbName: name, root: join(fileURLToPath(new URL('..', import.meta.url))),
-      unviewedPollMs: Number(arg('unviewed-poll-ms', C.unviewedPollMs)), enginePool: Math.max(1, Math.floor(engineTotal / W)), restPool: Math.max(1, Math.floor(restTotal / W)),
+      unviewedPollMs: Number(arg('unviewed-poll-ms', C.unviewedPollMs)), engineBudgetMs: runner ? runner.engine_budget_ms : undefined, enginePool: Math.max(1, Math.floor(engineTotal / W)), restPool: Math.max(1, Math.floor(restTotal / W)),
       accounts: world.accounts.filter((_, k) => k % W === i) } });
     await new Promise((res, rej) => { w.once('message', res); w.once('error', rej); });
     w.setMaxListeners(0);
@@ -780,7 +870,7 @@ async function main() {
   for (const [k, s] of merged) {
     rows[k] = { n: s.n, stmts: s.stmts || 0, perMin: Math.round(perMin(s.n) * 10) / 10, p50: Math.round(pct(s.wall, 0.5)), p95: Math.round(pct(s.wall, 0.95)), max: Math.round(pct(s.wall, 1)),
       queueMean: s.n ? Math.round(s.queue / s.n) : 0, dbMean: s.n ? Math.round(s.db / s.n) : 0, kbMean: s.n ? Math.round(s.bytes / s.n / 102.4) / 10 : 0, errors: s.errors, n5xx: s.n5xx, lost: s.lost,
-      settled: s.settled, nothing: s.nothing, refused: s.refused, ended: s.ended, deferred: s.deferred, engineMs: s.engine ? Math.round(s.engine) : undefined, engineMax: s.engineMax, engineRunMax: s.engineRunMax,
+      settled: s.settled, nothing: s.nothing, refused: s.refused, ended: s.ended, deferred: s.deferred, selectors: s.selectors, engineMs: s.engine ? Math.round(s.engine) : undefined, engineMax: s.engineMax, engineRunMax: s.engineRunMax,
       outcomes: s.outcomes, reasons: s.reasons, last: s.last,
       ...(s.bodyEngine && s.bodyEngine.length ? { bodyEngineMs: { n: s.bodyEngine.length, p50: Math.round(pct(s.bodyEngine, 0.5)), p95: Math.round(pct(s.bodyEngine, 0.95)), max: Math.round(pct(s.bodyEngine, 1)) } } : {}) };
   }
@@ -830,13 +920,19 @@ async function main() {
     const cost = ltCostVerdict(per, base, groups, PPC.CONCURRENCY.band);
     const lag = ltLagVerdict(lagReadings, Number(dials.flush_seconds) || 90, await lookAheadS());
     const refusals = await admin.unsafe('select code, sum(n)::int n from public.hr_rejections group by 1 order by 2 desc limit 12').catch(() => []);
-    const { HUNT_ENGINE_BUDGET_MS } = await import('../supabase/functions/hr-accrue/hunt-settle.js');
+    /* THE ENGINE FIT (header) and the body's engine in the reference runner's ms (raw / the runner's scale) */
+    const tb = rows.tick_body || {};
+    const fit = ltFitVerdict(tb);
+    const ref = (x) => (Number.isFinite(x) ? Math.round(x / runner.scale) : null);
+    const be = tb.bodyEngineMs || {};
     report.lt.lag = lag;
-    report.lt.cost = { band: PPC.CONCURRENCY.band, engine_budget_ms: HUNT_ENGINE_BUDGET_MS, paid_hero_hours: r1(paidHeroHours), paid_share: r2(paidHeroHours / (openN.s * elapsedS / 3600)), per, per_save: saves ? { statements: r1(stmts / saves), row_writes: r1(written / saves), ledger_rows: r1((led1 - led0) / saves) } : null, saves, ...cost };
+    report.lt.cost = { band: PPC.CONCURRENCY.band, engine_budget_ms: runner.engine_budget_ms, paid_hero_hours: r1(paidHeroHours), paid_share: r2(paidHeroHours / (openN.s * elapsedS / 3600)), per, per_save: saves ? { statements: r1(stmts / saves), row_writes: r1(written / saves), ledger_rows: r1((led1 - led0) / saves) } : null, saves, ...cost };
+    report.lt.engine = { runner, fit, body_ms: be, body_ref_ms: { p50: ref(be.p50), p95: ref(be.p95), max: ref(be.max) }, run_max_ms: tb.engineRunMax ?? null,
+      run_max_ref_ms: ref(tb.engineRunMax), a_save_ref_ms: tb.engineMs && tb.settled ? Math.round(tb.engineMs / tb.settled / runner.scale) : null };
     report.lt.drops = Object.fromEntries(Object.keys(drops1).map((k) => [k, Number(drops1[k]) - Number(drops0[k])]));
     report.lt.refusals = refusals;
     report.lt.bench = bench;
-    ltRed = [...lag.red, ...cost.red];
+    ltRed = [...lag.red, ...cost.red, ...fit.red];
     report.lt.red = ltRed;
   }
 
@@ -864,8 +960,12 @@ async function main() {
     for (const r of cost.low || []) log('  LOW cost ' + r + ' (not red: read the lag above)');
   }
   if (world.lt) {
-    const L = report.lt; const g = L.lag; const c = L.cost; const b = L.bench;
+    const L = report.lt; const g = L.lag; const c = L.cost; const b = L.bench; const E = L.engine; const R = E.runner;
+    /* the runner again with the box quiet (the workers stopped): a reading far off the first is a runner that changed speed mid-run */
+    R.calibration_end_ms = (await runnerCalibration()).ms;
     log(`THE v0.3.0 LOAD, ${openN.i} fours (${openN.s} heroes), ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open, ${m.seconds} s measured over ${g.readings} lag readings:`);
+    log(`  the runner: calibration ${R.calibration_ms} ms at the start, ${R.calibration_end_ms} at the end, x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms (${R.shipped_budget_ms} at the reference)`);
+    log(`  engine fit: ${E.fit.deferred} of ${E.fit.selectors} body selectors deferred on the budget (${E.fit.share === null ? '-' : (E.fit.share * 100).toFixed(1) + '%'}, line ${E.fit.band * 100}%); in the reference's ms a body p50 ${E.body_ref_ms.p50 ?? '-'} / p95 ${E.body_ref_ms.p95 ?? '-'} / max ${E.body_ref_ms.max ?? '-'}, a four's settle ${E.a_save_ref_ms ?? '-'} mean and ${E.run_max_ref_ms ?? '-'} max (budget ${R.shipped_budget_ms})`);
     log(`  settle lag p50 ${g.raw.p50} / p95 ${g.raw.p95} / p99 ${g.raw.p99} / max ${g.raw.max} s; past the ${g.flush_s} s flush p50 ${g.past_due.p50} / p95 ${g.past_due.p95} / p99 ${g.past_due.p99} / max ${g.past_due.max} s (budget ${g.budget_s} s)`);
     log(`  a paid hero-hour (${c.paid_hero_hours} paid, ${Math.round(c.paid_share * 100)}% of the wall's): ${c.per.ledger_rows_a_hero_hour} journal rows, ${c.per.statements_a_hero_hour} statements, ${c.per.row_writes_a_hero_hour} row writes against the fixtures' blend ${JSON.stringify(c.expected)} (band +${c.band * 100}%)`);
     if (c.per_save) log(`  a save (${c.saves}): ${c.per_save.statements} statements, ${c.per_save.row_writes} row writes, ${c.per_save.ledger_rows} journal rows; engine max ${m.rows.tick_body?.engineRunMax ?? '-'} ms a run, a body p50 ${m.rows.tick_body?.bodyEngineMs?.p50 ?? '-'} / p95 ${m.rows.tick_body?.bodyEngineMs?.p95 ?? '-'} / max ${m.rows.tick_body?.bodyEngineMs?.max ?? '-'} ms (budget ${c.engine_budget_ms}), deferred ${m.rows.tick_body?.deferred || 0}, bodies ${m.bodies_posted} (${m.bodies_per_fire_p95} a fire p95), fire p50 ${m.fire_ms_p50} ms`);
@@ -881,6 +981,8 @@ async function main() {
       const row = (k, v) => `| ${k} | ${v} |`;
       appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['', `### v0.3.0 load test: ${ltRed.length || audit.red.length ? 'RED' : 'green'}`, '', '| | |', '|---|---|',
         row('Load', `${openN.i} fours (${openN.s} heroes) over ${Object.keys(L.groups).join(', ')}; ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open; lit ${L.lit.join(', ')}`),
+        row('Runner', `calibration ${R.calibration_ms} ms (end ${R.calibration_end_ms}), x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms`),
+        row('Engine fit', `${E.fit.deferred} of ${E.fit.selectors} body selectors deferred (line ${E.fit.band * 100}%); a body p50 ${E.body_ref_ms.p50 ?? '-'} · p95 ${E.body_ref_ms.p95 ?? '-'} · max ${E.body_ref_ms.max ?? '-'} reference ms against ${R.shipped_budget_ms}`),
         row('Settle lag (s)', `p50 ${g.raw.p50} · p95 ${g.raw.p95} · p99 ${g.raw.p99} · max ${g.raw.max}`),
         row(`Past the ${g.flush_s} s flush (s)`, `p50 ${g.past_due.p50} · p95 ${g.past_due.p95} · p99 ${g.past_due.p99} · max ${g.past_due.max} (budget ${g.budget_s})`),
         row('A paid hero-hour', `(${Math.round(c.paid_share * 100)}% of the wall paid) ${c.per.ledger_rows_a_hero_hour} journal rows · ${c.per.statements_a_hero_hour} statements · ${c.per.row_writes_a_hero_hour} row writes; blend ${JSON.stringify(c.expected)} +${c.band * 100}%`),
@@ -966,6 +1068,54 @@ async function ltProof() {
   return { out, caught, of: 6, budget };
 }
 
+/* THE RUNNER, NORMALISED, AND THE ENGINE FIT (no database), each planted defect caught by its own line beside its clean control:
+     LT-NORM   the reference runner runs as named; a runner 1.4x slower runs the accounts the same engine load a core asks at 1.4x the
+               budget, so a body of four reference fours runs whole as on the reference (unnormalised it defers one); a faster runner
+               keeps the named accounts at a tighter budget; a calibration that is no reading, or outside x0.4 to x2.5, is refused
+     SLOW-BODY the engine 2x on a reference runner: the calibration runs no engine, so neither the budget nor the population moves, every
+               full body defers two of its four fours, and the engine fit is red
+     LT-FIT    run 45999848869's own deferrals (211 of 12,704) are green; half the selectors deferred, and no body at all, are red
+     FIT-PIN   tick.js still defers on engine.spentMs >= engine.limitMs under reasons.cpu_budget (bodyStarts restates that rule)
+     WIRING    the bench's body runner hands tick.js the runner's budget, and none (tick.js's own) when there is none */
+async function ltRunnerProof() {
+  const out = []; let caught = 0;
+  const { HUNT_ENGINE_BUDGET_MS: B } = await import('../supabase/functions/hr-accrue/hunt-settle.js');
+  /* a four's 95 s settle at the reference, ms: MEASURED 210 to 216 reference ms on the three green 1,000 x 4 runs (engine / saves / scale) */
+  const FOUR = 213; const body = (ms) => [ms, ms, ms, ms];
+  const ref = ltNormalise({ calibrationMs: LT_REF.calibration_ms, accounts: 1000, budgetMs: B });
+  if (ref.refused || ref.accounts !== 1000 || ref.budgetMs !== B || bodyStarts(body(FOUR), ref.budgetMs) !== 4) out.push(`LT-NORM CONTROL: the reference runner is not run as named (${JSON.stringify(ref)}, ${bodyStarts(body(FOUR), B)} of 4 fours start)`);
+  const slow = ltNormalise({ calibrationMs: LT_REF.calibration_ms * 1.4, accounts: 1000, budgetMs: B });
+  const slowLoad = slow.accounts * FOUR * 1.4 / (1000 * FOUR);
+  if (slow.refused || slow.budgetMs !== Math.round(B * 1.4) || Math.abs(slowLoad - 1) > 0.01 || bodyStarts(body(FOUR * 1.4), slow.budgetMs) !== 4) {
+    out.push(`LT-NORM CONTROL: a runner 1.4x slower is not run at the reference's load (${JSON.stringify(slow)}, engine load a core x${slowLoad.toFixed(3)}, ${bodyStarts(body(FOUR * 1.4), slow.budgetMs)} of 4 fours start)`);
+  }
+  if (bodyStarts(body(FOUR * 1.4), B) !== 3) out.push('LT-NORM CONTROL: unnormalised, a 1.4x runner\'s body does not defer its fourth four (the line would prove nothing)');
+  const fast = ltNormalise({ calibrationMs: LT_REF.calibration_ms * 0.8, accounts: 1000, budgetMs: B });
+  if (fast.refused || fast.accounts !== 1000 || fast.budgetMs !== Math.round(B * 0.8) || bodyStarts(body(FOUR * 0.8), fast.budgetMs) !== 4) out.push(`LT-NORM CONTROL: a faster runner does not keep the named accounts at a tighter budget (${JSON.stringify(fast)})`);
+  const bad = [NaN, 0, LT_REF.calibration_ms * 0.3, LT_REF.calibration_ms * 2.8].filter((c) => !ltNormalise({ calibrationMs: c, accounts: 1000, budgetMs: B }).refused);
+  if (bad.length) out.push(`LT-NORM a calibration that is no reading, or no reference runner, was run: ${bad.join(', ')}`); else caught++;
+  /* SLOW-BODY: the engine twice as slow, the runner the reference (its calibration unmoved) */
+  const sb = ltNormalise({ calibrationMs: LT_REF.calibration_ms, accounts: 1000, budgetMs: B });
+  const started = bodyStarts(body(FOUR * 2), sb.budgetMs);
+  const slowFit = ltFitVerdict({ selectors: 16 * 100, reasons: { cpu_budget: 4 * (4 - started) * 100 } });
+  if (started === 2 && slowFit.red.length === 1 && /engine fit/.test(slowFit.red[0])) caught++;
+  else out.push(`SLOW-BODY a body whose engine runs 2x on a reference runner was not read red (${started} of 4 fours start; ${slowFit.red.join('; ') || 'fit green'})`);
+  const green = ltFitVerdict({ selectors: 12704, reasons: { cpu_budget: 211 } });
+  if (green.red.length) out.push('LT-FIT CONTROL: run 45999848869\'s deferrals read red: ' + green.red.join('; '));
+  if (ltFitVerdict({ selectors: 1000, reasons: { cpu_budget: 500 } }).red.length === 1) caught++; else out.push('LT-FIT half the selectors deferred went unseen');
+  if (ltFitVerdict({ selectors: 0, reasons: {} }).red.some((r) => /no tick body/.test(r))) caught++; else out.push('LT-FIT a run with no tick body went unseen');
+  const tickSrc = readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), 'supabase', 'functions', 'hr-accrue', 'tick.js'), 'utf8');
+  const pin = fitPin(tickSrc);
+  if (pin) out.push('FIT-PIN CONTROL: ' + pin);
+  if (fitPin(tickSrc.replace('if (engine.spentMs >= engine.limitMs) {', 'if (engine.spentMs > engine.limitMs * 2) {')) !== null) caught++; else out.push('FIT-PIN a tick.js whose budget rule moved went unseen');
+  const seen = [];
+  const stub = { runTick: async (o) => { seen.push(o); return { body: { hunts: {} } }; } };
+  const w1 = await runBody(stub, null, { hunts: [1, 2, 3] }, { engineBudgetMs: 1120 });
+  await runBody(stub, null, { hunts: [] }, {});
+  if (seen[0].engineBudgetMs !== 1120 || w1.selectors !== 3 || 'engineBudgetMs' in seen[1]) out.push(`WIRING the body runner did not hand tick.js the runner's budget (${JSON.stringify(seen.map((o) => o.engineBudgetMs ?? null))}, selectors ${w1.selectors})`);
+  return { out, caught, of: 5 };
+}
+
 /* --selftest: the audit must go red on a planted double payment and on planted lost time, on a real replayed chain. */
 async function selftest() {
   const bandProblems = await krellBandProof();
@@ -974,6 +1124,10 @@ async function selftest() {
   for (const p of lt.out) console.log('RED ' + p);
   console.log(lt.out.length ? `beta-load --selftest: the load test's verdicts RED (${lt.out.length})` : `beta-load --selftest: the load test's verdicts, ${lt.caught}/${lt.of} planted defects caught, controls clean (look-ahead ${lt.budget} s; no database)`);
   bandProblems.push(...lt.out);
+  const rp = await ltRunnerProof();
+  for (const p of rp.out) console.log('RED ' + p);
+  console.log(rp.out.length ? `beta-load --selftest: the runner normalisation and the engine fit RED (${rp.out.length})` : `beta-load --selftest: the runner normalisation and the engine fit, ${rp.caught}/${rp.of} planted defects caught (a slow body among them), controls clean (no database)`);
+  bandProblems.push(...rp.out);
   if (process.argv.includes('--pure')) process.exit(bandProblems.length ? 1 : 0);
   const { bootPg } = await import('./pg-replay.mjs');
   const { db, name } = await bootPg({});

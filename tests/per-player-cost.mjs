@@ -510,7 +510,7 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
    read red. The watched door is measured on WATCHED_DICE (the uuid sequence rewound to DICE0 + each), every metric the MEDIAN: one
    span's dice event is outvoted, a cost every span pays (a row, a statement, a save more a flush) is in all three. The closed doors
    save every window, so a dice event moves no save there: one reading. */
-export const WATCHED_DICE = Object.freeze([0, 1, 2]);
+const WATCHED_DICE = Object.freeze([0, 1, 2]);
 /* --selftest's line between a dice event read as its rate and one read as a save's fixed rows (MEASURED 2026-11-27 on the dark
    chain: the planted events' median +3.9%; the late event with its unsaved poll saved and counted +11.7%, the save's fixed rows over
    24 polls; the event one poll after a save on its own dice +16.1%) */
@@ -614,7 +614,7 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
    answered from a memo after the first reading, the class of a part a warm process does for free. */
 const CAL_SPREAD = 1.5;
 let calMemo = null;
-async function calibrate(db, plant = null) {
+export async function calibrate(db, plant = null) {
   const t = []; let sink = 0;
   const warm = plant === 'warm_calibration' && calMemo !== null;   // the proof's plant: free after the first reading
   for (let i = 0; i < 9; i++) {

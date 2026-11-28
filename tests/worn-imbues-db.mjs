@@ -5,18 +5,18 @@
 //
 //   node tests/worn-imbues-db.mjs            the guard
 //   node tests/worn-imbues-db.mjs --mutate   the proof: each planted SQL or edge defect turns its case red
-//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths|partyEnd>   one case, or with --mutate that case's mutants
+//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths|partyEnd|leech>   one case, or with --mutate that case's mutants
 //                                            (WI_TRACE=1 prints the lit and dark fights)
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick (browser closed, the `fire` door, the 90 s flush) and the viewed hello
 // (hunt viewed, the `viewed` door, 30 s windows) through tools/settle-cost.mjs, the real engine: a Level 60 four from four accounts in the
 // play-ground's Level 60 kit (a mithril sword and shield tank, three mithril hammers) on Hask's Ford (its Fordsunk is a brute) on Steady.
 // Every hero wears a Brute Edge (band 70) that runs out 90.037 s into the hunt, 37 ms after the closed hunt's first window ends.
-// THE LOUD EDGE (WI-2 only): at Level 60 an Edge is 0.6 of a step (x ramp) and a blow's steps are rounded whole (amount.js blowAmount),
-// so the real one moves a 270 s hunt by a hit point or two of damage dealt (MEASURED, three fixtures: Muster in steel or the kit, Hask's
-// Ford, the Slake): too little for a guard to read a run-out on. So WI-2's edge plants the size (IMBUE.steps 40, the consumable cap 120;
-// trait-pieces-db plants its drop rate the same way): 12 steps on a brute at Level 60, a fight a run-out visibly ends. The server re-proves
-// no imbuement number, so the plant reaches only the engine; every door plays the same plant.
+// THE LOUD EDGE (WI-2 only): a Brute Edge fires 5 steps on a brute's blows (21 D-17), 1.75% of those blows, so the real one moves a 270 s
+// hunt by a few hit points of damage dealt: too little for a guard to read a run-out on. So WI-2's edge plants the fire size (40, counted
+// over the Edge's rated room outside the cap; before lane/imbue-engine it planted IMBUE.steps 40 and a cap of 120; trait-pieces-db plants
+// its drop rate the same way): 40 steps on a brute at Level 60, a fight a run-out visibly ends. The server re-proves no imbuement number,
+// so the plant reaches only the engine; every door plays the same plant.
 // The leader also wears a Fire Ward and a Life Leech; the second hero has a Life Leech row on a bare head, the third a Brute Edge row in
 // its helmet (another kind's slot).
 //   WI-1 DARK: with the switch as applied (off) the read hands every member worn_imbues null, the plan's heroes wear none, and the timer
@@ -31,9 +31,13 @@
 //   WI-5 A PARTY END MID-WINDOW (lane/imbue-timer-door): lit, the third hero's pool runs out at +100 s, inside a window on both doors,
 //        while the other three hunt on to 270 s: on each door its session settles to its end + 1 ms and its helmet row loses exactly
 //        that, the leader's rows lose the whole 270 s, and the two doors store the same heroes (CONFLICTS 2026-11-27 worn imbuements (5)).
+//   WI-6 A LIT LEECH FOUR (lane/imbue-engine, 21 D-18): every hero wears a Life Leech on a helmed head; the closed hunt (three 90 s windows)
+//        and the viewed one (nine 30 s windows) store the same world and heroes (bags, Level XP, tallies), every hero healed by its Leech,
+//        and the stored world carries each hero's carry (src/core/hunt/imbue-leech.js leechMilli, 0 to 999 thousandths).
 //
 // mutant-anchors: supabase/migrations/1077-worn-imbues.sql supabase/functions/hr-accrue/hunt-settle.js src/core/combat-sim.js
 // mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js supabase/migrations/2027-03-21-scaled-hunts.sql
+// mutant-anchors: src/core/hunt/world-state.js src/core/hunt/damage.js src/data/imbue-rules.js
 // ci-step: db-replay | Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
 // ci-run: node tests/worn-imbues-db.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
@@ -50,30 +54,38 @@ const HELD = 570;
    [90, 180) and the viewed hunt's fourth [90, 120): an Edge played to its window's end would fight 60 s longer closed than viewed */
 const SPAN_MS = 270000;
 const RUN_MS = 90037;
-/* THE LOUD EDGE (the header): the size planted on WI-2's edge, every door alike */
-const LOUD = Object.freeze([['src/data/imbue-rules.js', '  steps: 2,', '  steps: 40,'], ['src/data/power-ledger.js', '  consumableStepsMax: 6,', '  consumableStepsMax: 120,']]);
+/* THE LOUD EDGE (the header): the fire size planted on WI-2's edge, every door alike (counted over the Edge's rated room, outside the cap) */
+const LOUD = Object.freeze([['src/data/imbue-rules.js', "key: 'edge_brute', fire: 5,", "key: 'edge_brute', fire: 40,"]]);
 const LONG_MS = 72000000;
 /* the play-ground's Level 60 kit (tests/hunt-core/fixtures/play-ground.mjs kitFor): a tank, then three hammers; the second hero's head is
    bare, so its Life Leech row has no piece to sit on */
 const TANK = Object.freeze({ weapon: 'mithril_sword', shield: 'coppercap_shield', body: 'mithril_platebody', helmet: 'steel_helm' });
 const HAMMER = Object.freeze({ weapon: 'mithril_warhammer', shield: null, body: 'mithril_platebody', helmet: 'steel_helm' });
 const gearOf = (i) => (i === 0 ? TANK : i === 1 ? { ...HAMMER, helmet: null } : HAMMER);
+/* WI-6's four: every head helmed, so every hero's Leech sits on a piece and plays */
+const helmedOf = (i) => (i === 0 ? TANK : HAMMER);
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 const exec = (db) => async (text, params) => { await db.exec('set role hr_engine'); try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); } };
 
-/* the held step and the stance (danger-db's planWith), the worn rows, and the switch as the four enters */
-const fixture = ({ lit }) => async ({ db, uids, asUser, one: q, idem: id }) => {
+/* the held step and the stance (danger-db's planWith), the worn rows, and the switch as the four enters. `leech`: every hero wears a Life
+   Leech on its helmet and nothing else (WI-6) in place of the mixed rows */
+const fixture = ({ lit, leech }) => async ({ db, uids, asUser, one: q, idem: id }) => {
   for (const uid of uids) {
     await db.query('insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held) values ($1, 0, $2, 0, $3) on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held', [uid, GROUND, HELD]);
   }
   await asUser(uids[0]);
   const r = await q(db, 'select public.hr_hunt_risk_set(0, $1, $2::uuid)', ['steady', id()]);
   if (!r || r.ok !== true) throw new Error('the stance was refused: ' + JSON.stringify(r).slice(0, 200));
-  await db.query(`insert into public.hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, quality, ms_left) values
+  if (leech) {
+    await db.query(`insert into public.hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, quality, ms_left)
+      select u, 0, 'helmet', 'life_leech', 50, 'plain', $2 from unnest($1::uuid[]) u`, [uids, LONG_MS]);
+  } else {
+    await db.query(`insert into public.hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, quality, ms_left) values
       ($1, 0, 'weapon', 'brute_edge', 70, 'plain', $4), ($1, 0, 'body', 'fire_ward', 45, 'plain', $5), ($1, 0, 'helmet', 'life_leech', 50, 'plain', $5),
       ($2, 0, 'weapon', 'brute_edge', 70, 'plain', $4), ($2, 0, 'helmet', 'life_leech', 50, 'plain', $5),
       ($3, 0, 'weapon', 'brute_edge', 70, 'plain', $4), ($3, 0, 'helmet', 'brute_edge', 70, 'plain', $5),
       ($6, 0, 'weapon', 'brute_edge', 70, 'plain', $4)`, [uids[0], uids[1], uids[2], RUN_MS, LONG_MS, uids[3]]);
+  }
   await db.query("update public.hr_flags set enabled = $1 where key = 'imbuements'", [lit === true]);
 };
 
@@ -81,7 +93,7 @@ const EVIDENCE = [];
 async function door(db, which, o = {}) {
   const windowMs = which === 'viewed' ? 30000 : 90000;
   const windows = SPAN_MS / windowMs - 1;
-  const run = await prepare({ heroes: 4, windows, windowMs, hunt: GROUND, door: which, db, level: 60, anchorMs: ANCHOR, gear: gearOf,
+  const run = await prepare({ heroes: 4, windows, windowMs, hunt: GROUND, door: which, db, level: 60, anchorMs: ANCHOR, gear: o.leech ? helmedOf : gearOf,
     edgeRoot: o.edgeRoot, beforeEnter: fixture(o) });
   if (o.enterOnly) return { run, db, users: run.users };
   if (o.afterEnter) await o.afterEnter(run);
@@ -263,6 +275,36 @@ async function partyEnd(boot, o = {}) {
   return problems;
 }
 
+/* WI-6 A LIT LEECH FOUR, BOTH PATHS (lane/imbue-engine, 21 D-18): every hero wears a Life Leech (band 50) on a helmed head. Its heal is
+   floor((took x 20 + carry) / 1000) a blow, the remainder carried on the unit (src/core/hunt/imbue-leech.js leechMilli, persisted with
+   the world): a closed hunt (three 90 s windows) and a viewed one (nine 30 s windows) cut the carry at different boundaries, so they store
+   the same world and the same heroes (bags, Level XP, each tally's healing) only if the carry rides every stored world. Each hero healed
+   by its Leech (the tally's `life_leech` source), and the stored world carries a hero's carry. */
+async function leech(boot, o = {}) {
+  const problems = [];
+  const edge = o.edits && o.edits.length ? plant(o.edits, ['supabase/functions/hr-accrue']) : null;
+  try {
+    const closed = await door((await boot()).db, 'fire', { lit: true, leech: true, edgeRoot: edge && edge.root });
+    const viewed = await door((await boot()).db, 'viewed', { lit: true, leech: true, edgeRoot: edge && edge.root });
+    for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
+      if (Number(r.inst.refusals) !== 0) problems.push('WI-6 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
+      if (Number(r.inst.to_ms) !== ANCHOR + SPAN_MS) problems.push('WI-6 CONTROL: ' + name + ' settled to ' + r.inst.to_ms + ', want ' + (ANCHOR + SPAN_MS));
+    }
+    const a = await stateOf(closed.db), b = await stateOf(viewed.db);
+    if (closed.inst.world !== viewed.inst.world) problems.push('WI-6 the doors stored different worlds (the Leech\'s carry did not survive a window cut)');
+    if (a !== b) problems.push('WI-6 the doors stored different heroes:\n      closed ' + a.slice(0, 400) + '\n      viewed ' + b.slice(0, 400));
+    /* the Leech played on every seat: its healing is the tally's life_leech source */
+    const leeched = JSON.parse(a).map((s) => { const h = s.tally && s.tally[3]; return Number((h && h.bySource && h.bySource.life_leech) || 0); });
+    if (leeched.length !== 4 || leeched.some((n) => !(n > 0))) problems.push('WI-6 a hero\'s Leech healed nothing: ' + JSON.stringify(leeched));
+    /* the carry rides the stored world (thousandths, 0 to 999 a hero) */
+    const carries = decodeStored(JSON.parse(closed.inst.world)).units.filter((u) => u.side === 'hero').map((u) => u.leechMilli);
+    if (!carries.every((c) => Number.isInteger(c) && c >= 0 && c < 1000) || !carries.some((c) => c > 0)) problems.push('WI-6 the stored world carries ' + JSON.stringify(carries) + ' as the heroes\' carry');
+    EVIDENCE.push('WI-6 a Leech four: doors ' + (closed.inst.world === viewed.inst.world && a === b ? 'store one world and the same heroes' : 'DIFFER') + '; healed by the Leech '
+      + JSON.stringify(leeched) + ' HP a seat over 270 s; the stored carries ' + JSON.stringify(carries));
+  } finally { if (edge) edge.done(); }
+  return problems;
+}
+
 /* --mutate: a SQL defect planted in a replayed function body, or an edge or engine defect planted on a copy of the edge */
 const MUTANTS = [
   { name: 'the projection ignores the switch', fn: 'public.hr_worn_imbues_of(uuid,integer)',
@@ -288,6 +330,12 @@ const MUTANTS = [
   { name: 'the edge settles an ended hero to its window\'s end', edits: [['supabase/functions/hr-accrue/accrue-hunt.js',
     'const settledTo = hs.endedReason ? hs.endedAtMs + 1 : Math.max(hs.nextSwingAtMs, fromMs + 1);', 'const settledTo = hs.endedReason ? toMs : Math.max(hs.nextSwingAtMs, fromMs + 1);']],
     want: /^WI-5/, test: partyEnd },
+  /* WI-6 (lane/imbue-engine): the carry dropped from the stored world (the shape unmoved: a field missing from encode), and the Leech gone */
+  { name: 'the Leech\'s carry is never stored with the world', edits: [['src/core/hunt/world-state.js',
+    "const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));", "const row = (part, obj) => FIELDS[part].map(([name]) => copy(name === 'leechMilli' ? 0 : obj[name]));"]],
+    want: /^WI-6/, test: leech },
+  { name: 'the Leech never reaches the blow', edits: [['src/core/hunt/damage.js', '!(ability && ability.dot) ? leechOn(source, target, r.dmg) : null;', '!(ability && ability.dot) ? null : null;']],
+    want: /^WI-6/, test: leech },
 ];
 
 async function main() {
@@ -320,10 +368,10 @@ async function main() {
   const boot = () => bootReplay();
   /* one case's replays at a time (an unclosed replay is ~300 MB) */
   const problems = [];
-  for (const c of [dark, projection, bothPaths, partyEnd].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
+  for (const c of [dark, projection, bothPaths, partyEnd, leech].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
   for (const e of EVIDENCE) console.log('  ' + e);
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window, applied in town only, a party end mid-window)');
+  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window, applied in town only, a party end mid-window, a Leech four on both paths)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

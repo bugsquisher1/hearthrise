@@ -17,13 +17,15 @@ ROOT="${ROOT:-$HERE/../../../..}"
 OUT="${OUT:-$HERE}"
 V1="$ROOT/tools/balance-program/redesign/v1-climb.mjs"
 W="${W:-1}"; SEEDS="${SEEDS:-12}"; HOURS="${HOURS:-8}"
+# (RISK, steady by default: the stance of the cell, lane/signatures-batch-4's Bold reading of the Cloak)
+RISK="${RISK:-steady}"
 WANT=" $* "
 run() {
   local name=$1 g=$2 l=$3 styles=$4; shift 4
   if [ "$WANT" != "  " ] && [[ "$WANT" != *" $name "* ]]; then return 0; fi
   if [ -z "$FRESH" ] && [ -s "$OUT/$name.json" ]; then return 0; fi
   echo "$(date +%H:%M:%S) $name" >&2
-  node "$V1" --ground "$g" --level "$l" --gear mid --only base:steady --styles "$styles" --seeds "$SEEDS" --hours "$HOURS" --workers "$W" "$@" \
+  node "$V1" --ground "$g" --level "$l" --gear mid --only "base:$RISK" --styles "$styles" --seeds "$SEEDS" --hours "$HOURS" --workers "$W" "$@" \
     --json "$OUT/$name.json" > "$OUT/$name.txt" 2> "$OUT/$name.err"
 }
 T=tank,bow,mage,healer; X=hammer,bow,mage,healer
@@ -95,3 +97,25 @@ run b4v-muster-boots-ally45  muster_barrows 60 $X --signatures -,-,-,zz_boots_al
 run b4v-muster-boots-ally40  muster_barrows 60 $X --signatures -,-,-,zz_boots_ally40
 run b4v-carters-key-k3       carters_rest 117 $X --signatures -,-,-,zz_key_k3
 run b4v-carters-key-k4       carters_rest 117 $X --signatures -,-,-,zz_key_k4
+# ── BATCH 4'S ROWS (systems, lane/signatures-batch-4, 2026-11-28): the 14 rows on the engine pieces P1 to P7 and P9, each by its real id on
+#    the cell 15's rules A to E give it (sum.mjs --batch 4, ROWS4B). ROOT is a snapshot of the lane's commit (git archive), so no edit
+#    lands under a run. RISK=bold plays the Cloak's Bold cell ──
+S=sword,bow,mage,healer; C=hammer,crossbow,mage,healer
+run b4s-muster-thrower   muster_barrows 60 $X --signatures -,-,-,throwers_ring
+run b4s-muster-leech     muster_barrows 60 $X --signatures -,-,-,vault_leech_ring
+run b4s-muster-tooth     muster_barrows 60 $X --signatures -,bulls_tooth,-,-
+run b4s-roost-tooth      wyvern_roost 140 $C --signatures -,bulls_tooth,-,-
+run b4s-muster-boots     muster_barrows 60 $X --signatures -,-,-,night_carters_boots
+run b4s-pyre-boots       pyre_field 80 $X --signatures -,-,-,night_carters_boots
+run b4s-muster-plate     muster_barrows 60 $T --signatures gatekeepers_plate,-,-,-
+run b4s-muster-pair      muster_barrows 60 $T --signatures lead_rein,-,-,convoy_bell
+run b4s-muster-hood      muster_barrows 60 $X --signatures -,-,pyre_priests_hood,-
+run b4s-muster-sword     muster_barrows 60 $S
+run b4s-muster-mitts     muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
+RISK=bold run b4s-muster-bold  muster_barrows 60 $X
+RISK=bold run b4s-muster-cloak muster_barrows 60 $X --signatures -,-,-,hearth_masons_cloak
+# (the coin rows at 4 seeds against batch 3's 4-seed plain mixed four, b3-muster-mixed4: a saving draws no dice, rule C)
+SEEDS=4 run b4s-muster-ledger    muster_barrows 60 $X --signatures -,-,ledger_ring,-
+SEEDS=4 run b4s-muster-leggings  muster_barrows 60 $X --signatures -,-,-,lychgate_leggings
+SEEDS=4 run b4s-muster-bracers   muster_barrows 60 $X --signatures -,brood_bracers,-,-
+SEEDS=4 run b4s-muster-sash      muster_barrows 60 $X --signatures -,-,-,sergeants_sash

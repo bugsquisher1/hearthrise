@@ -227,6 +227,17 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | A2 | Art: the Roads map (countries, trunks, stones, towns, vows as standing stones) | Art Director | R-UI layout | L | Sample read before the full map |
 | RP | Report readers (19 L7): healing by source, damage taken by seat, supplies by depth | Systems | E2 | M | Two different builds read differently |
 
+**E5 status (lane/e5-borrowing, systems, 2026-11-27): the engine is BUILT and STAGED; Greater Mend stays unborrowable.** The engine plays the one borrow list the server's build lends (`hr_talents_view` nodes through `grantsOf`, never a client list): the native weapon's blow, a borrowed heal on Mend's clock, Magic at Mend's rate, an ally heal or ward at the healer's 7 tiles, no native unlock, a lent Challenge from any seat. Measured on the real engine (18 section 7c, 12 seeds x 8 h, Muster Level 60 Steady):
+
+| Reading | Held delta (se) | Pace steps (se) | Verdict |
+|---|---|---|---|
+| Greater Mend, the hammer beside a healer (19 V4's cell) | +7.5 (3.2) | +7.1 (2.9) | 10 or less: V4 passes |
+| Greater Mend, a sword in a four with no healer (17's V0 cell) | +40.3 (2.6) | +29.0 (2.6) | Past the last band: not offered |
+| The same at −50% | +18.0 (1.9) | +7.6 (2.7) | Still over 10 |
+| Circle of Renewal, the same sword | +2.0 (2.3) | +1.8 (1.5) | Free band, opens at 30 (`1064` regenerated STAGED) |
+
+So "Borrowed Greater Mend is 10 steps or less" holds beside a healer and fails without one. The ledger's fallback applies: Greater Mend is not borrowable in v0.3.0 (the town's pick answers `not_offered`). The next lever is the designer's (CONFLICTS 2026-11-27, E5). Not built: a borrowed shot's own arrows (Raking Shot, V0 0).
+
 ### Band 5: Signatures and the first hour
 
 | # | Lane | Owner | Depends on | Size | Done when |

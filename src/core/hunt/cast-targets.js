@@ -18,8 +18,10 @@ const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) 
 const allies = (inst, u) => livingOf(inst, sideOf(u));
 const engaged = (inst, u) => targetedFoesOf(inst, sideOf(u));
 
-/* AN ALLY ROW'S REACH: the hero's (1 = Melee) and the row's own more (fx.range, whole tiles) */
-export const reachOf = (h, row) => Math.max(1, int(h && h.range) || 1) + (row.fx && row.fx.range > 0 ? row.fx.range : 0);
+/* AN ALLY ROW'S REACH: the hero's (1 = Melee), or a borrowed row's native reach (`reach`, talent-rows.js lend: Greater Mend lent to a
+   sword reaches the healer's 7 tiles), and the row's own more (fx.range, whole tiles) */
+export const reachOf = (h, row) => (Number.isInteger(row.reach) ? Math.max(1, row.reach) : Math.max(1, int(h && h.range) || 1))
+  + (row.fx && row.fx.range > 0 ? row.fx.range : 0);
 /* the engaged monsters on unit `a` */
 const heldOnCount = (inst, a) => engaged(inst, a).filter((m) => m.target === a.id).length;
 /* WHOM AN ALLY ROW TAKES FIRST from `list`: the lowest share of health (ties by id), or with the row's pick `most_held` (Tank Ward) the

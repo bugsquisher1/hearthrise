@@ -14,7 +14,6 @@
 import { PANEL_ALPHA } from '../data/panel-alpha.js';
 import { TOWN_ZOOM } from '../data/world/view-zoom.js';
 import { FX_ALPHA_ROW } from '../data/fx-alpha.js';
-import { SKILLS_DEF } from '../data/skills.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -249,17 +248,6 @@ function sanitizeSwitch(v) {
 const valuePick = (sw) => (v) => (isObj(v) && Number.isSafeInteger(v.v) && v.v >= sw.min && v.v <= sw.max && (v.v - sw.min) % sw.step === 0
   && Number.isSafeInteger(v.at) && v.at >= 0 ? { v: v.v, at: v.at } : undefined);
 
-/* The order picked at each crafting station (src/shell/station-sort.js): skill -> sort id, for skills the data
-   defines only (so the count is bounded by the catalogue); the window reads an unknown sort as its default. */
-function sanitizeStationSort(v) {
-  const out = {};
-  if (!isObj(v)) return out;
-  for (const id of Object.keys(v)) {
-    if (ID.test(id) && Object.prototype.hasOwnProperty.call(SKILLS_DEF, id) && typeof v[id] === 'string' && ID.test(v[id])) out[id] = v[id];
-  }
-  return out;
-}
-
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout (show, fade, place, fold); gates and spends nothing
@@ -288,7 +276,6 @@ const SANITIZERS = Object.freeze({
   fxMarks: valuePick(FX_ALPHA_ROW.marks),     // display preference: how strong the danger marks fill, never under half; gates and spends nothing
   tips: sanitizeSwitch,             // display preference: whether the coach's cards and the town criers show, one for every hero (src/data/tips.js); gates and spends nothing
   chatOpen: sanitizeSwitch,         // display preference: whether Chat stands open as the screen comes up, one for every hero (src/data/shell-windows.js startsOpen); gates and spends nothing
-  stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

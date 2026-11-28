@@ -45,7 +45,7 @@ import { AskPacer } from './ask-pacer.js';
 import { createIntentLedger } from './intent-ledger.js';
 import { ReadGate } from './read-gate.js';
 import { frameTopic, reconnectDelay } from './frame-channel.js';
-import { refusalOf, settleRefusalOf } from './refusal.js';
+import { refusalOf } from './refusal.js';
 import { afterRefusal } from './quoted-ask.js';
 import { catchUpLink, newIdem } from './catch-up.js';
 import { envelopeOf } from './time-intents.js';
@@ -109,7 +109,7 @@ export class CharacterSession {
        point, prediction only; `live` is its engine (the scene reads its heroes). */
     this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why), clock: o.clock, stale: () => this._server && this._server.stale && this._server.stale(), asked: () => this._armHuntPoll() });
     this.live = this.liveLink.engine;
-    this.receivedAt = null; this.settleRefusal = null;   // the engine's last refusal to settle (hello), or null
+    this.receivedAt = null;
     this._askedAt = null; this._answeredAt = null;   // the last settle's send and answer (client ms): a leave's 'late'
     /** The hunt session the timeline holds (a new one clears it: _play). */
     this._huntSid = null;
@@ -482,8 +482,7 @@ export class CharacterSession {
     /* the account's budget is spent: hold a look-ahead margin, then ONE catch-up (a hunt's own re-read retries it) */
     if (ans.status === 429) { this._pace.hold(SESSION_CONFIG.liveRefillMs); if (!this._huntOpen()) this._pace.owe(() => this.hello()); }
     /* An idle settle's {accrued:false} is not the character (read it in full: hr_load); the floor's answer to a hunter
-       is, with the live start point (take it). A refusal to settle (refusal.js) stands until the next answer (town ticker). */
-    if (ans.ok) this.settleRefusal = settleRefusalOf(ans);
+       is, with the live start point (take it). */
     if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state && this._take(ans.body, 'hello')) return true;
     if (ans.ok && this._record && this._huntOpen() && (slimFloor(ans.body, this._wholeAt) || confirmedAnswer(ans.body, this._wholeAt))) return takeSlim(this, ans.body);   // the floor or a confirm without a new character (hunt-ask.js)
     /* An idle answer at a version held WHOLE is not re-read: a hunter's (its next ask restates it), and a copy the server gave under

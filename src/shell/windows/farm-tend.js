@@ -12,12 +12,12 @@
 //   patchTend(root, cs, sc, doc)       the bill and the press, from the server's section only
 //   tendPress(cs, sc)                  { crop, gold } of the bill on screen, or null (nothing to do)
 //   tendLine(r, why)                   the one line after the press, from the server's answer
-//   cropMakes(id)                      what a crop makes, from the data rows (its mana drink, else its Cooking rows)
+//   cropMakes(id)                      what a crop makes, from the data rows (its mana drink, else the Cooking jobs that take it)
 // ════════════════════════════════════════════════════════════════════════
 import { farmTendOf, tendHasWork } from '../../session/farm-tend.js';
 import { CROPS } from '../../data/gathering.js';
 import { DRINK_RECIPES, DRINK_ITEMS } from '../../data/drinks.js';
-import { ARTISAN_RECIPES } from '../../data/recipes.js';
+import { jobRecipes } from '../../core/trades.js';
 import { rows, text, cls, prop, element } from '../../render/paint.js';
 import { whole, gold, listWords } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
@@ -27,13 +27,13 @@ import { t } from '../../render/player-text.js';
 const cropName = (id) => (CROPS[id] && CROPS[id].name) || itemName(id);
 const plotList = (is) => listWords(is.map((i) => String(i + 1)), 8);
 
-/** What crop `id` makes, from the data rows: its mana drink, else the Cooking rows that take it; '' when none does. */
+/** What crop `id` makes, from the data rows: its mana drink, else the Cooking jobs that take it (src/core/trades.js jobRecipes); '' when none does. */
 export function cropMakes(id) {
   const prod = CROPS[id] && CROPS[id].prod;
   if (!prod) return '';
   const drink = DRINK_RECIPES.find((r) => r.inputs && r.inputs[prod] && DRINK_ITEMS[r.output]);
   if (drink) return t('farm.makes_drink', { drink: DRINK_ITEMS[drink.output].n, mana: whole(DRINK_ITEMS[drink.output].mana) });
-  const foods = (ARTISAN_RECIPES.cooking || []).filter((r) => r.inputs && r.inputs[prod] && r.output).map((r) => itemName(r.output));
+  const foods = jobRecipes().filter((j) => j.trade === 'cooking' && j.inputs[prod]).map((j) => itemName(j.face));
   return foods.length ? t('farm.makes_food', { foods: listWords(foods, 2) }) : '';
 }
 

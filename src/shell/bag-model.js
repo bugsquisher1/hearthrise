@@ -20,7 +20,8 @@
 //                         attribute (a resistance, a bane: the engine's readers, so a new unique needs no code)
 //   baneKindName(cls)     a bane's monster kind as the Bestiary names it
 //   equipSlotFor(id, eq)  the slot an item would go into
-//   riteOf / cookOf       the bench recipe that spends a whole stack (Burn all, Cook all)
+//   riteOf(id)            the Hearth fuel row that burns a whole stack (Burn all)
+//   cookOf(id)            the Cooking job that cooks a raw food (the bag's Cook: a link to its row in the Work window's Jobs list)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
@@ -33,13 +34,13 @@ import { ARTISAN_RECIPES } from '../data/recipes.js';
 import { NAMED_FUELS } from '../data/hearth.js';
 import { CHEST_OUTFITS } from '../data/chests.js';
 import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js';
+import { expandItemSlot, CROPS } from '../data/gathering.js';
 import { SHOP_OFFERS } from '../data/shops.js';
 import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js';
 import { TEMPER_KITS } from '../data/temper.js';
 import { imbuePartUses } from '../data/imbue-rules.js';
-import { recipeInputs } from '../core/artisan.js';
+import { jobRecipes } from '../core/trades.js';
 import { BAG_SEEN_MAX } from '../session/residue.js';
 import { itemName } from './widgets/bits.js';
 import { HERO_RESIST_KEYS } from '../data/elements.js';
@@ -72,22 +73,27 @@ function dropSet() {
 }
 
 let INPUTS = null;
-/* Every item some recipe spends (bars, planks, blanks...), built once from the recipe rows. */
+/* A catalogue row's inputs as { item: n } (a Hearth fuel names one `input`, any other row its `inputs`). */
+const rowInputs = (r) => Object.assign({}, (r && r.inputs) || {}, r && r.input ? { [r.input]: r.inputQty || 1 } : {});
+/* Every item some job or Hearth fuel spends (bars, planks, blanks...), built once from the job recipes (src/core/trades.js jobRecipes,
+   the rows hr_trade_job_start sells) and the fuel rows. */
 function inputSet() {
   if (INPUTS) return INPUTS;
   INPUTS = new Set();
-  for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r) for (const id of Object.keys(recipeInputs(r) || {})) INPUTS.add(id);
+  for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r) for (const id of Object.keys(rowInputs(r))) INPUTS.add(id);
+  for (const j of jobRecipes()) for (const id of Object.keys(j.inputs)) INPUTS.add(id);
   return INPUTS;
 }
 
 let MADE = null;
-/* Every item a hero can make or gather (recipe outputs, gathering nodes, crops), built once. A monster may drop some too:
+/* Every item a hero can make or gather (a job's good, a crop), built once. A monster may drop some too:
    that does not make Copper Ore or a Timber Beam "loot" (panel 2026-11-01: Sell all loot sold beams the Manor asks for). */
 function madeSet() {
   if (MADE) return MADE;
   MADE = new Set();
   for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.output) MADE.add(r.output);
-  for (const nodes of [TREES, ROCKS, FISH_SPOTS, Object.values(CROPS)]) for (const n of nodes) if (n && n.prod) MADE.add(n.prod);
+  for (const j of jobRecipes()) MADE.add(j.face);
+  for (const n of Object.values(CROPS)) if (n && n.prod) MADE.add(n.prod);
   return MADE;
 }
 
@@ -97,7 +103,7 @@ const KIT = new Set([...Object.keys(START_INVENTORY), ...Object.values(START_EQU
 export const isStartKit = (id) => KIT.has(id);
 /* A kit piece reforged at the bench into its own slot (Klappa's Club, style-gear.js): the kit holds one and nothing sells another, so a sale is the end of it. */
 const KIT_MADE = new Map();
-for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && ITEMS[r.output]) for (const id of Object.keys(recipeInputs(r) || {})) if (KIT.has(id) && ITEMS[id] && ITEMS[id].slot && ITEMS[id].slot === ITEMS[r.output].slot) KIT_MADE.set(r.output, id);
+for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r && ITEMS[r.output]) for (const id of Object.keys(rowInputs(r))) if (KIT.has(id) && ITEMS[id] && ITEMS[id].slot && ITEMS[id].slot === ITEMS[r.output].slot) KIT_MADE.set(r.output, id);
 /** The kit piece this one was made from, or null. */
 export const madeFromKit = (id) => KIT_MADE.get(id) || null;
 
@@ -250,21 +256,17 @@ export const isSuperRare = (id) => CHEST_OUTFITS.some((o) => o.item === id);
 
 let COOKS = null;
 /**
- * The Cooking recipe that turns this one item into FOOD, or null: { skill:'cooking', recipe, input, need } (need = how many
- * go into one dish). From the recipe rows: a cooking row with exactly one input whose output the bag files as food,
- * not behind a recipe scroll. No id list, so a new raw meat or fish is cookable from the bag the day its row lands
- * (playtest 10-22: Raw Wolf Meat sold for 1 gp because nothing said it cooks). The lowest-level row wins.
+ * THE COOKING JOB that turns this one raw item into FOOD (09-crafting 4.17: no bench, a job cooks it), or null: the job recipe
+ * (src/core/trades.js jobRecipes: { id, trade, R, face, inputs }) whose inputs take it and whose good the bag files as food. From the
+ * job rows, so a new raw meat or fish is cookable from the bag the day its row lands (playtest 10-22: Raw Wolf Meat sold for 1 gp
+ * because nothing said it cooks). The lowest-Level job wins. The bag's Cook opens it in the Work window; the server quotes it there.
  */
 export function cookOf(id) {
   if (!COOKS) {
     COOKS = new Map();
-    for (const r of ARTISAN_RECIPES.cooking || []) {
-      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;
-      const ins = Object.entries(recipeInputs(r));
-      if (ins.length !== 1) continue;
-      const [input, need] = ins[0];
-      const had = COOKS.get(input);
-      if (!had || (r.req || 1) < (had.recipe.req || 1)) COOKS.set(input, { skill: 'cooking', recipe: r, input, need: Math.max(1, Number(need) || 1) });
+    for (const j of jobRecipes()) {
+      if (j.trade !== 'cooking' || kindOf(j.face) !== 'food') continue;
+      for (const input of Object.keys(j.inputs)) { const had = COOKS.get(input); if (!had || j.R < had.R) COOKS.set(input, j); }
     }
   }
   return COOKS.get(id) || null;

@@ -57,7 +57,7 @@ import { SCENE_MAPS } from '../data/world/maps/index.js';
 import { levelOf, outfitOf } from './character-sections.js';
 import { heroSprite } from './hero-look.js';
 import { assignmentOf } from './party-sections.js';
-import { benchJobOver } from './bench-sections.js';
+import { fuelRunOver } from './hearth-sections.js';
 import { createIntentLedger } from './intent-ledger.js';
 import { purseOf, newerPurse, storageOf } from './item-sections.js';
 import { lastClimbOf } from './tower-sections.js';
@@ -127,7 +127,7 @@ function doingOf(body) {
   const read = { read: (k) => body[k] };
   const a = assignmentOf(read);
   if (a.kind === 'hunting') return a.text;
-  return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;
+  return a.kind === 'busy' && !fuelRunOver(read, Date.parse(body.now)) ? a.text : null;
 }
 
 function newIdem() {

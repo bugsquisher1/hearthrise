@@ -31,7 +31,7 @@ export function pocketHtml(id, glyphs, act) {
 }
 
 /** The count in the corner: nothing for a single item, short above ten thousand; on a phone's 36 px pocket, above 999 (UI audit
-    2026-11-18: "10" and "1,493" side by side read as "101,493"). `ahead` (town-ticker.js): the count includes work the server has not
+    2026-11-18: "10" and "1,493" side by side read as "101,493"). `ahead`: the count includes work the server has not
     paid yet, so it is always written and reads as pending. The whole count stays in the pocket's name (grid.js) and its tooltip. */
 export function patchCount(li, qty, ahead) {
   const el = li.querySelector('.hw-count');

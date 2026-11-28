@@ -82,7 +82,6 @@
     "src/data/world/town/plan.js DISTRICTS",
     "src/shell/hunt-ground-facts.js bigPullLine",
     "src/shell/hunt-list.js recommendedHunt",
-    "src/shell/windows/inventory/bury.js buryLine",
     "src/world/atlas.js loadAtlases",
     "src/world/core/compose.js blendTiles",
     "src/world/core/shadows.js castPoint",

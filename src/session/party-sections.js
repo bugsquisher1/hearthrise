@@ -31,8 +31,7 @@
 
 import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js';
 import { HUNT_INDEX } from '../data/hunts.js';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js';
-import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js';   // the dark (switched) jobs too: only a hero the server let start one runs one
+import { ARTISAN_RECIPES } from '../data/recipes.js';
 import { huntOf, staminaOf } from './hunt-sections.js';
 import { trainingPhrase } from './training-sections.js';
 import { heroVitalsOf } from './character-sections.js';
@@ -136,14 +135,11 @@ export function noticesOf(cs) {
 export function huntName(id) { return (id && HUNT_INDEX[id] && HUNT_INDEX[id].name) || 'a hunt'; }
 
 /* A town activity in words, keyed kind:id (the catalogue the engine runs); a row it does not know falls back to its kind. */
-const TOWN_WORDS = new Map([
-  ...TREES.map((n) => ['gather:' + n.id, 'chopping the ' + n.name]),
-  ...ROCKS.map((n) => ['gather:' + n.id, 'mining the ' + n.name]),
-  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
-  /* a fuel (an output-less row: src/data/hearth.js) burns in the Great Hearth; any other row is worked on */
-  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, r.output ? 'working on ' + r.name : 'fueling the Great Hearth with ' + r.name]),
-]);
-const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
+/* Since the bench cut (09-crafting 4.17) the one artisan pointer is a run of fuel into the Great Hearth (an output-less row:
+   src/data/hearth.js); a job is the trade_jobs section's, never a pointer. */
+const TOWN_WORDS = new Map((ARTISAN_RECIPES.inner_flame || []).filter((r) => r && !r.output)
+  .map((r) => ['artisan:' + r.id, 'fueling the Great Hearth with ' + r.name]));
+const TOWN_KIND_WORDS = Object.freeze({ artisan: 'at the Great Hearth', training: 'training' });
 
 /** The town activity the server's pointer names ("fishing at the Shrimp Spot"), or null when there is none. Pure. */
 export function townActivityWords(st) {

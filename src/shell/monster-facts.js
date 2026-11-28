@@ -68,7 +68,7 @@ export function isMet(id) {
 function usesFor(item) {
   const places = usePlaces(item);
   const said = new Set([t('item.plant_it'), t('item.house_asks'), t('item.temper_asks')]);
-  const heads = places.filter((p) => p.place && p.place.kind === 'work').map((p) => t('item.used_in', { skill: skillName(p.place.skill), items: '' }));
+  const heads = places.filter((p) => p.place && p.place.kind === 'job' && p.place.trade).map((p) => t('item.used_in', { skill: skillName(p.place.trade), items: '' }));
   const rest = usesOf(item).filter((words) => !places.length || (!said.has(words) && !heads.some((h) => words.startsWith(h))));
   return places.concat(rest.map((words) => ({ words, place: null })));
 }

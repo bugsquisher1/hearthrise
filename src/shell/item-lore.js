@@ -2,17 +2,16 @@
 // src/shell/item-lore.js — WHAT AN ITEM IS, WHERE IT COMES FROM, WHAT IT IS FOR.
 //
 // PURE (no DOM). The words in an item's tooltip, built from the catalogue rows
-// (items, drinks, monsters' drops, recipes, gathering nodes, crops, shop
+// (items, drinks, monsters' drops, the job recipes, the Hearth's fuels, crops, shop
 // grants), so a new item row gets its story with no code. Catalogue facts
 // only: no count, price or chance appears here (those are the server's and
 // the tooltip takes them from the envelope).
 //
 //   kindWords(id)   "Weapon · Tier 1 · Common", "Food · heals 18 health"
 //   sourcesOf(id)   ["Dropped by Slime at Mill Cellar", "Made with Cooking"]
-//   whereToGet(id)  the short answer where a shortage is shown: "Made with Crafting 21"
-//   wherePlaces(id) the same answer piece by piece, each with the PLACE it names (a bench row, the Farm, the Shop's
+//   wherePlaces(id) where to get it, for the row that says the player is short ("Made with Woodcrafting 21"), piece by piece, each with the PLACE it names (a job's row, the Farm, the Shop's
 //                   row, a hunt), so a line can link each piece to its window (src/shell/goto.js)
-//   usePlaces(id)   what spends it, by place: a bench row per skill, the House, Tempering, the Farm
+//   usePlaces(id)   what spends it, by place: a job row per trade, the House, Tempering, the Farm
 //   usesOf(id)      ["Used in Cooking: Wheat Bread", "Eat to heal 18 health"]
 //   saleWords(id)   who won't buy it: "" or "For your own use. ..."; toolWords(id) what a tool does and where it counts
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
@@ -26,10 +25,11 @@ import { ITEMS } from '../data/items.js';
 import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js';
 import { listWords, whole } from '../render/format.js';
 import { LEVEL_REQ } from '../data/gear-tiers.js';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js';
+import { DRINK_ITEMS, DRINK_DESC } from '../data/drinks.js';
 import { MONSTERS } from '../data/monsters.js';
-import { ARTISAN_RECIPES } from '../data/recipes.js';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js';
+import { CROPS, EQUIP_SLOT_META } from '../data/gathering.js';
+import { TRADES } from '../data/trades.js';
+import { jobRecipes } from '../core/trades.js';
 import { SHOP_OFFERS } from '../data/shops.js';
 import { SKILLS_DEF } from '../data/skills.js';
 import { ITEM_DESC } from '../data/item-descriptions.js';
@@ -38,7 +38,7 @@ import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromK
 import { FLAMES } from '../data/hearth.js';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js';
-import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, JEWEL_GUARANTEES, JEWEL_SWITCH, perksFor } from '../data/jewelry.js';
+import { JEWEL_PIECES, JEWEL_PERKS, JEWEL_GUARANTEES, JEWEL_SWITCH, perksFor } from '../data/jewelry.js';
 import { t } from '../render/player-text.js';
 import { standingOf } from './item-standing.js';
 import { SIGNATURES } from '../data/signatures.js';
@@ -49,7 +49,8 @@ import { castsOf, spellRow, mends } from '../data/monster-spells.js';
 import { HUNT_INDEX } from '../data/hunts.js';
 import { OUTFIT_ROWS } from '../data/outfits.js';
 
-const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
+/* a skill's or a trade's name (a job's Levels are its trade's, src/data/trades.js) */
+const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || (TRADES[id] && TRADES[id].name) || id;
 /* A type's word (item.type_<type>, else `or`); own-property reads only. */
 const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy', 'training']);
 const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or));
@@ -57,33 +58,26 @@ const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or)
 const SIG_TYPE = Object.freeze({ weapon: 'weapon', necklace: 'jewelry', ring: 'jewelry' });
 
 let INDEX = null;
-/* item -> { drops:[monster], made:[skill], from:[gather skill], at:{skill: lowest level}, row:{skill: the bench recipe or node at that
-   level}, shop, inputOf:[[skill, output, job, recipe]] }, built once.
-   `job`: the words for a job that names itself rather than its product (designer 2026-11-05: an input to a gem roll or to the Hallmark
-   names the job, never the grades it may make); null for every other recipe. `recipe`: the bench row's id (null for the Hallmark). */
+/* item -> { drops:[monster], made:[trade], from:[gather trade], at:{trade: lowest Level}, row:{trade: the job recipe at that Level}, shop,
+   inputOf:[[trade, output, job, recipe, Level]] }, built once. Since the bench cut (09-crafting 4.17) every made and gathered good is a JOB's
+   (src/core/trades.js jobRecipes, the rows hr_trade_job_start sells): its trade and the Level that opens it, its row the link's target
+   (the Work window's Jobs list). The third field, job: the words for a job that names itself rather than its product; null for every job today. */
 function index() {
   if (INDEX) return INDEX;
   INDEX = new Map();
   const at = (id) => { let r = INDEX.get(id); if (!r) { r = { drops: [], made: [], from: [], at: {}, row: {}, shop: false, inputOf: [] }; INDEX.set(id, r); } return r; };
   for (const [mid, m] of Object.entries(MONSTERS)) for (const d of (m && m.drops) || []) if (d && d.id) at(d.id).drops.push(mid);
-  /* the lowest level a skill gets it at, and the bench row or node that does it there (the row a link opens) */
-  const lowest = (row, skill, req, rowId) => {
+  /* the lowest Level a trade gets it at, and the job that does it there (the row a link opens) */
+  const lowest = (row, trade, req, rowId) => {
     const lv = Math.max(1, Number(req) || 1);
-    if (!(lv >= row.at[skill])) { row.at[skill] = lv; row.row[skill] = rowId || null; }
+    if (!(lv >= row.at[trade])) { row.at[trade] = lv; row.row[trade] = rowId || null; }
   };
-  const recipe = (skill, r) => {
-    /* every grade a rolled job can make is made by it (src/data/jewelry.js) */
-    for (const id of recipeOutcomes(r)) { at(id).made.push(skill); lowest(at(id), skill, r.req, r.id); }
-    const ins = Object.assign({}, r.inputs || {}, r.input ? { [r.input]: 1 } : {}, r.secondary || {});
-    /* a gem roll never makes the piece it is named for: its inputs name the job (a piece's own rolled job is named for the piece it makes) */
-    for (const id of Object.keys(ins)) if (r.output) at(id).inputOf.push([skill, r.output, r.roll === 'gem' ? r.name : null, r.id || null, Math.max(1, Number(r.req) || 1)]);
-  };
-  for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) recipe(skill, r);
-  for (const r of DRINK_RECIPES) recipe('cooking', r);
-  /* the Hallmark step: a Fine piece and its gem make the Hallmarked row (at the piece's own bench), and are used in it; the reforge the same, with the bars */
-  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, t('jewel.job_hallmark'), null, o.level]); }
-  for (const o of REFORGE_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.metal, o.gem]) at(id).inputOf.push([o.skill, o.to, t('jewel.job_reforge'), null, o.level]); }
-  for (const [nodes, skill] of /** @type {[{id: string, prod?: string, req?: number}[], string][]} */ ([[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']])) for (const n of nodes) if (n.prod) { at(n.prod).from.push(skill); lowest(at(n.prod), skill, n.req, n.id); }
+  for (const j of jobRecipes()) {
+    const r = at(j.face);
+    (j.stage === 'gather' ? r.from : r.made).push(j.trade);
+    lowest(r, j.trade, j.R, j.id);
+    for (const id of Object.keys(j.inputs)) at(id).inputOf.push([j.trade, j.face, null, j.id, j.R]);
+  }
   for (const c of Object.values(CROPS)) if (c && c.prod) { at(c.prod).from.push('farming'); lowest(at(c.prod), 'farming', c.req || c.lv); }
   /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
   for (const o of SHOP_OFFERS) if (SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
@@ -143,20 +137,12 @@ export function sourcesOf(id, serverOffers) {
 
 const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_with' : 'item.gathered_with', { skill: skillName(s) })).join('. ');
 
-/**
- * Where to get it, for the row that says the player is short (the House's price, a recipe's input). The hero's own hands first,
- * with the level: "Made with Crafting 21". A monster's drop only when no one can do it at level 1: "Grown with Farming 20. Dropped by
- * Rat at Mill Cellar", "Dropped by Briarcoat Wolf at Meadowbrook Thicket". '' when the catalogue knows no way.
- */
-export function whereToGet(id) {
-  return wherePlaces(id).map((p) => p.words).join(' · ');
-}
-
-/** @typedef {{words: string, place: {kind: string, skill?: string, row?: string|null, item?: string, hunt?: string}|null}} ItemPlace  a line's words and the window it opens */
+/** @typedef {{words: string, place: {kind: string, job?: string|null, trade?: string, item?: string, hunt?: string}|null}} ItemPlace  a line's words and the window it opens */
 
 /**
- * whereToGet piece by piece: [{ words, place }], in its order. `place` is what the words name, for a link to open:
- * { kind: 'work', skill, row } (a bench recipe or a gathering node), { kind: 'farm' }, { kind: 'shop', item },
+ * Where to get it, for the row that says the player is short (the House's price, a job's input): the hero's own hands first, with the
+ * Level ("Made with Woodcrafting 21"), a monster's drop only when no one can do it at Level 1. [{ words, place }], in its order. `place` is what the words name, for a link to open:
+ * { kind: 'job', job } (a job recipe's row in the Work window), { kind: 'farm' }, { kind: 'shop', item },
  * { kind: 'hunt', hunt }. From the catalogue rows, so a new recipe or ground links itself.
  * @returns {ItemPlace[]}
  */
@@ -165,8 +151,10 @@ export function wherePlaces(id) {
   if (!r) return [];
   /* "Made with Crafting 21", or no level at 1: [the row without a level, the row with one] */
   const leveled = (ids, skill) => (r.at[skill] > 1 ? t(ids[1], { skill: skillName(skill), level: r.at[skill] }) : t(ids[0], { skill: skillName(skill) }));
-  const work = (skill) => ({ kind: 'work', skill, row: r.row[skill] || null });
-  /** @type {ItemPlace[]} */ const out = [...new Set(r.from)].map((s) => (s === 'farming' ? { words: leveled(['item.grown_with', 'item.grown_with_level'], s), place: { kind: 'farm' } }
+  const work = (trade) => ({ kind: 'job', job: r.row[trade] || null, trade });
+  /* a crop is grown in the Farm's plots; a gathered good is a job too (its trade's row) */
+  const farmed = (s) => s === 'farming' && !r.row[s];
+  /** @type {ItemPlace[]} */ const out = [...new Set(r.from)].map((s) => (farmed(s) ? { words: leveled(['item.grown_with', 'item.grown_with_level'], s), place: { kind: 'farm' } }
     : { words: leveled(['item.gathered_with', 'item.gathered_with_level'], s), place: work(s) }))
     .concat([...new Set(r.made)].map((s) => ({ words: leveled(['item.made_with', 'item.made_with_level'], s), place: work(s) })));
   if (r.shop) out.push({ words: t('item.sold_at_shop'), place: { kind: 'shop', item: id } });
@@ -190,7 +178,7 @@ export function usePlaces(id) {
     const had = bySkill.get(skill);
     if (!had || req < had.req) bySkill.set(skill, { recipe, req });
   }
-  for (const [skill, b] of bySkill) out.push({ words: t('item.way_used_in', { place: skillName(skill) }), place: { kind: 'work', skill, row: b.recipe } });
+  for (const [skill, b] of bySkill) out.push({ words: t('item.way_used_in', { place: skillName(skill) }), place: { kind: 'job', job: b.recipe, trade: skill } });
   if (houseSpends(id)) out.push({ words: t('item.way_used_in', { place: t('item.place_house') }), place: { kind: 'house' } });
   if (temperSpends(id)) out.push({ words: t('item.way_used_in', { place: t('item.place_tempering') }), place: { kind: 'temper' } });
   if ((ITEMS[id] || {}).seed) out.push({ words: t('item.plant_it'), place: { kind: 'farm' } });
@@ -300,9 +288,9 @@ export function usesOf(id, features = []) {
     const fire = { skill: skillName('inner_flame'), flame: FLAMES[named.flame].words };
     out.push(named.req > 1 ? t('item.burn_flame_level', { ...fire, level: named.req }) : t('item.burn_flame', fire));
   }
-  /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): Cook all in the bag does it. */
+  /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): its Cooking job, the bag's Cook opens it. */
   const cook = cookOf(id);
-  if (cook) out.push(t('item.cook_it', { skill: skillName(cook.skill), level: cook.recipe.req }));
+  if (cook) out.push(t('item.cook_it', { skill: skillName(cook.trade), level: cook.R }));
   const tool = toolWords(id);
   if (tool) out.push(tool);
   if (it.seed) out.push(t('item.plant_it'));

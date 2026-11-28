@@ -62,7 +62,7 @@ const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_fo
   outgrown: 'away.next_outgrown' });
 /* A training session's: its cap reached, start it again; the purse's end and every other say it all already. */
 const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
-const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
+const TOWN_KINDS = Object.freeze(['artisan', 'training']);   // a fuel run at the Great Hearth, a training session (no gathering node since 09 4.17)
 
 /* Longer than this reads in whole days (QA audit 2026-11-18 N6: a week away read "176 h 2 min"). */
 export const SPAN_DAYS_OVER_MS = 48 * 3600 * 1000;

@@ -30,7 +30,6 @@ import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, 
 import { isRareOnly } from '../hunt-ground-facts.js';
 import { homeOf, chestsOf } from '../../session/home-sections.js';
 import { toolEffect, rareSaleWords } from '../item-lore.js';
-import { toolLossWords } from '../town-work.js';
 import { runIntent } from '../intent-words.js';
 import { showTip, hideTip } from './item-tip.js';
 import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js';
@@ -195,9 +194,7 @@ function patchSell(root, st, ctx) {
   if (sc.confirm) {
     const p = sc.confirm;
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
-    /* Selling a tool away slows the skill: said before the press, as the sale's one warning. */
-    const slower = p.lines.map((l) => toolLossWords(st.cs, l.item, l.qty)).filter(Boolean).join(' ');
-    text(cf.querySelector('.hw-confirm-note'), [p.spare ? '' : rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower, p.more ? t('bag.confirm_remaining', { count: p.more }) : ''].filter(Boolean).join(' '));
+    text(cf.querySelector('.hw-confirm-note'), [p.spare ? '' : rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', p.more ? t('bag.confirm_remaining', { count: p.more }) : ''].filter(Boolean).join(' '));
     const yes = cf.querySelector('[data-hs-act="confirm-yes"]');
     text(yes, 'Sell for ' + gold(p.total));
     prop(yes, 'disabled', sc.pending);

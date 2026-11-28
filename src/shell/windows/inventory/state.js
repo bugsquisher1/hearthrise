@@ -15,22 +15,17 @@
 //                     pressed on (`msgAt`: 'pick:<item>', 'slot', 'upgrade', or null
 //                     for the window's own line). Display only: nothing reads
 //                     it but this window, nothing spends it.
-//   the town ticker   what running town work has certainly done since the
-//                     server's watermark (`tick`, town-work.js tickOf): the
-//                     pockets show it as pending; `items` and `qty`, which every
-//                     action reads, stay the server's.
+// Every count a pocket shows, and every action reads (`items`, `qty`), is the server's: a fuel run's spend shows on the next settle.
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js';
 import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare } from '../../bag-model.js';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare, cookOf } from '../../bag-model.js';
 import { isRareOnly } from '../../hunt-ground-facts.js';
 import { barKind, barIndexOf } from '../../bar-assign.js';
 import { itemName } from '../../widgets/bits.js';
 import { buryRecipeOf, buryLabel, buryQty } from './bury.js';
 import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js';
-import { patternRowOf, learnBlock } from './pattern.js';
 import { upgradeOf } from '../../widgets/upgrade-line.js';
-import { tickOf } from '../../town-work.js';
 import { ITEMS } from '../../../data/items.js';
 import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { heroVitalsOf } from '../../../session/character-sections.js';
@@ -93,8 +88,8 @@ export function stateOf(ctx) {
     upgrade,
     /* What "Select outgrown" selects (bag-model.js outgrownIds, Rares in): read off the server's bag, worn set and rules; never a locked stack. */
     outgrown: outgrownIds(list, eq, rules, { wanted: upgradeWanted(upgrade) }).filter((id) => !(rules && rules.locked.has(id))),
-    /* Display only: the pockets' pending counts (grid.js). Never read by an action. */
-    tick: tickOf(cs) };
+    /* the window manager, for a press that is a link (Cook: the job's row in the Work window, bury.js) */
+    wm: ctx.wm || null, refresh: typeof ctx.refresh === 'function' ? ctx.refresh : null };
 }
 
 /** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */
@@ -128,8 +123,8 @@ export function primaryOf(st, id) {
   /* an outfit's bundle is USED (QA gate 2026-11-17: the strip offered only Sell for the Key Warden); once the server says the hero owns the
      outfit, the bundle is kept to sell or trade and Sell is its press */
   if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];
-  /* a pattern is LEARNED by this hero (pattern.js); once the server says it knows it, the pattern is kept to sell or trade */
-  if (patternRowOf(id) && !learnBlock(st.cs, id)) return ['learn', t('controls.learn')];
+  /* a raw food a Cooking job takes: Cook opens that job in the Work window (bury.js; no bench since 09 4.17) */
+  if (cookOf(id)) return ['cook', 'Cook'];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', t('controls.sell')];
   return null;
 }

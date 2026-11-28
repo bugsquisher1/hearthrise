@@ -16,10 +16,11 @@
 // server's level and its two XP marks on the server's own curve, hr_skill_block),
 // replaced on each envelope; nothing here works a level or a mark out of XP
 // (lane/c-skills-from-server: this build's copy of the curves can be a release
-// away from the server's). The windows send nothing. While town work runs, a
-// bar also shows the XP the server's engine has certainly earned since its last
-// payout (src/shell/town-ticker.js) as a pending segment: the level stays the
-// server's and the bar fills no further than its level.
+// away from the server's). The windows send nothing.
+// THE TRADES (09-crafting 4.17: a hero's trade Levels are its company's) are the Work window's ledger (tradeLedger): one entry per
+// trade that ships (src/data/trades.js TRADES), its Level and XP the server's `trade_jobs.trades` (trade-sections.js), its bar the XP
+// into that Level on the trades' one table (src/core/trades.js tradeXpTable, the twin hr_trade_level is generated from and pinned to),
+// drawn only while the server's XP sits inside the server's Level, and its next unlock the next job that Level opens.
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../../data/skills.js';
 import { SKILL_GUIDE } from '../../data/skill-guide.js';
@@ -29,8 +30,9 @@ import { rows, text, cls, style, attr, element } from '../../render/paint.js';
 import { whole } from '../../render/format.js';
 import { escapeHtml as esc } from '../../utils/dom.js';
 import { glyphSvg } from '../launcher.js';
-import { tickOf } from '../town-work.js';
-import { aheadXp } from '../town-ticker.js';
+import { TRADES } from '../../data/trades.js';
+import { jobRecipes, tradeXpTable } from '../../core/trades.js';
+import { tradeJobsOf } from '../../session/trade-sections.js';
 import { characterSheetOf } from '../../session/character-sections.js';
 import { t } from '../../render/player-text.js';
 
@@ -42,7 +44,7 @@ const levelProgress = (r, extra) => (mastered(r) ? 1 : Math.max(0, Math.min(1, (
 
 const pct = (f) => (Math.round(f * 1000) / 10) + '%';
 
-/** The bar's markup: the server's fill and, after it, the pending segment (town-ticker.js). */
+/** The bar's markup: the server's fill and, after it, a pending segment (the hunt analyzer's, widgets/analyzer.js). */
 export function skillBarHtml(label) {
   return '<span class="hw-skill-bar" role="meter" aria-label="' + esc(label) + ' progress" aria-valuemin="0" aria-valuemax="100">'
     + '<i class="hw-skill-fill"></i><i class="hw-skill-ahead"></i></span>';
@@ -50,9 +52,8 @@ export function skillBarHtml(label) {
 
 /**
  * One skill's progress inside `el` (its .hw-skill-bar and .hw-skill-xp) from the server's { level, into, need }
- * (skillLevelsOf), plus the XP running town work has certainly earned and the server has not paid yet (`ahead`): a
- * pending segment after the fill and the "XP to" words counting down, marked `is-ahead`. The level is the server's:
- * the segment stops at it.
+ * (skillLevelsOf), plus a pending `ahead` (0 for every ledger): a segment after the fill and the "XP to" words counting
+ * down, marked `is-ahead`. The level is the server's: the segment stops at it.
  */
 export function patchSkillProgress(el, r, ahead) {
   const a = mastered(r) ? 0 : Math.max(0, Number(ahead) || 0);
@@ -103,7 +104,6 @@ function skillsWindow(groups) {
   };
   render.patch = function patchSkills(body, ctx) {
     const sk = skillLevelsOf(ctx.character);
-    const tick = tickOf(ctx.character);
     /* Inner Flame's payoff, the SERVER's engine sheet (regen_pct, the Character sheet's Regeneration line), or nothing */
     const sheet = characterSheetOf(ctx.character);
     const regen = sheet && sheet.combat ? sheet.combat.regenPct : null;
@@ -118,7 +118,7 @@ function skillsWindow(groups) {
         patch: (li, id) => {
           const r = sk[id];
           text(li.querySelector('.hw-skill-lv'), String(r.level));
-          patchSkillProgress(li, r, aheadXp(tick, id));
+          patchSkillProgress(li, r, 0);
           /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
              before its next fuel; nothing until the server has said. */
           const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';
@@ -138,5 +138,94 @@ function skillsWindow(groups) {
 /* The combat ledger is the Character window's (src/shell/windows/character/sheet.js): the
    combat skills sit beside the numbers they make. */
 export const combatLedger = skillsWindow([['combat', 'Combat skills']]);
-export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);
+
+/* ── THE TRADES' LEDGER (the Work window's; 09-crafting 4.17) ───────────────────────────────────────────────────────────────────── */
+
+/* The trades that ship, by stage, in TRADES' order; a new trade row joins its group with no code. */
+const TRADE_GROUPS = Object.freeze([['gather', 'Gathering'], ['make', 'Crafting']]);
+const shipped = (stage) => Object.keys(TRADES).filter((id) => TRADES[id].ships === 'v030' && TRADES[id].stage === stage);
+
+let NEXT_JOBS = null;
+/* trade -> its jobs, lowest Level first (src/core/trades.js jobRecipes, the rows hr_trade_job_start sells), built once */
+function jobsOf(trade) {
+  if (!NEXT_JOBS) {
+    NEXT_JOBS = new Map();
+    for (const j of jobRecipes()) { if (!NEXT_JOBS.has(j.trade)) NEXT_JOBS.set(j.trade, []); NEXT_JOBS.get(j.trade).push(j); }
+    for (const list of NEXT_JOBS.values()) list.sort((a, b) => a.R - b.R);
+  }
+  return NEXT_JOBS.get(trade) || [];
+}
+
+/** A trade's unlock line at the server's Level: { one, more, all } (the first job the next Level that opens one opens, how many more open
+    there, every one of them by name). Pure. */
+export function tradeUnlockLine(trade, level) {
+  const next = jobsOf(trade).filter((j) => j.R > level);
+  if (!next.length) return { one: '', more: '', all: '' };
+  const at = next.filter((j) => j.R === next[0].R);
+  return { one: t('work.skill_next', { level: next[0].R, name: at[0].name }), more: at.length > 1 ? t('work.skill_more', { count: at.length - 1 }) : '',
+    all: at.map((j) => t('work.skill_next', { level: j.R, name: j.name })).join(', ') };
+}
+
+/** A trade's { level, into, need } for the bar: the server's Level and XP, the marks from the trades' one table; null when the server's XP
+    is not inside the server's Level there (then the bar is not drawn, never a level of ours). Pure. */
+export function tradeProgress(r) {
+  const tbl = tradeXpTable();
+  const lo = tbl[r.level - 1], hi = r.level < tbl.length ? tbl[r.level] : null;
+  if (!Number.isSafeInteger(lo) || r.xp < lo || (hi !== null && r.xp >= hi)) return null;
+  return { level: r.level, into: r.xp - lo, need: hi === null ? 0 : hi - lo };
+}
+
+const guideOf = (id) => SKILL_GUIDE[id] || (TRADES[id] && TRADES[id].was ? SKILL_GUIDE[TRADES[id].was] : null) || null;
+
+function tradeEntryHtml(g, id) {
+  const guide = guideOf(id);
+  const name = TRADES[id].name;
+  return '<li class="hw-skill" tabindex="0" data-key="' + esc(id) + '">'
+    + '<span class="hw-skill-top"><span class="hw-skill-glyph">' + glyphSvg(g, guide ? guide.glyph : 'uiStar') + '</span>'
+    + '<b class="hw-skill-name">' + esc(name) + '</b><b class="hw-skill-lv"></b></span>'
+    + '<span class="hw-skill-mid">' + skillBarHtml(name)
+    + '<small class="hw-skill-xp"></small></span><small class="hw-skill-next"><span class="hw-skill-one"></span><span class="hw-skill-more"></span></small>'
+    + '<small class="hw-skill-all"></small></li>';
+}
+
+/**
+ * THE TRADES' LEDGER: the company's trade Levels as the server's `trade_jobs.trades` states them, one entry a trade it states, two groups
+ * (Gathering, Crafting). Nothing while the server sends no section (the switch is dark). A component renderer (skeleton + .patch).
+ */
+export function tradeLedger() {
+  return '<div class="hw-skills hw-trades">'
+    + TRADE_GROUPS.map(([stage, label]) => '<section class="hw-skill-group"><h3 class="hw-skill-head">' + esc(label) + '</h3><ul class="hw-skill-list" data-cat="' + stage + '"></ul></section>').join('')
+    + '</div>';
+}
+
+tradeLedger.patch = function patchTradeLedger(body, ctx) {
+  const root = body.querySelector('.hw-trades');
+  if (!root) return;
+  const s = tradeJobsOf(ctx.character);
+  const levels = s ? s.trades : null;
+  attr(root, 'hidden', levels ? null : '');
+  for (const [stage] of TRADE_GROUPS) {
+    const ids = levels ? shipped(stage).filter((id) => levels[id]) : [];
+    const list = root.querySelector('.hw-skill-list[data-cat="' + stage + '"]');
+    attr(list.parentNode, 'hidden', ids.length ? null : '');
+    rows(list, ids, {
+      key: (id) => id,
+      build: (id) => element(ctx.doc, tradeEntryHtml(ctx.glyphs, id)),
+      patch: (li, id) => {
+        const r = levels[id];
+        text(li.querySelector('.hw-skill-lv'), String(r.level));
+        const p = tradeProgress(r);
+        cls(li, 'is-nobar', !p);
+        if (p) patchSkillProgress(li, p, 0);
+        else text(li.querySelector('.hw-skill-xp'), whole(r.xp) + ' XP');
+        const u = tradeUnlockLine(id, r.level);
+        const next = li.querySelector('.hw-skill-next');
+        text(next.querySelector('.hw-skill-one'), u.one);
+        text(next.querySelector('.hw-skill-more'), u.more);
+        attr(next, 'title', u.all || null);
+        text(li.querySelector('.hw-skill-all'), u.all);
+      },
+    });
+  }
+};
 

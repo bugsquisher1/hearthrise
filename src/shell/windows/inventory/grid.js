@@ -34,8 +34,8 @@ import { pocketHtml, patchCount } from './pockets.js';
 import { MOBILE_QUERY } from '../../../render/mobile-query.js';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js';
 import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js';
+import { buryLine, buryBlock, buryRecipeOf, buryingOf, namedBlock, cookTarget } from './bury.js';
+import { gotoKey } from '../../goto.js';
 import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js';
 import { wearBlock, gearLockWhy } from '../../gear-gate.js';
 import { whyLine } from '../../widgets/why-line.js';
@@ -93,7 +93,7 @@ export function toolsHtml(g) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>';
 }
 
-/* "1 more on the way" / "4 being used": the pending part of a count (town-ticker.js), in words. */
+/* "1 more on the way" / "4 being used": a pending part of a count, in words (none since the bench cut: the server's count is the count). */
 const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
 /** The picked stack's count: what is in hand, then the pending part. A stack being spent counts what is left, the same number as
     its pocket and the work line ("×15 · 14 being used" sat beside a pocket of 1, the panel 2026-11-01). Pure. */
@@ -103,16 +103,15 @@ function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
   const fresh = isNew(st.seen, r.id, r.qty);
   const bi = barIndexOf(st.cs, r.id);
-  /* The server's count, plus what running town work has certainly done since its last payout (display only). */
-  const shown = shownQty(st.tick, r.id, r.qty);
-  patchCount(li, shown.qty, shown.ahead !== 0);
+  /* The server's count: a fuel run's spend shows on the next settle (09 4.17: no prediction of town work). */
+  patchCount(li, r.qty, false);
   cls(li, 'is-new', fresh);
   cls(li, 'is-locked', locked);
   cls(li, 'is-cur', st.sc.cursor === r.id);
   cls(li, 'is-wearing', !!st.sc.wearing && st.sc.wearing.items.includes(r.id));   // being put on (actions.js wear, Equip upgrades)
   attr(li, 'aria-selected', String(st.sc.sel.has(r.id)));
   text(li.querySelector('.hw-barkey'), bi >= 0 ? barKeyLabel(bi) : '');
-  attr(li, 'aria-label', itemName(r.id) + (shown.ahead ? ', ' + whole(shown.qty) + ' (' + aheadWords(shown.ahead) + ')' : r.qty > 1 ? ', ' + whole(r.qty) : '')
+  attr(li, 'aria-label', itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '')
     + (locked ? ', locked' : '') + (fresh ? ', new' : ''));
   if (fresh) st.sc.shownNew.add(r.id);
 }
@@ -166,13 +165,14 @@ export function patchTools(root, st, ctx) {
     pick.querySelector('.hw-pick-ico').innerHTML = cur ? itemIconHtml(ctx.glyphs, cur) : '';
   }
   text(pick.querySelector('b'), cur ? itemName(cur) : '');
-  /* The count every action here spends is the server's; the ticker's pending part is named beside it. */
-  const ahead = cur ? aheadQty(st.tick, cur) : 0;
-  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), ahead) + (st.shop && st.shop.bids.has(cur) ? ', the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
+  /* The count every action here spends is the server's. */
+  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), 0) + (st.shop && st.shop.bids.has(cur) ? ', the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
   const prim = primaryOf(st, cur);
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
+  /* Cook is a link to the job's row in the Work window (bury.js cookTarget): the shell's link press follows it (goto.js) */
+  attr(pb, 'data-hs-goto', prim && prim[0] === 'cook' ? gotoKey(cookTarget(cur)) : null);
   /* This very stack on the fire says nothing here: the job's own line below has its Stop, and "Already fueling... Stop it first." read as a refusal of the press that had just worked (door panel 2026-11-04). */
   const buryWhy = prim && prim[0] === 'bury' ? (buryingOf(st.cs) === buryRecipeOf(cur) ? '' : buryBlock(st.cs, buryRecipeOf(cur))) : prim && prim[0] === 'hearth' ? namedBlock(st.cs, cur) : '';
   /* Equip the server's sections already refuse (a hunt running, a requirement unmet: gear-gate.js) is off, and says why. */
@@ -187,10 +187,10 @@ export function patchTools(root, st, ctx) {
   /* THE ITEM'S WAYS (Tyler 2026-11-08): what spends it and where to get more, each place a link to its window (src/shell/goto.js) */
   patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [', ', placeLink(p)] : [placeLink(p)])) : []);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLockWhy(st.cs, 'upgrades'), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
-  const line = buryParts(st.cs);
+  const line = buryLine(st.cs);
   const bl = root.querySelector('.hw-burying');
-  cls(bl, 'is-on', line.length > 0);
-  paintLine(bl.querySelector('.hw-burying-q'), line, ctx.doc);
+  cls(bl, 'is-on', !!line);
+  text(bl.querySelector('.hw-burying-q'), line);
   prop(bl.querySelector('[data-hs-act="bury-stop"]'), 'disabled', sc.pending);
   prop(pick.querySelector('.hw-more'), 'disabled', sc.pending || !cur);
 

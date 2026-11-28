@@ -1,9 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/work-jobs.js — THE KIT TRADES' JOBS IN THE WORK WINDOW (lane/k1-job-slice, supabase/migrations/1073-k1-job-slice.sql;
-//   docs/design/redesign/09-crafting.md sections 4.9 and 6).
+// src/shell/windows/work-jobs.js — THE JOBS LIST: THE TOWN WORK (lane/k1-job-slice, supabase/migrations/1073-k1-job-slice.sql;
+//   docs/design/redesign/09-crafting.md sections 4.9, 6 and 4.17: the Work window's Jobs list is the town work).
 //
-// One pane under the work day, shown only while the server sends the `trade_jobs` section (src/session/trade-sections.js; dark until the
-// switch is lit). Every number is the SERVER's:
+// The Work window's body under the work day, shown while the server sends the `trade_jobs` section (src/session/trade-sections.js; the
+// bench cut's last statement lights it). Every number is the SERVER's:
 //   the line    the running job, its count and the time left to the server's own end (a display countdown: nothing spends it, and the
 //               next envelope replaces it), with Collect (on once the server's end has come; the server still says not_due before its
 //               own clock does) and Stop (now: the server lands what is done and returns the rest)
@@ -33,7 +33,8 @@ export function jobsPaneHtml() {
 }
 
 function rowHtml(g, r) {
-  return '<li class="hw-skill hw-job" data-key="' + esc(r.id) + '">' + itemIconHtml(g, r.face)
+  /* data-hs-find: a link to this job (the bag's Cook, an item's "Made with", the coach: src/shell/goto.js) brings this row into view */
+  return '<li class="hw-skill hw-job" data-key="' + esc(r.id) + '" data-hs-find="' + esc(r.id) + '">' + itemIconHtml(g, r.face)
     + '<span class="hw-job-text"><b class="hw-job-name"></b><small class="hw-job-inputs"></small><small class="hw-job-quote"></small></span>'
     + '<button type="button" class="hh-tool" data-hs-act="tjob-start" data-id="' + esc(r.id) + '">' + esc(t('work.job_start')) + '</button></li>';
 }

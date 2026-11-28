@@ -11,11 +11,11 @@
 //   sheet             {}                                               compute the character sheet
 //   unlock_buy        { offer }                                        a house tier or room rung (the
 //                                                                      server prices, gates and debits it)
-//   set_activity      { activity: { kind: 'gather' | 'artisan', id, count?, next? } | { kind: 'idle' } }  (count: the job's "make N",
-//                                                                      a gathering job's always; next: its THEN, wait | hunt)
-//                                                                      start a gathering node or a bench
-//                                                                      recipe (town-work.js) / stop; the
-//                                                                      engine collects before it switches
+//   set_activity      { activity: { kind: 'artisan', id: 'fuel_<item>', count? } | { kind: 'idle' } }  (count: a run of N; none
+//                                                                      burns the stack) start a run of fuel into the Great
+//                                                                      Hearth (src/shell/hearth-run.js) / stop; the engine
+//                                                                      collects before it switches. Since the bench cut (09
+//                                                                      4.17) there is no gathering node and no bench row
 //   gm_stop           { gm: { target, slot, reason } }                the Game Master stops a hero (gm-intents.js)
 //   market_*          { market: { ... } }                             the Weighhouse (market lane 2): list,
 //                                                                      cancel, buy and three reads, each with
@@ -33,7 +33,6 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { refusalOf } from './refusal.js';
-import { JOB_NEXT_INDEX } from '../data/hunt-after.js';
 
 export const EDGE_INTENTS = Object.freeze({
   equip: Object.freeze(['equip']),
@@ -42,7 +41,7 @@ export const EDGE_INTENTS = Object.freeze({
   eat: Object.freeze(['item']),
   /* The character sheet: the slot and nothing else (hr-accrue character-sheet.js). */
   sheet: Object.freeze([]),
-  /* Town work (src/shell/town-work.js): a gathering node or a bench recipe by id; idle stops it. */
+  /* Town work: a run of fuel into the Great Hearth by its recipe id (windows/inventory/bury.js); idle stops it. */
   set_activity: Object.freeze(['activity']),
   /* A property tier or a room rung of the account's house, by offer id only (hr_unlock_buy prices it). */
   unlock_buy: Object.freeze(['offer']),
@@ -72,6 +71,8 @@ const MARKET_OPTIONAL = Object.freeze({ market_browse: true });
 /* The engine's own bounds (request.js MAX_SELL_LINES, MAX_QTY, CATALOGUE_ID_RE, OFFER shape). */
 export const EDGE_LIMITS = Object.freeze({ sellLines: 64, qty: 1000, marketQty: 100000000, marketPrice: 1000000000, marketItems: 50 });
 const ID = /^[a-z0-9_]{1,64}$/;
+/* A Hearth fuel row's id (src/data/hearth.js fuelRecipeId). */
+const FUEL_ID = /^fuel_[a-z0-9_]+$/;
 const OFFER = /^[a-z0-9_]{1,40}(?:\.[a-z0-9_]{1,40}){1,3}$/;
 const SLOT = /^[a-z0-9_]{1,32}$/;
 const qtyOk = (n) => Number.isInteger(n) && n >= 1 && n <= EDGE_LIMITS.qty;
@@ -141,19 +142,16 @@ const FIELD = Object.freeze({
         || !Number.isInteger(v.slot) || typeof v.reason !== 'string') return null;
     return { target: v.target, slot: v.slot, reason: v.reason.slice(0, 200) };
   },
-  /* Only the declarations the client makes: a gathering node or a bench recipe by id, or stop. Never `combat`
-     (a hunt is hr_hunt_enter's) and never `training`. */
+  /* Only the declarations the client makes: a run of fuel into the Great Hearth by its recipe id (the one artisan row the bench cut
+     keeps, 09-crafting 4.17: hr-accrue set-activity.js refuses every other), or stop. Never `gather` (no node is town work), never
+     `combat` (a hunt is hr_hunt_enter's) and never `training`. */
   activity(v) {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
-    if (!((v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id))) return null;
-    /* "Make N" (2026-12-01-bench-count.sql): a job may carry a whole count 1..100000, a gathering job always (1026-job-counts.sql);
-       the server stops there. Beside a count, `next`: what the hero does then (src/data/hunt-after.js JOB_NEXTS ids). */
-    if (v.count === undefined || v.count === null) return v.kind === 'gather' || v.next !== undefined ? null : { kind: v.kind, id: v.id };
-    if (!(Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000)) return null;
-    if (v.next === undefined) return { kind: v.kind, id: v.id, count: v.count };
-    return typeof v.next === 'string' && Object.prototype.hasOwnProperty.call(JOB_NEXT_INDEX, v.next)
-      ? { kind: v.kind, id: v.id, count: v.count, next: v.next } : null;
+    if (!(v.kind === 'artisan' && typeof v.id === 'string' && ID.test(v.id) && FUEL_ID.test(v.id)) || v.next !== undefined) return null;
+    /* A run may carry a whole count 1..100000 ("Burn" is one); the server stops there. With none it burns the stack. */
+    if (v.count === undefined || v.count === null) return { kind: v.kind, id: v.id };
+    return Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000 ? { kind: v.kind, id: v.id, count: v.count } : null;
   },
 });
 

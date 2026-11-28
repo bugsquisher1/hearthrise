@@ -21,11 +21,10 @@
 //   lock, loot plan        hr_item_lock, hr_loot_rule_set (Keep in bag / Deposit in
 //                          storage / Sell, or Don't pick up: loot-dispatch.js)
 //   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
-//   fuel / cook (and stop) the engine's `set_activity` on the item's Hearth fuel row or
-//                          Cooking recipe (bury.js): the server spends the stack (or one:
-//                          "Burn") and pays; the hero walks to a fuel stand
+//   fuel (and stop)        the engine's `set_activity` on the item's Hearth fuel row (bury.js): the server burns the stack (or
+//                          one: "Burn") and pays; the hero walks to a fuel stand. A raw food's Cook is a link to its job
+//                          in the Work window (bury.js cookTarget; 09-crafting 4.17: no bench)
 //   a named fuel           hr_hearth_burn (bury.js burnNamed): one, alone, the square's colour
-//   learn a pattern        hr_recipe_learn (pattern.js learnPattern): one, read by this hero, its recipe opens for it
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
 //
@@ -57,13 +56,13 @@ import { dispatchLoot } from '../../../session/loot-intents.js';
 import { fitsSlot, dollTip, DRAG_WORN, pieceSlotOf } from './doll.js';
 import { askElsewhere } from './elsewhere.js';
 import { skillsOf, bagOf } from '../../../session/item-sections.js';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed, cookTarget } from './bury.js';
+import { gotoAttr } from '../../goto.js';
 import { equipUpgrades } from '../../widgets/upgrade-line.js';
 import { wearBlock } from '../../gear-gate.js';
 import { levelOf, featuresOf } from '../../../session/character-sections.js';
 import { unlockRing } from './key-ring.js';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js';
-import { patternRowOf, learnBlock, armLearn, learnPattern } from './pattern.js';
 import { actPlanCopy } from './plan-copy.js';
 import { text, attr } from '../../../render/paint.js';
 import { heroGroundOf } from '../../widgets/first-target.js';
@@ -196,22 +195,15 @@ function doPrimary(st, id, repaint) {
   else if (namedFuelOf(id)) doNamed(st, id, repaint);
   /* the strip's press is the one it shows (state.js primaryOf): Use while the bundle can be used, Sell once the server says it is owned */
   else if (bundleOutfitOf(id) && !bundleUseBlock(cs, id)) doBundle(st, id, repaint);
-  /* a pattern: Learn while this hero has not read it, Sell once the server says it has (state.js primaryOf) */
-  else if (patternRowOf(id) && !learnBlock(cs, id)) doLearn(st, id, repaint);
+  /* a raw food a Cooking job takes: Cook opens that job's row in the Work window (Enter on the strip; a press follows the link itself) */
+  else if (cookTarget(id)) goCook(st, id);
   else askSell(st, [id], t('controls.sell'), repaint);
 }
 
-/* Learn ONE pattern (pattern.js): refused here only for what the server's learned set already says (this hero knows it); the first press
-   arms it and asks for a second (a tradeable Rare, used up). From the context menu (`btn`, its Learn) the ask is that button's own words
-   and the menu stays open for the second press, as a bundle's Use. */
-function doLearn(st, id, repaint, btn) {
-  const why = learnBlock(st.cs, id);
-  if (why) { say(st, repaint, why, 'pick:' + id); return; }
-  if (!armLearn(st.sc, id)) {
-    if (btn) { text(btn, t('bag.pattern_confirm')); attr(btn, 'data-armed', 'true'); return; }
-    say(st, repaint, t('bag.pattern_confirm'), 'pick:' + id); return;
-  }
-  learnPattern(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
+/* The bag's Cook: the job's row in the Work window (bury.js cookTarget), through the window manager's one door (goto.js). */
+function goCook(st, id) {
+  const g = cookTarget(id);
+  if (g && st.wm && typeof st.wm.goTo === 'function' && st.wm.goTo(g.win, g) && st.refresh) st.refresh(g.win);
 }
 
 /* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned); the first
@@ -227,7 +219,7 @@ function doBundle(st, id, repaint, btn) {
   useBundle(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 
-/* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
+/* Burn the whole stack, or one (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
 function doBury(st, id, repaint, count) {
   const why = buryBlock(st.cs, buryRecipeOf(id));
   if (why) { say(st, repaint, why); return; }
@@ -332,7 +324,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
   /* a fuel stack offers ONE ("Burn", a bench count of one) beside the whole stack ("Burn all N"; Tyler 10-25, the words 11-18) */
-  if (br && br.skill !== 'cooking' && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Burn', !brWhy, '', brWhy);
+  if (br && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Burn', !brWhy, '', brWhy);
   if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id), st.cs), !brWhy, '', brWhy);
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
@@ -340,9 +332,9 @@ function openMenu(ctx, body, st, id, at, repaint) {
   /* an outfit's bundle: Use owns the outfit for this hero (off, with why, once the server says it owns it already) */
   const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
   if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
-  /* a pattern: Learn opens its recipe for this hero (off, with why, once the server says it knows it) */
-  const lpWhy = patternRowOf(id) ? learnBlock(st.cs, id) : '';
-  if (patternRowOf(id)) h += item('m-learn', t('controls.learn'), !lpWhy, '', lpWhy);
+  /* a raw food: Cook is a link to its Cooking job in the Work window (the shell's link press follows it: goto.js) */
+  const ck = cookTarget(id);
+  if (ck) h += item('m-cook', 'Cook', true, gotoAttr(ck));
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'Shop won\'t buy this';
   /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */
@@ -569,7 +561,6 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
     case 'm-use': doBundle(st, id, repaint, el); return true;
-    case 'm-learn': doLearn(st, id, repaint, el); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;

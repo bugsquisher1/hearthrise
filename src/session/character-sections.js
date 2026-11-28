@@ -70,13 +70,6 @@ export function characterSheetOf(cs) {
 /** The server says this account is the Game Master (2027-03-13-gm-tools.sql's `gm` section). Fails safe to false. */
 export function gmOf(cs) { return read(cs, 'gm') === true; }
 
-/** Is the server switch `sw` on for this hero's account? The `features` section (hr_features_view, 2027-03-21-feature-switches.sql)
-    lists the ids of every switch on for it. Before the server says, or for a switch it doesn't list, NO: a door stays hidden, and
-    the server still decides every verb behind it. */
-export function featureOn(cs, sw) {
-  return typeof sw === 'string' && featuresOf(cs).includes(sw);
-}
-
 /** The ids of every server switch on for this hero's account (the `features` section), [] before the server says. */
 export function featuresOf(cs) {
   const on = read(cs, 'features');

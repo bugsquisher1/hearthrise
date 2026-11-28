@@ -35,7 +35,7 @@
 //   spell   a level-up in the record unlocked moves for the weapon worn (spell-news.js:
 //           the projection's own diff, never on a load), one line for all of them,
 //           id = each move's (`also` records the rest); it goes once they are on the bar
-//   work    a bench run this page watched finished on its own (town-news.js), id = the run's recipe and start
+//   work    a fuel run into the Great Hearth this page watched burned out (town-news.js), id = the run's recipe and start
 //   title   titles earned and not claimed (town-news.js), one line, id = each title's (`also` the rest)
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
@@ -63,10 +63,8 @@ import { deathSeen } from './death-popup.js';
 import { summaryClosedFor, forgetUnreadSummary, pastToRead, recordPast } from '../hunt-view/summary-recorder.js';
 import { awayRecapOf, awayRecapFrom, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js';
 import { askPastHunt } from '../session/past-hunt.js';
-import { benchStopRecapOf } from './bench-fee.js';
-import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js';
+import { workDoneOf, runningRunOf, titleNewsOf } from './town-news.js';
 import { pieceNewsOf } from './piece-words.js';
-import { workRow } from './town-work.js';
 import { tallyOf, pickWords } from '../session/tally-sections.js';
 import { tallyTask } from '../data/tally-tasks.js';
 import { gold } from '../render/format.js';
@@ -267,7 +265,7 @@ export function createAlertCenter(account, opts) {
   const sinceLoad = (opts && opts.clock) || (() => (typeof performance !== 'undefined' ? performance.now() : 0));
   const gearSeen = new Map();        // slot -> { session, ids: Set } the gear already in the open hunt's loot
   const heroUnit = new Map();        // slot -> { session, unit } the hero's unit the last read of its hunt named (display state)
-  const benchSeen = new Map();       // slot -> the key of the bench run this page last saw running (town-news.js runningRunKey)
+  const benchSeen = new Map();       // slot -> the first read this page saw of the fuel run running now (town-news.js runningRunOf)
   const alerts = [];                 // newest first
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
@@ -397,14 +395,12 @@ export function createAlertCenter(account, opts) {
     const judged = returning.has(cs.slot);
     const away = judged ? awayRecapOf(cs) : null;
     if (away) { now.push(away); markBack(cs, away.session, away.at); } else if (judged) backWithNoStamp(cs);
-    /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
-    const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
-    if (broke) now.push(broke);
-    /* A bench run this page watched that finished on its own, and the titles earned and not claimed (town-news.js, audit 2026-11-18 A17 A24). */
+    /* A fuel run this page watched that burned out, and the titles earned and not claimed (town-news.js, audit 2026-11-18 A17 A24). */
     const done = workDoneOf(cs, benchSeen.get(cs.slot));
     if (done) now.push(done);
-    const running = runningRunKey(cs);
-    if (running) benchSeen.set(cs.slot, running);
+    const running = runningRunOf(cs);
+    const was = benchSeen.get(cs.slot);
+    if (running && (!was || was.key !== running.key)) benchSeen.set(cs.slot, running);
     const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));
     if (titled) now.push(titled);
     /* A Trait piece this hero just found (piece-words.js: the answer's hunt_settle.found, or a frame's fresh find), once a piece. */

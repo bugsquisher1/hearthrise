@@ -8,7 +8,7 @@
 // marks its rows data-hs-find; shell.js calls seekRow after each repaint). A link is a real button: Tab reaches it,
 // Enter and Space press it, a phone taps it, and on a phone the sheet it opens takes the place of the one it was in.
 //   targetOf(place)          a place (item-lore.js wherePlaces / usePlaces) -> { win, tab?, find? }, or null when it has
-//                            no window (a ground no one can walk, a skill with no bench door)
+//                            no window (a ground no one can walk)
 //   linkHtml(words, target)  the link's markup; plain words when there is no target
 //   gotoAttr(target)         the same link as an attribute, for a row pressed whole (a creature on a hunt's page)
 //   placesParts(places)      places as sentences, each a link: "Made with Crafting 21. Sold at the shop."
@@ -21,8 +21,6 @@
 import { escapeHtml as esc } from '../utils/dom.js';
 import { sepHtml } from '../render/format.js';
 import { revealInWindow } from './widgets/bits.js';
-import { SKILLS_DEF } from '../data/skills.js';
-import { GATHER_INDEX, BENCH_INDEX } from './town-work.js';
 
 const ATTR = 'data-hs-goto';
 const FIND = 'data-hs-find';
@@ -31,14 +29,11 @@ export const FOUND_MS = 2400;
 const WIN = /^[a-z][a-z0-9_-]*$/;
 const KEY = /^[a-z0-9][a-z0-9_.:-]*$/;
 
-/* The skills with a door in the Gathering and crafting window: a gathering or crafting skill with rows the engine runs (work.js hasWork). */
-const DOORS = new Set([...Object.values(GATHER_INDEX), ...Object.values(BENCH_INDEX)].map((r) => r.skill)
-  .filter((s) => SKILLS_DEF[s] && (SKILLS_DEF[s].cat === 'gather' || SKILLS_DEF[s].cat === 'artisan')));
-
 /** The window a place opens: { win, tab, find } (tab and find may be null), or null when no window does it. */
 export function targetOf(place) {
   if (!place) return null;
-  if (place.kind === 'work') return DOORS.has(place.skill) ? { win: 'skills-trade', tab: place.skill, find: place.row || null } : null;
+  /* a job (09-crafting 4.17: town work is the Work window's Jobs list): its row there, by its recipe id (windows/work-jobs.js) */
+  if (place.kind === 'job') return { win: 'skills-trade', tab: null, find: typeof place.job === 'string' && KEY.test(place.job) ? place.job : null };
   if (place.kind === 'shop') return { win: 'shop', tab: 'buy', find: place.item };
   if (place.kind === 'temper' || place.kind === 'services') return { win: 'shop', tab: 'services', find: null };
   /* the bag's next rung is bought in Storage (its Expand) */

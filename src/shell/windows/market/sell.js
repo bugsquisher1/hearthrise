@@ -25,7 +25,6 @@ import { marketKey, answerLost } from '../../../session/market-gesture.js';
 import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js';
 import { showTip, hideTip } from '../item-tip.js';
 import { notListableWords, keptWords } from '../../market-words.js';
-import { toolLossWords } from '../../town-work.js';
 import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js';
 import { t } from '../../../render/player-text.js';
 import { heroGroundOf } from '../../widgets/first-target.js';
@@ -159,9 +158,7 @@ function patchSheet(pane, v, have, source) {
     : '');
   /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
   const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'Below shop price, ask ' + whole(evenAskOf(rules, bid)) + '+ to match' : '';
-  /* Listing a tool from the bag slows its skill as storing it does. */
-  const slower = source === 'bag' && qty ? toolLossWords(cs, id, qty) : '';
-  text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id), slower].filter(Boolean).join(' '));
+  text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id)].filter(Boolean).join(' '));
   text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);
   const press = foot.querySelector('[data-hs-act="ms-list"]');
   text(press, g ? 'Try again' : qty && ask ? 'List ' + whole(qty) + ' for ' + whole(ask) + ' each' : t('controls.list'));

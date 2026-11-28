@@ -72,7 +72,7 @@ async function settled(cs, ans, reread) {
 
 /* The town activities a hunt replaces (the server makes them yield; settling first through the engine pays the
    stretch since their last settle, which SQL cannot). */
-const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
+const TOWN_KINDS = Object.freeze(['artisan', 'training']);   // a fuel run at the Great Hearth, a training session (no gathering node since 09 4.17)
 
 /**
  * Before a hunt: an own character still gathering, on an artisan run or training is stopped through the engine

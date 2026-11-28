@@ -59,7 +59,7 @@ import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-vi
 import { sizeStore, gripHtml, pressGrip } from './window-sizes.js';
 import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js';
 import { STAMP_EVERY_MS } from './away-recap.js';
-import { benchSpentAtMs } from './town-work.js';
+import { fuelSpentAtMs } from '../session/hearth-sections.js';
 import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js';
 import { mountWidgetMoves, paintMove } from './widget-move.js';
 import { followGoto, seekRow, ownsKey } from './goto.js';
@@ -454,8 +454,8 @@ export function mountShell(root, o) {
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
     /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
     if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
-    /* A bench the server's own numbers say is spent is settled for EVERY open character, watched or not (report #68). */
-    for (const p of ctx.peers()) settleSpentBench(p, benchSpentAtMs(p));
+    /* A fuel run the server's own numbers say is spent is settled for EVERY open character, watched or not (report #68). */
+    for (const p of ctx.peers()) settleSpentBench(p, fuelSpentAtMs(p));
     /* What "While you were away" will compare with stays fresh for the hero on screen (./away-work.js). */
     if (ctx.character && !doc.hidden) settleStaleTown(ctx.character, STAMP_EVERY_MS);
     for (const row of hud.rows()) {

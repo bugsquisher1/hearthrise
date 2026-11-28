@@ -1,148 +1,118 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/inventory/bury.js — A STACK SPENT AT A BENCH: FUEL THE HEARTH, COOK ALL.
-// (The `bury*` names are this module's word for "spend a stack at a bench"; they
-// predate the Hearth and name no rite.)
+// src/shell/windows/inventory/bury.js — A STACK BURNED IN THE GREAT HEARTH, AND A RAW FOOD'S WAY TO ITS JOB.
+// (The `bury*` names are this module's word for "spend a stack at the Hearth"; they predate the Hearth and name no rite.)
 //
-// Tyler 2026-10-25: Inner Flame replaces Prayer and trains by FUELLING the Great
-// Hearth in Havora's square with bones and the other fuels (src/data/hearth.js;
-// src/data/recipes.js ARTISAN_RECIPES.inner_flame, one row per fuel, `output:null`).
-// The bag offers "Burn" (one) and, on a stack, "Burn all N" (Tyler 2026-11-18); the server
-// stands the hero at a free fuel stand by the fire (2027-01-28-town-stands.sql: an
-// artisan Inner Flame pointer is the Hearth's) and the World walks it there.
-// A NAMED fuel burns alone, by its own call (namedBlock / burnNamed below,
-// src/session/hearth-intents.js). Playtest 10-22: Raw Wolf Meat sold for 1 gp
-// because nothing in the game said it cooks — the same path cooks it: a raw
-// item with a one-input Cooking recipe whose output is food (bag-model.js
-// cookOf, from the recipe rows; no id list) offers Cook all.
+// Tyler 2026-10-25: Inner Flame trains by FUELLING the Great Hearth in Havora's square with bones and the other fuels
+// (src/data/hearth.js; src/data/recipes.js ARTISAN_RECIPES.inner_flame, one `fuel_<item>` row per fuel, `output:null`). The bag offers
+// "Burn" (one) and, on a stack, "Burn all N" (Tyler 2026-11-18). The fuel runs are the bridge the bench cut keeps until the company
+// flame lights (09-crafting 4.17, 4.13 row 3): ONE `set_activity` { kind:'artisan', id:'fuel_<item>', count? }. The engine burns one at
+// a time from the SERVER's bag, then Storage, pays the Inner Flame XP itself, refuses a fuel above the server's level and stops on its
+// own when the stack is gone (or after the count: "Burn" is a run of one). Stop is ONE `set_activity` { kind:'idle' }: the engine
+// collects first. While the bag or the Work window is open the run settles as it goes (src/session/town-poll.js), and an unwatched one
+// is settled once the server's own record says it is spent (hearth-sections.js fuelSpentAtMs, the shell's display tick).
+// A NAMED fuel burns alone, by its own call (namedBlock / burnNamed below, src/session/hearth-intents.js).
 //
-// The server's path is the bench recipe: ONE `set_activity` naming
-// { kind:'artisan', id:<recipe> }. The engine spends one at a time at its own
-// pace from the SERVER's bag, pays the skill XP itself (never a client number),
-// rolls the burn itself (cooking), refuses a recipe above the server's level
-// (`activity_locked`), and stops on its own when the stack is gone (or after the
-// count it was told: "Burn" is a count of one). The bench runs
-// wherever the hero is in town (a hunt's start ends it). Stop (or the timer below, when the stack should be done) is
-// ONE `set_activity` { kind:'idle' }: the engine collects before it switches,
-// and the re-read envelope replaces the bag and the skills. While the bag is
-// open the run settles as it goes (src/session/town-poll.js), so the line says
-// how far it has got from the server's bag ("12 cooked so far, 30 left"). The "Fueling…" /
-// "Cooking…" line reads the server's pointer (state.active_kind / active_id),
-// so it survives a reload.
-//
-// Start, the armed stop and Stop are src/shell/town-work.js's (one path with the
-// Gathering and crafting window); this file names the stack's fuel or dish.
-//
-// A count rides the ONE set_activity (2026-12-01-bench-count.sql: the server stops
-// the bench after that many); a dish is always the whole stack (Cook all).
+// COOK IS A JOB (09 4.17: no bench). A raw food a Cooking job takes (bag-model.js cookOf, from the job recipes) offers Cook, a link to
+// that job's row in the Work window's Jobs list (src/shell/windows/work-jobs.js); the job's quote, fee and hours are the server's there.
+// Every number here is the server's envelope; nothing here moves one.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js';
 import { SKILLS_DEF } from '../../../data/skills.js';
-import { recipeInputs } from '../../../core/artisan.js';
 import { whole } from '../../../render/format.js';
+import { t } from '../../../render/player-text.js';
 import { itemName, itemNameFor } from '../../widgets/bits.js';
-import { riteOf, cookOf } from '../../bag-model.js';
-import { skillsOf, heldOf } from '../../../session/item-sections.js';
+import { riteOf, cookOf, namedFuelOf } from '../../bag-model.js';
+import { targetOf } from '../../goto.js';
+import { skillsOf, heldOf, nameOf } from '../../../session/item-sections.js';
 import { huntOf } from '../../../session/hunt-sections.js';
 import { townActivityWords } from '../../../session/party-sections.js';
-import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js';
-import { skillShortWords } from '../../intent-words.js';
-import { lineParts, lineText } from '../../town-ticker.js';
-import { namedFuelOf } from '../../bag-model.js';
-import { HUNT_INDEX } from '../../../data/hunts.js';
-import { nameOf } from '../../../session/item-sections.js';
+import { fuelRowOf, fuelRunOf } from '../../../session/hearth-sections.js';
 import { burnNamedFuel } from '../../../session/hearth-intents.js';
 import { busyWords } from '../../training-words.js';
 
-/* The Hearth's skill: every output-less bench row is a fuel (src/data/hearth.js). */
+/* The Hearth's skill: every output-less row is a fuel (src/data/hearth.js). */
 const FLAME = 'inner_flame';
+const skillName = (skill) => (SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || skill;
+const levelIn = (cs, skill) => { const sk = skillsOf(cs); return sk && sk[skill] && Number.isInteger(sk[skill].level) ? sk[skill].level : null; };
+const xpIn = (cs, skill) => { const sk = skillsOf(cs); return sk && sk[skill] && Number.isSafeInteger(sk[skill].xp) ? sk[skill].xp : null; };
 
-/** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
-export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }
+/** The Hearth entry that burns a stack of `id` ({ skill, recipe, input, need }), or null. */
+export function buryRecipeOf(id) { return riteOf(id); }
 
-let BY_ID = null;
-/* recipe id -> its entry, for the server's pointer (the same rows buryRecipeOf reads). */
-function byRecipeId(rid) {
-  if (!BY_ID) {
-    BY_ID = new Map();
-    for (const rows of Object.values(ARTISAN_RECIPES)) {
-      for (const r of rows || []) {
-        for (const input of Object.keys(recipeInputs(r))) { const e = buryRecipeOf(input); if (e && e.recipe === r) BY_ID.set(r.id, e); }
-      }
-    }
-  }
-  return BY_ID.get(rid) || null;
+/** Where the bag's Cook takes a raw food: its Cooking job's row in the Work window's Jobs list (goto.js), or null when no job cooks it. */
+export function cookTarget(id) {
+  const j = cookOf(id);
+  return j ? targetOf({ kind: 'job', job: j.id }) : null;
 }
 
-const skillName = (skill) => (SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || skill;
-
-/** The entry's verb: "Cook" for every dish, "Fuel" for every fuel. */
-function buryVerb(e) { return e.skill === 'cooking' ? 'Cook' : 'Fuel'; }
-
-/** "Cooking", "Fueling the Great Hearth with": the verb as the line under the bag says it (American spelling, 10-24). */
-export function buryingWord(e) { return e.skill === 'cooking' ? 'Cooking' : 'Fueling the Great Hearth with'; }
+/** "Fueling the Great Hearth with": the verb as the line under the bag says it (American spelling, 10-24). */
+export function buryingWord() { return 'Fueling the Great Hearth with'; }
 
 /**
- * The label for `qty` units (pass buryQty: the bag + Storage the bench spends): "Cook" / "Cook all"; a fuel's is
- * "Burn" for one and "Burn all 120" for a stack (the board's item menu, Tyler 10-25; "Burn", Tyler 11-18). While this stack is the
- * one burning, a count would be the last settle's ("Burn all 59" beside "x36, 23 being used", newcomer panel 2026-11-01):
- * `cs` given, it says what is happening; the line under the bag has the live count and its Stop.
+ * The label for `qty` units (pass buryQty: the bag + Storage the run burns): "Burn" for one and "Burn all 120" for a stack (the board's
+ * item menu, Tyler 10-25; "Burn", Tyler 11-18). While this stack is the one burning, a count would be the last settle's: `cs` given, it
+ * says what is happening; the line under the bag has the live count and its Stop.
  */
 export function buryLabel(e, qty, cs) {
-  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';
-  if (e.skill !== 'cooking') return qty > e.need ? 'Burn all ' + whole(qty) : 'Burn';
-  return buryVerb(e) + (qty > e.need ? ' all' : '');
+  if (cs && buryingOf(cs) === e) return 'Fueling…';
+  return qty > e.need ? 'Burn all ' + whole(qty) : 'Burn';
 }
 
-/**
- * How many of `id` a Bury all / Cook all spends: the server's bag PLUS the account's Storage where the server says
- * a bench draws on it (Tyler 2026-10-25, skills from Storage: the bag first, then Storage), else the bag.
- */
+/** How many of `id` a Burn all spends: the server's bag PLUS the account's Storage where the server says a run draws on it. */
 export function buryQty(cs, id) { return heldOf(cs)[id] || 0; }
 
-/** The bench entry the server says this character is working now, or null. */
+/** The Hearth entry the server says this character is burning now, or null. */
 export function buryingOf(cs) {
-  const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
-  return s && s.active_kind === 'artisan' && typeof s.active_id === 'string' ? byRecipeId(s.active_id) : null;
+  const row = fuelRunOf(cs);
+  return row ? riteOf(row.item) : null;
 }
 
-/* "Brannoc is hunting in The Sewer, and the Great Hearth is in town." (the board's refusal, Tyler 10-25: say why) */
-function huntingWords(cs, h) {
-  const hunt = h.huntId && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null;
-  return 'Great Hearth is in town';
-}
-
-/** Why the stack cannot be spent now (plain words), or '' when it can. Every number is the server's. */
+/** Why the stack cannot be burned now (plain words), or '' when it can. Every number is the server's. */
 export function buryBlock(cs, e) {
   const on = buryingOf(cs);
-  if (on) return 'Already ' + (on.skill === FLAME ? 'fueling the Great Hearth with ' + itemName(on.input) : buryingWord(on).toLowerCase()) + '. Stop it first.';
+  if (on) return 'Already fueling the Great Hearth with ' + itemName(on.input) + '. Stop it first.';
   const h = huntOf(cs);
-  if (h && !h.ended) return busyWords(cs, e.skill === FLAME ? huntingWords(cs, h) : 'Not while hunting');
-  const sk = skillsOf(cs);
-  const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
-  const name = skillName(e.skill);
-  if (lv === null) return 'Loading ' + name + ' level…';
-  /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
-  if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
+  if (h && !h.ended) return busyWords(cs, 'Great Hearth is in town');
+  const lv = levelIn(cs, e.skill);
+  if (lv === null) return 'Loading ' + skillName(e.skill) + ' level…';
+  if (lv < (e.recipe.req || 1)) return itemName(e.input) + ': requires ' + skillName(e.skill) + ' ' + e.recipe.req;
   const qty = buryQty(cs, e.input);
   if (qty < e.need) return 'Need ' + e.need + ' ' + itemNameFor(e.input, e.need) + ', have ' + whole(qty);
-  /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
-  const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
-  if (/^Your bag is full/.test(why)) return why;
   return '';
 }
 
+/* The numbers a run started from (display only): the server's Inner Flame XP and the stack, for the Stop's line. */
+const FROM = new WeakMap();
+
 /**
- * Start spending the stack `id`: ONE set_activity on its bench recipe, through the one town-work path
- * (src/shell/town-work.js), which arms the stop for when the stack should be done. `send(fn, busy, done)`
- * is the window's runIntent.
+ * Start burning the stack `id`: ONE set_activity on its fuel row. `send(fn, busy, done)` is the window's runIntent. "Burn" on a stack is a
+ * run of ONE (`count` 1); Burn all sends no count and burns the stack. Returns send's promise, or null when `id` is no fuel.
  */
 export function startBury(cs, sc, id, send, repaint, count) {
   const e = buryRecipeOf(id);
-  if (!e) return null;
-  const qty = buryQty(cs, id);
-  /* "Burn" on a stack is a run of ONE (the bench's count); Burn all / Cook all spend the stack */
-  const n = e.skill === FLAME && count === 1 ? 1 : null;
-  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(n || qty) + ' ' + itemNameFor(id, n || qty) + '…', n);
+  const row = e ? fuelRowOf(e.recipe.id) : null;
+  if (!row) return null;
+  const n = count === 1 ? 1 : null;
+  const qty = n || buryQty(cs, id);
+  const activity = { kind: 'artisan', id: row.id, ...(n ? { count: n } : {}) };
+  return send(() => cs.edgeIntent('set_activity', { activity }), t('work.job_starting'), () => {
+    FROM.set(cs, { id: row.id, item: row.item, xp: xpIn(cs, FLAME), held: buryQty(cs, row.item) });
+    return buryingWord() + ' ' + whole(qty) + ' ' + itemNameFor(id, qty) + '…';
+  });
+}
+
+/** Stop: ONE set_activity idle; the engine pays what was burned first. The line says what the server's two envelopes differ by. */
+export function stopBury(cs, sc, send) {
+  const row = fuelRunOf(cs);
+  const was = FROM.get(cs);
+  const from = row && was && was.id === row.id ? was : row ? { id: row.id, item: row.item, xp: xpIn(cs, FLAME), held: buryQty(cs, row.item) } : null;
+  return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), t('work.job_stopping'), () => {
+    FROM.delete(cs);
+    if (!from) return t('work.job_stopped');
+    const burned = Math.max(0, from.held - buryQty(cs, from.item));
+    const lv = levelIn(cs, FLAME);
+    return t('work.done_fuel', { name: nameOf(cs) || t('away.your_hero'), count: whole(burned), item: itemNameFor(from.item, burned) })
+      + (lv !== null ? ' · ' + t('work.done_level', { skill: skillName(FLAME), level: lv }) : '');
+  });
 }
 
 /* ── A NAMED FUEL (src/data/hearth.js NAMED_FUELS): it burns alone, by one call the server decides whole ── */
@@ -152,12 +122,11 @@ export function namedBlock(cs, id) {
   const f = namedFuelOf(id);
   if (!f) return '';
   const h = huntOf(cs);
-  if (h && !h.ended) return busyWords(cs, huntingWords(cs, h));
+  if (h && !h.ended) return busyWords(cs, 'Great Hearth is in town');
   if (!(heldOf(cs)[id] > 0)) return 'No ' + itemName(id) + ' in bag';
-  const sk = skillsOf(cs);
-  const lv = sk && sk[FLAME] ? sk[FLAME].level : null;
+  const lv = levelIn(cs, FLAME);
   if (lv === null) return 'Loading ' + skillName(FLAME) + ' level…';
-  /* "Den Knot needs Inner Flame 3. You have 1." (the board's words) */
+  /* "Den Knot: requires Inner Flame 3" (the board's words) */
   if (lv < f.req) return itemName(id) + ': requires ' + skillName(FLAME) + ' ' + f.req;
   return '';
 }
@@ -172,25 +141,15 @@ export function burnNamed(account, cs, id, send) {
     (r) => '+' + whole(r.xp || 0) + ' ' + skillName(FLAME) + ' XP');
 }
 
-/** Stop: ONE set_activity idle (town-work.js stopWork); the engine pays what was spent first. */
-export function stopBury(cs, sc, send) {
-  return stopWork(cs, send);
-}
-
 /**
- * The "Burying…" / "Cooking…" line as parts (town-ticker.js paintLine), or [] when the hero is free. Every
- * other town activity the server holds (gathering, a workbench, training: a
- * resumed one the player never started here) is named too, with the same Stop,
- * so nothing runs unseen (live v0.2.11). A hunt's start ends it on the server anyway.
+ * The line under the bag, or '' when the hero is free: the run the server holds and what its bag and Storage still hold of the fuel
+ * ("Fueling the Great Hearth with Bones · 120 left"), or any other town activity the server holds (a training session: a resumed one the
+ * player never started here), with the same Stop, so nothing runs unseen (live v0.2.11). A hunt's start ends it on the server anyway.
  */
-export function buryParts(cs) {
+export function buryLine(cs) {
   const e = buryingOf(cs);
-  /* How far it has got: the server's bag and the ticker's pending part (town-work.js runParts); the open bag settles it as it goes. */
-  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs), true), '');
+  if (e) return buryingWord() + ' ' + itemName(e.input) + ' · ' + t('work.now_left', { n: whole(buryQty(cs, e.input)) });
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);
-  return words ? [{ key: 'lead', text: words.charAt(0).toUpperCase() + words.slice(1) }] : [];
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
 }
-
-/** The same line as words, or '' when the hero is free. */
-export function buryLine(cs) { return lineText(buryParts(cs)); }

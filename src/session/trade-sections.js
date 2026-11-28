@@ -49,6 +49,18 @@ function lastOf(l) {
     master: count(r.master) ?? 0, returned: count(r.returned) ?? 0, refunded: count(r.refunded) ?? 0, xp: count(r.xp) ?? 0 };
 }
 
+/**
+ * THE HERO'S WORK DAY, as the server holds it (1059-company-trades.sql, the `work_day` section; Tyler 2026-11-22 CR-Q3 b): today's town
+ * work cap, what is used and what is left (as of the last settle) and whether Premium lengthens it. { capMs, usedMs, leftMs, premium } or
+ * null on a database before the work day. Display only: every envelope replaces it, and the server stops the work, never this.
+ */
+export function workDayOf(cs) {
+  const s = read(cs, 'work_day');
+  if (!isObj(s) || !Number.isSafeInteger(s.cap_ms) || !Number.isSafeInteger(s.left_ms)) return null;
+  const n = (v) => count(v) ?? 0;
+  return { capMs: n(s.cap_ms), usedMs: n(s.today_ms), leftMs: n(s.left_ms), premium: s.premium === true };
+}
+
 /** The hero's kit-trade jobs as the server holds them, or null (the switch is off, or a server without the job slice: the pane hides). */
 export function tradeJobsOf(cs) {
   const s = read(cs, 'trade_jobs');

@@ -144,7 +144,7 @@ export function refusalText(r, cs) {
   if (r && (r.error === 'hallmark_limit' || r.error === 'reforge_limit') && r.figures && Number.isInteger(r.figures.limit)) {
     return 'Daily limit: ' + r.figures.limit + (r.error === 'hallmark_limit' ? ' Hallmarks' : ' reforges') + ', resets at midnight UTC';
   }
-  /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
+  /* A town action above the server's skill level, its refusal naming the skill and both levels. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {
     const w = requirementWords(r.item, cs, r.counts);

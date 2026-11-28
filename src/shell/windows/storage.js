@@ -61,7 +61,6 @@ import { showTip, hideTip } from './item-tip.js';
 import { openFloatMenu, closeFloatMenu } from './float-menu.js';
 import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js';
 import { dispatchBlock, runDispatch } from '../loot-dispatch.js';
-import { toolLossWords } from '../town-work.js';
 import { t } from '../../render/player-text.js';
 import { heroGroundOf } from '../widgets/first-target.js';
 import { MOBILE_QUERY } from '../../render/mobile-query.js';
@@ -303,10 +302,8 @@ async function pump(account, cs, sc, repaint) {
 
 /* ONE hr_bank_move naming exactly `qty`; both grids change only from the re-read envelope. */
 function move(cs, sc, repaint, id, qty, dir) {
-  /* Read from the bag before the move: a tool put away slows its skill, and that is not a silent change (panel 2026-11-01). */
-  const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';
   return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? t('bag.store_taking') : t('bag.store_putting'),
-    () => t(dir === 'withdraw' ? 'bag.store_took' : 'bag.store_put', { n: whole(qty), item: itemNameFor(id, qty) }) + (slower ? '. ' + slower : ''));
+    () => t(dir === 'withdraw' ? 'bag.store_took' : 'bag.store_put', { n: whole(qty), item: itemNameFor(id, qty) }));
 }
 
 /* ONE unlock_buy naming the server's offer id; the cap and the next price change only from the answer's envelope. */

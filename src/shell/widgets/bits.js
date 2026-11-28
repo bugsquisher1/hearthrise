@@ -10,6 +10,7 @@ import { RUNE_FAMILIES } from '../../data/runes.js';
 import { DRINK_ITEMS } from '../../data/drinks.js';
 import { MONSTERS } from '../../data/monsters.js';
 import { SKILLS_DEF } from '../../data/skills.js';
+import { TRADES } from '../../data/trades.js';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js';
 import { BASIC_INDEX } from '../../data/supply-basics.js';
 import { SIGNATURES } from '../../data/signatures.js';
@@ -77,7 +78,7 @@ export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || 
 export function abilityName(id) { return id === 'basic' ? 'Basic attack' : sourceName(id); }
 
 /** A skill's name (Melee, Defense…) from the skill rows. */
-export function skillName(id) { return (SKILLS_DEF[id] && SKILLS_DEF[id].name) || spelled(id); }
+export function skillName(id) { return (SKILLS_DEF[id] && SKILLS_DEF[id].name) || (Object.hasOwn(TRADES, id) && TRADES[id].name) || spelled(id); }
 
 /** An element or damage type, as a word. */
 export function elementName(id) { return spelled(id); }

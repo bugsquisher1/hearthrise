@@ -548,13 +548,17 @@ function ltCostVerdict(measured, base, groups, band) {
   }
   return { red, low, expected };
 }
-/* THE REFERENCE RUNNER (header, THE RUNNER NORMALISED): per-player-cost's calibration on the slowest runner a green 1,000 x 4 load test
-   ran on (249.1 ms, run 45999848869: lag past the flush max 18 s of 32, edge workers at 0.73). A runner outside x0.4 to x2.5 of it is
-   not one this reference describes: the run refuses (exit 2) rather than call 400 accounts gate 10. */
-const LT_REF = Object.freeze({ calibration_ms: 250, scale_min: 0.4, scale_max: 2.5 });
+/* THE REFERENCE RUNNER (header, THE RUNNER NORMALISED): the slowest runner a green 1,000 x 4 load test ran on (run 45999848869: lag
+   past the flush max 18 s of 32, edge workers at 0.73), in THIS file's unit. Its per-player-cost reading there was 249.1 ms, but that
+   one is taken warm, after the fixtures (a grown heap), and runnerCalibration's is taken cold in a fresh process: MEASURED in one job
+   on one runner (run 46094629287), cold 212.5 ms against warm 251.4, x0.845, so the reference is 249.1 x 0.845 = 210. Every nightly
+   prints its own reading: re-pin from a week of them. A runner outside x0.4 to x2.5 of it is not one this reference describes: the run
+   refuses (exit 2) rather than call 400 accounts gate 10. */
+const LT_REF = Object.freeze({ calibration_ms: 210, scale_min: 0.4, scale_max: 2.5 });
 /* THE ENGINE FIT's line: the share of the tick bodies' selectors a body may defer on its engine budget. MEASURED: 0.1% and 1.7% on the
-   green runs (12 and 211 of ~12,600; the second on a runner at the reference), 55% on the saturated slow ones before this
-   normalisation; a body of four fours whose engine is 1.4x the reference's defers one in four (25%), 2x two in four (50%). */
+   green runs (12 and 211 of ~12,600; the second on a runner at the reference), 10.6% on a budget run 15% tight (run 46094629287,
+   680 ms, the reference before its unit was fixed: lag still green, 19.4 s past the flush at most), 55% on the saturated slow ones
+   before this normalisation; a body of four fours whose engine is 1.4x the reference's defers one in four (25%), 2x two in four (50%). */
 const LT_FIT_DEFER = 0.2;
 /**
  * The run a runner whose calibration reads `calibrationMs` makes at the reference's speed: `budgetMs` (the engine budget) x the
@@ -961,10 +965,10 @@ async function main() {
   }
   if (world.lt) {
     const L = report.lt; const g = L.lag; const c = L.cost; const b = L.bench; const E = L.engine; const R = E.runner;
-    /* the runner again with the box quiet (the workers stopped): a reading far off the first is a runner that changed speed mid-run */
-    R.calibration_end_ms = (await runnerCalibration()).ms;
+    /* (read once, before the chain: the same workload after the run read 299.9 against 212.5 on one runner, run 46094629287, a grown
+       heap and a box still writing; not a speed) */
     log(`THE v0.3.0 LOAD, ${openN.i} fours (${openN.s} heroes), ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open, ${m.seconds} s measured over ${g.readings} lag readings:`);
-    log(`  the runner: calibration ${R.calibration_ms} ms at the start, ${R.calibration_end_ms} at the end, x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms (${R.shipped_budget_ms} at the reference)`);
+    log(`  the runner: calibration ${R.calibration_ms} ms (${R.readings.join(' / ')}), x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms (${R.shipped_budget_ms} at the reference)`);
     log(`  engine fit: ${E.fit.deferred} of ${E.fit.selectors} body selectors deferred on the budget (${E.fit.share === null ? '-' : (E.fit.share * 100).toFixed(1) + '%'}, line ${E.fit.band * 100}%); in the reference's ms a body p50 ${E.body_ref_ms.p50 ?? '-'} / p95 ${E.body_ref_ms.p95 ?? '-'} / max ${E.body_ref_ms.max ?? '-'}, a four's settle ${E.a_save_ref_ms ?? '-'} mean and ${E.run_max_ref_ms ?? '-'} max (budget ${R.shipped_budget_ms})`);
     log(`  settle lag p50 ${g.raw.p50} / p95 ${g.raw.p95} / p99 ${g.raw.p99} / max ${g.raw.max} s; past the ${g.flush_s} s flush p50 ${g.past_due.p50} / p95 ${g.past_due.p95} / p99 ${g.past_due.p99} / max ${g.past_due.max} s (budget ${g.budget_s} s)`);
     log(`  a paid hero-hour (${c.paid_hero_hours} paid, ${Math.round(c.paid_share * 100)}% of the wall's): ${c.per.ledger_rows_a_hero_hour} journal rows, ${c.per.statements_a_hero_hour} statements, ${c.per.row_writes_a_hero_hour} row writes against the fixtures' blend ${JSON.stringify(c.expected)} (band +${c.band * 100}%)`);
@@ -981,7 +985,7 @@ async function main() {
       const row = (k, v) => `| ${k} | ${v} |`;
       appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['', `### v0.3.0 load test: ${ltRed.length || audit.red.length ? 'RED' : 'green'}`, '', '| | |', '|---|---|',
         row('Load', `${openN.i} fours (${openN.s} heroes) over ${Object.keys(L.groups).join(', ')}; ${Object.values(L.groups).reduce((n, x) => n + x.online, 0)} tabs open; lit ${L.lit.join(', ')}`),
-        row('Runner', `calibration ${R.calibration_ms} ms (end ${R.calibration_end_ms}), x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms`),
+        row('Runner', `calibration ${R.calibration_ms} ms, x${R.scale} the reference's ${R.reference_ms}: ${R.accounts} of ${R.accounts_named} accounts, engine budget ${R.engine_budget_ms} ms`),
         row('Engine fit', `${E.fit.deferred} of ${E.fit.selectors} body selectors deferred (line ${E.fit.band * 100}%); a body p50 ${E.body_ref_ms.p50 ?? '-'} · p95 ${E.body_ref_ms.p95 ?? '-'} · max ${E.body_ref_ms.max ?? '-'} reference ms against ${R.shipped_budget_ms}`),
         row('Settle lag (s)', `p50 ${g.raw.p50} · p95 ${g.raw.p95} · p99 ${g.raw.p99} · max ${g.raw.max}`),
         row(`Past the ${g.flush_s} s flush (s)`, `p50 ${g.past_due.p50} · p95 ${g.past_due.p95} · p99 ${g.past_due.p99} · max ${g.past_due.max} (budget ${g.budget_s})`),

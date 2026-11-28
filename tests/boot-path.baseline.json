@@ -164,6 +164,12 @@
         "gzipBytes": 138020,
         "on": "2026-11-28",
         "why": "a cut locked in"
+      },
+      {
+        "modules": 10,
+        "gzipBytes": 138024,
+        "on": "2026-11-28",
+        "why": "kit-bands-4-5: band 4-5 rows in items.js and item descriptions on the town path (+0.5 KB)"
       }
     ],
     "town": [
@@ -688,6 +694,12 @@
         "gzipBytes": 898268,
         "on": "2026-11-28",
         "why": "a cut locked in"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 898748,
+        "on": "2026-11-28",
+        "why": "kit-bands-4-5: band 4-5 rows in items.js and item descriptions on the town path (+0.5 KB)"
       }
     ]
   }

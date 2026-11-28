@@ -60,9 +60,10 @@ const SIGS = arg('signatures') ? arg('signatures').split(',').map((x) => (x === 
 if (SIGS) { const { SIGNATURES } = await import(pathToFileURL(join(ROOT, 'src/data/signatures.js')).href); for (const x of SIGS) if (x !== null && !SIGNATURES[x]) { console.error('v1-climb: no Signature ' + x); process.exit(2); } }
 /* --add-moves a,b,c,d (lane/signatures-batch-2): moves a seat's played bar never casts, seat by seat ('-' for none, '+' between two: a
    Signature's own move, Frost Slam or Shelter on the tank), each a played slot (tools/balance-sim/played.mjs playedSlot); in both arms of a
-   paired reading, so the Signature is the only difference */
+   paired reading, so the Signature is the only difference. `move@t` (lane/signatures-batch-5): the slot starts on the move's own new-slot
+   trigger (src/data/abilities.js suggestedTrigger: Stagger and Parry on "my target is winding up", Gash at two in its ring), else none */
 const ADD_MOVES = arg('add-moves') ? arg('add-moves').split(',').map((x) => (x === '-' ? null : x.split('+'))) : null;
-if (ADD_MOVES) { const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href); for (const l of ADD_MOVES) for (const id of l || []) if (!ABILITIES[id]) { console.error('v1-climb: no move ' + id); process.exit(2); } }
+if (ADD_MOVES) { const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href); for (const l of ADD_MOVES) for (const id of l || []) if (!ABILITIES[id.replace(/@t$/, '')]) { console.error('v1-climb: no move ' + id); process.exit(2); } }
 /* --borrowed a,b,c,d (lane/e5-borrowing, 19 L6): the moves each seat borrows from another weapon, seat by seat ('-' for none, '+' between two,
    move@pm its penalty in permille, as a border town or the crossing prices it), handed whole to the engine's own borrow (heroSetup `borrowed`
    -> src/core/hunt/talent-rows.js lend: its native weapon's blow, a heal on Mend's clock, Magic at Mend's rate, an ally row's native reach),

@@ -60,7 +60,8 @@ import { healTaken } from './heal-cut.js';
 import { hasEffect } from './status-effects.js';
 import { spendFlag, spendOnce } from './status.js';
 import { breaksOff } from './danger.js';
-import { isEnemy, isAlly, isMonster } from './sides.js';
+import { isEnemy, isAlly, isMonster, isHero } from './sides.js';
+import { queueOn, reactorsOf } from './react-queue.js';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -139,6 +140,9 @@ function begin(inst, sc, u, id, sp) {
     }
   }
   sc.emit(makeEvent('spell', sc.atMs, { u: u.id, t: t.id, spell: id, shape: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len, ms }));
+  /* A WIND-UP AT A HERO (a reaction's `windup`, react-queue.js; lane/signatures-batch-5, Night Carter's Boots): every OTHER hero of its side
+     that reacts to one sees it, the hero `t` and the monster `src` (a mend aims at a packmate: no hero, no moment) */
+  if (isHero(t)) for (const h of reactorsOf(inst)) if (h !== t && isAlly(h, t)) queueOn(inst, h, 'windup', { t, src: u });
   return true;
 }
 

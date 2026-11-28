@@ -1,0 +1,373 @@
+{
+ "ground": "muster_barrows",
+ "levels": [
+  60,
+  63,
+  70
+ ],
+ "seeds": 12,
+ "hours": 8,
+ "settleFromH": 4,
+ "levers": {
+  "DANGER": {
+   "powerStep": 0.0035,
+   "pullStep": 0.00175,
+   "pullMax": 8,
+   "respawnMs": 15000,
+   "stepMax": 4000,
+   "readyPm": 800,
+   "startMargin": 20
+  },
+  "CLIMB": {
+   "cleanRun": 2,
+   "climbMax": 8,
+   "fallSteps": 18,
+   "deathSteps": 120,
+   "coolPulls": 10
+  },
+  "RISKS": {
+   "careful": {
+    "fallPm": 450,
+    "cleanPm": 650,
+    "afterDeath": "careful"
+   },
+   "steady": {
+    "fallPm": 250,
+    "cleanPm": 450,
+    "afterDeath": "careful"
+   },
+   "bold": {
+    "fallPm": 80,
+    "cleanPm": 300,
+    "afterDeath": "steady",
+    "breakOff": false
+   }
+  }
+ },
+ "cells": {
+  "base:steady": {
+   "id": "base:steady",
+   "variant": "base",
+   "risk": "steady",
+   "L": 60,
+   "start": 0,
+   "seedsRead": 12,
+   "payX": {
+    "mean": 0.995,
+    "sd": 0.0179,
+    "n": 12,
+    "perSeed": [
+     0.9937,
+     0.9987,
+     0.9993,
+     1.001,
+     0.9777,
+     1.0362,
+     1.0012,
+     1.0052,
+     0.9792,
+     0.9649,
+     0.9827,
+     0.9996
+    ],
+    "exact": [
+     0.99371,
+     0.99871,
+     0.99933,
+     1.00103,
+     0.97767,
+     1.03621,
+     1.00116,
+     1.00523,
+     0.97924,
+     0.96491,
+     0.98265,
+     0.99956
+    ],
+    "fromH": 4,
+    "windowH": 4
+   },
+   "held": {
+    "mean": 670.9,
+    "sd": 4.4,
+    "se": 1.3,
+    "perSeed": [
+     672,
+     669,
+     673,
+     671,
+     670,
+     680,
+     673,
+     674,
+     666,
+     664,
+     666,
+     674
+    ]
+   },
+   "drift": 0.5,
+   "within10": 55.8,
+   "within20": 85.7,
+   "changesPerH": 10.6,
+   "fallsPerH": 1.6,
+   "reachH": 2,
+   "pullsPerH": 50.9,
+   "killsPerH": 353,
+   "xpPerHeroH": 261096,
+   "gold": {
+    "coinPerHeroH": {
+     "mean": 16708,
+     "sd": 335,
+     "n": 12
+    },
+    "incomePerHeroH": {
+     "mean": 19223,
+     "sd": 386,
+     "n": 12
+    },
+    "storePerHeroH": {
+     "mean": 4986,
+     "sd": 62,
+     "n": 12
+    },
+    "commonPerHeroH": {
+     "mean": 315,
+     "sd": 7,
+     "n": 12
+    },
+    "uncommonPerHeroH": {
+     "mean": 160,
+     "sd": 7,
+     "n": 12
+    },
+    "scarcePerHeroH": {
+     "mean": 2040,
+     "sd": 94,
+     "n": 12
+    },
+    "otherPerHeroH": {
+     "mean": 0,
+     "sd": 0,
+     "n": 12
+    }
+   },
+   "kit": {
+    "meal": 416,
+    "drink": 1831,
+    "charge": 1169,
+    "shot": 1571
+   },
+   "kitIds": {
+    "plain_fire_rune": 159.6,
+    "salted_lobster": 17.3,
+    "plain_earth_rune": 2.8,
+    "plain_mithril_arrows": 785.5,
+    "thin_carrot_juice": 114.4,
+    "plain_scored_fire_rune": 63.2,
+    "plain_scored_ice_rune": 164.6,
+    "plain_etched_poison_rune": 54,
+    "plain_etched_earth_rune": 70.3,
+    "plain_water_rune": 302
+   },
+   "deaths": 0,
+   "wipes": 0,
+   "seedsWithADeath": 0,
+   "huntedH": 8,
+   "fourH": 4,
+   "firstDeathH": [],
+   "nearWipes": 5,
+   "nearWithDeath": 0,
+   "nearWarned": 1,
+   "nearFellAfter": 5,
+   "whys": {
+    "hold": 3078,
+    "climb": 1687,
+    "fall": 111
+   },
+   "takenShare": [
+    {
+     "style": "tank",
+     "mean": 0.94
+    },
+    {
+     "style": "bow",
+     "mean": 0.058
+    },
+    {
+     "style": "mage",
+     "mean": 0.001
+    },
+    {
+     "style": "healer",
+     "mean": 0.002
+    }
+   ],
+   "causes": {
+    "fall:muster_knight@0": 41,
+    "fall:barrow_pikeman@0": 66,
+    "fall:captain_hask@0": 2,
+    "fall:captain_hask@3": 1,
+    "fall:cairn_wight@0": 1
+   },
+   "seats": [
+    {
+     "style": "tank",
+     "dps": 11.12,
+     "landedPct": 58.12,
+     "dmgPerSwing": 33.06,
+     "swingsPerH": 6326.42,
+     "takenPerH": 209151.83,
+     "healOutPerH": 0,
+     "castsPerH": {
+      "flame_strike": 420,
+      "power_strike": 410.8,
+      "challenge": 267.3,
+      "mend": 110.9,
+      "shelter": 10.8
+     },
+     "dealtByRole": {
+      "brute": 457,
+      "swarm": 350,
+      "stalker": 194
+     },
+     "takenByElement": {
+      "none": 1000
+     }
+    },
+    {
+     "style": "bow",
+     "dps": 18.63,
+     "landedPct": 82.79,
+     "dmgPerSwing": 24.7,
+     "swingsPerH": 519.83,
+     "takenPerH": 12844.25,
+     "healOutPerH": 0,
+     "castsPerH": {
+      "flame_volley": 218.3,
+      "hunters_mark": 284.4,
+      "precision_shot": 456.8,
+      "raking_shot": 203.3
+     },
+     "dealtByRole": {
+      "stalker": 355,
+      "swarm": 341,
+      "brute": 303
+     },
+     "takenByElement": {
+      "none": 1000
+     }
+    },
+    {
+     "style": "mage",
+     "dps": 21.64,
+     "landedPct": 76.16,
+     "dmgPerSwing": 14.77,
+     "swingsPerH": 8,
+     "takenPerH": 114.83,
+     "healOutPerH": 0,
+     "castsPerH": {
+      "fireball": 253,
+      "frost_lance": 475.2,
+      "hoarfrost": 183.3,
+      "arcane_barrier": 0.3
+     },
+     "dealtByRole": {
+      "swarm": 404,
+      "brute": 371,
+      "stalker": 225
+     },
+     "takenByElement": {
+      "none": 1000
+     }
+    },
+    {
+     "style": "healer",
+     "dps": 11.03,
+     "landedPct": 90.61,
+     "dmgPerSwing": 35.83,
+     "swingsPerH": 12.58,
+     "takenPerH": 463.5,
+     "healOutPerH": 179157.25,
+     "castsPerH": {
+      "green_sickness": 215.8,
+      "protective_ward": 281.1,
+      "greater_mend": 1085.9,
+      "circle_of_renewal": 85.8,
+      "spring_tide": 36.2,
+      "mend": 0
+     },
+     "dealtByRole": {
+      "brute": 431,
+      "swarm": 349,
+      "stalker": 220
+     },
+     "takenByElement": {
+      "none": 1000
+     }
+    }
+   ],
+   "kinds": {
+    "barrow_pikeman": {
+     "role": "swarm",
+     "killsPerH": 178.7,
+     "ttkS": 35.7,
+     "takenPerKill": 621
+    },
+    "cairn_wight": {
+     "role": "stalker",
+     "killsPerH": 83.4,
+     "ttkS": 36.6,
+     "takenPerKill": 259
+    },
+    "muster_knight": {
+     "role": "brute",
+     "killsPerH": 83.6,
+     "ttkS": 50.1,
+     "takenPerKill": 838
+    },
+    "captain_hask": {
+     "role": "brute",
+     "killsPerH": 7,
+     "ttkS": 152.4,
+     "takenPerKill": 2814
+    }
+   },
+   "abs": {
+    "level": 72.6,
+    "depth": 16
+   },
+   "sustain": {
+    "freePm": 86,
+    "spellPm": 856,
+    "foodPm": 58,
+    "takenPmS": 19.52
+   }
+  }
+ },
+ "wallS": 129,
+ "candidate": "C0",
+ "moves": {
+  "levels:careful": null,
+  "weapon:careful": null,
+  "armor:careful": null,
+  "back:careful": null,
+  "up:careful": null,
+  "high:careful": null,
+  "skill:careful": null,
+  "levels:steady": null,
+  "weapon:steady": null,
+  "armor:steady": null,
+  "back:steady": null,
+  "up:steady": null,
+  "high:steady": null,
+  "skill:steady": null,
+  "levels:bold": null,
+  "weapon:bold": null,
+  "armor:bold": null,
+  "back:bold": null,
+  "up:bold": null,
+  "high:bold": null,
+  "skill:bold": null
+ }
+}

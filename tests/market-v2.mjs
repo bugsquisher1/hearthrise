@@ -577,11 +577,13 @@ async function run(mutate) {
     }
   });
 
-  // ══ M5c · THE BENCH ROUTE (2027-03-03-market-bench-gate.sql): a hero who never hunts trades; only a bench skill counts ══
+  // ══ M5c · THE MAKER'S ROUTE (2027-03-03-market-bench-gate.sql; since 1079-one-town-work-cut.sql the company's making trades on 09's
+  //    table, company_trade_xp): a company that never hunts trades; only a making trade counts ══
   if (hasBenchRule) await leg(async () => {
-    const xpAt = (u, s, skill, level, less = 0) => q(`insert into public.player_skills (user_id, slot, skill_id, xp)
-        values ($1::uuid, $2::int, $3::text, public.hr_skill_xp_for_level($3::text, $4::int) - $5::int)
-        on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [u, s, skill, level, less]);
+    /* a company's trade at a Level on 09's table (hr_trade_xp), `less` XP short of it */
+    const xpAt = (u, trade, level, less = 0) => q(`insert into public.company_trade_xp (user_id, trade_id, xp)
+        values ($1::uuid, $2::text, (select x.xp from public.hr_trade_xp x where x.level = $3::int) - $4::int)
+        on conflict (user_id, trade_id) do update set xp = excluded.xp`, [u, trade, level, less]);
     const eligible = async (u) => (await one('select public.hr_market_eligible($1::uuid) e', [u])).e;
     const text = (s) => JSON.stringify(s, (k, v) => (typeof v === 'bigint' ? String(v) : v));
     /* The whole leg rolls back: it moves skills, Levels and the config, and no later leg should inherit one of them. */
@@ -595,49 +597,51 @@ async function run(mutate) {
                on conflict (user_id, slot, item_id) do update set qty = 5`, [C, ITEM]);
       await cfg('min_level = 10, min_skill_level = 30');
 
-      /* Crafting 29, one XP short: refused on both verbs, naming both numbers, with nothing moved. */
-      await xpAt(C, 0, 'crafting', 30, 1);
+      /* Woodcrafting 29, one XP short: refused on both verbs, naming both numbers, with nothing moved. */
+      await xpAt(C, 'woodcrafting', 30, 1);
       const s0 = await snap();
       const l29 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
-      ok(l29 && l29.error === 'market_locked' && l29.min_level === 10 && l29.min_skill_level === 30, `M5c: Crafting 29 listed, or the words lose a number: ${brief(l29)}`);
+      ok(l29 && l29.error === 'market_locked' && l29.min_level === 10 && l29.min_skill_level === 30, `M5c: Woodcrafting 29 listed, or the words lose a number: ${brief(l29)}`);
       const b29 = await buy({ user: C, listing: id, qty: 1, max: ASK });
-      ok(b29 && b29.error === 'market_locked' && b29.min_level === 10 && b29.min_skill_level === 30, `M5c: Crafting 29 bought, or the words lose a number: ${brief(b29)}`);
+      ok(b29 && b29.error === 'market_locked' && b29.min_level === 10 && b29.min_skill_level === 30, `M5c: Woodcrafting 29 bought, or the words lose a number: ${brief(b29)}`);
       ok(text(await snap()) === text(s0), 'M5c: a refused list or buy moved gold or goods');
       const m29 = await mine(C);
       ok(m29 && m29.locked === true && m29.rules.min_level === 10 && m29.rules.min_skill_level === 30, `M5c: mine does not tell the window: ${brief(m29)}`);
 
-      /* Crafting 30 on a hero who has never hunted: lists and buys, and the window says so. */
-      await xpAt(C, 0, 'crafting', 30);
+      /* Woodcrafting 30 on a company that has never hunted: lists and buys, and the window says so. */
+      await xpAt(C, 'woodcrafting', 30);
       const never = Number((await one('select public.hr_level_of($1::uuid, 0) l', [C])).l);
       ok(never < 10, `M5c-CONTROL: the crafter is Level ${never}, so this proves nothing about the bench`);
-      ok((await mine(C)).locked === false, 'M5c: mine says locked at Crafting 30');
+      ok((await mine(C)).locked === false, 'M5c: mine says locked at Woodcrafting 30');
       const l30 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
-      ok(l30 && l30.ok === true, `M5c: a Crafting 30 hero could not list: ${brief(l30)}`);
+      ok(l30 && l30.ok === true, `M5c: a Woodcrafting 30 company could not list: ${brief(l30)}`);
       const b30 = await buy({ user: C, listing: id, qty: 1, max: ASK });
-      ok(b30 && b30.ok === true, `M5c: a Crafting 30 hero could not buy: ${brief(b30)}`);
+      ok(b30 && b30.ok === true, `M5c: a Woodcrafting 30 company could not buy: ${brief(b30)}`);
 
-      /* Any hero of the account, as the Level rule: the crafter in slot 1 opens the fighter in slot 0. */
-      await xpAt(A, 1, 'crafting', 30);
+      /* The company's, as the Level rule is any hero's: its Woodcrafting opens the fighter in slot 0. */
+      await xpAt(A, 'woodcrafting', 30);
       const crew = await list({ user: A, slot: 0, item: ITEM, qty: 1, ask: ASK });
-      ok(crew && crew.ok === true, `M5c: another hero's bench skill did not open the account: ${brief(crew)}`);
+      ok(crew && crew.ok === true, `M5c: the company's making trade did not open its heroes: ${brief(crew)}`);
 
-      /* Only the bench: every other skill in the catalogue at 99 opens nothing, each of the four opens at exactly 30. */
-      const skills = await q('select skill_id, cat from public.hr_skills order by skill_id');
-      const bench = skills.filter((s) => s.cat === 'artisan').map((s) => s.skill_id);
-      ok(text(bench) === text(['cooking', 'crafting', 'runecrafting', 'smithing']), `M5c: a new bench skill widens Threat #9, so decide it: ${text(bench)}`);
-      for (const s of skills.filter((r) => r.cat !== 'artisan')) await xpAt(B, 0, s.skill_id, 99);
-      ok(await eligible(B) === false, 'M5c: a gathering or combat skill at 99 opened the market');
-      for (const skill of bench) {
-        await xpAt(B, 0, skill, 30, 1);
-        ok(await eligible(B) === false, `M5c: ${skill} 29 opened the market`);
-        await xpAt(B, 0, skill, 30);
-        ok(await eligible(B) === true, `M5c: ${skill} 30 did not open the market`);
-        await q('update public.player_skills set xp = 0 where user_id = $1 and slot = 0 and skill_id = $2', [B, skill]);
+      /* Only a making trade: every gathering trade at 99 opens nothing, nor does every hero skill at 99 (Level is the other
+         door, read from level_xp), and each making trade opens at exactly 30. */
+      const trades = await q('select trade, bool_or(stage <> \'gather\') as makes from public.hr_trade_kinds group by trade order by trade');
+      const making = trades.filter((t) => t.makes).map((t) => t.trade);
+      ok(text(making) === text(['alchemy', 'artificing', 'cooking', 'runecutting', 'smithing', 'woodcrafting']), `M5c: a new making trade widens Threat #9, so decide it: ${text(making)}`);
+      for (const t of trades.filter((r) => !r.makes)) await xpAt(B, t.trade, 99);
+      await q(`update public.player_skills s set xp = public.hr_skill_xp_for_level(s.skill_id, 99) where s.user_id = $1`, [B]);
+      ok(await eligible(B) === false, 'M5c: a gathering trade or a hero skill at 99 opened the market');
+      for (const trade of making) {
+        await xpAt(B, trade, 30, 1);
+        ok(await eligible(B) === false, `M5c: ${trade} 29 opened the market`);
+        await xpAt(B, trade, 30);
+        ok(await eligible(B) === true, `M5c: ${trade} 30 did not open the market`);
+        await q('delete from public.company_trade_xp where user_id = $1 and trade_id = $2', [B, trade]);
       }
 
-      /* A Level 10 hero with no bench skill still passes. */
-      await q("update public.player_skills set xp = 0 where user_id = $1 and skill_id = 'crafting'", [C]);
-      ok(await eligible(C) === false, 'M5c-CONTROL: the crafter is still open with no bench skill');
+      /* A Level 10 hero with no making trade still passes. */
+      await q("delete from public.company_trade_xp where user_id = $1", [C]);
+      ok(await eligible(C) === false, 'M5c-CONTROL: the company is still open with no making trade');
       await q('update public.player_state set level_xp = public.hr_char_xp_for_level(10) where user_id = $1 and slot = 0', [C]);
       const l10 = await list({ user: C, item: ITEM, qty: 1, ask: ASK });
       ok(l10 && l10.ok === true, `M5c: a Level 10 hero was refused: ${brief(l10)}`);

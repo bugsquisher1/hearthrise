@@ -255,19 +255,25 @@ begin
 end $fn$;
 
 create or replace function public.hr_trade_level_of(p_user uuid, p_trade text)
-returns int language sql stable set search_path = public, pg_catalog as $fn$
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- K1 (1073-k1-job-slice.sql): the company's Level in a trade on 09's table.
-  select public.hr_trade_level(coalesce((select x.xp from public.company_trade_xp x where x.user_id = p_user and x.trade_id = p_trade), 0));
-$fn$;
+  -- plpgsql, not sql (lane/bench-cut-server, tests/settle-budget.mjs SB-3): once 1079 lights trade_jobs, the section quotes every recipe in
+  -- every envelope (about 130 calls a hero), and a SET-clause SQL function is re-planned per call on PostgreSQL 17; plpgsql keeps the plan.
+  return public.hr_trade_level(coalesce((select x.xp from public.company_trade_xp x where x.user_id = p_user and x.trade_id = p_trade), 0));
+end $fn$;
 
 create or replace function public.hr_trade_band_open(p_user uuid, p_band int)
-returns boolean language sql stable set search_path = public, pg_catalog as $fn$
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- K1 (1073-k1-job-slice.sql; 09 4.2 and 4.9): band 0 is open to every company; any other band only where a hero of the account holds
   -- a depth record (hunt_density.danger_held) on a Danger scale ground of THAT BAND OR DEEPER (the designer, 2026-11-27: bands 1 to 3
   -- have one or two grounds each, so a company that went from the Thicket to the Warrens would never open iron on an exact match).
-  select coalesce(p_band, -1) = 0 or exists (select 1 from public.hunt_density d join public.hr_trade_ground_bands g on g.hunt_id = d.hunt_id
+  -- plpgsql, not sql (lane/bench-cut-server, tests/settle-budget.mjs SB-3): once 1079 lights trade_jobs, the section quotes every recipe in
+  -- every envelope (about 130 calls a hero), and a SET-clause SQL function is re-planned per call on PostgreSQL 17; plpgsql keeps the plan.
+  return coalesce(p_band, -1) = 0 or exists (select 1 from public.hunt_density d join public.hr_trade_ground_bands g on g.hunt_id = d.hunt_id
                                               where d.user_id = p_user and d.danger_held is not null and g.band >= p_band);
-$fn$;
+end $fn$;
 
 create or replace function public.hr_trade_job_quote(p_user uuid, p_slot int, p_recipe text, p_count int)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$

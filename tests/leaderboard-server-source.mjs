@@ -130,8 +130,9 @@ export async function guard() {
   // Everything below grades a rebuilt view. If the view were never rebuilt, or
   // the predecessor never applied, several assertions would pass anyway.
   const skills = (await one('select hr_lb_skills() s')).s;
-  /* 15 since the core rebuild: Melee replaces Attack + Strength, Hitpoints is gone (2026-10-27-core-bodies.sql). */
-  ok(Array.isArray(skills) && skills.includes('stonemason') && skills.includes('melee') && skills.length === 15,
+  /* 15 since the core rebuild (Melee replaces Attack + Strength, Hitpoints is gone: 2026-10-27-core-bodies.sql); 7 since the bench cut
+     (1079-one-town-work-cut.sql: the eight old trades leave, trade Levels are the company's). The boards below read Magic and Ranged. */
+  ok(Array.isArray(skills) && skills.includes('stonemason') && skills.includes('melee') && skills.length === 7,
     `LB-0: hr_lb_skills() is ${Array.isArray(skills) ? skills.length : '?'} entries and the `
     + 'predecessor gate term "stonemason" is missing — the chain did not apply '
     + '2026-08-17-leaderboard-skills.sql, so the migration under test refused to install and '
@@ -184,11 +185,11 @@ export async function guard() {
      Melee is raised to level 30 on the combat curve (300,743 XP): the capped 99 table reads that XP
      as level 60, so a view that summed hr_level_from_xp would disagree with the player's own screen
      by 30 levels. A
-     missing row (Mining deleted) must simply not count — the view sums the rows that exist. */
+     missing row (Magic deleted) must simply not count — the view sums the rows that exist. */
   const meleeGrant = await apply(HONEST, { xp: { melee: xp.skillXpForLevel('melee', 30) } });
   ok(meleeGrant && meleeGrant.ok === true, `LB-9b: the Melee grant was refused — ${JSON.stringify(meleeGrant)}`);
   const del = await db.query(
-    'delete from player_skills where user_id=$1 and slot=0 and skill_id=$2', [HONEST, 'mining']);
+    'delete from player_skills where user_id=$1 and slot=0 and skill_id=$2', [HONEST, 'magic']);
   ok(del.affectedRows === 1,
     `LB-9b (the FIXTURE control): the delete removed ${del.affectedRows} rows, expected 1.`);
   await refresh();
@@ -224,7 +225,7 @@ export async function guard() {
   await refresh();
 
   for (const [b, forgedValue] of [
-    ['total_level', FORGED_TOTAL], ['skill:mining', FORGED_XP],
+    ['total_level', FORGED_TOTAL], ['skill:magic', FORGED_XP],
     ['skill:melee', FORGED_XP], ['skill:stonemason', FORGED_XP], ['level', FORGED_XP],
   ]) {
     const got = await scoreOf(b, FORGER);
@@ -261,17 +262,17 @@ export async function guard() {
   // Without this, a migration that ranked nothing at all would pass LB-1
   // perfectly. This is the assertion that distinguishes a security fix from a
   // leaderboard outage.
-  const beforeMining = await scoreOf('skill:mining', HONEST);
-  const gr = await apply(HONEST, { xp: { mining: 5000 } });
+  const beforeMagic = await scoreOf('skill:magic', HONEST);
+  const gr = await apply(HONEST, { xp: { magic: 5000 } });
   ok(gr && gr.ok === true, `LB-2: a legitimate XP grant was refused — ${JSON.stringify(gr)}`);
   await refresh();
-  const afterMining = await scoreOf('skill:mining', HONEST);
-  ok(afterMining === 5000,
-    `LB-2: after a server-written 5000 XP grant the skill:mining board reads ${afterMining} `
-    + `(was ${beforeMining}), expected 5000. The board must track player_skills.xp.`);
+  const afterMagic = await scoreOf('skill:magic', HONEST);
+  ok(afterMagic === 5000,
+    `LB-2: after a server-written 5000 XP grant the skill:magic board reads ${afterMagic} `
+    + `(was ${beforeMagic}), expected 5000. The board must track player_skills.xp.`);
   const afterTotal = await scoreOf('total_level', HONEST);
   ok(afterTotal > freshTotal,
-    `LB-2: total_level did not move (${freshTotal} -> ${afterTotal}) after 5000 mining XP, which `
+    `LB-2: total_level did not move (${freshTotal} -> ${afterTotal}) after 5000 magic XP, which `
     + 'is comfortably several levels. total_level must be derived from the stored XP.');
 
   // ── LB-3 — GOLD RANKS NOWHERE: WEALTH AND CLAN POWER ARE CUT. ───────────
@@ -340,7 +341,7 @@ export async function guard() {
   // src/session/honor-roll.js readBoard() consumes ok/board/available/refreshed_at/total/top/mine, and each
   // row's rank/place/name/level/score (+ mine/slot on the caller's own heroes, + near on a mine entry).
   // NOTHING ELSE CROSSES: no account uuid, no clan, no timestamp per row (2027-02-12-leaderboard-heroes.sql §5).
-  const shape = await board(HONEST, 'skill:mining');
+  const shape = await board(HONEST, 'skill:magic');
   for (const k of ['ok', 'board', 'available', 'refreshed_at', 'total', 'top', 'mine']) {
     ok(Object.prototype.hasOwnProperty.call(shape || {}, k),
       `LB-7: hr_leaderboard's response has no "${k}" key — the Roll of Honor reads it.`);
@@ -350,7 +351,7 @@ export async function guard() {
   ok(shape && shape.refreshed_at != null, 'LB-7: the answer has no refreshed_at — the window cannot say how fresh it is.');
   const ROW_KEYS = ['rank', 'place', 'name', 'level', 'score'];
   const meRow = (shape.top || []).find((r) => r.mine === true && r.slot === 0);
-  ok(meRow, 'LB-7: the honest hero is absent (or unmarked) in the skill:mining top — LB-2 said the score '
+  ok(meRow, 'LB-7: the honest hero is absent (or unmarked) in the skill:magic top — LB-2 said the score '
     + 'landed, so the reader and the view disagree, or the caller\'s own row lost its mark.');
   if (meRow) {
     for (const k of ROW_KEYS) {
@@ -359,9 +360,9 @@ export async function guard() {
     ok(meRow.name === 'Honest',
       `LB-7: the row name is ${JSON.stringify(meRow.name)}, expected "Honest" (no character_names row: the `
       + 'account name stands in for slot 0, hr_character_name).');
-    ok(meRow.level === xp.skillLevelFromXp('mining', meRow.score),
-      `LB-7: the row says level ${meRow.level} for ${meRow.score} Mining XP; src/core/xp.js says `
-      + `${xp.skillLevelFromXp('mining', meRow.score)}. The level a player reads must be the server's own.`);
+    ok(meRow.level === xp.skillLevelFromXp('magic', meRow.score),
+      `LB-7: the row says level ${meRow.level} for ${meRow.score} Magic XP; src/core/xp.js says `
+      + `${xp.skillLevelFromXp('magic', meRow.score)}. The level a player reads must be the server's own.`);
   }
   const ALLOWED = new Set([...ROW_KEYS, 'mine', 'slot']);
   for (const r of shape.top || []) {
@@ -374,14 +375,14 @@ export async function guard() {
       && Number.isInteger(m.slot) && Array.isArray(m.near) && m.near.some((n) => n.rank === m.rank)),
     `LB-7: mine is ${JSON.stringify(shape.mine)} — "where am I?" must list the caller's ranked heroes, each `
     + 'with its neighbours (itself included).');
-  const forgerView = await board(FORGER, 'skill:mining');
+  const forgerView = await board(FORGER, 'skill:magic');
   ok(forgerView && Array.isArray(forgerView.top)
       && !forgerView.top.some((r) => r.name === 'Honest' && ('slot' in r || 'mine' in r)),
     'LB-7: the honest hero is marked as the FORGER\'s own — the mark must follow auth.uid().');
 
   /* ── LB-13 — EVERY HERO RANKS, BY ITS OWN NAME (2027-02-12-leaderboard-heroes.sql §3). ─────────────
      The defect: the view was slot 0 of each ACCOUNT under profiles.display_name, so a second hero never
-     ranked and every row read "Adventurer". The second hero gets a character name and the strongest Mining
+     ranked and every row read "Adventurer". The second hero gets a character name and the strongest Magic
      XP; it must rank FIRST among the fixture, by that name, while the first hero keeps its own row. */
   await ownHeroSlots((sql, p) => db.query(sql, p), HONEST, 1);   // one slot to start (2027-03-25-hero-slots-one.sql)
   const second = (await db.query("select set_config('request.jwt.claim.sub',$1,false)", [HONEST]),
@@ -389,17 +390,17 @@ export async function guard() {
   ok(second && second.ok === true, `LB-13 (the FIXTURE control): a second hero could not be made — ${JSON.stringify(second)}`);
   await db.query('insert into character_names (user_id, slot, name, canonical) values ($1, 1, $2, hr_canon_display_name($2)) '
     + 'on conflict (user_id, slot) do update set name = excluded.name, canonical = excluded.canonical', [HONEST, 'Wennetyr']);
-  await db.query("update player_skills set xp = 987654 where user_id = $1 and slot = 1 and skill_id = 'mining'", [HONEST]);
+  await db.query("update player_skills set xp = 987654 where user_id = $1 and slot = 1 and skill_id = 'magic'", [HONEST]);
   await db.query('update player_state set level_xp = 77777 where user_id = $1 and slot = 1', [HONEST]);
   await refresh();
-  const s1 = await rowOf('skill:mining', HONEST, 1);
+  const s1 = await rowOf('skill:magic', HONEST, 1);
   ok(s1 && Number(s1.score) === 987654 && s1.name === 'Wennetyr',
-    `LB-13: the second hero's Mining row is ${JSON.stringify(s1)} — expected 987654 XP under "Wennetyr". `
+    `LB-13: the second hero's Magic row is ${JSON.stringify(s1)} — expected 987654 XP under "Wennetyr". `
     + 'A board of ACCOUNTS (slot 0) or of account names is back.');
   ok(await scoreOf('level', HONEST, 1) === 77777, 'LB-13: the second hero is not on the Level board.');
   ok(await rowOf('total_level', HONEST, 0) !== null && await rowOf('total_level', HONEST, 1) !== null,
     'LB-13: one account\'s two heroes are not two Total level rows.');
-  const two = await board(HONEST, 'skill:mining');
+  const two = await board(HONEST, 'skill:magic');
   ok(two && two.mine.length === 2 && two.mine.map((m) => m.slot).join() === '0,1'
       && two.mine[1].name === 'Wennetyr' && two.mine[1].score === 987654,
     `LB-13: mine is ${JSON.stringify(two && two.mine)} — both of the caller's heroes must be listed, by slot.`);
@@ -427,16 +428,16 @@ export async function guard() {
   ok((await one('select hr_name_blocked($1)::text b', [bad])).b === 'true', 'LB-15 (the FIXTURE control): the probe name is not blocked.');
   await db.query('update character_names set name = $2, canonical = hr_canon_display_name($2) where user_id = $1 and slot = 1', [HONEST, bad]);
   await refresh();
-  const masked = await board(FORGER, 'skill:mining');
+  const masked = await board(FORGER, 'skill:magic');
   ok(masked && !JSON.stringify(masked).includes(bad) && masked.top.some((r) => r.name === 'Name hidden' && r.score === 987654),
     'LB-15: a blocked hero name reached another player\'s answer (or its row vanished instead of being masked).');
   await db.query('update character_names set name = $2, canonical = hr_canon_display_name($2) where user_id = $1 and slot = 1', [HONEST, 'Wennetyr']);
   await refresh();
 
   /* ── LB-16 — TIES SHARE A PLACE; THE STRICT RANK STILL ORDERS THEM. ── */
-  await db.query("update player_skills set xp = 4243 where (user_id, slot) in (($1::uuid, 0), ($2::uuid, 0)) and skill_id = 'fishing'", [HONEST, FORGER]);
+  await db.query("update player_skills set xp = 4243 where (user_id, slot) in (($1::uuid, 0), ($2::uuid, 0)) and skill_id = 'ranged'", [HONEST, FORGER]);
   await refresh();
-  const fa = await rowOf('skill:fishing', HONEST, 0), fb = await rowOf('skill:fishing', FORGER, 0);
+  const fa = await rowOf('skill:ranged', HONEST, 0), fb = await rowOf('skill:ranged', FORGER, 0);
   ok(fa && fb && fa.place === fb.place && fa.rank !== fb.rank,
     `LB-16: tied heroes read ${JSON.stringify(fa)} / ${JSON.stringify(fb)} — equal scores share a place.`);
 
@@ -509,14 +510,14 @@ export async function guard() {
   /* THE PAIRED POSITIVE. Without this, a matview that silently stopped
      updating — or one whose refresh is a no-op — would satisfy every zero
      above perfectly. Zero churn is only a virtue if real changes still land. */
-  const beforeScore = await scoreOf('skill:mining', HONEST);
-  const bump = await apply(HONEST, { xp: { mining: 4000 } });
+  const beforeScore = await scoreOf('skill:magic', HONEST);
+  const bump = await apply(HONEST, { xp: { magic: 4000 } });
   ok(bump && bump.ok === true, `LB-12: the xp grant was refused — ${JSON.stringify(bump)}`);
   const moved = await churn(conc);
   ok(moved.rewritten + moved.added > 0,
     'LB-12 (the PAIRED POSITIVE): a real XP gain caused NO row to be rewritten. The refresh is a '
     + 'no-op and every zero-churn assertion above is meaningless.');
-  ok(await scoreOf('skill:mining', HONEST) === beforeScore + 4000,
+  ok(await scoreOf('skill:magic', HONEST) === beforeScore + 4000,
     'LB-12: the concurrent refresh did not publish the new score.');
 
   /* ── LB-11 — THE A9 RATE GATE SURVIVED THE REBUILD (the one-way door). ────
@@ -609,7 +610,7 @@ export async function guard() {
 
   guard.report = [
     `LB: forged snapshot (gold ${FORGED_GOLD}, xp ${FORGED_XP}, name "${FORGED_NAME}") moved no `
-    + `board; a server-written 5000 xp moved skill:mining and total_level; 5000 gold moved no board.`,
+    + `board; a server-written 5000 xp moved skill:magic and total_level; 5000 gold moved no board.`,
     `LB: ${skills.length} skill boards + total_level/level, one row per HERO under its own name, sourced from `
     + 'player_state + player_skills; renown + bosses unsourced; wealth + clan_power cut; hidden heroes hold no place; '
     + 'a blocked name reads "Name hidden"; ties share a place.',

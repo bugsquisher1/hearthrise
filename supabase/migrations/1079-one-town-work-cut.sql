@@ -3561,20 +3561,20 @@ begin
     v_accts := v_accts + 1;
   end loop;
   raise notice 'one-town-work cut: % account(s) held old trades or goods the catalogue no longer has, % journalled', v_accts, v_rows;
-
-  -- THE POINTERS. A gather pointer, and an artisan pointer that is no hearth run, go to idle (the work since its last settle is the
-  -- bench's, and the bench is gone); then the errand stash and the last-activity note that name one. Each changed hero's version moves.
-  update public.player_state
-     set active_kind = 'idle', active_id = null, active_left = null, version = version + 1, updated_at = now()
-   where active_kind = 'gather' or (active_kind = 'artisan' and public.hr_hearth_fuel_of(active_id) is null);
-  update public.player_state
-     set errand_kind = null, errand_id = null, errand_left = null, errand_count = null, errand_next = null, version = version + 1, updated_at = now()
-   where errand_kind = 'gather' or (errand_kind = 'artisan' and public.hr_hearth_fuel_of(errand_id) is null);
-  update public.player_state
-     set last_activity_kind = null, last_activity_id = null, last_activity_left = null, last_activity_stopped_at = null,
-         version = version + 1, updated_at = now()
-   where last_activity_kind = 'gather' or (last_activity_kind = 'artisan' and public.hr_hearth_fuel_of(last_activity_id) is null);
 end $mig$;
+
+-- THE POINTERS. A gather pointer, and an artisan pointer that is no hearth run, go to idle (the work since its last settle is the
+-- bench's, and the bench is gone); then the errand stash and the last-activity note that name one. Each changed hero's version moves.
+update public.player_state
+   set active_kind = 'idle', active_id = null, active_left = null, version = version + 1, updated_at = now()
+ where active_kind = 'gather' or (active_kind = 'artisan' and public.hr_hearth_fuel_of(active_id) is null);
+update public.player_state
+   set errand_kind = null, errand_id = null, errand_left = null, errand_count = null, errand_next = null, version = version + 1, updated_at = now()
+ where errand_kind = 'gather' or (errand_kind = 'artisan' and public.hr_hearth_fuel_of(errand_id) is null);
+update public.player_state
+   set last_activity_kind = null, last_activity_id = null, last_activity_left = null, last_activity_stopped_at = null,
+       version = version + 1, updated_at = now()
+ where last_activity_kind = 'gather' or (last_activity_kind = 'artisan' and public.hr_hearth_fuel_of(last_activity_id) is null);
 
 
 -- ── §7 THE BENCH, ITS TAX, ITS RECIPES AND THE COMPANY'S OLD TRADES LEAVE ────────────────────────────────────────────────────

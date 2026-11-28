@@ -21,13 +21,12 @@
 // on: 2 over the MEASURED share of its best cell that the condition touches, a whole number, at most IMBUE.fireMax (one tier), and that is
 // the number its card shows. THE ROOM RULE (21 D-11): a worn imbuement takes its RATED 2 steps of the slice's room on every blow, firing
 // or not, so three fill the cap of 6 and a draught or a damage meal adds nothing on top (21 D-1's no dead buy); a firing row counts its
-// `fire` steps over its own room (the clamp's room field: HANDOFFS 2026-11-27 designer-imbue-calls item 1, owed; until it lands the engine
-// fires the rated 2).
+// `fire` steps over its own room (src/core/imbue.js imbueRows, the clamp's room field in src/core/power-ledger.js; lane/imbue-engine).
 // A LEECH (D-18) heals the wearer `leech.pm` permille of the HP each of its blows takes (mana for a Mana Leech), through the heal cut, never
 // past max, the fraction carried to the next blow so a small hit still pays; it takes its room and no steps. A CONVERSION (Fire Edge, D-18)
 // resolves `convert.sharePm` of each blow against the target's percent for its element in place of the blow's own: one offense row of
-// stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it. Both owed
-// in the engine (HANDOFFS item 2).
+// stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it. Both in
+// the engine (lane/imbue-engine): src/core/hunt/imbue-leech.js, src/core/imbue.js convertMult.
 // LIFE. Quality sets life, not strength (D-7): plain 20, fine 25, master 30 hunted hours (lifeRungPm 250 a rung over plain).
 //
 // v0.3.0 (21 D-12). Every row's part and best ground is on a ground v0.3.0 opens (a pack with status 'open'), so a company can make an

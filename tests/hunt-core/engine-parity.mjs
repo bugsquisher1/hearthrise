@@ -236,6 +236,12 @@ const SEED = '-4611686018427387904';
    back into this tree one by one: the set's src/core/hunt/roles.js, src/core/hunt/monster-roles.js and src/data/monster-roles.js hold all
    five pins (exit 0, 11 mutants caught); with only the set's roles.js back (this lane's reach, a row with no hero in it taking every row,
    monster-roles.js reachPick, kept) all five pins hold (exit 0): the pin alone moves muster-steps-4. */
+/* RE-PINNED 2026-11-27 (lane/imbue-engine, 21 D-18), THE WORLD HASHES ONLY, all five scenarios: every timeline and tally hash and every
+   kill count held (the --write diff moves 65 "world" lines and nothing else). Cause: the world's field list gains the unit's `leechMilli`
+   (src/core/hunt/imbue-leech.js PERSISTED: the thousandths a worn Leech carries to its wearer's next blow), so every stored world string
+   is one field longer and world-state.js SHAPE moves. Imbuements are dark here (no scenario hands wornImbues), so nothing writes it and
+   no blow, heal or conversion moves. Proof: this tree with the base's src/core/hunt/world-state.js laid back alone (its MODULES without
+   imbue-leech.js) holds all five old pins (exit 0, 11 mutants caught), the fire size over the room and the conversion included. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

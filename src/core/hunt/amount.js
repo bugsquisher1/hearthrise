@@ -43,7 +43,8 @@ import { temperLevelsOn } from '../temper-steps.js';
 import { auraRowsOn } from './auras.js';
 import { withTraits } from './trait-rules.js';
 import { roleIdOf } from './monster-roles.js';
-import { imbueRows } from '../imbue.js';
+import { imbueRows, convertMult } from '../imbue.js';
+import { elementOn } from './targeting.js';
 import { dangerOn, itemLevelOf } from './danger.js';
 import { isHero, isMonster } from './sides.js';
 
@@ -143,7 +144,10 @@ export const topBpOf = (u) => (u && Number.isInteger(u.blowBp) && u.blowBp > 0 ?
    CONFLICTS 2026-11-26 tp-im-steps; Temper itself is item Levels in the gear part, defenseGearPm above). `other` is the monster on the
    blow's other side */
 function heroRows(u, channel, c, inst, other) {
-  const rows = u.imbues ? imbueRows(u.imbues, channel, { role: other ? roleIdOf(inst, other) : null, element: c.element || null }, u.heroLv) : [];
+  /* a conversion (Fire Edge, 21 D-18) is priced on a hero's blow at a monster: its share of the blow at the target's percent for its
+     element over the blow's own (c.el), in whole steps (imbue.js convertMult, stepsOf) */
+  const convert = u.imbues && channel === 'offense' && other && isMonster(other) ? (cv) => stepsOf(convertMult(cv, elementOn(other, cv.element), c.el)) : null;
+  const rows = u.imbues ? imbueRows(u.imbues, channel, { role: other ? roleIdOf(inst, other) : null, element: c.element || null, convert }, u.heroLv) : [];
   const add = (slice, steps, key) => { if (steps) rows.push({ slice, raises: channel, steps, key }); };
   if (channel === 'offense' || channel === 'heal') {
     add('consumable', stepsOf(1 + int(u.buffDmgPm) / 1000), 'food');

@@ -40,6 +40,7 @@ import * as conditions from './conditions.js';
 import * as partySplit from '../party-split.js';
 import * as danger from './danger.js';
 import * as tookPart from './took-part.js';
+import * as imbueLeech from './imbue-leech.js';
 import { isHero, isMonster } from './sides.js';
 
 export const WORLD_VERSION = 1;
@@ -52,7 +53,7 @@ const BASE = Object.freeze({
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
   damage.PERSISTED, monsterSpells.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED,
-  partySplit.PERSISTED, danger.PERSISTED, bossPhases.PERSISTED, tookPart.PERSISTED];
+  partySplit.PERSISTED, danger.PERSISTED, bossPhases.PERSISTED, tookPart.PERSISTED, imbueLeech.PERSISTED];
 
 function compose(part) {
   const out = []; const seen = new Set();

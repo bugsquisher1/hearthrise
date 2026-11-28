@@ -275,7 +275,7 @@ const MUTANTS = [
   ['a roller draws on the swing\'s r', 'src/core/hunt-rewards.js', 'rollDropTable(rolled, own, ctx.lootRngOf(id))', 'rollDropTable(rolled, own, ctx.rng)'],
   ['the share ignores a guarantee', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 || row.ch >= 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;'],
   ['the share divides before the cap', 'src/core/drops.js', 'return share === 1 ? wholeDropChance(row, m) : wholeDropChance(row, m) / share;', 'return share === 1 ? wholeDropChance(row, m) : row.ch >= 1 ? wholeDropChance(row, m) / share : wholeDropChance({ ...row, ch: row.ch / share }, m);'],
-  ['the mark is not persisted', 'src/core/hunt/world-state.js', 'danger.PERSISTED, bossPhases.PERSISTED, tookPart.PERSISTED];', 'danger.PERSISTED, bossPhases.PERSISTED];'],
+  ['the mark is not persisted', 'src/core/hunt/world-state.js', 'bossPhases.PERSISTED, tookPart.PERSISTED, imbueLeech.PERSISTED];', 'bossPhases.PERSISTED, imbueLeech.PERSISTED];'],
   /* A GUARANTEE IS DEALT (PLP-5, PLP-4's exact bound) */
   ['the guarantee rolled at 1 / n (the rule before the deal)', 'src/core/hunt-rewards.js', '    if (!(d.ch >= 1)) { rolled.push(d); continue; }', '    if (true) { rolled.push(d); continue; }'],
   ['every guarantee to one seat (the killer\'s here)', 'src/core/hunt-rewards.js', 'const seat = by[itemOwner(j++, by.length, start)];', 'const seat = by[0];'],

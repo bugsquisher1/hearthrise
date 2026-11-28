@@ -4022,3 +4022,17 @@ Lessons: (1) an identity fallback (spell the id) hides a missing name until a su
 new item class through every name path, not only the icon; (2) a toolbar laid over a pannable map needs its own plate, or the map
 shows through the gaps at every pan; (3) a press that lights and opens nothing in one view is a dead press: test it in every view
 the band shows it in; (4) pick stones with a picker bounded by the map box, never screen guesses: my first route clicks landed off it.
+## 2026-11-28 lane/icons-arrowheads-signatures (the six arrowheads and the eight in-band Signatures, v0.3.0 A1 step 2)
+Arrowheads: the six wore the Barrow Nail re-dyed (read as a peg). tools/world-art/arrowhead-icons.mjs draws two loose barbed heads on the
+diagonal, on the pixel lattice (cutting edges q = p/3, a clean 1:2 stair; barbs and notch at 45 degrees), each tier its bar's metal ramp;
+rune a darkened steel head with a frost rune cut, ember a blackened head still hot at the point. Signatures: signature-icons.mjs draws
+#1 Pavise (per pale, a pennon), #19 Lock-Keeper's Chain (two keys on a ring, not the Gatekeeper's padlock), #20 Greened Bracers, #22 Slake
+Waders, #24 Stoker's Ring, #25 The Cold Candle, #27 Riverstone Earrings, #31 The Cellar Key, all in ITEM_ART_AHEAD until S1's rows land.
+PixelLab was not reachable in this session (no pixellab tool surfaced), so every icon is drawn by rule: 0 generations used.
+Read on tools/qa/local-world.mjs: a fresh hero's real bag, pockets swapped through the page's own itemIconHtml (1440x900 and 922x423),
+shots art/review/icons-arrowheads-signatures. Misses fixed on the way: a polygon raster at a fractional tip (ragged steps; the lattice
+fixed it), vertical bracers (read as trousers; diagonal tubes with a hollow cuff and a shine read as armor), sparse chain links (beads),
+three tiny keys (sticks; two big keys read), a checker dither for wet leather (noise at x1).
+Lessons: (1) a 45 degree head drawn in lattice coordinates (p = dy - dx, q = -(dx + dy)) gives clean pixel edges for free, a float
+polygon never does; (2) a tube on the vertical reads as clothing, on the diagonal with a dark open end it reads as worn metal;
+(3) a bronze tube with green patches reads as a mossy log until it gets one bright shine line.

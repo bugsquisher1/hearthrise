@@ -18,9 +18,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
 import { IMBUE, IMBUE_RULES, IMBUE_SLOTS, imbueBandOf, imbueItemOf } from '../data/imbue-rules.js';
-import { POWER_LEDGER } from '../data/power-ledger.js';
 import { GEAR_STEPS, DANGER } from '../data/danger.js';
-import { wage, powSquare } from '../data/wage.js';
+import { wagePrice, powSquare } from '../data/wage.js';
 
 const HOUR_MS = 3600000;
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -35,11 +34,9 @@ export function lifeMs(quality) {
 /** The equip slot an imbuement sits in (its kind's), or null for no such imbuement. */
 export const imbueSlotOf = (id) => (own(IMBUE_RULES, id) ? IMBUE_SLOTS[IMBUE_RULES[id].kind] : null);
 
-/** THE APPLY FEE (hr_imbue_apply's twin), whole gold, burned: feeHoursPm of wage at the piece's item Level, x ramp(hero Level). */
-export function applyFee(itemLevel, heroLevel) {
-  const L = Math.max(0, Math.min(POWER_LEDGER.rampLevel, Math.floor(Number(heroLevel) || 0)));
-  const iL = Math.max(1, Math.floor(Number(itemLevel) || 1));
-  return Math.ceil((IMBUE.feeHoursPm * wage(iL) * L) / (1000 * POWER_LEDGER.rampLevel));
+/** THE APPLY FEE (hr_imbue_fee's twin), whole gold, burned: feeHoursPm of wage at the imbuement's band, no ramp (21 D-19). */
+export function applyFee(band) {
+  return wagePrice(IMBUE.feeHoursPm, Math.max(1, Math.floor(Number(band) || 1)));
 }
 
 /** THE RECIPE an Artificing hero makes (21 section 3.2): { item, band, inputs: { item: count }, remains, workPm }, or null for no such row.

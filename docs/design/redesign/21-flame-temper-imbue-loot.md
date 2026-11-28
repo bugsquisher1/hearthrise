@@ -676,8 +676,8 @@ At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are
 | The fire sizes, the Fire Ward's seat, Life Leech 20 | `src/data/imbue-rules.js` (`fire`, `fireMax`, `best`, `leech.pm`); `validateImbues` refuses a condition with no whole fire size from 2 to 20 (IM-1) | SET (data). The engine still fires the rated 2 until HANDOFFS 2026-11-27 designer-imbue-calls item 1 lands |
 | The fire size and the rated room in the clamp | `src/core/imbue.js imbueRows`, `src/core/power-ledger.js clampLedger` | OWED, Systems (item 1). The Lab candidate `im-muster-fire` is the edit |
 | The leech rule and the conversion | `src/core/hunt/amount.js`, `abilities.js`, `damage.js`, the tally | OWED, Systems (item 2) |
-| The fee at the band, no ramp | `src/core/imbue.js applyFee`, `hr_imbue_apply`, `hr_imbue_levers` | OWED, Backend (item 3), a money surface on S-32 |
-| The timer only while worn | 1074's `hr_flame_temper_settle` | OWED, Backend (item 4) |
+| The fee at the band, no ramp | `src/core/imbue.js applyFee(band)`; `hr_imbue_fee(band)` (1069, generated, VERIFY(n) by band); `hr_imbue_apply` and the section `imbues` restated in `1078-imbue-fee-timer.sql`; the piece-and-ramp `hr_imbue_fee(int, int)` dropped. `hr_imbue_levers.ramp_level` stays written and unread while 1063's STAGED catalogue is in the replay (its insert names it) | STAGED (lane/imbue-fee-timer, S-32). `tests/imbue.mjs` IM-3, `tests/worn-imbues-db.mjs` WI-6 |
+| The timer only while worn | `hr_flame_temper_settle` restated in `1078-imbue-fee-timer.sql`: only a row `hr_worn_imbues_of` plays runs (its kind's slot, a worn piece) | STAGED (lane/imbue-fee-timer). `tests/worn-imbues-db.mjs` WI-2 (both doors), WI-5 |
 | No staged catalogue moved | `hr_imbue_rules` holds no size or seat (`node tools/gen-flame-temper.mjs --check`) | |
 
 ### 11.4 Readings
@@ -701,6 +701,6 @@ At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are
 | 2 | Five Pike Ferrules drop | Step 1 | `pike_ferrule` on the Charred Pikeman's row, every 0.22 hunted hours | Yes |
 | 3 | Four Grave Dust | Step 1, or Muster Barrows (Cairn Wight, Captain Hask) | `grave_dust` rows on both packs; band 3's Remains face (`STREAM_FACES`) | Yes |
 | 4 | Make Brute Edge | Steps 2 and 3, an Artificing hero at rung 1 | `jobRecipes()` `imbuement_brute_edge`: 5 `pike_ferrule`, 4 `grave_dust`, band 3, makes `imbue_brute_edge` | Staged (S-27, dark) |
-| 5 | Apply it to the weapon in town | Step 4 and 6,813 gold (D-19) | `hr_imbue_apply`; `hunt_open` while hunting | Staged (S-32, dark); the band fee owed (item 3) |
+| 5 | Apply it to the weapon in town | Step 4 and 6,813 gold (D-19) | `hr_imbue_apply`; `hunt_open` while hunting | Staged (S-32, dark); the band fee staged in 1078 |
 | 6 | Hunt Muster Barrows | Step 5 | `muster_knight` and `captain_hask` are `role: 'brute'`; `imbueStepsAt(70, 60)` is 2, so the Edge fires at 5 | Fires at 2 until item 1 |
 | 7 | A better sword drops and goes on | Step 6 | `hero_worn_imbue` is keyed by the slot, so the Edge stays (D-20) | Yes, as built |

@@ -745,6 +745,8 @@ Each is already a row priced in milli-hours of the wage at the hero's Level (lan
 
 At day 180 the reference burns, as shares of what it mints: bought blocks 70.6%, store kit 7.6%, job fees 3.5%, imbuements 3.4%, carry-over 1.2%, resets 0.7%, Temper 0.6%, Blessings 0 (Steady never dies).
 
+**Re-read 2026-11-28 (lane/imbue-fee-timer, the apply fee at the imbuement's band with no ramp, `21` D-19), on the set as it stands, the same ledger with only the fee moved (MEASURED by `ledger.mjs`, kept in `sinks/ledger.txt`):** the reference burns 87.4% by day 180 (86.3% with the old fee) and 84.0% by day 30 (81.3%); buying its hall, 88.7% (87.8%). Imbuements are 4.5% of the mint at day 180 (3.4%) and 4.4% at day 30 (1.7%): a Level 60 hero now pays the whole 0.4 h of wage, not 30% of it. Both references stay inside EL-SINK's 0.85 to 0.90 (`tests/econ-levers.mjs` green), so no dial moves.
+
 **Reading: in band.** The reference burns 87.7 to 89.2% by day 180, with or without its hall. Day 30 sits at 82 to 92% depending on how fast the hall is bought, which brackets the band.
 
 ### 9.3 Calls

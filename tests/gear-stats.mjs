@@ -26,8 +26,9 @@
 //         ground the derived list adds, or a named one that agrees again, is red); every scale ground's base is a material's item Level;
 //         a tier with homes has every slot ladder's base (the armor lines, the weapon families, the codex, one shield, the ring, earrings,
 //         necklace and cloak), each dropped piece drops on every home (a Scarce row of base-drops.js or a home body's own row), and each
-//         ring, earrings, necklace and cloak is a Trait craft base (slot-ladders.js STEP_TRAIT_BASES: no bench makes it since the bench cut,
-//         09-crafting 4.13, and catalogue-coherence holds it under traitBase until Artificing's Trait craft ships).
+//         ring, earrings, necklace and cloak has a REAL DOOR (catalogue-coherence reachableSources, the staged grounds open) or an explicit
+//         RULED HOLD (slot-ladders.js TRAIT_BASE_HOLDS) whose named section of 09-crafting.md says in words that the piece is held as a
+//         Trait craft base; a held piece that has a door is red too. No bench makes it since the bench cut (09 4.13).
 //   GSF-10 PRICED PAST THE TOP: every stat curve's budget grows past GEAR_CURVE_TOP (src/core/gear-stats.js budgetOf), so no item Level is
 //         capped (found items are never held to the ladder's top).
 //   GSF-11 THE STAGED UNIQUES PAST DAWNSTEEL, SORTED (the designer's 28-named-pieces.md 2.7 and 12-targets.md 8.8; lane/retire-dawnsteel-lines):
@@ -52,7 +53,8 @@ import { GEAR_STAT_FIELDS, RARITY_PM, GEAR_SCALE_STAT_PM, GEAR_CURVES, GEAR_CURV
 import { GEAR_LADDERS, MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 import { DANGER_GROUNDS, GEAR_STEPS, tierLevel } from '../src/data/danger.js';
 import { SHIELD_ITEMS } from '../src/data/shields.js';
-import { SLOT_ITEMS, STEP_TRAIT_BASES } from '../src/data/slot-ladders.js';
+import { SLOT_ITEMS, TRAIT_BASE_HOLDS } from '../src/data/slot-ladders.js';
+import { reachableSources, plannedDoors } from '../src/data/catalogue-coherence.js';
 import { BASE_DROPS } from '../src/data/base-drops.js';
 import { HUNT_GROUNDS, monstersOn } from '../src/data/hunt-grounds.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -248,8 +250,18 @@ function latePieces(o) {
    again, is red: the name leaves this list the day its rows move. */
 const RE_POINT_PENDING = Object.freeze([]);
 
-/* GSF-9: ONE MATERIAL A TIER (src/data/gear-tiers.js MATERIAL_TIERS). `o.step` = { materials, ladders, shields, slotItems, baseDrops, traitBases,
-   scale, grounds, monstersOn, monsters, pending }. */
+/* A hold's ruling, read where it is made: the fate table's row in `section` of 09-crafting.md naming the piece and its fate. */
+function heldIn(doc, section, id) {
+  if (typeof section !== 'string' || !/^4\.\d+$/.test(section)) return false;
+  const from = doc.indexOf('\n### ' + section + ' ');
+  if (from < 0) return false;
+  const next = doc.slice(from + 5).search(/\n##/);
+  const text = next < 0 ? doc.slice(from) : doc.slice(from, from + 5 + next);
+  return text.split('\n').some((l) => l.startsWith('|') && l.includes('`' + id + '`') && l.includes("Held as the Trait craft's bases"));
+}
+
+/* GSF-9: ONE MATERIAL A TIER (src/data/gear-tiers.js MATERIAL_TIERS). `o.step` = { materials, ladders, shields, slotItems, baseDrops, holds, rulings,
+   doors, scale, grounds, monstersOn, monsters, pending }. */
 function stepLadder(o) {
   const out = [], S = o.step, own = (x, k) => !!x && Object.prototype.hasOwnProperty.call(x, k);
   /* every material on the grid: its rung, its step, its item Level, worn from it less wearAhead */
@@ -303,9 +315,12 @@ function stepLadder(o) {
       }
     }
     /* (re-aimed by the bench cut: the made half was each piece's bench recipe, which left with the bench) every ring, earrings, necklace
-       and cloak of the tier is a Trait craft base, so the held list is the ladder's */
+       and cloak of the tier has a real door, or a typed hold whose ruling names the piece. Never a list that fills itself. */
     for (const [slot, ids] of made) for (const id of ids) {
-      if (!S.traitBases.includes(id)) out.push('GSF-9 ' + id + ' (' + slot + ') is no Trait craft base (slot-ladders.js STEP_TRAIT_BASES)');
+      const at = own(S.holds, id) ? S.holds[id] : null;
+      if (S.doors.has(id)) { if (at !== null) out.push('GSF-9 ' + id + ' (' + slot + ') is held for the Trait craft and ' + S.doors.get(id) + ' is its door: delete the hold'); continue; }
+      if (at === null) out.push('GSF-9 ' + id + ' (' + slot + ') has no door and no ruled hold (slot-ladders.js TRAIT_BASE_HOLDS): no player can get it');
+      else if (!heldIn(S.rulings, at, id)) out.push('GSF-9 ' + id + ' (' + slot + ') is held by 09-crafting.md ' + JSON.stringify(at) + ', which does not say it is held as a Trait craft base');
     }
   }
   return out;
@@ -316,7 +331,8 @@ function live() {
   const readers = Object.fromEntries([...new Set(READERS.map(([f]) => f))].map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
   return { GS, items: ITEMS, fists: FIST_ITEMS, sample: SPECIAL_SAMPLE, table: readFileSync(OUT, 'utf8').replace(/\r/g, ''), sources, readers, scaleItems: GS.scaleItems, fightItems, scalePm: GEAR_SCALE_STAT_PM, scale: ITEM_LEVELS,
     traits: TRAITS, doc: readFileSync(join(ROOT, 'docs/design/redesign/28-named-pieces.md'), 'utf8').replace(/\r/g, ''),
-    step: { materials: MATERIAL_TIERS, ladders: GEAR_LADDERS, shields: SHIELD_ITEMS, slotItems: SLOT_ITEMS, baseDrops: BASE_DROPS, traitBases: STEP_TRAIT_BASES,
+    step: { materials: MATERIAL_TIERS, ladders: GEAR_LADDERS, shields: SHIELD_ITEMS, slotItems: SLOT_ITEMS, baseDrops: BASE_DROPS, holds: TRAIT_BASE_HOLDS,
+      rulings: readFileSync(join(ROOT, 'docs/design/redesign/09-crafting.md'), 'utf8').replace(/\r/g, ''), doors: reachableSources(plannedDoors('traitBase')),
       scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS, pending: RE_POINT_PENDING },
     late: { homes: LATE_HOMES, ladders: GEAR_LADDERS, scale: DANGER_GROUNDS, grounds: HUNT_GROUNDS, monstersOn, monsters: MONSTERS, spellRow } };
 }
@@ -324,7 +340,7 @@ function live() {
 const lateCopy = (o) => { o.late = { ...o.late, homes: { ...o.late.homes } }; return o.late; };
 const lateRow = (o, id, edit) => { o.items = { ...o.items, [id]: { ...o.items[id], ...edit } }; };
 /* a copy of the step ladder's tables a mutant may edit */
-const stepCopy = (o) => { o.step = { ...o.step, materials: o.step.materials.map((m) => ({ ...m })), baseDrops: { ...o.step.baseDrops }, traitBases: [...o.step.traitBases],
+const stepCopy = (o) => { o.step = { ...o.step, materials: o.step.materials.map((m) => ({ ...m })), baseDrops: { ...o.step.baseDrops }, holds: { ...o.step.holds }, doors: new Map(o.step.doors),
   scale: { ...o.step.scale } }; return o.step; };
 
 const MUTANTS = [
@@ -386,7 +402,12 @@ const MUTANTS = [
   ['GSF-9', 'a re-pointed ground still named', (o) => { const S = stepCopy(o); S.pending = ['hasks_ford']; }],
   ['GSF-9', 'a slot ladder with no rung at a tier with homes', (o) => { const { wolfram_helm, ...r } = o.items; void wolfram_helm; o.items = r; }],
   ['GSF-9', 'a home that does not drop its base', (o) => { const S = stepCopy(o); S.grounds = { ...S.grounds, catacomb_flooded_wing: { ...S.grounds.catacomb_flooded_wing, drops: S.grounds.catacomb_flooded_wing.drops.filter((d) => d.id !== 'rowan_bow') } }; }],
-  ['GSF-9', 'a ring the Trait craft does not hold', (o) => { const S = stepCopy(o); S.traitBases = S.traitBases.filter((id) => id !== 'wolfram_ring'); }],
+  ['GSF-9', 'a ring with no door and no hold', (o) => { const S = stepCopy(o); delete S.holds.wolfram_ring; }, 'no door and no ruled hold'],
+  ['GSF-9', 'a cloak with no door and no hold', (o) => { const S = stepCopy(o); delete S.holds.archmage_cloak; }, 'no door and no ruled hold'],
+  ['GSF-9', 'a hold that names no ruling', (o) => { const S = stepCopy(o); S.holds.wolfram_ring = ''; }, 'does not say it is held'],
+  ['GSF-9', 'a hold naming a section that never ruled the piece', (o) => { const S = stepCopy(o); S.holds.ember_ring = '4.16'; }, 'does not say it is held'],
+  ['GSF-9', 'the ruling moves a held cloak to another fate', (o) => { const S = stepCopy(o); S.rulings = S.rulings.replace('`cobalt_ring`, `samite_cloak` | Held as', '`cobalt_ring`, `samite_cloak` | Cut as'); }, 'does not say it is held'],
+  ['GSF-9', 'a held ring a monster drops now', (o) => { const S = stepCopy(o); S.doors.set('dawn_ring', 'dropped by planted'); }, 'delete the hold'],
   ['GSF-10', 'the curve held at its top', (o) => { const g = o.GS; o.GS = { ...g, budgetOf: (c, iL) => g.budgetOf(c, Math.min(GEAR_CURVE_TOP, iL)) }; }],
   /* the staged uniques past Dawnsteel, sorted (28-named-pieces.md 2.7) */
   ['GSF-11', 'a kept piece sized on the Dawnsteel line again (its Dawnsteel twin)', (o) => { const d = o.items.dawn_platelegs; lateRow(o, 'keepers_leg_plates', { statsAs: 'dawn_platelegs', iL: d.iL, reqLv: d.reqLv, tier: d.tier, v: d.v, defB: d.defB }); }],
@@ -412,11 +433,11 @@ const MUTANTS = [
 if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     let bad = 0;
-    for (const [rule, name, plant] of MUTANTS) {
+    for (const [rule, name, plant, why] of MUTANTS) {
       const o = live();
       o.sources = { ...o.sources }; o.readers = { ...o.readers };
       plant(o);
-      const hit = check(o).some((l) => l.startsWith(rule + ' '));
+      const hit = check(o).some((l) => l.startsWith(rule + ' ') && (!why || l.includes(why)));
       console.log((hit ? 'caught  ' : 'MISSED  ') + rule + ' ' + name);
       if (!hit) bad++;
     }

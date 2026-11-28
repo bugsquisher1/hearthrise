@@ -11,9 +11,13 @@
 //   town-values      every town move measured, every town lends a move, a pick that lends nothing refused not_offered (spend, saved build)
 //   engine-rows      the cast path reads the hero's modified rows (cooldown, hold, reach); a build's conditional row holds only on its condition
 //   real-settle-both-paths  the real settle grants a build (heroSetup -> member -> syncUnit), and 10-minute and 100-second windows agree
+//   borrow-rules     a borrowed move (19 L6, 17 section 3): its heal on Mend's clock, Magic at Mend's rate, an ally row's native reach (the
+//                    target rule and its conditions' lowest ally), no native unlock; a borrow handed whole (with its price) and a build's alike
+//   borrow-both-paths  a borrowed Greater Mend on the real settle (heroSetup -> member -> syncUnit), 10-minute and 100-second windows agree,
+//                    and a handed price reaches the boundary
 //   no-build-no-change a hero with no build writes no field and reads the shared rows (the switch off plays as before)
 //
-// mutant-anchors: src/core/talents.js src/core/hunt/talent-rows.js src/core/hunt/abilities.js src/core/hunt/targeting.js src/core/hunt/auras.js src/core/member.js
+// mutant-anchors: src/core/talents.js src/core/hunt/talent-rows.js src/core/hunt/abilities.js src/core/hunt/targeting.js src/core/hunt/auras.js src/core/member.js src/core/hunt/cast-targets.js src/core/hunt/conditions.js src/core/hunt-spawn.js
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
@@ -146,7 +150,11 @@ const cases = {
     const sh = T.borrowBand('shelter', 'border');
     /* the table on one method (lane/roads-v0-remeasure, 18 section 7): Shelter 1.4 free at a border, opening at the floor */
     if (!sh || sh.penaltyPm !== 0 || sh.opensAt !== 20) return 'Shelter at a border: ' + JSON.stringify(sh);
-    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered before V4 (measured past the last band)';
+    /* (lane/e5-borrowing: under the heal rule a sword with no healer still reads +40.3 held, past the last band, so it stays unoffered) */
+    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered though measured past the last band';
+    /* the borrowed Circle of Renewal on Mend's clock (2.0): free at a border, opening at 30 */
+    const cr = T.borrowBand('circle_of_renewal', 'border');
+    if (!cr || cr.penaltyPm !== 0 || cr.opensAt !== 30) return 'Circle of Renewal at a border: ' + JSON.stringify(cr);
     if (T.borrowBand('protective_ward', 'havora') !== null) return 'Protective Ward is offered at Havora';
     if (T.borrowBand('protective_ward', 'border').opensAt !== 140 || T.borrowBand('fireball', 'border').opensAt !== 60) return 'the table\'s Levels moved';
     const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter', havora: 'use_fireball' };
@@ -164,7 +172,8 @@ const cases = {
   /* EVERY TOWN LENDS A MEASURED MOVE (lane/roads-borrow-values; 17 section 3): a hero spends a point on a border town to reach its hybrid,
      so a town move with no measured V0 is a point that buys nothing. Every move a town names has a measured value (validate refuses a row
      that is not one), every town lends at least one move at a border, and a pick that lends nothing (no band: Greater Mend past the last
-     one until V4) is refused not_offered at the spend, before the points (the server's order), and in a saved build */
+     one, under the heal rule too: lane/e5-borrowing) is refused not_offered at the spend, before the points (the server's order), and in a
+     saved build */
   'town-values': (M) => {
     const TD = M.TD, T = M.T;
     const towns = TD.TALENT_NODES.filter((n) => n.kind === 'border');
@@ -328,6 +337,100 @@ const cases = {
     if (closed !== viewed) return 'the same build settled in 10-minute and 100-second windows played two hunts';
     return null;
   },
+  /* A BORROWED MOVE'S RULES (lane/e5-borrowing; 19 L6, 17 section 3; src/core/hunt/talent-rows.js lend): a heal on Mend's clock (one
+     cooldown, casting either starts it), Magic at Mend's rate, an ally row's native reach in its target rule and its conditions' "lowest
+     ally", no native unlock; the one borrow list either path hands (a build's grants, a borrow handed whole with its price) */
+  'borrow-rules': (M) => {
+    const S = M.hs ? M.hs : M.spawn, TR = M.TR, A = M.AB.ABILITIES;
+    const mend = A[M.TD.BORROW_RULES.clock];
+    if (!mend || !mend.universal || !M.AB.heals(mend) || !(A[M.TD.BORROW_RULES.rate].magicXpMult > 0)) return 'BORROW_RULES names no universal heal with a Magic rate';
+    /* nothing borrowed: the grants' own object, or none */
+    const g = M.T.grantsOf({ 'challenge.r1': true }, 'shield', 60);
+    if (TR.lentModsOf(null, [], null) !== null || TR.lentModsOf(g.mods, [], null) !== g.mods) return 'a hero that borrows nothing read new modifiers';
+    /* the row as the borrower casts it */
+    const hero = S.heroSetup({ weaponType: 'sword', options: {}, bar: null, borrowed: ['greater_mend', { move: 'shelter', penaltyPm: 300 }] });
+    if (hero.borrowed.join() !== 'greater_mend,shelter' || !hero.lentPm || hero.lentPm.shelter !== 300 || 'greater_mend' in hero.lentPm) return 'heroSetup lost a handed borrow or its price: ' + JSON.stringify(hero);
+    const k = H(M, 1, 3, 3, 'melee_dps', { hp: 90, maxHp: 200, mana: 900, maxMana: 900 });
+    TR.syncTalents(k, hero, 60);
+    const gm = TR.rowFor(k, 'greater_mend'), sh = TR.rowFor(k, 'shelter');
+    if (!gm.replaces || gm.replaces.join() !== mend.id) return 'a borrowed heal keeps its own clock: ' + JSON.stringify(gm.replaces);
+    if (gm.magicXpMult !== mend.magicXpMult || A.greater_mend.magicXpMult === mend.magicXpMult) return 'a borrowed spell pays Magic at ' + gm.magicXpMult;
+    if (gm.reach !== M.roleData.HUNT_ROLES.healer.range) return 'a borrowed ally heal reaches ' + gm.reach + ', not its healer\'s ' + M.roleData.HUNT_ROLES.healer.range;
+    if (sh.unlock !== undefined || A.shelter.unlock === undefined || sh.reach !== undefined) return 'a borrowed Shelter kept its native unlock, or a party row took a reach';
+    if (sh.shieldPm !== Math.floor((A.shelter.shieldPm * 700) / 1000) || gm.healPm !== A.greater_mend.healPm) return 'a handed price missed its move: ' + sh.shieldPm + ' ' + gm.healPm;
+    /* THE HEAL RULE AND THE REACH, cast: an ally at 5 tiles under 80%, the borrower itself under 50% */
+    const play = (bar, healer) => {
+      const u = H(M, 1, 3, 3, healer ? 'healer' : 'melee_dps', { hp: 90, maxHp: 200, mana: 900, maxMana: 900 });
+      const ally = H(M, 2, 8, 3, 'tank', { hp: 80, maxHp: 200 });
+      if (!healer) TR.syncTalents(u, hero, 60);
+      const inst = fight(M, [u, ally], { leader: 1 });
+      const slot = (id, cond, own) => ({ id: 's_' + id, join: 'and', conditions: cond || [], action: { id, type: 'ability', ...(own ? { own, onEmpty: 'store' } : {}) } });
+      const slots = bar.map((id) => (id === 'greater_mend' ? slot(id, [{ op: 'lt', value: 80, metric: 'ally_hp_pct', subject: 'lowest' }], ['chalked_water_rune']) : slot(id)));
+      const hs = M.AR.newHuntSession({ id: 'tl', huntFromMs: 0, bag: { chalked_water_rune: { loaded: 50 } }, basics: {}, purse: 0, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch' });
+      inst.heroes = { 1: { hs, actionSet: 'hunt', range: healer ? 7 : 1, slots: M.conditions.heroSlots(slots, null) } };
+      const casts = [];
+      for (const at of [0, 1000, 2000, 3000, 6000]) {
+        const sc = sc2(M, 1, at);
+        M.abilities.castAbilities(inst, sc);
+        for (const e of sc.events) if (e.type === 'cast') casts.push([at, e.ability, e.t, e.magicXpMult, e.took || null]);
+        u.hp = 90; ally.hp = 80;
+      }
+      return { casts, u };
+    };
+    const lent = play(['greater_mend', 'mend']);
+    const first = lent.casts[0];
+    if (!first || first[1] !== 'greater_mend' || first[2] !== 2) return 'the borrowed Greater Mend did not heal the ally 5 tiles off first: ' + JSON.stringify(lent.casts);
+    if (first[3] !== mend.magicXpMult || first[4] !== mend.id) return 'the cast paid ' + first[3] + ' and took ' + first[4];
+    if (lent.casts.map((c) => c[0]).join() !== '0,6000') return 'a heal cast inside Mend\'s clock: ' + JSON.stringify(lent.casts);
+    const mendFirst = play(['mend', 'greater_mend']);
+    if (mendFirst.casts.map((c) => c[0] + ':' + c[1]).join() !== '0:mend,6000:mend') return 'Mend\'s cast did not start the borrowed heal\'s clock: ' + JSON.stringify(mendFirst.casts);
+    /* the healer's own Greater Mend keeps its own 2 s clock and its own rate */
+    const own = play(['greater_mend', 'mend'], true);
+    if (!own.casts.some((c) => c[0] === 2000 && c[1] === 'greater_mend') || own.casts[0][3] !== A.greater_mend.magicXpMult) return 'the native Greater Mend took the borrow\'s rules: ' + JSON.stringify(own.casts);
+    /* A BORROWED CHALLENGE (-30%): a sword takes what is on the healer, never what is on the tank (no tank's seat: the overflow), and holds
+       it 70% as long; a sword with no borrow takes nothing */
+    const taunt = (lend) => {
+      const sw = H(M, 1, 5, 3, 'melee_dps'), tk = H(M, 2, 3, 3, 'tank'), hl = H(M, 3, 9, 3, 'healer');
+      if (lend) TR.syncTalents(sw, S.heroSetup({ weaponType: 'sword', options: {}, bar: null, borrowed: [{ move: 'challenge', penaltyPm: 300 }] }), 60);
+      const onHealer = E(M, 4, 0, 6, 3, 3), onTank = E(M, 5, 0, 4, 3, 2);
+      const inst = fight(M, [sw, tk, hl, onHealer, onTank], { leader: 2 });
+      inst.heroes = { 1: barOf(M, ['challenge']) };
+      M.abilities.castAbilities(inst, sc2(M, 1));
+      return { onHealer, onTank };
+    };
+    const lt = taunt(true), plain = taunt(false);
+    const want = Math.floor((M.roleData.CHALLENGE.holdMs * 700) / 100000) * 100;
+    if (lt.onHealer.target !== 1 || lt.onHealer.holdMs !== want) return 'a borrowed Challenge did not take the healer\'s monster for ' + want + ' ms: ' + lt.onHealer.target + ' ' + lt.onHealer.holdMs;
+    if (lt.onTank.target !== 2) return 'a borrowed Challenge took a monster off the tank';
+    if (plain.onHealer.target !== 3) return 'a sword with no borrow Challenged';
+    /* THE ROADS' PATH: a build's town lends Shelter to a healer, lent there too */
+    const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold', 'border.shield_restoration.town': 'use_shelter' };
+    const built = S.heroSetup({ weaponType: 'staff', options: { role: 'healer' }, bar: null, talents: b, level: 20 });
+    if (!built.borrowed.includes('shelter')) return 'the build lent no Shelter at Level 20: ' + JSON.stringify(built.borrowed);
+    const hk = H(M, 3, 3, 3, 'healer');
+    TR.syncTalents(hk, built, 20);
+    if (!(hk.moveMods && hk.moveMods.shelter && hk.moveMods.shelter.lent === true) || TR.rowFor(hk, 'shelter').unlock !== undefined) return 'a build\'s borrow is not lent: ' + JSON.stringify(hk.moveMods);
+    return null;
+  },
+  /* THE BORROW ON THE REAL SETTLE, BOTH PATHS (CLAUDE.md §4): a sword's borrowed Greater Mend reaches the engine (heroSetup -> member ->
+     syncUnit: its Magic XP moves), and 10-minute and 100-second windows play the same hunt */
+  'borrow-both-paths': async (M) => {
+    const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+    const P = await loadPlay(M.root);
+    const four = ['tank', 'ranger', 'mage', 'melee_dps'];
+    const gmSlot = { id: 's_gm', join: 'and', conditions: [{ op: 'lt', value: 80, metric: 'ally_hp_pct', subject: 'lowest' }],
+      action: { id: 'greater_mend', type: 'ability', own: [], store: 'plain_water_rune', onEmpty: 'store' } };
+    const go = (lend, windowMs) => P.run('muster_barrows', 60, four, { spanMs: 900000, windowMs, secret: '-4611686018427387904',
+      options: () => ({ risk: 'steady', danger: 570 }), ...(lend ? { borrowed: (r, i) => (i === 3 ? lend : null), bar: (r, i) => (i === 3 ? [gmSlot, ...P.refBar('muster_barrows')] : P.refBar('muster_barrows')) } : {}) });
+    const sig = (r) => JSON.stringify({ t: r.totals, x: r.heroXp });
+    const none = go(null, 600000), closed = go(['greater_mend'], 600000), viewed = go(['greater_mend'], 100000);
+    const magic = (r) => (r.heroXp[r.heroes[3]] || {}).magic || 0;
+    if (!(magic(closed) > magic(none))) return 'the borrowed Greater Mend never cast on the settle: Magic ' + magic(closed) + ' against ' + magic(none);
+    if (sig(closed) !== sig(viewed)) return 'the same borrow settled in 10-minute and 100-second windows played two hunts';
+    /* a borrow handed with its price plays at that price (the member carries it to the boundary) */
+    if (sig(go([{ move: 'greater_mend', penaltyPm: 500 }], 600000)) === sig(closed)) return 'a borrow at -50% played as one at full power';
+    return null;
+  },
   'no-build-no-change': (M) => {
     const k = H(M, 1, 11, 3, 'tank');
     M.TR.syncTalents(k, { talents: { 'challenge.r1': true }, discipline: 'shield' }, 60);
@@ -366,11 +469,27 @@ const mutants = [
   { name: 'a wave-3 road left off the map', case: 'whole-map', edits: [['src/data/talents.js', "  club: Object.freeze(['turning_cut', 'stagger']),", "  club: Object.freeze(['turning_cut']),"]] },
   { name: 'a shared road is never walked', case: 'whole-map', edits: [[T, ".flatMap((c) => COUNTRY_ROADS[c].filter((m) => own(ABILITIES, m) && ABILITIES[m].disciplines.includes(discipline)));", ".flatMap(() => []);"]] },
   { name: 'the cast path reads the shared rows', case: 'engine-rows', edits: [['src/core/hunt/abilities.js', '  const ABILITIES = rowsFor(hero);\n', '']] },
-  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = tauntHold(k); }', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }']] },
+  { name: 'the Challenge holds its old time', case: 'engine-rows', edits: [['src/core/hunt/targeting.js', 'row.holdPm) / 1000 / STEP) * STEP) : tauntHold(k);', 'row.holdPm) / 1000 / STEP) * STEP) : CHALLENGE.holdMs;']] },
   { name: 'a conditional row always holds', case: 'engine-rows', edits: [[TR, '  for (const r of when) if (holds(inst, u, r.when)) (out || (out = rows.slice())).push(r);', '  for (const r of when) (out || (out = rows.slice())).push(r);']] },
   { name: 'the auras forget the hero\'s rows', case: 'engine-rows', edits: [['src/core/hunt/auras.js', ' ? withTalentRows(inst, unit, auras) : auras;', ' ? auras : auras;']] },
   { name: 'the member drops the build (the settle never grants it)', case: 'real-settle-both-paths', edits: [['src/core/member.js', "        ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),\n", '']] },
-  { name: 'a hero whose build went keeps its rows', case: 'no-build-no-change', edits: [[TR, '  if (!hero || !hero.talents) { for (const k of TALENT_KEYS) if (u[k] !== undefined) delete u[k]; return; }', '  if (!hero || !hero.talents) return;']] },
+  { name: 'a hero whose build went keeps its rows', case: 'no-build-no-change', edits: [[TR, "    for (const k of TALENT_KEYS) if (k !== 'moveMods' && u[k] !== undefined) delete u[k];\n", '']] },
+  /* lane/e5-borrowing: each of a borrowed move's rules, both paths that hand one, and the member carrying a handed price */
+  { name: 'a borrowed heal keeps its own clock', case: 'borrow-rules', edits: [[TR, '  if (heals(row) && row.id !== LENT_CLOCK && !Array.isArray(row.replaces)) o.replaces = Object.freeze([LENT_CLOCK]);\n', '']] },
+  { name: 'a borrowed spell pays its native Magic rate', case: 'borrow-rules', edits: [[TR, '  if (row.magicXpMult > 0) o.magicXpMult = LENT_RATE;\n', '']] },
+  { name: 'a borrowed ally heal reaches the holder\'s tile', case: 'borrow-rules', edits: [[TR, '  if (Number.isInteger(reach)) o.reach = reach;\n', '']] },
+  { name: 'the target rule reads the holder\'s reach', case: 'borrow-rules', edits: [['src/core/hunt/cast-targets.js', '(Number.isInteger(row.reach) ? Math.max(1, row.reach) : Math.max(1, int(h && h.range) || 1))', 'Math.max(1, int(h && h.range) || 1)']] },
+  { name: 'the conditions read the holder\'s reach', case: 'borrow-rules', edits: [['src/core/hunt/conditions.js', 'reaches(cx.inst, cx.u, slotReach(cx), a)', 'reaches(cx.inst, cx.u, cx.h && cx.h.range, a)']] },
+  { name: 'a borrowed move keeps its native unlock', case: 'borrow-rules', edits: [[TR, '  if (row.unlock !== undefined) delete o.unlock;\n', '']] },
+  { name: 'a borrowed Challenge taunts only from a tank', case: 'borrow-rules', edits: [['src/core/hunt/targeting.js', 'if ((!isTank(k) && !(row && row.lent === true)) || !k.alive) return [];', 'if (!isTank(k) || !k.alive) return [];']] },
+  { name: 'a borrowed Challenge holds its whole time', case: 'borrow-rules', edits: [[TR, '  if (row.target === \'taunt\' && mod.penaltyPm > 0) o.holdPm = 1000 - mod.penaltyPm;\n', '']] },
+  { name: 'the bar asks a tank\'s Challenge', case: 'borrow-rules', edits: [['src/core/hunt/abilities.js', "    case 'taunt': return challengeable(inst, hero, row).length ? hero : null;", "    case 'taunt': return challengeable(inst, hero).length ? hero : null;"]] },
+  { name: 'the taunt forgets its row', case: 'borrow-rules', edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u, row); break;", "    case 'taunt': challengeFrom(inst, sc, u); break;"]] },
+  { name: 'a borrow handed whole is not lent', case: 'borrow-rules', edits: [[TR, '    const lent = lentModsOf(null, hero && hero.borrowed, hero && hero.lentPm);', '    const lent = null;']] },
+  { name: 'a build\'s borrow is not lent', case: 'borrow-rules', edits: [[TR, '  const mods = lentModsOf(g.mods, hero.borrowed, hero.lentPm);', '  const mods = g.mods;']] },
+  { name: 'heroSetup drops a handed price', case: 'borrow-rules', edits: [['src/core/hunt-spawn.js', '&& Number.isInteger(b.penaltyPm) && b.penaltyPm > 0 && b.penaltyPm < 1000) lentPm[b.move] = b.penaltyPm;', '&& false) lentPm[b.move] = b.penaltyPm;']] },
+  { name: 'the member drops a handed price', case: 'borrow-both-paths', edits: [['src/core/member.js', "        ...(h.lentPm && typeof h.lentPm === 'object' ? { lentPm: h.lentPm } : {}),\n", '']] },
+  { name: 'the member drops the borrow list', case: 'borrow-both-paths', edits: [['src/core/member.js', '        ...(Array.isArray(h.borrowed) && h.borrowed.length ? { borrowed: h.borrowed } : {}),\n', '']] },
 ];
 
 /* the suite: cases on the repo, each mutant on a planted copy must be caught (h1/h2's rule) */

@@ -396,6 +396,8 @@ export function memberSide(mi, ctx) {
            grants at every boundary (combat-sim.js syncUnit). Without them here a borrowed move never read its native blow and no build
            reached the engine: both only on a hero that has them */
         ...(Array.isArray(h.borrowed) && h.borrowed.length ? { borrowed: h.borrowed } : {}),
+        /* a borrow handed whole with its price (heroSetup `lentPm`, the Lab's seam): only on a hero handed one */
+        ...(h.lentPm && typeof h.lentPm === 'object' ? { lentPm: h.lentPm } : {}),
         ...(h.talents && typeof h.talents === 'object' ? { talents: h.talents, discipline: h.discipline } : {}),
         /* THE TRAITS IT WEARS (src/core/hunt/trait-rules.js; hunt-spawn.js heroSetup): DARK, only on a hero handed them */
         ...(Array.isArray(h.wornTraits) && h.wornTraits.length ? { wornTraits: h.wornTraits } : {}),

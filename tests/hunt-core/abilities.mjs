@@ -1445,7 +1445,7 @@ const mutants = [
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
     edits: [['src/core/hunt/heal-rules.js', '    const got = Math.max(0, Math.min(cut, missing));', '    const got = Math.max(0, cut);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',
-    edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u); break;", "    case 'taunt': break;"]] },
+    edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u, row); break;", "    case 'taunt': break;"]] },
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
     edits: [['src/core/hunt/abilities.js', '  u.manaMilli -= whole * 1000;', '  u.manaMilli = 0;']] },
   { name: '[area-engine] a line strikes only its aim', case: 'hero-area-shapes',

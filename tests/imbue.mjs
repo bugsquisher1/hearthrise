@@ -20,7 +20,8 @@
 //         its best one (D-12); no family key, no in_fight, no flat row, no condition that matches nothing, no Trait's key; one stacking key
 //         each (the data's validator, and planted rows it must refuse)
 //   IM-2  LIFE: plain 20, fine 25, master 30 hunted hours (D-7); no quality, no life
-//   IM-3  THE FEE: 0.4 h of wage at the piece's item Level x ramp(hero Level) (a Level 60 hero pays 30%), whole gold
+//   IM-3  THE FEE AT THE BAND (21 D-19): 0.4 h of wage at the imbuement's band, no ramp, whole gold: 6,813 for a band 70 Edge whatever
+//         the piece it goes on or the hero's Level (hr_imbue_fee's pins are 1069's VERIFY(n); the verb's are 1078's §5 and worn-imbues-db WI-6)
 //   IM-4  THE BAND is the part's home ground's entry Level; THE RECIPE is 5 of its part and 4 Remains at that band, 0.53 work-hours
 //   IM-5  THE WORN SET: one a kind (the first stays), an unknown id, a spent one and a band no whole number dropped
 //   IM-6  THE STEPS: 2 at or under the band, the contest curve past it, none past wearAhead under it
@@ -72,10 +73,15 @@ async function pure(base) {
   /* IM-2 */
   const H = 3600000;
   if (C.lifeMs('plain') !== 20 * H || C.lifeMs('fine') !== 25 * H || C.lifeMs('master') !== 30 * H || C.lifeMs('epic') !== 0) out.push('IM-2 life is not 20 / 25 / 30 hunted hours');
-  /* IM-3 */
-  if (C.applyFee(120, 200) !== Math.ceil(0.4 * wage.wage(120))) out.push('IM-3 the fee at full ramp is ' + C.applyFee(120, 200) + ', want 0.4 h of ' + wage.wage(120));
-  if (C.applyFee(60, 60) !== Math.ceil((400 * wage.wage(60) * 60) / 200000)) out.push('IM-3 a Level 60 hero does not pay 30% of the fee');
-  if (C.applyFee(60, 0) !== 0 || C.applyFee(60, 999) !== C.applyFee(60, 200)) out.push('IM-3 the ramp is not held to 0..1');
+  /* IM-3 THE FEE AT THE BAND (21 D-19, lane/imbue-fee-timer): 0.4 h of wage at the imbuement's band, no ramp, whatever the piece or the
+     hero. A second argument (an item Level, a hero Level, as the fee read before) moves nothing */
+  if (C.applyFee(70) !== 6813) out.push('IM-3 a band 70 imbuement costs ' + C.applyFee(70) + ', want 6,813 (0.4 h of wage(70) ' + wage.wage(70) + ')');
+  if (C.applyFee(D.imbueBandOf('brute_edge')) !== 6813) out.push('IM-3 Brute Edge (band ' + D.imbueBandOf('brute_edge') + ') costs ' + C.applyFee(D.imbueBandOf('brute_edge')));
+  for (const other of [1, 20, 60, 120, 200, 400]) {
+    if (C.applyFee(70, other) !== 6813) out.push('IM-3 the band 70 fee reads its second argument ' + other + ': ' + C.applyFee(70, other));
+  }
+  if (C.applyFee(120) !== Math.ceil(0.4 * wage.wage(120)) || C.applyFee(45) !== Math.ceil(0.4 * wage.wage(45))) out.push('IM-3 the fee is not 0.4 h of wage at its band');
+  if (C.applyFee(0) !== C.applyFee(1) || C.applyFee('x') !== C.applyFee(1) || C.applyFee(70.9) !== 6813) out.push('IM-3 a band that is no whole number is not held to a whole band of 1 or more');
   /* IM-4 */
   if (D.imbueBandOf('brute_edge') !== 70 || D.imbueBandOf('mana_leech') !== 55 || D.imbueBandOf('fire_ward') !== 45 || D.imbueBandOf('nope') !== null) out.push('IM-4 a band is not its part\'s home ground\'s entry Level');
   const rc = C.imbueRecipe('brute_edge');
@@ -136,7 +142,9 @@ const MUTANTS = [
   ['an imbuement takes a Trait key', 'src/data/imbue-rules.js', "key: 'edge_brute',", "key: 'boss',"],
   ['a flat row passes', 'src/data/imbue-rules.js', 'if (!r.when && !r.convert && !r.leech)', 'if (false)'],
   ['quality sets no life', 'src/core/imbue.js', '(1000 + IMBUE.lifeRungPm * rung)', '(1000)'],
-  ['the fee ignores the ramp', 'src/core/imbue.js', 'const L = Math.max(0, Math.min(POWER_LEDGER.rampLevel, Math.floor(Number(heroLevel) || 0)));', 'const L = POWER_LEDGER.rampLevel;'],
+  ['the fee reads the worn piece\'s item Level', 'src/core/imbue.js', 'export function applyFee(band) {', 'export function applyFee(band, itemLevel) { if (itemLevel) band = itemLevel;'],
+  ['the fee ramps by the hero\'s Level again', 'src/core/imbue.js', 'return wagePrice(IMBUE.feeHoursPm, Math.max(1, Math.floor(Number(band) || 1)));',
+    'return Math.ceil(wagePrice(IMBUE.feeHoursPm, Math.max(1, Math.floor(Number(band) || 1))) * 60 / 200);'],
   ['the band is the best ground\'s', 'src/data/imbue-rules.js', 'out.set(id, { ground: p.id, band: p.hunt.band[0], open:', 'out.set(id, { ground: p.id, band: p.hunt.band[1], open:'],
   ['a second of one kind is worn', 'src/core/imbue.js', 'if (!byKind.has(kind)) byKind.set(kind,', 'byKind.set(kind + byKind.size,'],
   ['a spent imbuement is worn', 'src/core/imbue.js', ': whole(x.msLeft) ? (from === null', ': true ? (from === null'],

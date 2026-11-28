@@ -184,10 +184,11 @@ export function runAccount(p, days = DAYS, pricing = PRICING) {
         if (deaths && h.L >= BLESSING.freeUntilLevel) burn('bless', deaths * blessingPrice(h.L));
       }
       laborNeed += H * KIT_WORK;
-      /* imbuements: three, each lasting IMBUE.hours hunted hours: the apply fee (src/core/imbue.js, on the worn piece's item Level, x ramp)
-         and the Artificing job's fee on its V (work-hours x townWageShare x the wage at the part's band, 13-market 3.2) */
+      /* imbuements: three, each lasting IMBUE.hours hunted hours: the apply fee (src/core/imbue.js applyFee, at the imbuement's band with no
+         ramp, 21 D-19, lane/imbue-fee-timer) and the Artificing job's fee on its V (work-hours x townWageShare x the wage at the part's band,
+         13-market 3.2). The band is the goods step both read: the hero's own, held at the deepest open ground (goodsStep) */
       const iL = gearOf(h.L);
-      if (h.L >= IMBUE_FROM) burn('imbue', p.imbues * H * 3 / IMBUE.hours * (applyFee(iL, h.L) + TRADE_LEVERS.jobFee * (IMBUE.workPm / 1000) * STORE_KIT.townWageShare * wg));
+      if (h.L >= IMBUE_FROM) burn('imbue', p.imbues * H * 3 / IMBUE.hours * (applyFee(goodsStep(h.L)) + TRADE_LEVERS.jobFee * (IMBUE.workPm / 1000) * STORE_KIT.townWageShare * wg));
       /* carry-over: a Rare every DROP_HOURS.rarity.rare.everyHours a hero, `carry` of them moved at rank 2 */
       if (h.L >= TRAITS_FROM) burn('carry', H / DROP_HOURS.rarity.rare.everyHours * p.carry * carryFee(GEAR_STEPS.traitSteps[1], iL));
       /* piece sales (12-targets 9.5): every Rare not carried is sold to the store at its floor bid, at rank II like the carried ones (the

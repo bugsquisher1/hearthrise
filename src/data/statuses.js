@@ -87,6 +87,8 @@ export const STATUS_KEYS = Object.freeze({
      replaces it; and a hero's next cast of a named move, raised (15 #16 Lamplighter's Robe) */
   blunted: Object.freeze({ combine: 'strongest' }),
   kindled: Object.freeze({ combine: 'strongest' }),
+  /* (lane/signatures-batch-5) a hero's next blow taken, cut (15 #33 Teamster's Mitts): Blunted's mirror, its own key */
+  braced: Object.freeze({ combine: 'strongest' }),
   /* "different sources add, the Lab sets one cap for the total" (15): PROVISIONAL caps, the Lab's to set */
   hero_takes_less: Object.freeze({ combine: 'add', capPm: 300 }),
   hero_deals_more: Object.freeze({ combine: 'add', capPm: 300 }),
@@ -190,6 +192,14 @@ export const STATUSES = Object.freeze({
      key, a hero's next cast raised, on the three Fire rune spells, spent on it; 30 s to use it */
   stoked: Object.freeze({ id: 'stoked', name: 'Stoked', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 450,
     castOf: Object.freeze(['fireball', 'flame_strike', 'flame_volley']) }),
+  /* WHETTED (15 Troll Picker's Hooks, lane/signatures-batch-5: "Gash hits 3 or more: your next Rend deals 40% more damage"): Kindled's key,
+     the axes' next Rend raised, spent on it; 30 s to use it */
+  whetted: Object.freeze({ id: 'whetted', name: 'Whetted', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 400,
+    castOf: Object.freeze(['rend']) }),
+  /* BRACED (15 #33 Teamster's Mitts, lane/signatures-batch-5: "Power Strike: the next blow you take lands at half"): Blunted's mirror on a
+     hero, the next blow AT it at half, spent once that blow has landed (status.js spendOnce on the taken side, damage.js landHit); its
+     own key, so it adds to Guarded's and never replaces it; 10 s if no blow comes */
+  braced: Object.freeze({ id: 'braced', name: 'Braced', key: 'braced', hidden: true, durationMs: 10000, maxStacks: 1, takenPm: -500, once: true }),
 });
 
 /** True when a row ticks (damage or heal over time; a ground patch ticks too). */
@@ -263,8 +273,9 @@ export function validateStatus(row) {
   if (row.castPm !== undefined && (!Number.isInteger(row.castPm) || row.castPm <= 0 || row.castPm > 1000)) out.push(at + 'castPm must be an integer 1..1000');
   if ((row.castPm === undefined) !== (row.castOf === undefined)) out.push(at + 'castPm and castOf come together (the share and the moves that spend it)');
   if (row.castOf !== undefined && !(Array.isArray(row.castOf) && row.castOf.length && row.castOf.every((m) => typeof m === 'string' && ID.test(m)))) out.push(at + 'castOf is a list of move ids');
-  /* ONCE: a blow's effect (more or less dealt), spent on the next blow; nothing that ticks, slows or lies on the ground */
-  if (row.once !== undefined && (row.once !== true || row.dealtPm === undefined || row.tick !== undefined || row.ground !== undefined || row.slowPm !== undefined)) out.push(at + 'once is true on a status that moves what its unit deals (dealtPm), nothing that ticks, slows or lies on the ground');
+  /* ONCE: a blow's effect (more or less dealt, or, on a hero, taken: Braced), spent on the next blow; one side a row, nothing that ticks,
+     slows or lies on the ground */
+  if (row.once !== undefined && (row.once !== true || (row.dealtPm === undefined) === (row.takenPm === undefined) || row.tick !== undefined || row.ground !== undefined || row.slowPm !== undefined)) out.push(at + 'once is true on a status that moves what its unit deals (dealtPm) or takes (takenPm), one of them, nothing that ticks, slows or lies on the ground');
   if (row.healCutPm !== undefined) {
     const c = row.healCutPm;
     if (!c || typeof c !== 'object' || Object.keys(c).sort().join() !== 'hero,monster' || !['hero', 'monster'].every((k) => Number.isInteger(c[k]) && c[k] > 0 && c[k] < 1000)) {

@@ -748,18 +748,25 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
    the hero) and `pm` (a fixed tick of the moment's damage); a shield's `capPm`) */
 export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb',
   /* (lane/signatures-batch-3) a pull begins: the pack turns on the party (pull-cycle.js startPull), its monsters the moment's */
-  'pull']);
+  'pull',
+  /* (lane/signatures-batch-5) `interrupt` the hero's cast ended wind-ups (abilities.js answer: Stagger), `n` how many; `windup` a monster
+     begins a wind-up at a hero of the side (monster-spells.js begin), `t` that hero and `src` the monster */
+  'interrupt', 'windup']);
 /* (lane/signatures-batch-4: `taunt` the moment's monster, on another hero of the side and held by no Challenge, turns on the hero for `ms`;
    `role` the moment's monster plays that monster role, its striker for a blow at a hero; a status's `at: 'lowest'`, the monster attacking
    the lowest hero of the side) */
 export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect', 'taunt']);
 const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
-  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every', 'role', 'at']);
+  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every', 'role', 'at', 'min', 'within']);
 /* WHERE A DOER LANDS (`to`), by doer (lane/signatures-batch-3): a heal to 'self' (pm of its max health), the 'lowest' ally (pm of the moment's
    amount), the moment's hero ('target': pm of its max health) or each living hero of the party ('party': pm of each one's max health); mana
    to the moment's hero ('target': pm of the moment's amount); a boon to the wearer ('self') or each living hero of the party ('party') */
-const REACT_TO = Object.freeze({ heal: ['self', 'lowest', 'target', 'party'], mana: ['target'], boon: ['self', 'party'] });
+/* (lane/signatures-batch-5) a heal 'again': on a cast, the hurt hero lowest on health of those it healed, pm of its own heal's amount */
+const REACT_TO = Object.freeze({ heal: ['self', 'lowest', 'target', 'party', 'again'], mana: ['target'], boon: ['self', 'party'] });
 const FAMILIES = Object.freeze(Object.keys(RUNE_FAMILIES));
+/* the moments that carry a count `n` (react-queue.js callers): a cast's monsters its status landed on, the wind-ups a cast ended, a taunt's
+   monsters, a pull's pack */
+const COUNTED = Object.freeze(['cast', 'interrupt', 'taunt', 'pull']);
 /* the unit rules (Hold Fast's no-switch, Bodyguard's share, Still Mind's regen): pm fields ramp, the rest whole */
 export const UNIT_FIELDS = Object.freeze({ noSwitch: 'flag', guardPm: 'pm', guardR: 'whole', stillMs: 'whole', stillRegenPm: 'pm' });
 
@@ -801,6 +808,11 @@ export function reactProblems(e, moves = null) {
   if (e.role !== undefined && !Object.prototype.hasOwnProperty.call(MONSTER_ROLES, e.role)) out.push('a reaction reads a monster role (role: ' + Object.keys(MONSTER_ROLES).join(', ') + ')');
   if (e.at !== undefined && !(e.do === 'status' && e.at === 'lowest' && e.r === undefined)) out.push('at is a status\'s \'lowest\' (the monster on the lowest hero), never with a reach r');
   if (e.do === 'taunt' && !(Number.isInteger(e.ms) && e.ms > 0)) out.push('a taunt names how long it holds (ms)');
+  /* (lane/signatures-batch-5) `min`: a count floor on a moment that counts (a cast's monsters, the wind-ups it ended, a taunt's, a pull's) */
+  if (e.min !== undefined && !(Number.isInteger(e.min) && e.min >= 2 && e.min <= 20 && COUNTED.includes(e.on))) out.push('min is a count 2..20 on a moment that counts (' + COUNTED.join(', ') + ')');
+  if (e.to === 'again' && e.on !== 'cast') out.push('a heal again reads the heals of a cast (on cast)');
+  /* (lane/signatures-batch-5) `within`: the moment's hero that many tiles of the wearer at most */
+  if (e.within !== undefined && !(Number.isInteger(e.within) && e.within >= 1 && e.within <= 8)) out.push('within is 1..8 tiles of the hero (how near the moment\'s hero stands)');
   return out;
 }
 

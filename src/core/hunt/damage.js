@@ -278,6 +278,9 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
     ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(lee && lee.mana ? { back: lee.mana } : {}), ...(vit || {}), ...traitsField(r.traits), ...(saved ? { saved: saved.id } : {}) }));
   if (lee && lee.hp) sc.emit(makeEvent('heal', sc.atMs, { u, t: u, amount: lee.hp, ability: lee.id }));
+  /* (lane/signatures-batch-5) A ONE-BLOW CUT ON THE TARGET (statuses.js `once` on the taken side, Braced: Teamster's Mitts) held for this
+     blow, shell or not, and is spent now; a tick is no blow */
+  if (isHero(target) && !(ability && ability.dot) && Array.isArray(target.statuses) && target.statuses.length) spendOnce(target, sc, 'takenPm');
   /* A SHIELD THAT BROKE (it held before this blow and is spent now): `shield_break` names the hero who cast it (`by`) and the blow's
      dealer (`u`), so the bar's triggers and the report read one event (abilities.js offerShield writes every shield). */
   if (shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0)) {

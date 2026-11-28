@@ -16,7 +16,7 @@
 // A cell asks for it with `profile: 'played'` (cell.mjs). Nothing here is a combat number: slots name abilities and items by id.
 // PURE ESM. Data only. Imports only the rune gates (src/data/runes.js) and the move rows (src/data/abilities.js: playedSlot's rune family).
 import { versionLevel } from '../../src/data/runes.js';
-import { ABILITIES } from '../../src/data/abilities.js';
+import { ABILITIES, suggestedTrigger } from '../../src/data/abilities.js';
 
 /* The store rune a slot names at a Magic level: a spell's version N casts at the tier's Magic gate (runes.js versionLevel over core-model.js
    SUPPLY_GATES.magic, 1 / 8 / 15 / 39 / 71: each tier at the Level the old careers reached it, the designer's ruling 29 section 7 item 10).
@@ -88,12 +88,14 @@ export function playedBar(role, o) {
  * tank, lane/signatures-batch-2; cell.mjs addMovesBySeat): a rune spell on its family's store rune at the shopping tier, as playedBar writes
  * its own, else a plain move, with no conditions: a hero wearing a Signature for that move casts it whenever it is ready (Shelter's own
  * trigger, two allies under 80%, left the reference four on Krell's Hold playing the identical hunt with Shelter and without it).
- * o: { magic, tierOf } as playedBar's.
+ * o: { magic, tierOf } as playedBar's; `trigger` true (lane/signatures-batch-5) starts the slot on the condition a NEW slot of the move
+ * starts with (src/data/abilities.js suggestedTrigger: Stagger's and Parry's "my target is winding up", Gash's "when it would hit at
+ * least 2"), as a player adding it to the bar gets it: a move that answers a moment, cast blind, never meets it.
  */
 export function playedSlot(id, o) {
   const row = ABILITIES[id];
   if (!row) throw new Error('played: no move ' + id);
-  const cond = [];
+  const cond = o && o.trigger === true ? suggestedTrigger(row) : [];
   const fam = typeof row.rune === 'string' ? row.rune.replace(/^chalked_/, '').replace(/_rune$/, '') : null;
   if (!fam) return move(id, cond);
   const tierOf = o && typeof o.tierOf === 'function' ? o.tierOf : () => runeTierAt((o && o.magic) || 1);

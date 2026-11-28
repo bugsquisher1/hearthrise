@@ -226,7 +226,8 @@ export async function loadCellRunner(root) {
       const moves = Array.isArray(cell.addMovesBySeat) && cell.addMovesBySeat[i];
       if (Array.isArray(moves) && moves.length) {
         const first = bar.findIndex((s) => s.action.type === 'ability');
-        bar.splice(first < 0 ? 0 : first + 1, 0, ...moves.map((id) => playedSlot(id, { magic: runeMagic(role, i), tierOf: tierOfFor(role, i) })));
+        /* (an id written `move@t`, lane/signatures-batch-5: the slot starts on the move's own new-slot trigger, played.mjs playedSlot) */
+        bar.splice(first < 0 ? 0 : first + 1, 0, ...moves.map((id) => playedSlot(String(id).replace(/@t$/, ''), { magic: runeMagic(role, i), tierOf: tierOfFor(role, i), trigger: /@t$/.test(String(id)) })));
       }
       const add = (Array.isArray(cell.addSlotsBySeat) && cell.addSlotsBySeat[i]) || (cell.addSlots && cell.addSlots[role]);
       if (!add) return bar;

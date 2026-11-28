@@ -21,13 +21,12 @@
 //   SS-3  THE RACE (a stale engine read): another hero of the account withdraws from Storage between the engine's
 //         read and its apply; hr_apply refuses insufficient_item {have, need, bag, storage} and NOTHING moves; the
 //         next stop re-reads and pays what is left. Before - withdrawn - used = after.
-//   SS-4  THE CLIENT'S COUNTS ARE BAG + STORAGE: the server's held count of the bench's input (item-sections.js heldOf), the bag's
-//         Burn all label and count, from the server's envelope. (The Work window's bench rows, "Makes up to N" and their blocking
-//         line, left with the client's bench: 09-crafting 4.17, lane/bench-cut-client.)
+//   SS-4  THE CLIENT'S COUNTS ARE BAG + STORAGE: the Work window's runs ("Makes up to N"), its blocking line, the
+//         bag's Burn all label and count, from the server's envelope; with neither, the line says where it looked.
 //   SS-5  PLANTING: a seed in Storage only is planted (journalled from.storage); harvest-and-replant from a Storage
 //         seed buys nothing; no seed anywhere is insufficient_seed {seed, have 0, need 1, bag 0, storage 0}.
 //   SS-6  A FULL BAG SAYS WHY: the product needs a new stack in a bag at its cap; the bench stops bag_full
-//         (journal stopped/room_for), nothing is spent.
+//         (journal stopped/room_for), nothing is spent, and the Work window says "Your bag is full".
 //   SS-7  THE RESUME: one action's inputs held in Storage only resume the bench after a hunt; none do not.
 //   SS-8  A FORGED SETTLE CANNOT DRAIN ANOTHER ITEM: a craft delta on a line the bench does not consume, held in
 //         Storage only, is refused bag-only and Storage is untouched.
@@ -146,9 +145,7 @@ async function run(mutant) {
     const mod = (f) => import(pathToFileURL(join(base, f)).href);
     const SA = await mod('supabase/functions/hr-accrue/set-activity.js');
     const IS = await mod('src/session/item-sections.js');
-    const { indexArtisanRecipes } = await mod('src/core/artisan-sim.js');
-    const { ARTISAN_RECIPES_EVERY } = await mod('src/data/recipes.js');
-    const BENCH_INDEX = indexArtisanRecipes(ARTISAN_RECIPES_EVERY);
+    const TW = await mod('src/shell/town-work.js');
     const BU = await mod('src/shell/windows/inventory/bury.js');
     const { recipeInputs } = await mod('src/core/artisan.js');
 
@@ -186,7 +183,7 @@ async function run(mutant) {
     // THE CATALOGUE ROWS, chosen by property: a level-1 bench with ONE input and a product, on a bench with no burn and
     // no free craft (cooking burns, crafting saves), that the server's generated catalogue lists; bones' rite.
     const inputsSql = await one('select public.hr_bench_inputs()');
-    const benches = Object.entries(BENCH_INDEX)
+    const benches = Object.entries(TW.BENCH_INDEX)
       .filter(([id, e]) => !['cooking', 'crafting', 'inner_flame'].includes(e.skill) && e.recipe.output && !e.recipe.gated
         && (e.recipe.req || 1) <= 1 && Object.keys(recipeInputs(e.recipe)).length === 1 && inputsSql[id])
       .sort(([a], [b]) => (a < b ? -1 : 1));
@@ -195,6 +192,7 @@ async function run(mutant) {
     const IN = Object.keys(recipeInputs(REC))[0];
     const NEED = recipeInputs(REC)[IN];
     const OUT = REC.output;
+    const W = TW.workRow('artisan', BENCH);
     const crop = (await q("select c.crop_id, c.seed_item from public.hr_crops c join public.hr_crop_plot_tier t using (crop_id) where c.req_lv <= 1 and not c.regrows and t.plot_tier <= 1 order by c.crop_id limit 1"))[0];
     const other = await one("select i.item_id from public.hr_items i where not (coalesce(public.hr_bench_inputs() -> $1, '{}'::jsonb) ? i.item_id) and i.item_id <> $2 order by i.item_id limit 1", [BENCH, OUT]);
     if (!crop || !other) { const e = new Error('HARNESS: no first crop or no other item'); e.harness = true; throw e; }
@@ -286,9 +284,11 @@ async function run(mutant) {
       await put(A, 0, IN, 1, 4 * NEED);
       const cs = csOf(await envOf(A, 0));
       const want = Math.floor((1 + 4 * NEED) / NEED);
-      const held = Math.floor((IS.heldOf(cs)[IN] || 0) / NEED);
-      ok(held === want, `SS-4 the held count covers ${held} runs, the bag + Storage cover ${want}`);
+      ok(TW.runsOf(REC, IS.heldOf(cs)) === want, `SS-4 "Makes up to" counts ${TW.runsOf(REC, IS.heldOf(cs))} runs, the bag + Storage cover ${want}`);
+      ok(TW.workBlock(cs, W, false) === '', 'SS-4 the Work window blocks a bench Storage covers: ' + JSON.stringify(TW.workBlock(cs, W, false)));
       await put(A, 0, IN, 0, 0);
+      const none = TW.workBlock(csOf(await envOf(A, 0)), W, false);
+      ok(/in bag or Storage\.( |$)/.test(none), 'SS-4 with neither, the line reads ' + JSON.stringify(none) + ' (want it to say it looked in the bag and Storage)');
       const br = BU.buryRecipeOf('bones');
       if (br) {
         await put(A, 0, 'bones', 1, 5);
@@ -333,6 +333,9 @@ async function run(mutant) {
       const cap0 = Number(await one('select bank_cap::text from public.player_state where user_id = $1 and slot = 0', [A]));
       await q('update public.player_state set bank_cap = $2 where user_id = $1 and slot = 0', [A, Math.max(1, stacks)]);
       if (stacks < 1) problems.push('SS-6 HARNESS: the hero holds no stack to fill the bag with');
+      const why = TW.workBlock(csOf(await envOf(A, 0)), W, false);
+      ok(why === 'Bag full, no room for ' + (await import(pathToFileURL(join(base, 'src/shell/widgets/bits.js')).href)).itemName(OUT),
+        'SS-6 the Work window says ' + JSON.stringify(why) + ' for a product with no room');
       const r = await make(3, 'SS-6');
       if (r) {
         const meta = await lastCraft(A, 0);

@@ -752,6 +752,48 @@ Nothing below is built. Each row reads its moments first (`moments.mjs`), then 1
 
 **Count:** 8, Parry's, Gash's, 29, 33, 26, 42, 18 and 38 (9 rows on 8 new pieces) plus the support's 8 with L13: 17 rows, 20 or fewer. #30 waits on Brand.
 
+## Batch 5, built and measured (systems, lane/signatures-batch-5, 2026-11-28)
+
+**How it plays:** the hammer's Stagger, the sword's Parry and the axes' Gash each have a Signature in the fight engine, the four cut rows came back on their new pieces, and a Signature that changes what a cast costs no longer changes what it trains. Players still see none (`SIGNATURE_RULES.live` false). Five rows read in band (one of them raised); the rest read under on the spec's number and on every shape tried, so their rules go back to the designer.
+
+The pieces, each built once for all its rows (HANDOFFS 2026-11-28 designer-sig-batch5):
+
+| Piece | What it is, as built | Rows |
+|---|---|---|
+| Magic XP on the written mana | a cast a worn Signature paid another way carries `xpMana` on its cast event: its written mana less the plain cast's own refunds (a shell's, a ward's, a Storm spell's mana back), which the settle's reward credits (`hunt-rewards.js`). `mana` stays what was spent. Never more than the same cast with no Signature | every `costs` row (#32, #37, #44) |
+| `interrupt` | a moment on the hero whose cast ended wind-ups (`abilities.js` answer), `n` how many | #8 |
+| `windup` | a moment on every other hero of the side as a monster begins a wind-up at a hero (`monster-spells.js` begin): `t` that hero, `src` the monster. A mend aims at a packmate and is none | #42, #47 |
+| `within`, a cast at the moment's monster | `within` the moment's hero that near the wearer; a `cast` of a one-target strike takes the moment's monster (`castNow` `foe`) or casts nothing, from the move's bar slot, at its own cooldown and mana, no lane waited on | #47 |
+| `min`, Whetted | a count floor on a moment that counts (`n`: a cast's monsters, the wind-ups it ended, a taunt's, a pull's); Whetted, Kindled's key, the next Rend +40%, spent on it | #48 |
+| Braced | Blunted's mirror on a hero, its own key: the next blow at it at half, spent once that blow lands (a shell's or not, never a tick), `once` on the taken side (`status.js spendOnce`, `damage.js landHit`) | #33 |
+| `raise` | a standing raise on a family's casts (`signature-casts.js castRaiseOf`), pm more on the cast's output as Kindled lands, never spent; `of: 'shell'` only casts that lay a shield | #26 |
+| a heal `to: 'again'` | on a cast's own moment, of the heroes it healed the one lowest on health, healed again by its own heal's amount through the heal door, once a cast | #18 |
+| `saves.of` | a rune save read on one move, its count on that move's casts | #25 |
+
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, a mutant on each piece: 62 cases, 147 mutants caught), on the real settle (both paths: batch 5's rows on Carter's Rest, whose monsters wind up, each set settles the same in 10-minute and 100-second windows; the Ledger's free casts on Muster train on their written mana), and engine-parity holds with every row dark, no re-pin. The sizes below are MEASURED.
+
+MEASURED on `lane/signatures-batch-5` (the hunt engine of `set/v0.2.144` 1786d8b1c6 with this lane's pieces; the plain fours replay batch 3's, 4's and 5's reports seed for seed: the Muster mixed four's first two seeds 0.8444 and 0.9077, Carter's 1.024 and 0.9981, Pyre's sword four 0.969 and 1.0117), `signature-depth/batch5.sh` (`b5s-*` by real ids, `b5w-*` shapes on a scratch copy) and `sum.mjs --batch 5`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, 36 on Carter's Rest, 4 for a coin row, held from hour 4), paired on the same seeds against the same four with none and the same bar, in each ground's own pace step. Stagger, Parry and Gash are on no recorded bar, so each is added to its seat in both arms on the move's own new-slot trigger (`--add-moves move@t`: "my target is winding up", "when it would hit at least 2"); the move alone moves a four a lot (Parry took the Pyre sword four from 48.8 to 64.5 held), so its Signature reads only against the same bar.
+
+| # | Signature (seat) | The rule as built | Best cell | Held delta (se) | Pace or coin steps (se) | Second ground (pace steps) | Verdict |
+|---|---|---|---|---|---|---|---|
+| 29 | Fledgling Claw (axes) | As built: the wearer's Bleed stacks to 6, Gash on the bar | Muster Barrows | +5.3 (2.3) | **+7.8 (2.5)** | the Flooded Wing +0.7 (3.2) | **In band, the spread holds.** With Gash laying a Bleed on every monster beside the axes, the sixth stack finally has a moment |
+| 33 | Teamster's Mitts (sword) | Power Strike: the next blow you take lands at half | Muster Barrows, the sword four, **24 seeds** | +6.9 (2.6) | **+7.0 (2.6)** | the tank four +6.8 (3.8) | **In band**, at the band's foot (12 seeds read 7.4 (3.2); the 24-seed plain replays the 12-seed one seed for seed) |
+| 42 | Night Carter's Boots (healer) | When a monster winds up a blow at an ally below half health, that blow lands at half | **Pyre Field** (`best` moved) | +7.1 (1.4) | **+8.8 (2.3)** | the Flooded Wing +5.1 (2.5), the Bone Wing -2.1 (1.3) | **In band, the spread holds within its se** |
+| 25 | The Cold Candle (mage, coin) | Frost Lance uses no runes (`saves.of`) | Muster Barrows, 4 seeds | 0.0 (0.0) | **19.6 coin** | | **In band (coin bar)**, by its real id: your scratch line's reading exactly |
+| 8 | Stable Troll's Maul (hammer) | Stagger ends a wind-up: a shield of 10% of max health for each one it ends | Carter's Rest, 36 seeds | +3.8 (2.2) | **+3.8 (1.8)** | Krell's Hold +1.4 (2.0) | **Under.** 25% read 0.8 (1.8) and 40% 1.4 (1.9): no size moves it. The shield lands on the hammer as it ends the blow it feared, a moment past the danger |
+| 47 | Ledgehide Breeches (sword) | Parry also guards an ally: a monster beside you winding up at another hero within 1 tile is Parried | Wyvern Roost | 0.0 (0.0) | **0.0 (0.0)** | Pyre Field +0.1 (2.8) | **Under: it never fires on its cell.** On the sword four no ally stands within a tile of the sword (the crossbow at 4, the healer at 3, the mage at 6). With no reach to the ally (a monster beside you winding up at any other hero, the tip's own words) it fires and reads 1.7 (0.9) on the Roost and 1.0 (2.7) on Pyre Field |
+| 48 | Troll Picker's Hooks (axes) | Gash hits 3 or more: your next Rend deals 40% more damage | Muster Barrows | -1.5 (2.6) | **+0.0 (2.7)** | the Flooded Wing +1.7 (2.6) | **Under.** At 2 or more 3.7 (2.9); the next Rend doubled 4.3 (2.7) |
+| 26 | Thrower's Ring (healer) | **RAISED:** Earth rune shields you cast are twice as strong | Muster Barrows, the healer | +7.7 (3.4) | **+7.7 (3.3)** | (at 30%: the tank four's tank, + Shelter, -2.1 (2.3)) | **In band at twice as strong**, se 3.3: 24 seeds owed. As specced, 30%, it read -3.9 (3.1): a healer's shell seldom binds, so only a big one moves the hunt. Data set, dark |
+| 18 | Brewer's Apron (healer) | Circle of Renewal: the hurt ally lowest on health is healed a second time | Carter's Rest, 36 seeds | -0.2 (2.7) | **+0.7 (2.2)** | | **Under.** After a Circle the lowest ally is seldom in danger: the Circle tops up a party already covered, and its second heal does too |
+| 38 | Drowned Signet (ranger) | **Not rewritten in data** (its row is still the boss rule, dark) | Muster Barrows, the ranger | | | | **Under on both ground shapes:** a monster that hits an ally under 45% Sickened (+10% taken, 6 s) -0.3 (1.5), or its armor a quarter less (6 s) +0.7 (2.8). Its rule is yours |
+
+**What the readings say.**
+
+- **A save reads where the danger is the blow itself.** The Boots halve the wind-up that would drop a low ally, and read 8.8 on Pyre Field, where the Stoker's Burning Ash lands on the whole party; on the Bone Wing -2.1. The Mitts halve the next blow at a sword that has just struck, and read 7.4. A shield after the danger (the Maul) read nothing at any size, and more shell on a shell that seldom binds (the Ring) read only when it doubled.
+- **A guard needs someone to guard.** The Breeches read 0.0 to the bit on the Roost: the sword is the sword four's only front, so no ally ever stands within a tile of it when a monster beside it winds up. Opened to any hero the monster aims at, it fires and still reads under (1.7 and 1.0); its Parry shares the 10 s cooldown with the sword's own Parry slot. A guard rule reads on a four with two heroes in front, a cell the size bar has no reference four for.
+- **A damage raise on one strike is small on these cells.** Rend +40% after a big Gash read 0.0 and 1.7; at Gash's own two monsters 3.7. The axes' Rend is a share of their damage, the axes a share of the four's.
+- **Repetition, audited.** Blunted keeps #4, #23 and #42's new rule (the wind-up's caster). Braced is new (a hero's next blow taken). Kindled's key carries #16, #20, #24 and the Hooks' Whetted. The `windup` moment carries #42 and #47, one moment and two effects.
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.

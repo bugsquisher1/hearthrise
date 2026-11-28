@@ -18,7 +18,8 @@
 //          attacker's level (MONSTERS[*].level), a blow a shield turns aside
 //          (a miss on a shield-holder) paying COMBAT_XP.blockMult times more; a
 //          dodge pays the plain rate; a status tick (`dot`) pays nothing
-//   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor)
+//   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor), or, a cast a worn Signature paid another way, for
+//          the mana the same cast spends with none (`xpMana`, abilities.js fire: a Signature never changes what a cast trains)
 //   kill   of a MONSTER: its gold and drops on the instance's `r` stream —
 //          gold split evenly, common items round-robin, each rare to the
 //          party's rare roll (party-split.js, the one split; a `rare_roll`
@@ -337,7 +338,9 @@ export function rewardSwing(members, events, world, ctx) {
       /* A caster's basic (damage.js: a `shot` that spent mana, Tyler 10-15 K3): Magic XP for that mana, the same rule. */
       case 'shot': {
         const m = members.get(ev.u);
-        const n = m && ev.mana > 0 && ev.magicXpMult > 0 ? magicXpFor(ev.mana, ev.magicXpMult / 1000) : 0;
+        /* (a cast a worn Signature paid another way trains on its written mana, `xpMana`: abilities.js fire, lane/signatures-batch-5) */
+        const basis = Number.isInteger(ev.xpMana) ? ev.xpMana : ev.mana;
+        const n = m && basis > 0 && ev.magicXpMult > 0 ? magicXpFor(basis, ev.magicXpMult / 1000) : 0;
         if (n > 0) call(m.fx, 'addXp', 'magic', share(n));
         break;
       }

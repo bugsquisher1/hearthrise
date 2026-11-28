@@ -301,7 +301,8 @@ const ROWS4B = [
   /* (the Plate CUT to 4%: its reading is the 4% shape's, b4w-muster-plate4, the same rule under a temporary id; REPLAY=1 batch4.sh plays its
      first two seeds by its real id, equal) */
   ['#35 Gatekeeper\'s Plate (tank): you and allies within 2 tiles take 4% less (CUT from 8%)', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4w-muster-plate4'], null],
-  ['#45 Convoy Bell + #46 Lead Rein (healer + tank), the pair', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4s-muster-pair'], null],
+  /* (the pair as set: the Rein cut to 7.5% after its own half read 19.0 at 15%, the Bell at 30%; as built, 15%, among the shapes) */
+  ['#45 Convoy Bell + #46 Lead Rein (healer + tank), the pair as set (the Rein at 7.5%)', 'pace', ['Muster Barrows', 'b3-muster-tank', 'b4s-muster-pair2'], null],
   ['#40 Hearth Mason\'s Cloak (healer), on Bold', 'pace', ['Muster Barrows, Bold', 'b4s-muster-bold', 'b4s-muster-cloak'], null],
   ['#44 Pyre Priest\'s Hood (mage): over 70% health, spells cost health', 'pace', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-hood'], null],
   ['#44 Pyre Priest\'s Hood (mage, coin): the same reading on the coin bar', 'coin', ['Muster Barrows', 'b3-muster-mixed', 'b4s-muster-hood'], null],
@@ -316,6 +317,7 @@ const VARIANTS4B = [
   ['#35 the Plate as built, 8% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4s-muster-plate'],
   ['#35 the Plate at 4% (Muster, the tank four) KEPT', 'pace', 'b3-muster-tank', 'b4w-muster-plate4'],
   ['#35 the Plate at 2.5% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate25'],
+  ['#45 + #46 as built: +30% heals, -15% taken (Muster)', 'pace', 'b3-muster-tank', 'b4s-muster-pair'],
   ['#45 the Bell\'s half alone: +30% heals on the tank under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-bell'],
   ['#46 the Rein\'s half alone: the tank -15% under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein'],
   ['#45 + #46 at half size: +15% heals, -7.5% taken (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-pair-half'],

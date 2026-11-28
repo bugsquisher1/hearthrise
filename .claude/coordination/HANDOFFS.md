@@ -1,5 +1,10 @@
 # Handoffs
 
+### 2026-11-27 · BACKEND ARCHITECT (lane/imbue-timer-door) → COORDINATOR, SECURITY · CONFLICTS 2026-11-27 worn imbuements (5) closed as not a defect (MEASURED), WI-5 guards it
+1. **No SQL moved.** A party hero whose hunt ends mid-window already settles to its own end + 1 ms (`accrue-hunt.js` memberDelta; `p_hunt.to` is per member), and `hr_hunt_apply_member` 5a refuses any other window (`bad_stamina`: paid_ms is the window to the millisecond). The 1074 timer, the flame's walk, the stamina stamp and the faction credit read that window, so each stops at the hero's own end on every door.
+2. **Guard:** `tests/worn-imbues-db.mjs` WI-5 (a four, the third hero's pool out at +100 s inside a window on both doors, the rest hunt to 270 s: one end, 71,899,999 ms left of 72,000,000, the same heroes stored) and two plants in `--mutate` (10 now): the defect (5) described, and the edge proposing it. `--only <case>` now filters `--mutate` too.
+3. **Coordinator:** no live-hash reseed (no function body moved; the 1077 edit is its header comment, outside every body). Security: S-32's row says it.
+
 ### 2026-11-27 · SYSTEMS (lane/borrow-price-card) → COORDINATOR, ART DIRECTOR · a lent move's price on the town card (DISCOVERIES 2026-11-27, designer-greater-mend item 3)
 1. **Built, client only:** each town or Havora option that lends a move reads "Opens at Level 120 · −80% power" (From Level N once reached, Full power at 0, Not offered where `borrowBand` is null), `src/shell/windows/talents/card.js`, `src/styles/roads.css`, `src/data/text/talents.js`. The price comes from `src/core/talents.js borrowBand`, the function the edge engine's `grantsOf` prices a borrow by: the server projects no price (`hr_talent_options` holds only `opens_at`, generated from the same function), so there is nothing to disagree with. No migration, no edge change.
 2. **Found, not fixed (P3, copy):** `REFUSAL_WORDS.not_offered` reads "Shop doesn't sell that", and a refused town pick (`hr_talent_spend` not_offered) shows it. The talents card no longer needs it (each option says Not offered), but the press's refusal line still would.

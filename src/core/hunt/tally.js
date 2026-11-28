@@ -38,7 +38,10 @@
 //   dmg at hero t    sustain.takenBy.{status (a `dot` tick), swing (a monster's
 //                    'basic'), spell (any other ability: a monster's spell)}
 //   cast by hero u   sustain.mana.spent += mana (the NET the cast kept: what
-//                    Magic XP is paid on), sustain.mana.back += back
+//                    Magic XP is paid on), sustain.mana.back += back; a cast a worn
+//                    Signature paid in health (signature-costs.js, Pyre Priest's
+//                    Hood: the cast's paidHp) sustain.takenBy.cost += paidHp, HP the
+//                    hero moved itself (no blow: never damage taken)
 //   dmg by hero u    sustain.mana.back += back (a worn Mana Leech's mana off
 //                    the blow, imbue-leech.js; a Life Leech's HP is a `heal`
 //                    from the hero to itself: healIn.self)
@@ -218,6 +221,7 @@ function sustainOf(ev, ids, heroOf) {
       break;
     case 'cast':
       if (ids.has(ev.u)) { const m = heroOf(ev.u, ev).sustain.mana; m.spent += nat0(ev.mana); m.back += nat0(ev.back); }
+      if (nat0(ev.paidHp) && ids.has(ev.u)) bump(heroOf(ev.u, ev).sustain.takenBy, 'cost', ev.paidHp);
       break;
     case 'shot':
       if (ids.has(ev.u)) heroOf(ev.u, ev).sustain.mana.spent += nat0(ev.mana);
@@ -236,7 +240,7 @@ function regenOf(hp, ids, heroOf) {
     const unit = Number(id);
     if (!ids.has(unit) || !Array.isArray(pair) || !pair.every((x) => Number.isSafeInteger(x) && x >= 0)) continue;
     const s = heroOf(unit, { type: 'regen', atMs: null }).sustain;
-    const healIn = s.healIn.food + s.healIn.self + s.healIn.ally, lost = s.takenBy.swing + s.takenBy.spell + s.takenBy.status;
+    const healIn = s.healIn.food + s.healIn.self + s.healIn.ally, lost = s.takenBy.swing + s.takenBy.spell + s.takenBy.status + (s.takenBy.cost || 0);
     const regen = pair[1] - pair[0] - healIn + lost;
     if (regen < 0) throw new Error('tally: hero ' + unit + ' went ' + pair[0] + ' -> ' + pair[1] + ' HP with ' + healIn + ' healed and ' + lost + ' lost: ' + (-regen) + ' HP moved with no event');
     s.healIn.regen += regen;

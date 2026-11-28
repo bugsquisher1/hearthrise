@@ -683,6 +683,16 @@
         "bytes": 4034282,
         "on": "2026-11-28",
         "why": "lane/imbue-engine on the set with kit-bands-4-5 and icons (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
+      },
+      {
+        "bytes": 4063913,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-4: batch 4's Signatures in the engine, dark (src/core/hunt/signature-auras.js, signature-costs.js, fall-save.js new; reactions.js role filter, lowest-hero status, one-monster taunt; damage.js saved shot, aura cut, fall-back save; abilities.js cast costs, aura regen; nine src/data/signatures.js rows and five rewritten). Every byte this lane's source"
+      },
+      {
+        "bytes": 4064237,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-4: the Plate (8% to 4%) and the Rein (15% to 7.5%) cut into band, each row's measured note in src/data/signatures.js"
       }
     ]
   }

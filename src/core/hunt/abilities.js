@@ -67,6 +67,8 @@ import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';
 import { ITEMS } from '../../data/items.js';
 import { SIGNATURES } from '../../data/signatures.js';
+import { castCostOf } from './signature-costs.js';
+import { auraPm } from './signature-auras.js';
 import { isRune } from '../../data/supplies.js';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
 import { place, covers } from './shapes.js';
@@ -299,6 +301,13 @@ function clockOf(hero, row, atMs) {
   return row.replaces.find((id) => !(readyAt(hero && hero.cds, id) > atMs)) || null;
 }
 
+/* (lane/signatures-batch-4) does hero `u`'s worn Signature pay its cast of `row` (its mana as written `mana`) with no mana at `atMs` */
+const paysWithoutMana = (u, row, mana, atMs) => {
+  if (typeof u.signature !== 'string') return false;
+  const c = castCostOf(u, row, mana, atMs);
+  return !!c && c.mana === 0;
+};
+
 /** Why `row` cannot fire for `hero` now, or null when it can (AB-01, 02, 11, 12). Pure. */
 export function gateOf(hero, h, row, atMs) {
   if (!row || !row.active) return 'inactive';
@@ -306,7 +315,8 @@ export function gateOf(hero, h, row, atMs) {
   if ((skip.rune && row.rune) || (skip.area && AREA_TARGETS.includes(row.target))) return 'action_set';
   if (readyAt(hero.cds, row.id) > atMs || clockOf(hero, row, atMs) === null) return 'cooldown';
   if (readyAt(hero.lanes, row.lane) > atMs) return 'lane';
-  if (int(hero.mana) < row.mana) return 'mana';
+  /* (lane/signatures-batch-4) a cast its worn Signature pays another way waits on no mana (signature-costs.js castCostOf) */
+  if (int(hero.mana) < row.mana && !paysWithoutMana(hero, row, row.mana, atMs)) return 'mana';
   return null;
 }
 
@@ -385,7 +395,7 @@ function tryCast(inst, hero, h, row, slot, cx, sc, react) {
     const v = versionOf(row, s.version);
     /* (on the scale the version's mana is its share of the reference: amount.js manaOn) */
     const mana = react && react.free ? 0 : manaOn(inst, hero, v.mana);
-    if (int(hero.mana) < mana) return { why: 'mana' };
+    if (int(hero.mana) < mana && !paysWithoutMana(hero, row, mana, sc.atMs)) return { why: 'mana' };
     const pm = Math.floor((v.outPm * s.pm) / 1000);
     /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
        chipped shell, recasts and refunds the rest: shieldRefund). */
@@ -630,7 +640,15 @@ export function fire(inst, u, pick, sc) {
   const pm = Math.floor(((Number.isInteger(pick.pm) ? pick.pm : 1000) * (1000 + raise)) / 1000);
   /* THE MANA THE CAST COSTS: its version's, less a self-shield's refund of the shell it replaces (shieldRefund). The
      cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
-  const paid = Number.isInteger(pick.mana) ? pick.mana : manaOn(inst, u, row.mana);
+  const written = Number.isInteger(pick.mana) ? pick.mana : manaOn(inst, u, row.mana);
+  /* A CAST A WORN SIGNATURE PAYS ANOTHER WAY (signature-costs.js castCostOf, lane/signatures-batch-4: Ledger Ring, Lychgate Leggings, Pyre
+     Priest's Hood): its mana, or none, or health for it, and the counts, window and clock it writes; a hero with none pays as written */
+  const cost = typeof u.signature === 'string' ? castCostOf(u, row, written, sc.atMs) : null;
+  const paid = cost ? cost.mana : written;
+  if (cost) {
+    if (cost.hp > 0) u.hp = int(u.hp) - cost.hp;
+    u.cds = Object.assign({}, u.cds || {}, cost.writes);
+  }
   const refund = shieldRefund(u, row, paid, pm, inst);
   /* (a refunding ward recast on an ally holding this caster's own shell, Lasting Ward: the same refund, wardRefund) */
   const wardBack = wardRefund(u, row, paid, pm, inst, pick.target);
@@ -679,6 +697,7 @@ export function fire(inst, u, pick, sc) {
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
     ...(rune ? { supply: rune, version, power: pm } : pick.saved ? { saved: pick.saved, version, power: pm } : {}),
     ...(refund + wardBack > 0 ? { refund: refund + wardBack } : {}),
+    ...(cost && cost.hp > 0 ? { paidHp: cost.hp } : {}),
     ...(back > 0 ? { back } : {}),
     ...(took ? { took } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
@@ -708,11 +727,14 @@ function surged(u, row, sc) {
 
 /** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times
     the hero's Inner Flame regen rate (`regenPm`, permille: src/core/vitals.js regenPermille; 1000 unset). */
-function regenMana(u, dtMs, atMs) {
+function regenMana(u, dtMs, atMs, inst) {
   if (!(int(u.maxMana) > 0)) return;
   let pm = int(u.regenPm) > 0 ? int(u.regenPm) : 1000;
   /* STILL MIND (a unit rule: stillMs without a cast, stillRegenPm more): the last cast's time is fire's '~cast' */
   if (u.stillMs > 0 && u.stillRegenPm > 0 && atMs - readyAt(u.cds, '~cast') >= u.stillMs) pm = Math.floor((pm * (1000 + u.stillRegenPm)) / 1000);
+  /* (lane/signatures-batch-4) A WORN SIGNATURE'S AURA (signature-auras.js, Sergeant's Sash): the party's within its reach regenerate more */
+  const aura = auraPm(inst, u, 'regenPm');
+  if (aura) pm = Math.floor((pm * (1000 + aura)) / 1000);
   u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * pm * dtMs) / 60000000);
   const whole = Math.floor(u.manaMilli / 1000);
   u.manaMilli -= whole * 1000;
@@ -766,6 +788,9 @@ export function payBasic(inst, hero, cost, sc) {
     /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
        ladder): a loaded stack of it looses its shot and never depletes. */
     if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return l;
+    /* A SAVED SHOT (src/core/hunt/signature-costs.js, lane/signatures-batch-4: Brood Bracers' credit, `free`): the line is the shot's, so it
+       is priced as it would be, but no arrow is taken from the bag and none bought (nothing minted, nothing refunded) */
+    if (c.free === true) return Object.assign({}, l, { saved: true });
     if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
     return l;
   }
@@ -788,7 +813,7 @@ function castOrder(inst) {
 export function castAbilities(inst, sc) {
   for (const u of castOrder(inst)) {
     if (!isHero(u) || !u.alive) continue;
-    regenMana(u, sc.dtMs, sc.atMs);
+    regenMana(u, sc.dtMs, sc.atMs, inst);
     const pick = firstUsable(inst, u, sc, engaged(inst, u).length ? null : mends);
     if (pick) fire(inst, u, pick, sc);
   }

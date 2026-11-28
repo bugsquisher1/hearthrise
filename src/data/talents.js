@@ -53,6 +53,7 @@
 import { POWER_LEDGER } from './power-ledger.js';
 import { STATUSES } from './statuses.js';
 import { RUNE_FAMILIES } from './runes.js';
+import { MONSTER_ROLES } from './monster-roles.js';
 
 const isStatus = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(STATUSES, id);
 
@@ -748,9 +749,12 @@ export const MOD_GROUPS = Object.freeze(['*heal', '*spell']);
 export const REACT_ON = Object.freeze(['hit', 'crit', 'kill', 'hit_taken', 'ally_hit', 'near_fall', 'shield_break', 'taunt', 'taunt_lost', 'death', 'heal', 'hp_below', 'cast', 'absorb',
   /* (lane/signatures-batch-3) a pull begins: the pack turns on the party (pull-cycle.js startPull), its monsters the moment's */
   'pull']);
-export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect']);
+/* (lane/signatures-batch-4: `taunt` the moment's monster, on another hero of the side and held by no Challenge, turns on the hero for `ms`;
+   `role` the moment's monster plays that monster role, its striker for a blow at a hero; a status's `at: 'lowest'`, the monster attacking
+   the lowest hero of the side) */
+export const REACT_DO = Object.freeze(['cast', 'reset', 'mana', 'heal', 'shield', 'status', 'echo', 'carry', 'ready', 'pass', 'boon', 'burst', 'reflect', 'taunt']);
 const REACT_FIELDS = new Set(['kind', 'id', 'on', 'do', 'move', 'of', 'pm', 'ms', 'capMs', 'clockMs', 'per', 'row', 'melee', 'free', 'to', 'status', 'r', 'capPm', 'has', 'belowPm', 'what',
-  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every']);
+  'pw', 'marked', 'family', 'single', 'boss', 'alone', 'every', 'role', 'at']);
 /* WHERE A DOER LANDS (`to`), by doer (lane/signatures-batch-3): a heal to 'self' (pm of its max health), the 'lowest' ally (pm of the moment's
    amount), the moment's hero ('target': pm of its max health) or each living hero of the party ('party': pm of each one's max health); mana
    to the moment's hero ('target': pm of the moment's amount); a boon to the wearer ('self') or each living hero of the party ('party') */
@@ -794,6 +798,9 @@ export function reactProblems(e, moves = null) {
   if (e.has !== undefined && !isStatus(e.has)) out.push('a reaction reads a status the moment\'s monster carries (has)');
   if (e.belowPm !== undefined && !(Number.isInteger(e.belowPm) && e.belowPm > 0 && e.belowPm < 1000)) out.push('a health line is a permille 1..999 (belowPm)');
   if (e.on === 'hp_below' && e.belowPm === undefined) out.push('hp_below names its line (belowPm)');
+  if (e.role !== undefined && !Object.prototype.hasOwnProperty.call(MONSTER_ROLES, e.role)) out.push('a reaction reads a monster role (role: ' + Object.keys(MONSTER_ROLES).join(', ') + ')');
+  if (e.at !== undefined && !(e.do === 'status' && e.at === 'lowest' && e.r === undefined)) out.push('at is a status\'s \'lowest\' (the monster on the lowest hero), never with a reach r');
+  if (e.do === 'taunt' && !(Number.isInteger(e.ms) && e.ms > 0)) out.push('a taunt names how long it holds (ms)');
   return out;
 }
 

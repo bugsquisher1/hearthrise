@@ -397,6 +397,13 @@ function breakOff(inst, sc) {
   w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;
 }
 
+/** A FALL BACK A SAVE STARTS (src/core/hunt/fall-save.js, lane/signatures-batch-4: Hearth Mason's Cloak, damage.js landHit): on the Danger
+    scale, in a fight, the pull breaks off now (breakOff), as a hero under its stance's line breaks it, on any stance (Bold too, which
+    never breaks off on its own). Nothing off the scale or outside a fight. */
+export function fallBackNow(inst, sc) {
+  if (dangerOn(inst.world) && inst.world.phase === PHASE.FIGHT) breakOff(inst, sc);
+}
+
 /** Phase-AI hook: travel, pull, fight, regroup; the pocket route (PC-03..13). */
 export function runPhase(inst, sc) {
   if (!cycling(inst)) return;

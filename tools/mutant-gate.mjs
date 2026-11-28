@@ -40,16 +40,16 @@
 // STEPS MOVED (Tyler 2026-11-29, "Yes, change the gate"). That earlier green stays the job's base when only smoke.yml's STEPS
 // moved since it. Before, any edit of smoke.yml threw every green away: each job measured from main's merge base and re-proved
 // every guard, past its timeout, and a cancelled job is never green, so the next run did it again (db-replay, 46117646677 and
-// 46123337940). smoke.yml is compared step by step (workflowDelta): the job, the step's name, its `run:` commands; comment and
-// blank lines are no change. A step new to this job (moved from another job, or new) or whose `run:` commands changed re-proves
-// every proof it holds IN FULL (no mutant scope), beside everything the range rules above pick. A step only removed, or moved
-// within its job, proves nothing new. Anything else still falls back to the merge base, as before: smoke.yml outside its jobs
-// (triggers, permissions, env: and its HR_RELEASE_PROOFS), this job's own settings (runs-on, timeout-minutes, env:, needs, if:),
-// a setup step (`uses:`), a kept step's other keys (if:, env:), the gate's own steps (any step that runs this file itself), and
-// an edit of this file (GATE_OWN; its libraries are judged by the range rules like any guard's). Another job's settings send THAT
-// job back, not this one: a job's green proves its own steps on its own runner. Under plain-only the moved steps wait for the
-// nightly like every other proof. A rehearsal of A..B is planned as a push whose green base is A. The nightly rules do not move:
-// a job the last sweep left red still runs in full, and the schedule is still the full sweep.
+// 46123337940). smoke.yml is compared step by step (workflowDelta): the job, the step's name, its `run:` commands. Only a guard
+// step can move (guardStep: a name, `if: ${{ !cancelled() }}` or none, and plain `node`/`bash` commands). One new to this job
+// (moved from another job, or new) or whose commands changed re-proves every proof it holds IN FULL (no mutant scope), beside
+// everything the range rules above pick; one only removed proves nothing new; comment and blank lines are no change. Every other
+// line of the file is the frame, and any difference in it falls back to the merge base for EVERY job, as before: triggers,
+// permissions, env: and its HR_RELEASE_PROOFS, any job's settings (runs-on, timeout-minutes, env:, needs), a job added or
+// removed, setup and install steps, a step with any other key or shell syntax, and the gate's own steps. So do a changed if:, the
+// kept steps of a job in another order, and an edit of this file (GATE_OWN). Under plain-only the moved steps wait for the nightly
+// like every other proof. A rehearsal of A..B is planned as a push whose green base is A. The nightly rules do not move: a job
+// the last sweep left red still runs in full, and the schedule is still the full sweep.
 //
 // NIGHTLY ONLY (Tyler 2026-11-19, architecture audit row 6). One line in smoke.yml's `env:`,
 // HR_RELEASE_PROOFS, chooses what a release or next push proves:
@@ -283,150 +283,113 @@ function greenBase(env) {
 const workflowAt = (base, tip) => ({ base: gitOut(['show', `${base}:${WORKFLOW_PATH}`]), head: gitOut(['show', `${tip}:${WORKFLOW_PATH}`]) });
 
 // ── STEPS MOVED (Tyler 2026-11-29): smoke.yml step by step ──────────────────
-/* The gate's own file (the ruling's word): an edit of it is no step move, so the earlier green is no base. Its libraries are not
-   listed: each such edit would send every job back to the merge base, and the range rules already re-prove what loads them. */
-export const GATE_OWN = Object.freeze(['tools/mutant-gate.mjs']);
 const SELF = 'tools/mutant-gate.mjs';
-/* A command the gate cannot match word for word against its own argv (quotes, expansions, pipes): matched by its guard instead. */
-const SHELLY = /[$`'"\\|&;<>(){}*?~]/;
+/* The gate's own file (the ruling's word): an edit of it is no step move, so no earlier green is a base. */
+export const GATE_OWN = Object.freeze([SELF]);
+/* A guard command the gate meets word for word in its own argv: no quotes, expansions, pipes, env prefixes or continued lines. */
+const PLAIN_CMD = /^(?:node tools\/mutant-gate\.mjs )?(?:node|bash) [\w./:-]+\.(?:mjs|js|sh)(?: [\w./=:,@%+-]+)*$/;
+const CANCELLED = '        if: ${{ !cancelled() }}';
 /** The words of a command, the gate's own wrapper taken off: how a re-proved step's command meets the argv the gate is handed. */
 export const runKey = (cmd) => unwrapGate(String(cmd).trim()).split(/\s+/).join(' ');
 
+/* A step that can move: `- name:`, perhaps `if: ${{ !cancelled() }}`, and a `run:` of plain guard commands, in that order and
+   nothing else; not the gate's own. Any other step (setup, installs, other keys, shell syntax) is frame: null. */
+function guardStep([first, ...rest]) {
+  const name = /^ {6}- name: (?![&*!|>%@`{[])(\S.*)$/.exec(first);
+  const cond = rest[0] === CANCELLED ? rest.shift() : '';
+  const run = /^ {8}run: (.+)$/.exec(rest.shift() || '');
+  if (!name || !run) return null;
+  const body = rest.filter(Boolean);
+  const cmds = run[1] === '|' ? body.map((l) => l.replace(/^ {10}(?=\S)/, '')) : [run[1], ...body];
+  return cmds.length && cmds.every((c) => PLAIN_CMD.test(c) && guardFileOf(c) !== SELF) ? { name: name[1], cond, cmds } : null;
+}
+
 /**
- * smoke.yml's shape: { top, jobs: Map(id -> { settings, steps }) }. `top` is every line outside `jobs:`, a job's `settings` every
- * line of it outside `steps:`, and a step { id, name, uses, run, rest, commands, gate }: `run` its `run:` lines, `rest` its other
- * keys. Comment and blank lines are not shape, except inside a block scalar (`run: |`), whose lines are content. A line this cannot
- * place throws, and the caller falls back. Pure.
+ * smoke.yml in two parts: { frame, jobs: Map(id -> { steps: Map(name -> step), order }) }. `steps` are the guard steps (guardStep),
+ * `frame` every other line of the file, and `order` a job's frame steps and guard steps as they run. Comment and blank lines are in
+ * neither, except inside a block scalar, whose lines are content. What it cannot place throws, and no green is kept. Pure.
  */
 export function workflowShape(text) {
-  const lines = String(text).replace(/\r\n/g, '\n').split('\n');
-  const top = []; const jobs = new Map();
-  let inJobs = false; let job = null; let inSteps = false; let step = null; let block = -1;
-  for (const [i, raw] of lines.entries()) {
-    const line = raw.replace(/\s+$/, '');
-    const indent = line.length - line.trimStart().length;
-    if (block >= 0) {
-      if (!line) continue;
-      if (indent > block) { (step ? step.lines : job ? job.settings : top).push(line); continue; }
-      block = -1;
-    }
-    if (!line || /^\s*#/.test(line)) continue;
-    if (indent === 0) {
-      inJobs = line === 'jobs:'; job = null; step = null; inSteps = false;
-      if (!inJobs) top.push(line);
-    } else if (!inJobs) top.push(line);
-    else if (indent === 2) {
-      const m = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
-      if (!m) throw new Error(`line ${i + 1}: a job id was expected`);
-      if (jobs.has(m[1])) throw new Error(`line ${i + 1}: job ${m[1]} twice`);
-      job = { settings: [], steps: [] }; jobs.set(m[1], job); inSteps = false; step = null;
-    } else if (!job) throw new Error(`line ${i + 1}: a line before the first job`);
-    else if (indent === 4) {
-      step = null; inSteps = line === '    steps:';
-      if (!inSteps) job.settings.push(line);
-    } else if (!inSteps) job.settings.push(line);
-    else if (indent === 6 && line.startsWith('      - ')) { step = { lines: [line] }; job.steps.push(step); }
-    else if (!step || indent < 8) throw new Error(`line ${i + 1}: a step's line was expected`);
-    else step.lines.push(line);
-    /* `key: |` (or >, |-, ...): the lines below, deeper than the key, are its content */
-    if (/:\s*[|>][-+0-9]*$/.test(line)) block = /^\s*- /.test(line) ? indent + 2 : indent;
-  }
-  for (const j of jobs.values()) {
-    const seen = new Map();
-    j.steps = j.steps.map((s) => {
-      /* the step's keys: `- key:` and each line at indent 8 start one; a deeper line belongs to the key above it */
-      const keys = [];
-      for (const l of s.lines) {
-        const m = /^(?: {6}- | {8})([A-Za-z0-9_-]+):\s?(.*)$/.exec(l);
-        if (m && (l.startsWith('      - ') || /^ {8}\S/.test(l))) keys.push([m[1], [m[2]]]);
-        else if (keys.length) keys[keys.length - 1][1].push(l.trim());
-        else throw new Error(`a step that opens with no key: ${l.trim()}`);
-      }
-      const get = (k) => keys.find(([n]) => n === k);
-      const name = get('name') ? get('name')[1][0].replace(/^(['"])(.*)\1$/, '$2') : null;
-      const uses = get('uses') ? get('uses')[1][0] : null;
-      const runLines = get('run') ? get('run')[1].filter((x, n) => !(n === 0 && /^[|>][-+0-9]*$/.test(x))).map((x) => x.trim()).filter(Boolean) : [];
-      const commands = runLines.filter((x) => !x.startsWith('#'));
-      const base = name ?? (uses ? `uses ${uses}` : `run ${commands[0] || ''}`);
-      const n = (seen.get(base) || 0) + 1; seen.set(base, n);
-      return {
-        id: n > 1 ? `${base} #${n}` : base, name, uses, commands,
-        run: runLines.join('\n'),
-        rest: JSON.stringify(keys.filter(([k]) => k !== 'name' && k !== 'run')),
-        canon: JSON.stringify(keys),
-        gate: commands.some((c) => guardFileOf(c) === SELF),
-      };
-    });
-  }
-  if (!jobs.size) throw new Error('no jobs: block');
-  return { top, jobs };
-}
-
-/* The first top-level (or job-level) key whose lines differ, to name in the log. */
-function firstKeyDiff(a, b, depth) {
-  const keyed = (ls) => {
-    const out = new Map(); let k = null;
-    for (const l of ls) { const m = new RegExp(`^ {${depth}}([A-Za-z0-9_-]+):`).exec(l); if (m) k = m[1]; out.set(k, `${out.get(k) || ''}${l}\n`); }
-    return out;
+  const lines = String(text).replace(/\r\n/g, '\n').split('\n').map((l) => l.replace(/\s+$/, ''));
+  const frame = []; const jobs = new Map();
+  let inJobs = false; let job = null; let inSteps = false; let step = null; let block = -1; let blanks = 0;
+  const put = (l) => (step || frame).push(l);
+  const close = () => {
+    if (!step) return;
+    const s = guardStep(step);
+    if (s && job.steps.has(s.name)) throw new Error(`two steps named "${s.name}" in one job`);
+    if (s) job.steps.set(s.name, s); else frame.push(...step);
+    job.order.push(s ? s.name : `frame ${step[0]}`);
+    step = null;
   };
-  const x = keyed(a); const y = keyed(b);
-  return [...new Set([...x.keys(), ...y.keys()])].find((k) => x.get(k) !== y.get(k)) || 'its layout';
+  for (const [i, line] of lines.entries()) {
+    const indent = line.length - line.trimStart().length;
+    if (/^ *\t/.test(line)) throw new Error(`line ${i + 1}: a tab in the indentation`);
+    if (block >= 0) {
+      if (!line) { blanks++; continue; }
+      if (indent > block) { for (; blanks > 0; blanks--) put(''); put(line); continue; }
+      block = -1; blanks = 0;
+    }
+    /* a comment deeper than a step's dash stays in its step, and makes it frame */
+    if (!line || (line[indent] === '#' && indent <= 6)) continue;
+    if (indent <= 6) close();
+    if (indent === 0) { inJobs = line === 'jobs:'; inSteps = false; } else if (inJobs && indent === 2) {
+      const m = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
+      if (!m || jobs.has(m[1])) throw new Error(`line ${i + 1}: a new job id was expected`);
+      job = { steps: new Map(), order: [] }; jobs.set(m[1], job); inSteps = false;
+    } else if (inJobs && indent === 4) inSteps = line === '    steps:';
+    if (inSteps && indent > 4 && !step && !line.startsWith('      - ')) throw new Error(`line ${i + 1}: a step was expected`);
+    if (inSteps && line.startsWith('      - ')) step = [line]; else put(line);
+    /* `key: |` (or >, |-, ...): the lines below, deeper than the key, are its content */
+    if (/(?:^|[\s:-])[|>][-+0-9]*(?: +#.*)?$/.test(line)) block = /^ *- /.test(line) ? indent + 2 : indent;
+  }
+  close();
+  if (!jobs.size) throw new Error('no jobs: block');
+  return { frame, jobs };
 }
 
 /**
- * What smoke.yml's change from `baseText` to `headText` does to job `job`'s green at the base: { keep, why, steps }. keep: only
- * steps moved (or nothing did), and `steps` lists this job's steps that are new to it or changed their `run:` commands, each with
- * its proof commands, to be re-proved in full. keep false: anything else changed, and the job falls back. Pure.
+ * What smoke.yml's change from `baseText` to `headText` does to the greens at the base: { keep, why, steps }. keep: only guard steps
+ * moved (or nothing did), and `steps` lists job `job`'s steps that are new to it or run other commands now, with the proof commands
+ * to re-prove in full. keep false: anything else changed, whichever job it is in. Pure.
  */
 export function workflowDelta(baseText, headText, job) {
-  let a; let b;
-  try { a = workflowShape(baseText); b = workflowShape(headText); } catch (e) {
-    return { keep: false, why: `smoke.yml could not be read step by step (${e.message})`, steps: [] };
-  }
   const back = (why) => ({ keep: false, why, steps: [] });
-  if (a.top.join('\n') !== b.top.join('\n')) return back(`smoke.yml changed outside its jobs (${firstKeyDiff(a.top, b.top, 0)}:)`);
-  const gateSteps = (s) => [...s.jobs].flatMap(([id, j]) => j.steps.filter((x) => x.gate).map((x) => `${id} ${x.canon}`)).join('\n');
-  if (gateSteps(a) !== gateSteps(b)) return back(`the gate's own step changed (a step that runs ${SELF} itself)`);
-  const ja = a.jobs.get(job); const jb = b.jobs.get(job);
-  if (!jb) return back(`job ${job} is not in smoke.yml`);
-  if (!ja) return back(`job ${job} is new since`);
-  if (ja.settings.join('\n') !== jb.settings.join('\n')) return back(`job ${job}'s own settings changed (${firstKeyDiff(ja.settings, jb.settings, 4)}:)`);
-  const setup = (j) => j.steps.filter((s) => s.uses).map((s) => s.canon).join('\n');
-  if (setup(ja) !== setup(jb)) return back(`a setup step (uses:) of job ${job} changed`);
-  const was = new Map(ja.steps.map((s) => [s.id, s]));
-  const from = new Map();
-  for (const [id, j] of a.jobs) if (id !== job) for (const s of j.steps) if (!from.has(s.id) && !s.uses) from.set(s.id, id);
+  let a; let b;
+  try { a = workflowShape(baseText); b = workflowShape(headText); } catch (e) { return back(`smoke.yml could not be read step by step (${e.message})`); }
+  const n = Math.max(a.frame.length, b.frame.length);
+  for (let i = 0; i < n; i++) if (a.frame[i] !== b.frame[i]) return back(`more than guard steps changed in smoke.yml ("${(b.frame[i] ?? a.frame[i]).trim().slice(0, 70)}")`);
+  if (!b.jobs.has(job)) return back(`job ${job} is not in smoke.yml`);
+  const kept = (j, other) => j.order.filter((x) => x.startsWith('frame ') || other.steps.has(x)).join('\n');
   const steps = [];
-  for (const s of jb.steps) {
-    if (s.uses) continue;
-    const old = was.get(s.id);
-    if (old && old.rest !== s.rest) return back(`the step "${s.id}" of job ${job} changed more than its run: commands (if:, env:, ...)`);
-    if (old && old.run === s.run) continue;
-    steps.push({ step: s.id, why: old ? 'changed its run: commands' : from.has(s.id) ? `moved here from job ${from.get(s.id)}` : 'is new to this job', proofs: s.commands.filter(isProofCommand) });
+  for (const [id, jb] of b.jobs) {
+    const ja = a.jobs.get(id);
+    if (kept(ja, jb) !== kept(jb, ja)) return back(`the steps of job ${id} run in another order`);
+    for (const [name, s] of jb.steps) {
+      const old = ja.steps.get(name);
+      const from = old ? null : [...a.jobs].find(([, j]) => j.steps.has(name));
+      const was = old || (from && from[1].steps.get(name));
+      if (was && was.cond !== s.cond) return back(`the step "${name}" of job ${id} changed its if:`);
+      if (id !== job || (old && old.cmds.join('\n') === s.cmds.join('\n'))) continue;
+      steps.push({ step: name, why: old ? 'changed its run: commands' : from ? `moved here from job ${from[0]}` : 'is new to this job', proofs: s.cmds.filter(isProofCommand) });
+    }
   }
-  return { keep: true, why: steps.length ? `${steps.length} step(s) of job ${job} moved` : `no step of job ${job} moved`, steps };
+  return { keep: true, why: `${steps.length} step(s) of job ${job} moved`, steps };
 }
 
 /** Is the green at a commit, `files` (committed) changed since, still job `job`'s base? `read` gives smoke.yml at both ends. Pure. */
 export function greenVerdict({ files, job, read }) {
-  const gate = files.filter((f) => GATE_OWN.includes(f));
-  if (gate.length) return { keep: false, why: `the gate's own code changed since (${gate.join(', ')})`, steps: [] };
+  if (files.some((f) => GATE_OWN.includes(f))) return { keep: false, why: `the gate itself changed since (${GATE_OWN.join(', ')})`, steps: [] };
   if (!files.includes(WORKFLOW_PATH)) return { keep: true, why: 'smoke.yml did not change', steps: [] };
   const { base, head } = read();
   return workflowDelta(base, head, job);
 }
 
-/** A plan's `reprove`: the moved steps' proof commands (and, for a command it cannot match word for word, its guard). Pure. */
+/** A plan's `reprove`: the moved steps' proof commands, each with why. Pure. */
 export function reproveOf(steps) {
-  const commands = {}; const guards = {};
-  for (const s of steps) {
-    const why = `smoke.yml's step "${s.step}" ${s.why} since the base`;
-    for (const c of s.proofs) {
-      if (!SHELLY.test(unwrapGate(c))) commands[runKey(c)] = why;
-      else guards[guardFileOf(c) || '*'] = why;
-    }
-  }
-  return { commands, guards, steps: steps.map((s) => ({ step: s.step, why: s.why, proofs: s.proofs.length })) };
+  const commands = {};
+  for (const s of steps) for (const c of s.proofs) commands[runKey(c)] = `smoke.yml's step "${s.step}" ${s.why} since the base`;
+  return { commands, steps: steps.map((s) => ({ step: s.step, why: s.why, proofs: s.proofs.length })) };
 }
 
 /* Main already holds this commit (a release and main pushed together: run 41327717372 went
@@ -483,8 +446,7 @@ export function decide(cmd, plan, guard = guardFileOf(cmd)) {
   if (plan.proved) return { run: false, why: `run ${plan.proved.id} on ${plan.proved.branch} proved this exact commit` };
   if (plan.full) return { run: true, why: `full sweep: ${plan.why}` };
   /* STEPS MOVED: a step new to this job or changed since the base re-proves every mutant it holds, never only the diff's */
-  const r = plan.reprove;
-  const again = r && (r.commands[runKey(inner)] || (guard && r.guards[norm(guard)]) || r.guards['*']);
+  const again = plan.reprove && plan.reprove.commands[runKey(inner)];
   if (again) return { run: true, inFull: true, why: `re-proved in full: ${again}` };
   if (!guard) return { run: true, why: 'the guard file could not be read from the command — runs (fail safe)' };
   const why = (plan.selected || {})[norm(guard)];
@@ -847,11 +809,12 @@ function stepsMovedSelftest() {
   const gated = (g, flag = '--mutate') => `node tools/mutant-gate.mjs node tests/${g}.mjs ${flag}`;
   const STEP = (name, cmds, { cond = '${{ !cancelled() }}' } = {}) => `      # tests/${name}.mjs\n      - name: ${name}\n        if: ${cond}\n        run: |\n${cmds.map((c) => `          ${c}`).join('\n')}\n`;
   const probe = (g, flag) => STEP(`Probe ${g.toUpperCase()}`, [`node tests/${g}.mjs`, gated(g, flag)]);
-  const JOB = (id, steps, { timeout = 30, env = '', node = '20' } = {}) => `  ${id}:\n    runs-on: ubuntu-latest\n    timeout-minutes: ${timeout}\n${env}`
-    + `\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '${node}'\n\n${steps.join('\n')}`;
+  const JOB = (id, steps) => `  ${id}:\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n\n    steps:\n      - uses: actions/checkout@v4\n\n`
+    + '      - uses: actions/setup-node@v4\n        with:\n          node-version: \'20\'\n\n      - name: Install\n        run: npm install\n\n'
+    + `      - name: Heredoc\n        run: |\n          cat <<E\n            inner\n          E\n\n${steps.join('\n')}`;
   const GATE = STEP('Nightly gate', ['node tools/mutant-gate.mjs --nightly-gate']);
-  const WF = ({ jobs, branches = '[main, next]', proofs = 'nightly-only', extra = '' }) => `# the gate's fixture\nname: smoke\non:\n  push:\n    branches: ${branches}\n  workflow_dispatch:\n\n`
-    + `permissions:\n  contents: read\n\nenv:\n  HR_RELEASE_PROOFS: ${proofs}\n${extra}\njobs:\n\n${jobs.join('\n')}\n`;
+  const WF = ({ jobs }) => '# the gate\'s fixture\nname: smoke\non:\n  push:\n    branches: [main, next]\n  workflow_dispatch:\n\n'
+    + `permissions:\n  contents: read\n\nenv:\n  HR_RELEASE_PROOFS: nightly-only\n\njobs:\n\n${jobs.join('\n')}\n`;
   const [A, B, C, D, E] = ['a', 'b', 'c', 'd', 'e'].map((g) => probe(g));
   const z = JOB('z', [GATE]);
   const BASE = WF({ jobs: [JOB('x', [A, B]), JOB('y', [C, D]), z] });
@@ -860,117 +823,123 @@ function stepsMovedSelftest() {
     edit: WF({ jobs: [JOB('x', [probe('a', '--mutate --shard=1/2'), B]), JOB('y', [C, D]), z] }),
     added: WF({ jobs: [JOB('x', [A, B, E]), JOB('y', [C, D]), z] }),
     comment: BASE.replace('      # tests/Probe B.mjs\n', '      # tests/Probe B.mjs, a note\n\n      # and another\n').replace('# the gate\'s fixture', '# the gate\'s fixture, reworded'),
-    reorder: WF({ jobs: [JOB('x', [B, A]), JOB('y', [C, D]), z] }),
-    proofs: WF({ jobs: [JOB('x', [A, B, C]), JOB('y', [D]), z], proofs: 'plain-only' }),
-    trigger: WF({ jobs: [JOB('x', [A, B, C]), JOB('y', [D]), z], branches: '[main]' }),
-    jobEnv: WF({ jobs: [JOB('x', [A, B, C], { env: '    env:\n      HR_PG_BIN: /usr/lib/postgresql/17/bin\n' }), JOB('y', [D]), z] }),
-    timeout: WF({ jobs: [JOB('x', [A, B]), JOB('y', [C, D], { timeout: 31 }), z] }),
-    stepIf: WF({ jobs: [JOB('x', [STEP('Probe A', ['node tests/a.mjs', gated('a')], { cond: '${{ always() }}' }), B, C]), JOB('y', [D]), z] }),
-    setup: WF({ jobs: [JOB('x', [A, B, C], { node: '22' }), JOB('y', [D]), z] }),
-    gateStep: WF({ jobs: [JOB('x', [A, B, C]), JOB('y', [D, GATE]), JOB('z', [])] }),
   };
-  /* the real smoke.yml: its last proof-holding step of one job moved to the end of another job, nothing else touched */
+  /* Every other kind of change, each made beside the same move: [arm, head, what changed, how a gate blind to it would read the file]. */
+  const also = (from, to) => { const t = V.move.replace(from, to); if (t === V.move) throw Object.assign(new Error(`steps moved: the fixture has no "${from}"`), { harness: true }); return t; };
+  const without = (rx) => (t) => t.replace(rx, '');
+  const job = (id, ...steps) => JOB(id, steps);
+  const IF = /^ {8}if: .*\n/gm; const N = STEP('Probe N', [gated('n')]);
+  const FRAME = [
+    ['F-proofs', also('HR_RELEASE_PROOFS: nightly-only', 'HR_RELEASE_PROOFS: plain-only'), 'HR_RELEASE_PROOFS', without(/^ {2}HR_RELEASE_PROOFS:.*\n/gm)],
+    ['F-env', also('env:\n  HR_', 'env:\n  HR_MUTANT_GATE: all\n  HR_'), 'a line in the top-level env:', without(/^ {2}HR_MUTANT_GATE:.*\n/gm)],
+    ['F-trigger', also('[main, next]', '[main]'), 'a trigger', without(/^ {4}branches:.*\n/gm)],
+    ['F-permissions', also('contents: read', 'contents: write'), 'the permissions', without(/^ {2}contents:.*\n/gm)],
+    ['F-jobenv', also('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    env:\n      HR_PG_BIN: /usr/bin\n'), 'a job\'s env:', without(/^ {4}env:\n(?: {6}.*\n)+/gm)],
+    ['F-timeout', also(/(  y:\n.*\n    timeout-minutes: )30/, '$131'), 'another job\'s timeout-minutes', without(/^ {4}timeout-minutes:.*\n/gm)],
+    ['F-runner', also('ubuntu-latest', 'ubuntu-24.04'), 'a runner image', without(/^ {4}runs-on:.*\n/gm)],
+    ['F-job', WF({ jobs: [job('x', A, B, C), job('w', N), job('y', D), z] }), 'a job added', without(/^ {2}w:\n(?:(?: {4}.*)?\n)*/m)],
+    ['F-setup', also('node-version: \'20\'', 'node-version: \'22\''), 'a setup step', without(/^ {10}node-version:.*\n/gm)],
+    ['F-install', also('npm install', 'npm install --omit=dev'), 'an install step', without(/ --omit=dev/g)],
+    ['F-gate', WF({ jobs: [job('x', A, B, C), job('y', D, GATE), job('z')] }), 'the gate\'s own step moved', without(/^ {6}- name: Nightly gate\n(?: {8}.*\n)+/gm)],
+    ['F-gate-edit', also('--nightly-gate', '--explain'), 'the gate\'s own step edited', without(/ --(?:nightly-gate|explain)/g)],
+    ['F-kept-if', also('if: ${{ !cancelled() }}', 'if: ${{ always() }}'), 'a kept step\'s if:', without(IF)],
+    ['F-moved-if', WF({ jobs: [job('x', A, B, C.replace('${{ !cancelled() }}', 'false')), job('y', D), z] }), 'a moved step\'s if: (it would never run)', without(IF)],
+    ['F-moved-bare', WF({ jobs: [job('x', A, B, C.replace(IF, '')), job('y', D), z] }), 'a moved step\'s if: dropped', without(IF)],
+    ['F-quoted', WF({ jobs: [job('x', A.replace('        run', '        "if": false\n        run'), B, C), job('y', D), z] }), 'a quoted key on a kept step', without(/^ {8}"if".*\n/gm)],
+    ['F-stepenv', WF({ jobs: [job('x', A, B, C, N.replace('        run', '        env:\n          HR_MUTANT_GATE_FILES: x\n        run')), job('y', D), z] }), 'a new step with its own env:', without(/^ {8}env:\n(?: {10}.*\n)+(?= {8}run)/gm)],
+    ['F-prefix', WF({ jobs: [job('x', A, B, C, N.replace('node tools', 'HR_X=1 node tools')), job('y', D), z] }), 'a new step with an env prefix on its command', without(/HR_X=1 /g)],
+    ['F-continued', WF({ jobs: [job('x', A, B, C, N.replace(' --mutate', ' \\\n            --mutate')), job('y', D), z] }), 'a new step with a continued line', (t) => t.replace(/ \\\n +/g, ' ')],
+    ['F-heredoc', also('            inner', '          inner'), 'the indentation inside a script', (t) => t.replace(/^ {10,}(?=inner)/gm, '          ')],
+    ['F-order', WF({ jobs: [job('x', B, A, C), job('y', D), z] }), 'the order of a job\'s kept steps', null],
+  ];
+  /* the real smoke.yml: the last proof-holding guard step of one job moved to the end of another, nothing else touched */
   const real = readFileSync(WORKFLOW, 'utf8').replace(/\r\n/g, '\n');
   const realJobs = [...workflowShape(real).jobs];
-  const holds = (j) => j.steps.filter((s) => !s.uses && s.commands.some(isProofCommand));
+  const holds = (j) => [...j.steps.values()].filter((s) => s.cmds.some(isProofCommand)).map((s) => s.name);
   const [J1, j1] = realJobs.find(([, j]) => holds(j).length >= 2) || [];
+  const S = j1 && holds(j1).pop();
   const [J2] = realJobs.find(([id, j]) => id !== J1 && holds(j).length) || [];
-  const S = j1 && holds(j1)[holds(j1).length - 1];
   const realMove = (() => {
-    if (!S || !J2) return null;
     const lines = real.split('\n');
-    const jobAt = (id) => lines.indexOf(`  ${id}:`);
-    const endOf = (at) => { const k = lines.findIndex((l, i) => i > at && /^ {0,2}\S/.test(l)); return k < 0 ? lines.length : k; };
-    const a1 = jobAt(J1);
-    const open = lines.findIndex((l, i) => i > a1 && i < endOf(a1) && (l === `      - name: ${S.name}` || l === `      - name: '${S.name}'` || l === `      - name: "${S.name}"`));
-    if (open < 0) return null;
-    const close = lines.findIndex((l, i) => i > open && (/^ {6}- /.test(l) || /^ {0,2}\S/.test(l)));
-    const cut = lines.slice(open, close);
+    const endOf = (ls, id) => { const at = ls.indexOf(`  ${id}:`); const k = ls.findIndex((l, i) => i > at && /^ {0,2}\S/.test(l)); return k < 0 ? ls.length : k; };
+    const open = lines.findIndex((l, i) => i > lines.indexOf(`  ${J1}:`) && l === `      - name: ${S}`);
+    if (!J2 || open < 0 || open > endOf(lines, J1)) return null;
+    const close = lines.findIndex((l, i) => i > open && /^ {0,6}\S/.test(l));
     const rest = [...lines.slice(0, open), ...lines.slice(close)];
-    const end2 = endOf(rest.indexOf(`  ${J2}:`));
-    return [...rest.slice(0, end2), ...cut, ...rest.slice(end2)].join('\n');
+    const end2 = endOf(rest, J2);
+    return [...rest.slice(0, end2), ...lines.slice(open, close), ...rest.slice(end2)].join('\n');
   })();
   const realTimeout = realMove && J2 && realMove.replace(new RegExp(`(\\n  ${J2}:\\n(?: {4}.*\\n)*? {4}timeout-minutes: )(\\d+)`), (m, p, n) => `${p}${Number(n) + 1}`);
 
   const props = (impl) => {
     const d = (head, job, base = BASE) => impl.delta(base, head, job);
-    const only = (r, names) => r.keep && r.steps.length === names.length && names.every((n, i) => r.steps[i].step === n);
-    const out = [];
+    const only = (r, names) => r.keep && r.steps.map((s) => s.step).join('|') === names.join('|');
+    const why = (r) => (r.steps[0] || {}).why || '';
+    const out = []; const arm = (id, ok, label) => out.push([id, !!ok, label]);
     const mv = d(V.move, 'x');
-    out.push([only(mv, ['Probe C']) && /moved here from job y/.test(mv.steps[0].why) && mv.steps[0].proofs.join() === gated('c'),
-      'a step moved from job y to job x keeps x\'s base and re-proves just that step, its proof command named']);
-    out.push([only(d(V.move, 'y'), []) && only(d(V.move, 'z'), []), 'the job the step left, and a job it never touched, keep their base and re-prove nothing']);
-    out.push([only(d(V.edit, 'x'), ['Probe A']) && /changed its run/.test(d(V.edit, 'x').steps[0].why), 'a step whose run: commands changed (a new --shard) is re-proved']);
-    out.push([only(d(V.added, 'x'), ['Probe E']) && /new/.test(d(V.added, 'x').steps[0].why), 'a new step is re-proved']);
-    out.push([only(d(V.comment, 'x'), []) && only(d(V.comment, 'y'), []), 'comment and blank lines are no change: the base holds and nothing is re-proved']);
-    out.push([only(d(V.reorder, 'x'), []), 'a step moved within its job re-proves nothing']);
-    out.push([!d(V.proofs, 'x').keep && !d(V.proofs, 'z').keep, 'HR_RELEASE_PROOFS (the top-level env:) changed beside a move: every job falls back']);
-    out.push([!d(V.trigger, 'x').keep && !d(V.trigger, 'y').keep, 'a trigger changed beside a move: every job falls back']);
-    out.push([!d(V.jobEnv, 'x').keep && only(d(V.jobEnv, 'y'), []), 'job x\'s own env: changed: x falls back, y keeps its base']);
-    out.push([!d(V.timeout, 'y').keep && only(d(V.timeout, 'x'), []), 'job y\'s timeout-minutes changed: y falls back, x keeps its base (another job\'s settings are that job\'s)']);
-    out.push([!d(V.stepIf, 'x').keep, 'a kept step\'s if: changed: the job falls back']);
-    out.push([!d(V.setup, 'x').keep, 'a setup step (setup-node\'s version) changed: the job falls back']);
-    out.push([!d(V.gateStep, 'x').keep && !d(V.gateStep, 'y').keep, 'the gate\'s own step moved: every job falls back']);
-    out.push([!d(BASE, 'w').keep && !d(V.move, 'x', 'jobs:\n  x:\n   bad\n').keep, 'a job not in the file, or a file that cannot be read step by step, falls back']);
+    arm('SM-1', only(mv, ['Probe C']) && why(mv) === 'moved here from job y' && mv.steps[0].proofs.join() === gated('c'), 'a step moved from job y to job x: x keeps its base and re-proves that step alone');
+    arm('SM-2', only(d(V.move, 'y'), []) && only(d(V.move, 'z'), []), 'the job it left, and a job it never touched, keep their base and re-prove nothing');
+    arm('SM-3', only(d(V.edit, 'x'), ['Probe A']) && /^changed/.test(why(d(V.edit, 'x'))), 'a step whose run: commands changed (a new --shard) is re-proved');
+    arm('SM-4', only(d(V.added, 'x'), ['Probe E']) && /^is new/.test(why(d(V.added, 'x'))), 'a new step is re-proved');
+    arm('SM-5', only(d(V.comment, 'x'), []) && only(d(V.comment, 'y'), []), 'comment and blank lines are no change');
+    for (const [id, head, label] of FRAME) arm(id, head !== V.move && ['x', 'y', 'z'].every((j) => !d(head, j).keep), `${label}, beside a move: every job falls back`);
+    arm('SM-6', !d(BASE, 'w').keep, 'a job not in the file falls back');
+    arm('SM-7', !d(V.move, 'x', 'jobs:\n  x:\n   bad\n').keep && !d(BASE.replace('    steps:\n', '    steps:\n\t- x\n'), 'x').keep, 'a file that cannot be read step by step falls back');
     /* the real file */
-    out.push([!!realMove && only(d(realMove, J2, real), [S.id]) && /moved here from job/.test(d(realMove, J2, real).steps[0].why),
-      `the real smoke.yml, its step "${S ? S.id : '?'}" moved from ${J1} to ${J2}: ${J2} re-proves just that step`]);
-    out.push([!!realMove && only(d(realMove, J1, real), []) && realJobs.slice(0, 6).every(([id]) => id === J1 || id === J2 || only(d(realMove, id, real), [])),
-      'the real smoke.yml: the job it left and the other jobs keep their base and re-prove nothing']);
-    out.push([only(d(real.replace(/\n/g, '\r\n'), J1, real), []), 'the real smoke.yml checked out with CRLF is no change']);
-    out.push([!!realTimeout && realTimeout !== realMove && !d(realTimeout, J2, real).keep && only(d(realTimeout, J1, real), []), `the real smoke.yml with ${J2}'s timeout-minutes raised too: ${J2} falls back, ${J1} does not`]);
-    /* the verdict: the gate's code, and smoke.yml untouched */
-    const v = (files, head = V.move) => impl.verdict({ files, job: 'x', read: () => ({ base: BASE, head }) });
-    out.push([v(['src/a.js']).keep && !v(['src/a.js']).steps.length, 'a diff that leaves smoke.yml alone keeps the base, nothing re-proved']);
-    out.push([only(v([WORKFLOW_PATH, 'src/a.js']), ['Probe C']), 'a diff with a step-only smoke.yml change keeps the base, its moved step re-proved']);
-    out.push([!v([WORKFLOW_PATH, 'tools/mutant-gate.mjs']).keep && !v(['tools/mutant-gate.mjs']).keep, 'a change to tools/mutant-gate.mjs falls back, with or without smoke.yml']);
-    out.push([v(['tools/lib/ci-history.mjs']).keep && only(v([WORKFLOW_PATH, 'tools/lib/guard-deps.mjs']), ['Probe C']), 'another tools/ file, the gate\'s libraries too, keeps the base (the range rules judge it)']);
-    /* the plan: only the moved step's command runs, in full; a command it cannot match word for word, by its guard */
-    const plan = { full: false, selected: {}, reprove: impl.reprove(impl.delta(BASE, V.move, 'x').steps) };
-    const c = impl.decide(gated('c'), plan); const a = impl.decide(gated('a'), plan);
-    out.push([c.run && c.inFull === true && /re-proved in full/.test(c.why), 'the moved step\'s proof runs, in full (no mutant scope)']);
-    out.push([!a.run && !impl.decide(gated('c', '--selftest'), plan).run, 'a proof of a step that did not move is still judged by the diff (skipped here), and so is another command of the moved guard']);
-    const shelly = { full: false, selected: {}, reprove: impl.reprove([{ step: 'Q', why: 'is new to this job', proofs: ['node tools/mutant-gate.mjs node tests/q.mjs --mutate --grep "a b"'] }]) };
-    out.push([impl.decide('node tools/mutant-gate.mjs node tests/q.mjs --mutate --grep a b', shelly).run, 'a moved command with quotes in it is matched by its guard']);
+    const onJ2 = realMove && d(realMove, J2, real);
+    arm('SM-8', onJ2 && only(onJ2, [S]) && why(onJ2) === `moved here from job ${J1}`, `the real smoke.yml, "${S}" moved from ${J1} to ${J2}: ${J2} re-proves that step alone`);
+    arm('SM-9', realMove && realJobs.filter(([id], i) => id !== J2 && (id === J1 || i % 7 === 0)).every(([id]) => only(d(realMove, id, real), [])), 'the real smoke.yml: the job it left and the others keep their base and re-prove nothing');
+    arm('SM-10', only(d(real.replace(/\n/g, '\r\n'), J1, real), []), 'the real smoke.yml checked out with CRLF is no change');
+    arm('SM-11', realTimeout && realTimeout !== realMove && [J1, J2].every((j) => !d(realTimeout, j, real).keep), `the real smoke.yml with ${J2}'s timeout-minutes raised too: every job falls back`);
+    /* the verdict */
+    const v = (files) => impl.verdict({ files, job: 'x', read: () => ({ base: BASE, head: V.move }) });
+    arm('SM-12', only(v(['src/a.js']), []), 'a diff that leaves smoke.yml alone keeps the base, nothing re-proved');
+    arm('SM-13', only(v([WORKFLOW_PATH, 'src/a.js']), ['Probe C']), 'a step-only smoke.yml change keeps the base, its moved step re-proved');
+    arm('SM-14', !v([WORKFLOW_PATH, SELF]).keep && !v([SELF]).keep, 'an edit of the gate itself falls back, with or without smoke.yml');
+    /* the plan */
+    const plan = { full: false, selected: { 'tests/c.mjs': 'x' }, reprove: impl.reprove(mv.steps) };
+    const c = impl.decide(gated('c'), plan);
+    arm('SM-15', c.run && c.inFull === true, 'the moved step\'s proof runs in full (no mutant scope), though the diff touches its guard too');
+    const other = impl.decide(gated('c', '--selftest'), plan);
+    arm('SM-16', !impl.decide(gated('a'), plan).run && other.run && !other.inFull, 'a step that did not move, and another command of the moved guard, are still judged by the diff');
     return out;
   };
   const realImpl = { delta: workflowDelta, verdict: greenVerdict, reprove: reproveOf, decide };
   let bad = 0;
-  for (const [ok, label] of props(realImpl)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} steps moved: ${label}`); }
-  const keepIf = (rx) => ({ delta: (a, b, j) => { const r = workflowDelta(a, b, j); return !r.keep && rx.test(r.why) ? { keep: true, why: 'mutant', steps: [] } : r; } });
-  const dropSteps = (rx) => ({ delta: (a, b, j) => { const r = workflowDelta(a, b, j); return { ...r, steps: r.steps.filter((s) => !rx.test(s.why)) }; } });
-  for (const [label, over] of [
-    ['the base is always kept (anything in smoke.yml counts as a step move)', { delta: (a, b, j) => ({ ...workflowDelta(a, b, j), keep: true }) }],
-    ['a moved step is never re-proved', { delta: (a, b, j) => ({ ...workflowDelta(a, b, j), steps: [] }) }],
-    ['a step moved to another job is no change (steps matched by name in any job)', dropSteps(/^moved/)],
-    ['a changed run: is no change', dropSteps(/^changed/)],
-    ['a new step is no change', dropSteps(/new/)],
-    ['any smoke.yml change falls back (the rule before 2026-11-29)', { verdict: (o) => (o.files.includes(WORKFLOW_PATH) ? { keep: false, why: 'mutant', steps: [] } : greenVerdict(o)) }],
-    ['a comment, or a step moved within its job, is a change', { delta: (a, b, j) => { const r = workflowDelta(a, b, j); return r.keep && !r.steps.length && a.replace(/\r\n/g, '\n') !== b.replace(/\r\n/g, '\n') ? { keep: false, why: 'mutant', steps: [] } : r; } }],
-    ['smoke.yml outside its jobs is ignored (triggers, env:, HR_RELEASE_PROOFS)', keepIf(/outside its jobs/)],
-    ['a job\'s own settings are ignored (timeout-minutes, env:)', keepIf(/own settings/)],
-    ['a setup step is ignored', keepIf(/setup step/)],
-    ['a kept step\'s other keys are ignored (if:, env:)', keepIf(/more than its run/)],
-    ['the gate\'s own step is ignored', keepIf(/gate's own step/)],
-    ['a file that cannot be read step by step keeps the base', keepIf(/could not be read|not in smoke\.yml|new since/)],
-    ['another job\'s settings send this job back too', { delta: (a, b, j) => {
-      const r = workflowDelta(a, b, j);
-      if (!r.keep) return r;
-      const x = workflowShape(a).jobs; const y = workflowShape(b).jobs;
-      const moved = [...y].find(([k, jb]) => x.has(k) && x.get(k).settings.join('\n') !== jb.settings.join('\n'));
-      return moved ? { keep: false, why: `job ${moved[0]}'s own settings changed`, steps: [] } : r;
-    } }],
-    ['the gate\'s own code is ignored', { verdict: (o) => greenVerdict({ ...o, files: o.files.filter((f) => !GATE_OWN.includes(f)) }) }],
-    ['every tools/ edit sends the job back', { verdict: (o) => (o.files.some((f) => f.startsWith('tools/')) ? { keep: false, why: 'mutant', steps: [] } : greenVerdict(o)) }],
-    ['a re-proved step runs only the mutants the diff touched', { decide: (cmd, p, g) => { const r = decide(cmd, p, g); return r.inFull ? { ...r, inFull: false } : r; } }],
-    ['a moved step re-proves its whole job', { reprove: (s) => { const r = reproveOf(s); return s.length ? { ...r, guards: { ...r.guards, '*': 'mutant' } } : r; } }],
-    ['a moved command is matched by its guard (every command of it re-runs)', { reprove: (s) => { const r = reproveOf(s); return { ...r, guards: { ...r.guards, ...Object.fromEntries(Object.entries(r.commands).map(([k, w]) => [guardFileOf(k), w])) } }; } }],
-    ['a moved command with quotes in it is never matched', { reprove: (s) => ({ ...reproveOf(s), guards: {} }) }],
+  for (const [id, ok, label] of props(realImpl)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} steps moved: ${id} ${label}`); }
+  const after = (f) => ({ delta: (a, b, j) => { const r = workflowDelta(a, b, j); return f(r, a, b) || r; } });
+  const keepIf = (rx) => after((r) => !r.keep && rx.test(r.why) && { keep: true, why: 'mutant', steps: [] });
+  const dropSteps = (rx) => after((r) => ({ ...r, steps: r.steps.filter((s) => !rx.test(s.why)) }));
+  /* blind to one part of the file: it is taken out of both ends before they are compared */
+  const blind = (strip) => ({ delta: (a, b, j) => workflowDelta(strip(a), strip(b), j) });
+  /* A mutant is caught by the arm named for it, never by a crash (tests/_mutant-verdict.mjs's rule): a throw is the harness's. */
+  for (const [id, label, over] of [
+    ['F-timeout', 'the base is always kept', after((r) => ({ ...r, keep: true }))],
+    ['SM-1', 'a moved step is never re-proved', after((r) => ({ ...r, steps: [] }))],
+    ['SM-8', 'a moved step is never re-proved (the real file)', after((r) => ({ ...r, steps: [] }))],
+    ['SM-1', 'a step that only changed jobs is no change', dropSteps(/^moved/)],
+    ['SM-3', 'a changed run: is no change', dropSteps(/^changed/)],
+    ['SM-4', 'a new step is no change', dropSteps(/^is new/)],
+    ['SM-2', 'every job re-proves the moved step', { delta: (a, b, j) => { const r = workflowDelta(a, b, j); return r.keep ? { ...r, steps: workflowDelta(a, b, 'x').steps } : r; } }],
+    ['SM-13', 'any smoke.yml change falls back (the rule before 2026-11-29)', { verdict: (o) => (o.files.includes(WORKFLOW_PATH) ? { keep: false, why: 'mutant', steps: [] } : greenVerdict(o)) }],
+    ['SM-5', 'a comment is a change', after((r, a, b) => r.keep && !r.steps.length && a !== b && { keep: false, why: 'mutant', steps: [] })],
+    ['SM-9', 'a job that lost a step falls back', after((r, a, b) => r.keep && !r.steps.length && a !== b && { keep: false, why: 'mutant', steps: [] })],
+    ['SM-10', 'CRLF is a change', after((r, a, b) => /\r/.test(b) && { keep: false, why: 'mutant', steps: [] })],
+    ['SM-11', 'a timeout is ignored (the real file)', blind((t) => t.replace(/^ {4}timeout-minutes:.*\n/gm, ''))],
+    ...FRAME.map(([f, , label, strip]) => [f, `ignored: ${label}`, strip ? blind(strip) : keepIf(/another order/)]),
+    ['SM-6', 'a job not in the file keeps a base', keepIf(/is not in smoke\.yml/)],
+    ['SM-7', 'an unreadable file keeps the base', keepIf(/could not be read/)],
+    ['SM-12', 'a diff that leaves smoke.yml alone falls back', { verdict: (o) => (o.files.includes(WORKFLOW_PATH) ? greenVerdict(o) : { keep: false, why: 'mutant', steps: [] }) }],
+    ['SM-14', 'an edit of the gate itself is ignored', { verdict: (o) => greenVerdict({ ...o, files: o.files.filter((f) => !GATE_OWN.includes(f)) }) }],
+    ['SM-15', 'a re-proved step runs only the mutants the diff touched', { decide: (cmd, p, g) => ({ ...decide(cmd, p, g), inFull: false }) }],
+    ['SM-15', 'the moved steps never reach the plan', { reprove: () => reproveOf([]) }],
+    ['SM-16', 'a moved step re-proves its whole job', { decide: (cmd, p, g) => (Object.keys(p.reprove.commands).length ? { run: true, inFull: true, why: 'mutant' } : decide(cmd, p, g)) }],
   ]) {
-    let caught;
-    try { caught = props({ ...realImpl, ...over }).some(([ok]) => !ok); } catch { caught = true; }
+    let red = null; let threw = null;
+    try { red = props({ ...realImpl, ...over }).filter(([, ok]) => !ok).map(([x]) => x); } catch (e) { threw = e.message; }
+    const caught = !!red && red.includes(id);
     if (!caught) bad++;
-    console.log(`  ${caught ? 'CAUGHT  ' : 'MISSED  '} steps-moved mutant: ${label}`);
+    console.log(`  ${caught ? 'CAUGHT  ' : threw ? 'HARNESS ' : 'MISSED  '} steps-moved mutant: ${label} (${threw || `${id}${caught ? '' : ` held; red: ${red.join(', ') || 'none'}`}`})`);
   }
   return bad;
 }
@@ -1734,13 +1703,13 @@ async function selftest() {
       ['STEPS MOVED: an env: line beside the move sends the job back to the merge base', () => {
         const s = stepRepo();
         const c = s.run(s.env, s.probeC);
-        return c.status === 0 && /which is no base: smoke\.yml changed outside its jobs \(env:\)/.test(c.stdout)
+        return c.status === 0 && /which is no base: more than guard steps changed in smoke\.yml \("HR_PG_MAX_CONNECTIONS/.test(c.stdout)
           && c.stdout.includes(`base ${s.root.slice(0, 9)} (the merge base`) && !/re-proved in full/.test(c.stdout);
       }],
       ['STEPS MOVED: an edit of the gate itself sends the job back to the merge base', () => {
         const s = stepRepo();
         const c = s.run(s.gate, s.probeC);
-        return c.status === 0 && /which is no base: the gate's own code changed since \(tools\/mutant-gate\.mjs\)/.test(c.stdout)
+        return c.status === 0 && /which is no base: the gate itself changed since \(tools\/mutant-gate\.mjs\)/.test(c.stdout)
           && c.stdout.includes(`base ${s.root.slice(0, 9)} (the merge base`) && !/re-proved in full/.test(c.stdout);
       }],
       ['STEPS MOVED: a nightly that left the job red still runs every proof in it', () => {
@@ -1757,7 +1726,7 @@ async function selftest() {
         const s = stepRepo();
         const c = s.run(s.move, s.probeC, { rehearse: true }); const e = s.run(s.env, s.probeC, { rehearse: true });
         return c.status === 6 && /a rehearsal of/.test(c.stdout) && /RUN .*re-proved in full: smoke\.yml's step "Probe C"/.test(c.stdout)
-          && e.status === 0 && /a push would not keep a green base at .* for job x: smoke\.yml changed outside its jobs/.test(e.stdout) && /SKIP/.test(e.stdout);
+          && e.status === 0 && /a push would not keep a green base at .* for job x: more than guard steps changed in smoke\.yml/.test(e.stdout) && /SKIP/.test(e.stdout);
       }],
     ];
     for (const [label, fn] of checks) {

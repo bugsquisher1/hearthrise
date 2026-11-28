@@ -42,7 +42,7 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:f
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { loadCore, makeReport, ROOT, hero, mon, world, instOf, subStep, T0 } from './fixtures/h1.js';
+import { loadCore, makeReport, ROOT, hero, mon, world, instOf, subStep, T0, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { supplySession } from './fixtures/h4.js';
 import { loadPlay } from './fixtures/play-ground.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
@@ -1377,7 +1377,7 @@ if (process.argv.includes('--print')) {
 }
 const R = makeReport('hunt-core/conditions');
 const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-for (const [cn, fn] of Object.entries(cases)) {
+if (!inMutantBatch()) for (const [cn, fn] of Object.entries(cases)) {
   if (only.length && !only.includes(cn)) continue;
   let why = null;
   CUR = M;
@@ -1385,18 +1385,18 @@ for (const [cn, fn] of Object.entries(cases)) {
   R.ok(!why, cn + ': ' + why);
 }
 if (!process.argv.includes('--no-mutate')) {
-  for (const mu of mutants) {
-    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-    if (only.length && !only.includes(mu.case)) continue;
+  for (const mu of mutants) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+  const named = mutants.filter((mu) => cases[mu.case] && (!only.length || only.includes(mu.case)));
+  /* a batch of mutants a process (fixtures/h1.js judgeMutants): one process held every planted copy, 1,254 MB at exit */
+  const whys = await judgeMutants(named, async (mu) => {
     const p = plant(mu.edits);
     try {
-      let why = null;
       const PM = await load(p.root);
       CUR = PM;
-      try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
+      return cases[mu.case](PM);
     } finally { p.done(); }
-  }
+  });
+  named.forEach((mu, i) => R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i])));
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');
 R.finish();

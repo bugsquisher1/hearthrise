@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { hero, mon, world, groundRow, gridOf, loadCore, plant, makeReport, ROOT } from './h1.js';
+import { hero, mon, world, groundRow, gridOf, loadCore, plant, makeReport, ROOT, judgeMutants, inMutantBatch } from './h1.js';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
@@ -32,29 +32,32 @@ async function loadCore2(root) {
     `--only a,b` runs just those cases and their mutants (a local re-run; CI runs everything). */
 export async function suite(name, cases, mutants) {
   const R = makeReport(name);
-  const M = await loadCore2(ROOT);
   const at = process.argv.indexOf('--only');
   const only = at > 0 ? new Set(String(process.argv[at + 1] || '').split(',')) : null;
-  for (const [cn, fn] of Object.entries(cases)) {
-    if (only && !only.has(cn)) continue;
-    let why = null;
-    try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-    R.ok(!why, cn + ': ' + why);
+  if (!inMutantBatch()) {
+    const M = await loadCore2(ROOT);
+    for (const [cn, fn] of Object.entries(cases)) {
+      if (only && !only.has(cn)) continue;
+      let why = null;
+      try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+      R.ok(!why, cn + ': ' + why);
+    }
   }
-  for (const mu of mutants || []) {
-    if (only && !only.has(mu.case)) continue;
-    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
+  const picked = (mutants || []).filter((mu) => !only || only.has(mu.case));
+  for (const mu of picked) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+  const named = picked.filter((mu) => cases[mu.case]);
+  /* a batch of them a process (fixtures/h1.js judgeMutants): each planted copy is a module graph that never unloads */
+  const whys = await judgeMutants(named, async (mu) => {
     /* src/render too: src/data/hunt-tutorial.js reads its words through src/render/player-text.js, and a copy without it made every mutant
        here throw "Cannot find module", so each was "caught" by the missing file, never by its rule (lane/d-temper-uniques found it) */
     const p = plant(mu.edits, ['src/render']);
-    try {
-      let why = null;
-      try { why = cases[mu.case](await loadCore2(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      /* H2_WHY=1 prints what each mutant tripped, so a mutant caught only by a syntax error shows. */
-      if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-    } finally { p.done(); }
-  }
+    try { return cases[mu.case](await loadCore2(p.root)); } finally { p.done(); }
+  });
+  named.forEach((mu, i) => {
+    /* H2_WHY=1 prints what each mutant tripped, so a mutant caught only by a syntax error shows. */
+    if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + whys[i]);
+    R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i]));
+  });
   const ran = (n) => !only || only.has(n);
   if (!R.fails.length) console.log('  ' + Object.keys(cases).filter(ran).length + ' cases, ' + (mutants || []).filter((mu) => ran(mu.case)).length + ' mutants caught');
   R.finish();

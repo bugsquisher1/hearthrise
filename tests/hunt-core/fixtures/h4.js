@@ -1,6 +1,6 @@
 // tests/hunt-core/fixtures/h4.js — lane H4's fixtures: a hero with a supply session, a fight to cast into,
 // and a sub-step driver for consumables.js / abilities.js. Built on fixtures/h1.js (spec §1.6).
-import { hero, mon, world, instOf, subStep, loadCore, plant, makeReport, ROOT } from './h1.js';
+import { hero, mon, world, instOf, subStep, loadCore, plant, makeReport, ROOT, judgeMutants, inMutantBatch } from './h1.js';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
 
@@ -78,23 +78,24 @@ export async function loadData(M) {
 export async function suiteH4(name, cases, mutants) {
   const R = makeReport(name);
   const load = async (root) => { const M = await loadCore(root); return Object.assign(M, await loadData(M)); };
-  const M = await load(ROOT);
-  for (const [cn, fn] of Object.entries(cases)) {
-    let why = null;
-    /* a case may be async (one that plants rows into its own copy of the tree under test: abilities.mjs hero-area-shapes) */
-    try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-    R.ok(!why, cn + ': ' + why);
+  if (!inMutantBatch()) {
+    const M = await load(ROOT);
+    for (const [cn, fn] of Object.entries(cases)) {
+      let why = null;
+      /* a case may be async (one that plants rows into its own copy of the tree under test: abilities.mjs hero-area-shapes) */
+      try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+      R.ok(!why, cn + ': ' + why);
+    }
   }
-  for (const mu of mutants || []) {
-    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
+  for (const mu of mutants || []) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+  const named = (mutants || []).filter((mu) => cases[mu.case]);
+  /* a batch of them a process (fixtures/h1.js judgeMutants): each planted copy is a module graph that never unloads */
+  const whys = await judgeMutants(named, async (mu) => {
     /* `also`: more trees the mutant needs (a shell mutant plants the whole src: fixtures/h1.js plant) */
     const p = plant(mu.edits, mu.also || []);
-    try {
-      let why = null;
-      try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-      R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-    } finally { p.done(); }
-  }
+    try { return await cases[mu.case](await load(p.root)); } finally { p.done(); }
+  });
+  named.forEach((mu, i) => R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i])));
   if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');
   R.finish();
 }

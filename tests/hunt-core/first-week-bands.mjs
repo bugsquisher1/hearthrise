@@ -43,7 +43,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { makeReport, ROOT, plant, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
@@ -407,23 +407,25 @@ const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixt
 let PLAY = await loadPlay(ROOT);
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
 for (const k of ONLY || []) R.ok(!!cases[k], '--only names no case ' + k);
-for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
+if (!inMutantBatch()) for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
   let why = null;
   try { why = fn(RUN); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
-for (const mu of PICKED) {
-  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
+for (const mu of PICKED) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+const NAMED = PICKED.filter((mu) => cases[mu.case]);
+/* eight mutants a process (fixtures/h1.js judgeMutants): each copy carries the play trees, ~35 MB, and one process held all 27 at 954 MB */
+const WHYS = await judgeMutants(NAMED, async (mu) => {
   const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
-  try {
-    let why = null;
-    const home = PLAY;
-    try { PLAY = await loadPlay(p.root); LINES = await linesAt(p.root); why = cases[mu.case](await loadCellRunner(p.root)); } catch (e) { why = 'threw ' + e.message; } finally { PLAY = home; LINES = await linesAt(ROOT); }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-    if (why && mu.expect) R.ok(why.startsWith(mu.expect), 'mutant "' + mu.name + '" was caught by the wrong line: ' + why.slice(0, 160));
-    if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
-  } finally { p.done(); }
-}
+  const home = PLAY;
+  try { PLAY = await loadPlay(p.root); LINES = await linesAt(p.root); return cases[mu.case](await loadCellRunner(p.root)); } finally { PLAY = home; LINES = await linesAt(ROOT); p.done(); }
+}, { per: 8 });
+NAMED.forEach((mu, i) => {
+  const why = WHYS[i];
+  R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
+  if (why && mu.expect) R.ok(String(why).startsWith(mu.expect), 'mutant "' + mu.name + '" was caught by the wrong line: ' + String(why).slice(0, 160));
+  if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
+});
 if (!R.fails.length) console.log('  ' + (ONLY ? ONLY.length : Object.keys(cases).length) + ' cases (' + SOLO.join(', ') + ' alone; ' + PAIR + ' in a party), ' + PICKED.length + ' mutants caught');
 R.finish();

@@ -102,7 +102,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
-import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
+import { loadCore, plant, makeReport, ROOT, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { H, E, inst2, sc2, world } from './fixtures/h2.js';
 import { supplySession } from './fixtures/h4.js';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
@@ -1501,22 +1501,27 @@ const mutants = [
 ];
 
 const R = makeReport('signature-rules');
-const M0 = await load(ROOT);
-for (const [cn, fn] of Object.entries(cases)) {
-  let why = null;
-  try { why = await fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-  R.ok(!why, cn + ': ' + why);
-}
-if (!process.argv.includes('--no-mutants')) for (const mu of mutants) {
-  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-  const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures']);
-  try {
+if (!inMutantBatch()) {
+  const M0 = await load(ROOT);
+  for (const [cn, fn] of Object.entries(cases)) {
     let why = null;
-    try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
+    try { why = await fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    R.ok(!why, cn + ': ' + why);
+  }
+}
+if (!process.argv.includes('--no-mutants')) {
+  for (const mu of mutants) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+  const named = mutants.filter((mu) => cases[mu.case]);
+  /* a batch of mutants a process (fixtures/h1.js judgeMutants): one process held every planted copy, 1,120 MB after its last full GC */
+  const whys = await judgeMutants(named, async (mu) => {
+    const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures']);
+    try { return await cases[mu.case](await load(p.root)); } finally { p.done(); }
+  });
+  named.forEach((mu, i) => {
     /* SIG_WHY=1 prints what each mutant tripped, so a mutant caught only by a throw shows */
-    if (process.env.SIG_WHY) console.log('  mutant "' + mu.name + '" -> ' + String(why).slice(0, 160));
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-  } finally { p.done(); }
+    if (process.env.SIG_WHY) console.log('  mutant "' + mu.name + '" -> ' + String(whys[i]).slice(0, 160));
+    R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i]));
+  });
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');
 R.finish();

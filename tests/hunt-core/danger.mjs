@@ -47,7 +47,7 @@
 //   mutants each rule planted back, each caught by its own case.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, loadCore, plant, makeReport, member, groundRow, gridOf, world, hero, instOf, subStep, T0 } from './fixtures/h1.js';
+import { ROOT, loadCore, plant, makeReport, member, groundRow, gridOf, world, hero, instOf, subStep, T0, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
@@ -934,19 +934,19 @@ const MUTANTS = [
 ];
 
 const R = makeReport('hunt-core/danger');
-const M = await load(ROOT);
-for (const [cn, fn] of Object.entries(CASES)) {
-  let why = null;
-  try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-  R.ok(!why, cn + ': ' + why);
-}
-for (const mu of MUTANTS) {
-  const p = plant(mu.edits);
-  try {
+if (!inMutantBatch()) {
+  const M = await load(ROOT);
+  for (const [cn, fn] of Object.entries(CASES)) {
     let why = null;
-    try { why = CASES[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-  } finally { p.done(); }
+    try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    R.ok(!why, cn + ': ' + why);
+  }
 }
+/* a batch of mutants a process (fixtures/h1.js judgeMutants): one process held every planted copy, 1,035 MB at exit */
+const whys = await judgeMutants(MUTANTS, async (mu) => {
+  const p = plant(mu.edits);
+  try { return CASES[mu.case](await load(p.root)); } finally { p.done(); }
+});
+MUTANTS.forEach((mu, i) => R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i])));
 if (!R.fails.length) console.log('  ' + Object.keys(CASES).length + ' cases, ' + MUTANTS.length + ' mutants caught');
 R.finish();

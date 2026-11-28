@@ -157,9 +157,11 @@ const ROWS3 = [
   ['#38 Drowned Signet (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-signet'], ['Hask\'s Ford', 'b3-hask-mixed', 'b3-hask-signet']],
   ['#42 Night Carter\'s Boots (tank)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-boots'], null],
   ['#43 Bull\'s Tooth (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-tooth'], ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b3-roost-tooth']],
-  ['#25 The Cold Candle (mage, coin)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-candle'], null],
-  ['#27 Riverstone Earrings (healer, coin)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-riverstone'], null],
-  ['#33 Teamster\'s Mitts (tank, coin)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-mitts'], null],
+  /* (the coin pieces at 4 seeds, against the plain four's own 4-seed reports: coin is a mean over seeds, never paired, so both arms read
+     the same 4 seeds) */
+  ['#25 The Cold Candle (mage, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-mixed4', 'b3-muster-candle'], null],
+  ['#27 Riverstone Earrings (healer, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-mixed4', 'b3-muster-riverstone'], null],
+  ['#33 Teamster\'s Mitts (tank, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-tank4', 'b3-muster-mitts'], null],
 ];
 /* THE SHAPES TRIED on a batch-3 row that missed (a temporary id on a scratch copy, b3v-*): [label, plain, worn] */
 const VARIANTS3 = [
@@ -168,7 +170,8 @@ const VARIANTS3 = [
   ['#42 Night Carter\'s Boots, a pull: its pack Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-boots-weak'],
   ['#42 Night Carter\'s Boots, a pull: its pack Chilled 8 s (Muster)', 'b3-muster-tank', 'b3v-muster-boots-chill8'],
   ['#31 The Cellar Key, every fifth death: a shield of 3% of max health on each hero of the party (Muster)', 'b3-muster-mixed', 'b3v-muster-key-shield'],
-  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health (Muster)', 'b3-muster-mixed', 'b3v-muster-thrower-shield'],
+  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health (Muster; the new shell breaks too, so it never stops)', 'b3-muster-mixed', 'b3v-muster-thrower-shield'],
+  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health, once every 30 s a hero (Muster)', 'b3-muster-mixed', 'b3v-muster-thrower-shield30'],
 ];
 if (BATCH === '3') {
   const coin = (p, s) => { const d = (f) => Math.round(f(s) - f(p)); return 'store ' + sgn(d((c) => c.gold.storePerHeroH.mean)).replace('.0', '') + ', runes ' + sgn(d((c) => c.kit.charge)).replace('.0', '') + ', drink ' + sgn(d((c) => c.kit.drink)).replace('.0', ''); };

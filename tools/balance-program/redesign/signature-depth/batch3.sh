@@ -62,7 +62,10 @@ run b3-slake-bracers     the_slake 57 $X --signatures -,-,-,greened_bracers
 run b3-muster-lone       muster_barrows 60 sword
 run b3-muster-waders     muster_barrows 60 sword --signatures slake_waders
 # (the coin pieces, at 4 seeds: their rule moves the supply bill, not the size bar (15 "Decision: the scale a Signature is sized on": coin
-#  is the market's), so they read their coin a hero-hour beside pace; paired with the plain four's first 4 seeds)
+#  is the market's), so they read their coin a hero-hour beside pace, against the plain fours' own 4 seeds: coin is a mean over seeds,
+#  never paired, so both arms read the same seeds)
+SEEDS=4 run b3-muster-mixed4     muster_barrows 60 $X
+SEEDS=4 run b3-muster-tank4      muster_barrows 60 $T
 SEEDS=4 run b3-muster-candle     muster_barrows 60 $X --signatures -,-,the_cold_candle,-
 SEEDS=4 run b3-muster-riverstone muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
 SEEDS=4 run b3-muster-mitts      muster_barrows 60 $T --signatures teamsters_mitts,-,-,-

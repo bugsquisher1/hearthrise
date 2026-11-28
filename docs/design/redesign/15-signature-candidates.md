@@ -273,6 +273,36 @@ The lucky four holds 692.7 of Muster's 700, so the ground's top may hold this re
 
 **A finding for batch 3: a rule that pays on a kill reads under.** Five kill-keyed shapes were read and none reached the band: the Blade's reset per kill, the Saber's free cast on a kill (2.2) and its Blunted on a kill (1.0), the Coal Runner's Bow (-2.2) and the Hall Fire Wand's burst (4.1). A kill lands as a pull thins. Batch 3's kill-keyed rows (#22, #31, #33) read their moments first (`moments.mjs`), before 12 seeds are spent on them.
 
+## Batch 3, measured (systems, lane/signatures-batch-3, 2026-11-27)
+
+**How it plays:** fifteen more Signatures work in the fight engine for a hero that wears one. Players still see none (`SIGNATURE_RULES.live` false). Each is reaction rows on the shared pieces plus these new general ones, and two rules that are no reaction are read where they act:
+
+| Piece | What it is | First used by | Later rows that can reuse it |
+|---|---|---|---|
+| A pull begins | a moment when a pack turns on the party (`pull-cycle.js` startPull), the pack its monsters | #42 | any pull-start rule |
+| A moment's monsters | a `status` lands on the monsters a moment names (`list`): a pull's pack, the monsters a Challenge took | #42, #1 | |
+| A rune family | the moment's move spends a rune of that family (`family`) | #24, #27 | every rune Signature |
+| Single target, boss, alone | a swing or a one-enemy move, a boss monster, no other hero of the wearer's side in the world | #43, #38, #22 | |
+| Once every N moments | the moments that pass a row's filters, counted on the hero's cooldowns; the row works on each Nth (`every`). A chance with no dice | #31 | any "a 20% chance" row |
+| Where it lands | a heal on the moment's hero or the party, mana on the moment's hero as a share of the heal, a boon on the wearer or the party (`to`) | #26, #31, #27, #20, #38 | |
+| A rune saved | every Nth cast of a family's spell pays no rune (`saves`, `abilities.js` fire) | #25 | |
+| A raised stack cap | the wearer's stacks of a status land past its cap (`stackPlus`, `status.js`) | #29 | |
+| Steeped | a status on Kindled's key: the next Greater Mend raised | #20 | |
+
+**The pick: 15 of the 24.** Batch 3 is the reaction rows. The other nine need pieces that are no reaction, so they go to batch 4:
+
+| Left for batch 4 | The piece it needs |
+|---|---|
+| #34 Sergeant's Sash, #35 Gatekeeper's Plate | a standing aura: monsters within r of the wearer deal less, allies within r regenerate more mana |
+| #45 Convoy Bell, #46 Lead Rein | the same standing piece, held while the partner is in the party |
+| #32 Ledger Ring, #37 Lychgate Leggings, #44 Pyre Priest's Hood | a cast that costs no mana, or costs health |
+| #40 Hearth Mason's Cloak | a remains share on the drop roller (lane/drop-formula's roller, `13` N-9 and N-11) |
+| #41 Brood Bracers | a design call first. The reference ranger shoots store arrows bought a shot, so "returns to your quiver" is a refund or a minted arrow (`13` N-14) |
+
+With the support's 8, #8, #30, Parry and Gash, batch 4 is 21, one over a batch. Power Strike has no Signature in the pool, so CC-5 goes red on it once Signatures are live. Undertow is cut in `23` but is still a live move in `abilities.js`.
+
+BATCH3_TABLE_OWED
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
@@ -402,12 +432,12 @@ Note: A healer that adds damage. With Lasting Circle it starts on the first tick
 **19. Lock-Keeper's Chain** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
 A hero near fall-back: Spring Tide is ready again (once every 30 s)
 Best for: Healer
-Note: The big heal comes back when it's needed. Works with every Spring Tide branch, best with Turning Tide. (Batch 3, 2026-11-27: the mana rule was cut in batch 2 and the name changed, since the Tower's Gold lock already holds the Passing-Bell Hammer.)
+Note: The big heal comes back when it's needed. Works with every Spring Tide branch, best with Turning Tide. (Batch 3, 2026-11-27: the mana rule was cut in batch 2 and the name changed, since the Tower's Gold lock already holds the Passing-Bell Hammer. 12.0 (2.7) pace steps on Muster, the Slake 3.3 (1.7): in band, the spread holds.)
 
 **20. Greened Bracers** · Gloves · Drops from: The Slake, Greened Pikeman
 Green Sickness: your next Greater Mend heals 30% more
 Best for: Healer
-Note: Offense that pays for heals. Spent on the next Greater Mend, kept 30 s. (Batch 3, 2026-11-27: the mana rule was cut in batch 2. Steeped is Kindled's key, a hero's next cast raised.)
+Note: Offense that pays for heals. Spent on the next Greater Mend, kept 30 s. (Batch 3, 2026-11-27: the mana rule was cut in batch 2. Steeped is Kindled's key, a hero's next cast raised. 7.2 (2.8) pace steps on Muster, the Slake 5.0 (1.6): in band, the spread holds within its se.)
 
 **21. Drover's Hat** · Helmet · Drops from: Ox Road, Drover
 Shields you cast return 25% of the damage they absorb to the attacker
@@ -428,7 +458,7 @@ Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, b
 **24. Stoker's Ring** · Ring · Drops from: Pyre Field, Stoker
 Fire rune spells vs a chilled target: +20% damage
 Best for: Mage, Ranger, Melee (sword)
-Note: Ice then fire. Makes a party want both.
+Note: Ice then fire. Makes a party want both. (Batch 3, 2026-11-27: played as a second hit of 20% a sub-step later. 0.2 (2.2) pace steps on Muster. The mage's Fire hits seldom find a chilled monster, so the echo is about 0.5% of its damage. Dark.)
 
 **25. The Cold Candle** · Necklace · Drops from: Keeper Dunn
 Ice rune spells: every third one uses no rune
@@ -448,12 +478,12 @@ Note: Keeps the Mage and the healer going on long hunts. A coin piece: fewer dri
 **28. Vault Leech Ring** · Ring · Drops from: Unmarked Catacombs, Vault Leech
 Poison rune spells: when a monster with their Sickness dies, the Sickness moves to the nearest monster
 Best for: Healer
-Note: Green Sickness is the only Poison rune spell that gives Sickness. The support's Lye spends one too, but it gives Weakened. Best with Single Dose.
+Note: Green Sickness is the only Poison rune spell that gives Sickness. The support's Lye spends one too, but it gives Weakened. Best with Single Dose. (Batch 3, 2026-11-27: -1.3 (3.4) pace steps on Muster. Dark.)
 
 **29. Fledgling Claw** · Necklace · Drops from: Wyvern Roost, Wyvern Fledgling
 Rupture rune spells: Bleed on the target can stack to 6 instead of 5
 Best for: Melee, axes
-Note: Rend spends a Rupture rune, and Gash will too (wave 3). The cap counts for both.
+Note: Rend spends a Rupture rune, and Gash will too (wave 3). The cap counts for both. (Batch 3, 2026-11-27: the wearer's own Bleeds land a sixth stack, any other source stops at five. The axe four on Muster played the identical hunt, 0.0 (0.0): its Bleed never stands at five stacks on one monster, so the rule has no moment. Re-read once Gash lays Bleed too. Dark.)
 
 **30. Raft Builder's Earrings** · Earrings · Drops from: The Tower, Hearth Chest (Silver lock)
 Storm rune spells: the mana they return also goes to the party member lowest on mana
@@ -508,7 +538,7 @@ Note: Lets a healer run low on purpose.
 **38. Drowned Signet** · Ring · Drops from: Captain Hask
 Target boss below 25% health: +15% damage for you and your party for 10s (once per boss)
 Best for: Melee, Ranger
-Note: Hask hits harder below a quarter. This ends him first.
+Note: Hask hits harder below a quarter. This ends him first. (Batch 3, 2026-11-27: Emboldened at 1.5 times its row, on every hero of the party, once a boss. Captain Hask is Muster's boss, about 7 kills an hour for the reference four, so the boon runs about 70 s an hour: 2.6 (3.4) pace steps. Its cell is the Captain's own fight, which the harness does not play. Dark.)
 
 ## Loot and economy
 
@@ -532,12 +562,12 @@ Note: Cuts the arrow bill on long hunts.
 **42. Night Carter's Boots** · Boots · Drops from: Unmarked Catacombs, Night Carter
 Pull start: every monster in the pull is Chilled for 3s
 Best for: Tank, any
-Note: The tank gets set up before the first swing. It lands before Frost Slam or Hoarfrost can, the one moment no other Chill covers.
+Note: The tank gets set up before the first swing. It lands before Frost Slam or Hoarfrost can, the one moment no other Chill covers. (Batch 3, 2026-11-27: -1.9 (1.8) pace steps on Muster. The pack walks to the tank in its first seconds and Chill slows swings, not steps, so the 3 s are mostly spent before the first blow. Dark.)
 
 **43. Bull's Tooth** · Earrings · Drops from: Wyvern Roost, Bull Wyvern
 Single-target hits: overkill damage carries over to the nearest monster
 Best for: Ranger, Mage
-Note: Big hits stop wasting damage on weak monsters. Area hits don't carry.
+Note: Big hits stop wasting damage on weak monsters. Area hits don't carry. (Batch 3, 2026-11-27: 0.3 (2.5) pace steps on Muster. The bow's carried overkill is about 1% of its damage. Dark.)
 
 **44. Pyre Priest's Hood** · Helmet · Drops from: Krell's Hold, Pyre Priest
 Above 70% health: spells cost health instead of mana (1 health per mana)
@@ -549,7 +579,7 @@ Note: Risky. Needs a healer or Mend. Keeps Full Wick nearly always on, so the La
 **22. Slake Waders** · Boots · Drops from: The Slake, Mudlark
 While you hunt alone: each kill heals you for 4% of your max health
 Best for: Any hero hunting alone
-Note: Was Undertow's. Undertow is cut and its job is now the alone rule on every weapon's strikes (`23` section 4), so this goes with the rule, not one move. A party never sees it.
+Note: Was Undertow's. Undertow is cut and its job is now the alone rule on every weapon's strikes (`23` section 4), so this goes with the rule, not one move. A party never sees it. (Batch 3, 2026-11-27: "alone" is no other hero of its side in the hunt. A lone sword on the Slake read 7.5 (0.8) pace steps, Muster -0.0 (1.5). In band, the spread holds.)
 
 ## Pair
 

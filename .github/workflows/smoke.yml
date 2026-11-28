@@ -6202,12 +6202,6 @@ jobs:
           node tests/server-perf.mjs
           node tools/mutant-gate.mjs node tests/server-perf.mjs --mutate
 
-      # UTC MIDNIGHT REPLAY, SHARD 2 of 2 (2026-10-24; shard 1 and the --selftest are the
-      # utc-midnight-replay job, see there). Its arms set HR_PGLITE_CACHE=0 themselves.
-      - name: UTC midnight replay, shard 2 of 2 — the chain applies at every second of the day
-        if: ${{ !cancelled() }}
-        run: node tests/utc-midnight-replay.mjs --shard=2/2
-
   # ── db-replay-3 ── SPLIT OUT OF db-replay-2 2026-09-26 (CI-SPLIT-2, see the
   # note above db-replay-2 for the two cancelled runs that forced it). Same
   # inputs (an applied migration chain), fresh runner, so the PGlite snapshot
@@ -7668,6 +7662,11 @@ jobs:
         run: |
           node tests/tally-window-pure.mjs
           node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay shard plan - every arm and every proof in exactly one shard, each job within budget
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs --shard-plan
       # tools/mutant-gate.mjs
       - name: Nightly gate - a release builds only on swept code
         if: ${{ !cancelled() }}
@@ -7813,12 +7812,27 @@ jobs:
   # MEASURED 2026-09-19 on the GitHub run for ab7572e7: 411 s (6.85 min).
   # Budget = measured x2 = 13.7 min, rounded up to 14.
   # 2026-11-18 (lane/ci-speed): timeout 20 -> 35: the full sweep measured 17.4 min, x2.
+  #
+  # THE CHAIN MUST REPLAY AT EVERY SECOND OF THE DAY. From 2026-08-29 to 2026-09-17 this
+  # job went red whenever a run started within seconds of UTC midnight: section-4
+  # self-check fixtures backdated rows with `now() - interval` and read them back
+  # through hr_utc_day_start(now()), so just after midnight they landed in
+  # yesterday and the chain refused to apply. The guard parks the clock around the
+  # boundary (in the fixture's own clock) and replays; --selftest proves it bites.
+  #
+  # FIVE JOBS (2026-11-28, lane/ci-midnight-shard). One whole replay of the 902-file chain took 189-193 s on the
+  # fallback run 46117646677 and up to 246 s on 46132371081 (102 s on 11-17), so shard 1/2 + the --selftest took
+  # 34.6 of 35 min on the first and was cancelled at 35 on the second; both times this job set the run's tail
+  # (started at minute 26 behind 40 busy runners, ended last). Now utc-midnight-replay..-5 each run one fifth of the
+  # 13 arms (the control and the probe in every one); -4 and -5 add one half of the --selftest. Each is 4 whole
+  # replays: ~15 min on a typical runner, ~19.4 booked on a slow one (55% of 35). The steps come from the guard's
+  # `// ci-step:` headers, and its --shard-plan (client-guards) is red when the shards drop or repeat an arm or a proof
+  # unit, or a job is booked past 75% of its timeout as the chain grows. 35 keeps room for that growth (the replay
+  # doubled in ten days); a cancelled job proves nothing and runs in full on the next push (tools/lib/ci-history.mjs).
   utc-midnight-replay:
     runs-on: ubuntu-latest
     needs: release-proven
     if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    # Measured 13.2 of 14 on a slow-checkout day (41697486160), 9.3 median: x2 = 20, as the note above asks. A cancelled job
-    # proves nothing and runs in full on the next push (tools/lib/ci-history.mjs).
     timeout-minutes: 35
 
     steps:
@@ -7835,21 +7849,120 @@ jobs:
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
 
-      # THE CHAIN MUST REPLAY AT EVERY SECOND OF THE DAY. From 2026-08-29 to 2026-09-17 this
-      # job went red whenever a run started within seconds of UTC midnight: section-4
-      # self-check fixtures backdated rows with `now() - interval` and read them back
-      # through hr_utc_day_start(now()), so just after midnight they landed in
-      # yesterday and the chain refused to apply. The guard parks the clock around the
-      # boundary (in the fixture's own clock) and replays; --selftest proves it bites.
-      # SHARDED 2026-10-24: 14 replays of ~40 s plus the control were 577 s of this job's
-      # 12.1-12.2 min (87% of 14) on runs 40034325773 / 40038892149. --shard=1/2 runs the
-      # control and every 2nd arm (~330 s), --shard=2/2 (db-replay-6) the rest: ~8.5 min
-      # here with the --selftest (61%), db-replay-6 9.3 -> ~14.8 min of 25 (59%).
-      - name: UTC midnight replay — the chain applies at every second of the day
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay, arms 1 of 5 - the chain applies at every second of the day
         if: ${{ !cancelled() }}
         run: |
-          node tests/utc-midnight-replay.mjs --shard=1/2
-          node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest
+          node tests/utc-midnight-replay.mjs --shard=1/5
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # ── utc-midnight-replay-2..5 ── the other four fifths of the arms (see utc-midnight-replay).
+  utc-midnight-replay-2:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay, arms 2 of 5 - the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs --shard=2/5
+      # ── END SELF-REGISTERED GUARDS ──
+
+  utc-midnight-replay-3:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay, arms 3 of 5 - the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs --shard=3/5
+      # ── END SELF-REGISTERED GUARDS ──
+
+  utc-midnight-replay-4:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay, arms 4 of 5 and proof 1 of 2 - the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs --shard=4/5
+          node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest --shard=1/2
+      # ── END SELF-REGISTERED GUARDS ──
+
+  utc-midnight-replay-5:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/utc-midnight-replay.mjs
+      - name: UTC midnight replay, arms 5 of 5 and proof 2 of 2 - the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs --shard=5/5
+          node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest --shard=2/2
+      # ── END SELF-REGISTERED GUARDS ──
 
   # THE ALPHA WINDOWS, split 2026-11-19 (see in-page-10): work 1/1, storage 1/1. 15.0 min here,
   # ~17.3 on a runner (x1.09 + 1 setup); timeout x2 = 35.

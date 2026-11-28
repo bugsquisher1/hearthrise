@@ -189,6 +189,32 @@ export function slotTesterOf(world, grid, member, items, atMs) {
 }
 
 /**
+ * THE ENGINE AS ITS LINK DRIVES IT (src/session/live-link.js): what this engine answers and what the link's stand-in answers
+ * before the engine has loaded (live-link.js IDLE), one type for both. The engine has more (heroUnits, tower, spellWait,
+ * gainsSince ...); its readers ask `typeof engine.x === 'function'` first, so the stand-in leaves them out.
+ * @typedef {object} LiveEngine
+ * @property {() => boolean} running
+ * @property {() => boolean} ended
+ * @property {() => boolean} stalled
+ * @property {() => (string | null)} failed
+ * @property {() => (number | null)} seededUntil
+ * @property {(live: any) => boolean} seed
+ * @property {() => void} stop
+ * @property {() => boolean} catchingUp
+ * @property {(serverNowMs: number) => number} behindMs
+ * @property {() => object[]} openCasts
+ * @property {(live: any) => boolean} sameSetup
+ * @property {(hc: any) => boolean} peersStale
+ * @property {(hc: any) => string} reconcile
+ * @property {(hc: any) => string} check
+ * @property {(swingIndex: number) => (string | null)} worldAt
+ * @property {() => (number | null)} selfUnit
+ * @property {(serverNowMs: number, aheadMs: number, more: () => boolean) => any} catchUpSlice
+ * @property {(serverNowMs: number, feed: (b: any) => void) => number} advance
+ * @property {(live: any, serverNowMs: number, aheadMs: number) => any} reseed
+ */
+
+/**
  * @param {{items: object, monsters: object}} o  the catalogues the edge prices with
  */
 export function createLiveEngine(o) {

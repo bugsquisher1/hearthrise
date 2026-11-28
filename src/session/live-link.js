@@ -45,6 +45,9 @@ import { SESSION_CONFIG } from './config.js';
 const ENGINE_URL = new URL('../hunt-view/live-engine.js', import.meta.url).href + new URL(import.meta.url).search;
 /* After a fetch that failed, the next viewed answer tries again at most this often (ms): a lost file never becomes a request a poll. */
 const ENGINE_RETRY_MS = 30000;
+/* Types only (no load): the engine and its stand-in share live-engine.js's LiveEngine, so the loaded engine is checked against it. */
+/** @import { LiveEngine, createLiveEngine } from '../hunt-view/live-engine.js' */
+/** @type {null | ((o: {items: object, monsters: object}) => LiveEngine)} */
 let createEngine = null;
 let engineLoad = null;
 let engineFailedAt = -Infinity;
@@ -57,17 +60,21 @@ let engineFailedAt = -Infinity;
 export function loadLiveEngine() {
   if (createEngine) return Promise.resolve(true);
   if (!engineLoad && Date.now() - engineFailedAt >= ENGINE_RETRY_MS) {
-    engineLoad = import(ENGINE_URL).then((m) => { createEngine = m.createLiveEngine; return true; },
+    engineLoad = import(ENGINE_URL).then((/** @type {{ createLiveEngine: typeof createLiveEngine }} */ m) => { createEngine = m.createLiveEngine; return true; },
       () => { engineLoad = null; engineFailedAt = Date.now(); return false; });
   }
   return engineLoad || Promise.resolve(false);
 }
 
-/* The engine before it has loaded: no prediction runs, none ended, none failed, nothing seeded (the methods the link and its
-   readers call unguarded; every other reader asks `typeof engine.x === 'function'` first). */
+/* The engine before it has loaded (LiveEngine): no prediction runs, none ended, none failed, nothing seeded, nothing to judge or
+   run. The link calls only running/ended/stalled/failed/seededUntil/catchingUp/behindMs/stop before it is armed; the rest answer
+   inertly. The engine's other methods are left out: their readers ask `typeof engine.x === 'function'` first. */
+/** @type {Readonly<LiveEngine>} */
 const IDLE = Object.freeze({
   running: () => false, ended: () => false, stalled: () => false, failed: () => null, seededUntil: () => null,
   seed: () => false, stop() {}, catchingUp: () => false, behindMs: () => 0,
+  openCasts: () => [], sameSetup: () => false, peersStale: () => false, reconcile: () => 'unknown', check: () => 'unknown',
+  worldAt: () => null, selfUnit: () => null, catchUpSlice: () => null, advance: () => 0, reseed: () => null,
 });
 
 export class LiveLink {
@@ -78,6 +85,7 @@ export class LiveLink {
    */
   constructor(o) {
     /** The prediction's engine: IDLE until it has loaded (_arm), then the engine itself, the same object throughout. */
+    /** @type {LiveEngine} */
     this.engine = Object.assign({}, IDLE);
     this._armed = false;
     this._fetching = false;

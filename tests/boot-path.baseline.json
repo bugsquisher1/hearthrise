@@ -146,6 +146,12 @@
         "gzipBytes": 206933,
         "on": "2026-11-28",
         "why": "refusal verb words (refusal-words.js, talent-intents.js) + dealt guarantees (drops.js, hunt-rewards.js on the client's hunt view)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206936,
+        "on": "2026-11-28",
+        "why": "designer-imbue-calls: imbue-rules.js fire sizes and validator (21 D-17)"
       }
     ],
     "town": [
@@ -640,6 +646,12 @@
         "gzipBytes": 985529,
         "on": "2026-11-28",
         "why": "refusal verb words (refusal-words.js, talent-intents.js) + dealt guarantees (drops.js, hunt-rewards.js on the client's hunt view)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985544,
+        "on": "2026-11-28",
+        "why": "designer-imbue-calls: imbue-rules.js fire sizes and validator (21 D-17)"
       }
     ]
   }

@@ -1,0 +1,31 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "im-muster-fire",
+ "why": "lane/designer-imbue-calls (21 section 11 rulings D-16 and D-17): the slice whole, and each conditional imbuement fires at its measured fire steps, x the contest curve ({\"brute_edge\":5,\"fire_ward\":11}) while it takes only its rated 2 steps of room (the engine change HANDOFFS 2026-11-27 designer-imbue-calls item 1 specs)",
+ "base": "tree",
+ "edits": [
+  {
+   "file": "src/core/combat-sim.js",
+   "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);",
+   "to": "  const imb = imbuesAt([{\"id\":\"brute_edge\",\"band\":70,\"untilMs\":null},{\"id\":\"fire_ward\",\"band\":45,\"untilMs\":null},{\"id\":\"mana_leech\",\"band\":55,\"untilMs\":null}], atMs);"
+  },
+  {
+   "file": "src/core/imbue.js",
+   "from": "    out.push(fires ? { slice: 'consumable', raises: channel, steps, key: r.key } : { slice: 'consumable', raises: channel, steps, key: r.key, holds: false });",
+   "to": "    const FIRE = {\"brute_edge\":5,\"fire_ward\":11};\n    out.push(fires ? { slice: 'consumable', raises: channel, steps: FIRE[w.id] ? (steps * FIRE[w.id]) / 2 : steps, key: r.key, room: steps } : { slice: 'consumable', raises: channel, steps, key: r.key, holds: false });"
+  },
+  {
+   "file": "src/core/power-ledger.js",
+   "from": "    const kv = ch.mine.get(key) || [0, 0];",
+   "to": "    if (Number.isFinite(r.room) && r.steps > 0 && !LEDGER_SLICES[r.slice].signed) { ch.room.set(key, Math.max(ch.room.get(key) || 0, r.room)); ch.fired = (ch.fired || 0) + r.steps; return; }\n    const kv = ch.mine.get(key) || [0, 0];"
+  },
+  {
+   "file": "src/core/power-ledger.js",
+   "from": "      gains *= k; costs *= k; lent *= k; room *= k;",
+   "to": "      gains *= k; costs *= k; lent *= k; room *= k; lent += (ch.fired || 0) * k;"
+  }
+ ],
+ "assumptions": [
+  "the factors are the measured shares on the base cells (21 section 11.4), rounded to whole steps a firing blow"
+ ]
+}

@@ -136,7 +136,7 @@ It escrows its limit in gold. When a piece is listed, the server checks resting 
 | Base, Traits and ranks, Signature, the find line ("Muster Barrows, depth 14") | Yes | That is the piece |
 | The finder's company name on the find line | If the finder's plan allows it, on by default | A great find carries its story. A player can turn it off |
 | Temper | **No.** It belongs to the hero's slot and is seated on whatever the hero wears (`09` 2.4's carry rule) | A sold piece is priced as itself, and Temper stays a company's own investment |
-| Imbuement | **No.** Listing removes it. The window says how many hunted hours are lost | Comparables stay clean. An imbuement is the kit of one company's ground choice |
+| Imbuement | **No.** It sits on the hero's slot, as Temper does, never on the piece (`21` D-20), so a listed piece carries none | Comparables stay clean. An imbuement is the kit of one company's ground choice |
 
 **What never trades.** Anything bought with Crowns, the store's basics (never items), Crowns tools, and the escrowed copy of anything. Crowns trade only on the Crowns book (`10-premium.md` section 4), which runs on this engine with its own key and rules (section 5).
 
@@ -526,7 +526,7 @@ The rule that holds them together: every place that needs goods buys them throug
 | 6 | Cross-band buy orders | Yes, up to 3 bands | Depth. Neighbors substitute at a known discount |
 | 7 | Remains | One good a band. Named fuels apart | One deep market instead of four thin ones |
 | 8 | Temper on a sold piece | Stays with the hero's slot | Pieces price as themselves |
-| 9 | Imbuement on a listed piece | Removed, with a warning | Clean comparables |
+| 9 | Imbuement on a listed piece | None can be: it sits on the hero's slot (`21` D-20) | Clean comparables |
 | 10 | Tax | 4% cut, 1% on what rests, no cap | Small, burned, scales with value |
 | 11 | Item sink from the tax | No | We need gold burned, not recycled |
 | 12 | Gate | None. Caps in hours of wage at the account's step | Sells from the first hunt, funnels nothing |
@@ -548,7 +548,7 @@ The rule that holds them together: every place that needs goods buys them throug
 | **Wave 4** | Gains: buy orders and wanted orders (not just single listings), the stacks book for hunting goods, the guide, caps and holds, plan loot and stoke rules writing orders | Coordinator's wave plan |
 | **Wave 5** | "Prices from the wage" splits: V must exist in wave 4 (for bands and fees). Wave 5 regenerates V for crafted goods and adds kit buy limits, stock-rule orders, the store beside the book, and the Crowns key | Coordinator's wave plan |
 | **Lane W (wage)** | Land `wage(step)` as one pure `src/core` function and one server function **before wave 4**. Add `streamShare` for Remains, common parts, rare parts and scrap, and `pieceShare` with `rarityHours`, so every tradeable key has a V. Expose the account's highest hero step for caps | Lane W |
-| **Lane G (gear, Traits)** | A piece is one account-owned row with indexed columns (slot, base, tier, rarity, Traits, ranks, Signature, find line, finder shown or not) and an escrow state. Carry-over, Temper and imbuing refuse an escrowed piece. Temper stays with the hero's slot. Listing removes an imbuement. V for a piece reads `rarityHours` and rank | Lane G |
+| **Lane G (gear, Traits)** | A piece is one account-owned row with indexed columns (slot, base, tier, rarity, Traits, ranks, Signature, find line, finder shown or not) and an escrow state. Carry-over, Temper and imbuing refuse an escrowed piece. Temper and imbuements stay with the hero's slot (`21` D-20). V for a piece reads `rarityHours` and rank | Lane G |
 | `02` section 2b | Common remains are one good a band. Named fuels stay their own. The stoke rule writes orders | Designer, next pass |
 | `09` sections 3.3, 3.5, 3.6 | Runecutting's binder is Remains. The Weighhouse is the market, its surplus board is "town orders". The market row points here | Designer, next pass |
 | `10-premium.md` section 2 | The seat is checked here and unchanged. The free price line is 30 days | None |

@@ -236,7 +236,7 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | The same at −50% | +18.0 (1.9) | +7.6 (2.7) | Still over 10 |
 | Circle of Renewal, the same sword | +2.0 (2.3) | +1.8 (1.5) | Free band, opens at 30 (`1064` regenerated STAGED) |
 
-So "Borrowed Greater Mend is 10 steps or less" holds beside a healer and fails without one. The ledger's fallback applies: Greater Mend is not borrowable in v0.3.0 (the town's pick answers `not_offered`). The next lever is the designer's (CONFLICTS 2026-11-27, E5). Not built: a borrowed shot's own arrows (Raking Shot, V0 0).
+So "Borrowed Greater Mend is 10 steps or less" held beside a healer and failed without one at full power. **RULED (game designer, lane/designer-greater-mend, 2026-11-27; `19` "Decision: the borrowed heal in a four with no healer"):** a fourth band lends a V0 of 20 to 50 at −80% at a border and never at Havora. Greater Mend reads +6.0 ± 1.6 held without a healer at that price, so E5's check holds on both cells and Greater Mend is borrowable in v0.3.0 from Level 120 (`1064` regenerated STAGED). Not built: a borrowed shot's own arrows (Raking Shot, V0 0).
 
 ### Band 5: Signatures and the first hour
 

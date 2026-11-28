@@ -78,11 +78,15 @@ export const TALENT_RULES = Object.freeze({
 });
 
 /* THE BORROW BANDS (17 section 3, priced by value): V0 at full power (held steps), the penalty in permille at a border town and at the
-   Havora crossing (null: not offered there). A move whose V0 is past the last band is re-driven and measured again, never offered. */
+   Havora crossing (null: not offered there). A move whose V0 is past the last band is re-driven and measured again, never offered.
+   Each band's top lands at or under its cap after its price (4, 7, 10, 10). THE FOURTH BAND (game designer, lane/designer-greater-mend,
+   2026-11-27; 19 L6): V0 20 to 50 lends at a fifth of its power at a border town and never at Havora. It holds Greater Mend (40.3 on 17's
+   cell, a four with no healer): measured at -80% it adds +6.1 held there (roads/e5 n-gm-200) and +1.6 beside a healer (m-gm-200) */
 export const BORROW_BANDS = Object.freeze([
   Object.freeze({ upTo: 4, borderPm: 0, havoraPm: 300 }),
   Object.freeze({ upTo: 10, borderPm: 300, havoraPm: 500 }),
   Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),
+  Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),
 ]);
 /* A borrow opens at max(openFloor, openLevel x V / buildStepsMax), rounded up to openRound (17 section 3: "a borrow is never bigger than
    the build slice allows at that Level"; V after the penalty) */
@@ -98,8 +102,8 @@ export const BORROW_RULES = Object.freeze({ clock: 'mend', rate: 'mend' });
 /* THE MEASURED VALUES (17 section 3's table, 18-roads-review-measured.md, 23-spell-audit.md): V0 in held steps at full power (an offense
    move: its pace gain / PAY.payStepXp). EVERY ROW IS MEASURED: validate refuses a row that is not a number, so a town never lends a move
    the Lab has not sized (lane/roads-borrow-values). A move past the last band is measured and never offered (borrowBand null): the town's
-   pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). Greater Mend is past it until V4, the heal
-   rule (19 bottom line (3)). */
+   pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). No measured move is
+   past it since the fourth band (lane/designer-greater-mend); the refusal stays for a move measured past 50. */
 /* ONE METHOD FOR EVERY ROW (lane/roads-v0-remeasure, 18-roads-review-measured.md section 7): each move at full power in a four that lacks
    it, lent by the engine's own borrow (heroSetup `borrowed`: its native weapon's blow), Muster Barrows L60 Steady, held start, 8 seeds x
    8 h, paired against its base (tools/balance-program/redesign/roads/v0.mjs); where the engine lacks 17's rule the move is measured with
@@ -115,7 +119,7 @@ export const BORROW_VALUES = Object.freeze({
   protective_ward: 18.4,
   /* UNDER THE HEAL RULE (lane/e5-borrowing, the engine's own borrow on Mend's clock at the healer's 7 tiles; roads/e5/run.sh, v1-climb's
      base cell, 12 seeds x 8 h): a sword in a four with no healer +40.3 held (pace +29.0 pace steps), was +97.4 before the rule; beside a
-     healer (19 V4's hammer) +7.5. Still past the last band on 17's cell: not offered (the ledger's fallback, 20-v030 "Known risks") */
+     healer (19 V4's hammer) +7.5. In the fourth band: a fifth of its power at a border, never at Havora (the designer, 19 L6) */
   greater_mend: 40.3,
   power_strike: 4.2,
   flame_strike: 6.3,

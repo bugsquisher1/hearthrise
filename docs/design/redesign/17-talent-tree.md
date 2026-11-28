@@ -68,7 +68,8 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | 4 steps or less | No penalty | −30% |
 | 4 to 10 | −30% | −50% |
 | 10 to 20 | −50% | Not offered |
-| Over 20 | Change what drives its value, then measure again | Not offered |
+| 20 to 50 | −80% | Not offered |
+| Over 50 | Change what drives its value, then measure again | Not offered |
 
 **Borrowing opens by value.** A borrow opens at `max(20, 200 × V ÷ 14)` Levels, rounded up to a 10. V is its value after the penalty. So a borrow is never bigger than the build slice allows at that Level (`19-power-ledger.md` section 2).
 
@@ -101,7 +102,7 @@ Sketch: `17-talent-tree-sketch.html` (v2 geometry). UX: `18-roads-ux-mock.html` 
 | Circle of Renewal | 2.0 ± 2.3 (held) under the heal rule (`18` section 7c; 7.1 before it) | No penalty at a border, −30% at Havora | 30 at a border, 20 at Havora |
 | Turning Cut | 11.0 (pace, ± 1.4) | −50% at a border. Not offered at Havora | 80 |
 | Raking Shot | 0 (adds nothing measurable to a melee borrower) | No penalty | 20 |
-| Greater Mend | 40.3 ± 2.6 under the heal rule (`18` section 7c: a sword in a four with no healer, 7-tile reach; 97.4 before it). Beside a healer 7.5 ± 3.2 | Past the last band: not offered (18.0 at −50%) | Not offered |
+| Greater Mend | 40.3 ± 2.6 under the heal rule (`18` section 7c: a sword in a four with no healer, 7-tile reach; 97.4 before it). Beside a healer 7.5 ± 3.2 | −80% at a border (6.0 ± 1.6 MEASURED there, the fourth band: `19` "Decision: the borrowed heal in a four with no healer"). Not offered at Havora | 120 |
 | Every other borrowable move | Not measured | Lab | Lab |
 
 **The Hearth, the support's country** (2026-11-22, replaces the generalist). The wraps are the party's support, not an all-rounder. They borrow like every weapon: 2 slots, the standard bands. Country, kit, borders and balance rule: `22-fists-support.md`.

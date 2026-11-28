@@ -30,7 +30,8 @@
 //                 at its Hearth stand (never predicted), peers working at the Hearth throw, and a
 //                 named flame swaps the fire's art. An ERRAND ("Burn" on one, 2027-04-27-hearth-
 //                 errand.sql) throws its fuel ONCE when the visit reaches the fire, though the pointer
-//                 moved on; a work stand throws on the beat; the press says no "You stopped" and arms no Stop.
+//                 moved on; a work stand throws on the beat; "Burn" sends a count of one and "Burn all" none, and
+//                 neither press says "You stopped" or arms a timer (windows/inventory/bury.js).
 //   IF-5 ERRAND   a fisher feeds ONE bone, the owner's browser open (its own town reads and settle):
 //                 the body visits the Hearth, the bone burns once (one bone's XP, one craft row), the
 //                 pointer goes back to the same fishing spot, which pays again; the body walks back when
@@ -97,11 +98,10 @@ export const MUTANTS = {
     js: ['src/world/hearth-burn.js', [['      for (const b of [env.burn, env.errand]) if', '      for (const b of [env.burn]) if']]] },
   errand_beat_on_visit: { arm: 'IF-4', why: 'a visit throws its one fuel on the beat like a bench run',
     js: ['src/world/hearth-burn.js', [['      const chunk = there && me.work && e.active ? chunkOfRecipe(e.active) : null;', '      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;']]] },
-  errand_arms_stop: { arm: 'IF-4', why: '"Burn" arms the bench\'s Stop, which ends the job the server went back to',
-    /* job-counts (lane/c-job-counts) armed a counted gather too: the line reads (artisan || n) && !errand; the mutant still drops only the errand */
-    js: ['src/shell/town-work.js', [["    if ((w.kind === 'artisan' || n !== null) && !errand) {", "    if (w.kind === 'artisan' || n !== null) {"]]] },
-  errand_says_stopped: { arm: 'IF-4', why: '"Burn" says it stopped the fishing though the fishing comes back',
-    js: ['src/shell/town-work.js', [['  const replaced = errand ? \'\' : jobReplacedWords(cs, w);', '  const replaced = jobReplacedWords(cs, w);']]] },
+  /* (the bench's armed Stop and its "Stopped fishing" words left with src/shell/town-work.js, 09-crafting 4.17: the bag's press is
+     windows/inventory/bury.js, which arms nothing and replaces no job) */
+  errand_burns_the_stack: { arm: 'IF-4', why: '"Burn" sends no count, so one press burns the whole stack',
+    js: ['src/shell/windows/inventory/bury.js', [['  const n = count === 1 ? 1 : null;', '  const n = null;']]] },
 };
 
 async function q(db, sql, params) { return (await db.query(sql, params)).rows; }
@@ -293,26 +293,23 @@ const ARMS = {
     /* the visit ended at the shore: a later visit with no new press throws nothing */
     ev.frame(fr({}), 80000);
     if (beats(ev, fr({ ...atFire, me: { ...visit, since: 3 } }), 90000) !== 0) out.push('an errand thrown and walked away from threw again on a later visit');
-    /* THE PRESS: an errand stops nothing ("You stopped …" is not said) and arms no Stop (it would end the job the server points
-       the hero back at); "Burn all" over the fishing still says so and arms its Stop */
-    const TW = X.TW;
-    const fishing = { active_kind: 'gather', active_id: 'shrimp_s', active_since: '2026-11-01T00:00:00Z' };
-    const fisher = { slot: 0, read: (k) => (k === 'state' ? fishing : k === 'inventory' ? { bones: 5 } : k === 'skills' ? { inner_flame: { xp: 0, level: 1 } } : null),
-      edgeIntent: async () => ({ ok: true }) };
-    const fuelRow = TW.workRow('artisan', 'fuel_bones');
-    const armed = async (count) => {
+    /* THE PRESS (windows/inventory/bury.js, 09-crafting 4.17): "Burn" is ONE set_activity on the fuel row with a count of one (the errand),
+       "Burn all" one with no count (the stack); neither arms a timer, and neither answer says it stopped anything */
+    const BURY = X.BURY;
+    const sent = [];
+    const burner = { slot: 0, read: (k) => (k === 'state' ? { active_kind: 'idle', active_id: null } : k === 'inventory' ? { bones: 5 } : k === 'skills' ? { inner_flame: { xp: 0, level: 1 } } : null),
+      edgeIntent: async (verb, body) => { sent.push([verb, body]); return { ok: true }; } };
+    const press = async (count) => {
       const st = globalThis.setTimeout; let n = 0;
       globalThis.setTimeout = (...a) => { n++; return st(() => {}, 0); };
-      try { return { words: await TW.startWork(fisher, fuelRow, (fn, busy, done) => done({ ok: true }), null, '', count), n }; }
+      try { return { words: await BURY.startBury(burner, {}, 'bones', async (fn, busy, done) => { await fn(); return done({ ok: true }); }, null, count), n }; }
       finally { globalThis.setTimeout = st; }
     };
-    /* the words a press that replaces the fishing says are the module's own (their text is tests/alpha-windows.mjs AW-62's pin) */
-    const stopped = TW.jobReplacedWords(fisher, fuelRow);
-    if (!stopped) out.push('a Hearth run over the fishing names no job it replaces');
-    const one1 = await armed(1);
-    if ((stopped && one1.words.includes(stopped)) || one1.n !== 0) out.push('"Burn" while fishing says ' + JSON.stringify(one1.words) + ' and arms ' + one1.n + ' Stop(s)');
-    const all = await armed(null);
-    if (!stopped || !all.words.startsWith(stopped) || all.n < 1) out.push('"Burn all" over the fishing says ' + JSON.stringify(all.words) + ' and arms ' + all.n);
+    const one1 = await press(1);
+    const all = await press(undefined);
+    const acts = sent.map(([v, b]) => v + ':' + JSON.stringify(b.activity));
+    if (acts.join('|') !== 'set_activity:{"kind":"artisan","id":"fuel_bones","count":1}|set_activity:{"kind":"artisan","id":"fuel_bones"}') out.push('"Burn" and "Burn all" sent ' + JSON.stringify(acts));
+    if (one1.n || all.n || /Stopped/i.test(one1.words + all.words)) out.push('the presses armed ' + (one1.n + all.n) + ' timer(s) and say ' + JSON.stringify([one1.words, all.words]));
     const peerAt = { ...at, active: null, me: null, units: [{ x: 115, y: 49, ref: { player: { id: 'p', slot: 1 } } }], walkers: [{ id: 'p', slot: 1, station: 'hearth', work: true }] };
     const peerRun = Array.from({ length: 16 }, (_, i) => view.frame(peerAt, 30000 + i * 100).fx.map((f) => f.id)).flat();
     if (!peerRun.includes('fuel_bone')) out.push('a peer working at the Hearth never throws');
@@ -431,7 +428,7 @@ async function loadReaders(root) {
     HB: await import(u('src/world/hearth-burn.js')),
     HD: await import(u('src/data/hearth.js')),
     IL: await import(u('src/shell/item-lore.js')),
-    TW: await import(u('src/shell/town-work.js')),
+    BURY: await import(u('src/shell/windows/inventory/bury.js')),
   };
 }
 

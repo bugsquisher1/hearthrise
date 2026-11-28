@@ -11,10 +11,9 @@
 //       XP, and NO gold: a roll pays no bench tax. Each window rolls on its own server seed, so the same window rolls the same twice
 //       (the long window and every watched one, retried).
 //   J4  A JOB THAT DOESN'T ROLL DRAWS WHAT IT ALWAYS DREW: the plain rows of every jeweler's bench (Smithing, Crafting) leave the stream untouched.
-//   J6  THE END LINE SAYS WHAT THE DICE MADE: a watched run stops on "41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (...)".
-//   J7  THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays.
+//   (J6 the bench's end line, J7 the town ticker's grade, J9 the bench's job names and J15 the bench's odds line retired with the client's bench:
+//   09-crafting 4.17, lane/bench-cut-client. J13 keeps its catalogue half; the bench's offer of a dark job left with the bench.)
 //   J8  A JEWEL'S GEM IS NAMED APART: no other item's name holds its word (the Road Garnet beside the mined Heartgarnet).
-//   J9  THE LORE NAMES THE JOB: an input to a gem roll or the Hallmark reads the job's name, never the grades it may make.
 //   J5  THE MACHINERY IS SIZED BY FORMULA: each rolling piece has a Fine row per perk, a Hallmarked row per pair, a Hallmark offer per
 //       (Fine, other perk); a piece that ships plain has none; and the server's bench-tax rows hold no rolled job (tools/gen-bench-tax.mjs rowsOf).
 //   The jobs sit on each piece's own bench (Tyler 2026-11-18: all jewelry is Smithing): the claims read the Banded Signet's on Smithing.
@@ -24,10 +23,9 @@
 //   J3G BOTH PATHS FOR A GUARANTEE JOB: watched and closed on the server's settle, only its outcomes, each with its perk and grade, no gold.
 //   J12 THE SWITCH IS THE SERVER'S: hr-accrue set_activity refuses a dark job (activity_unsupported, naming the switch) unless the envelope's
 //       `features` (beside `state`) lists it, before anything settles; an open job never asks.
-//   J13 DARK ROWS STAY DARK: no switched job in ARTISAN_RECIPES (item tips, skill unlocks, the bag, the bench tax); the bench offers one only
+//   J13 DARK ROWS STAY DARK: no switched job in ARTISAN_RECIPES (item tips, skill unlocks, the bag, the bench tax), and none in a card's lines;
 //       where the server's `features` list its switch.
 //   J14 A JOB'S NAME SAYS ITS ITEM: a guarantee's words end in the item's catalogue name, and the jobs read as the sample's three.
-//   J15 THE BENCH SAYS THE GUARANTEE AND THE ODDS at the hero's server level in the piece's skill: "Always Follow-through", "always Hallmarked".
 //   J16 THE PLAIN CARD NAMES WHAT A GEM CAN ADD (post-140 audit C11): a plain crafted piece's card lists its bench's perks.
 //   J17 A BOSS DROP'S CARD NAMES ITS GUARANTEE as a label ("Guarantees Follow-through (Banded Signet)"), only where the switch is on.
 //   J18 PLAIN STATS HELP ALL THREE STYLES: every plain crafted jewel and the Shop's first jewelry carry Melee, Ranged and Magic attack, no crit.
@@ -35,7 +33,7 @@
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js src/data/slot-ladders.js src/data/recipes.js src/session/jewelry-sections.js src/shell/windows/work.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/item-lore.js src/data/items.js src/data/slot-ladders.js src/data/recipes.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -54,8 +52,8 @@ async function load(root) {
     XP: await imp('src/core/xp.js'), RC: await imp('src/data/recipes.js'), ITEMS: (await imp('src/data/items.js')).ITEMS,
     /* the edge's own modules, as the settle imports them (no ?v=: supabase/functions has none) */
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
-    BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'), IL: await imp('src/shell/item-lore.js'),
-    SA: await imp('supabase/functions/hr-accrue/set-activity.js', ''), JS: await imp('src/session/jewelry-sections.js'), WK: await imp('src/shell/windows/work.js'),
+    BT: await imp('tools/gen-bench-tax.mjs', ''), IL: await imp('src/shell/item-lore.js'),
+    SA: await imp('supabase/functions/hr-accrue/set-activity.js', ''),
     PT: await imp('src/render/player-text.js'),
   };
 }
@@ -174,24 +172,6 @@ const claims = {
     }
     return null;
   },
-  J6(M) {
-    /* THE END LINE SAYS WHAT THE DICE MADE (the spec's bulk report), from two envelopes' bags. */
-    const outs = { banded_signet: 2, banded_signet_keen: 0, banded_signet_surge: 0, banded_signet_follow: 0, banded_signet_keen_surge: 0, banded_signet_keen_follow: 1, banded_signet_surge_follow: 0 };
-    const got = M.TW.rolledWords(outs, { banded_signet: 43, banded_signet_keen: 2, banded_signet_surge: 1, banded_signet_keen_follow: 2 }).join(', ');
-    const want = '41 Banded Signet, 3 Fine (2 Keen, 1 Surge), 1 Hallmarked (Keen and Follow-through)';
-    return got === want ? null : 'a rolled run ends "' + got + '", not "' + want + '"';
-  },
-  J7(M) {
-    /* THE BROWSER NEVER GUESSES A GRADE: the town ticker counts a rolled job's actions as unsure, in no stack, until the server pays. */
-    const row = M.RC.ARTISAN_RECIPES.smithing.find((r) => r.id === 'set_banded_signet');
-    const t0 = Date.UTC(2026, 10, 5, 12, 0, 0), at = new Date(t0).toISOString();
-    const tick = M.TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'smithing', row },
-      state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
-      skills: { smithing: { xp: M.XP.skillXpForLevel('smithing', 30) } }, inventory: { banded_signet: 5, road_carnelian: 5 }, equipment: {} });
-    if (!tick || !(tick.unsure > 0)) return '20 s of a gem roll predicted ' + JSON.stringify(tick);
-    const guessed = row.outcomes.concat([row.output]).filter((id) => (tick.items[id] || 0) > 0);
-    return guessed.length ? 'the ticker put a guessed grade in the bag: ' + guessed.join(', ') : null;
-  },
   J8(M) {
     /* A JEWEL'S GEM IS NAMED APART (designer 2026-11-05): the Road Garnet beside the mined Heartgarnet, both red, read as one gem, and a
        player holding both would set the wrong one. No other item's name holds a tier gem's own word. */
@@ -202,20 +182,6 @@ const claims = {
       /* a WORN piece is never set as a gem, so the ring the gem is named into (the Seam Jasper Band, the plan's name) can't be mistaken for it */
       const twin = Object.entries(M.ITEMS).find(([id, it]) => id !== t.gem && it && typeof it.n === 'string' && !it.slot && it.n.toLowerCase().includes(word));
       if (twin) return t.gem + ' (' + gem.n + ') shares "' + word + '" with ' + twin[0] + ' (' + twin[1].n + ')';
-    }
-    return null;
-  },
-  J9(M) {
-    /* AN INPUT TO A GEM ROLL OR THE HALLMARK NAMES THE JOB, NEVER THE GRADES IT MAY MAKE (designer 2026-11-05, the three lines as ruled). */
-    const want = {
-      road_carnelian: 'Used in Smithing: Set a Road Carnelian in a Banded Signet, Set a Road Carnelian in Fang Studs, and the Hallmark',
-      banded_signet: 'Used in Smithing: Set a Road Carnelian in a Banded Signet',
-      banded_signet_keen: 'Used in Smithing: the Hallmark',
-      banded_signet_keen_follow: 'Used in Smithing: the reforge',
-    };
-    for (const [id, line] of Object.entries(want)) {
-      const got = M.IL.usesOf(id).find((l) => /^Used in Smithing/.test(l)) || '';
-      if (got !== line) return id + ' reads "' + got + '", not "' + line + '"';
     }
     return null;
   },
@@ -355,11 +321,6 @@ const claims = {
       const lines = M.IL.usesOf(id).join(' | ');
       if (jobs.some((r) => lines.includes(r.name))) return `${id}'s card names a dark job: ${lines}`;
     }
-    const r = jobs[0], open = Object.values(M.RC.ARTISAN_RECIPES).flat().find((x) => x.roll);
-    if (M.JS.jobShown(fakeCs({}), r)) return `${r.id} shows before the server sends features`;
-    if (M.JS.jobShown(fakeCs({ features: ['scaled_hunts'] }), r)) return `${r.id} shows though the server's features leave its switch out`;
-    if (!M.JS.jobShown(fakeCs({ features: [M.J.JEWEL_SWITCH] }), r)) return `${r.id} hides though the server's features list its switch`;
-    if (!M.JS.jobShown(fakeCs({}), open)) return 'an open job hides before the server sends features';
     return null;
   },
   J14(M) {
@@ -371,32 +332,6 @@ const claims = {
     const names = guaranteeJobs(M).map((r) => r.name).sort().join(' | ');
     const want = ['Set a Crown Shard and the Rat King\'s Crown in a Banded Signet', 'Set a Crown Shard in a Banded Signet', 'Set the Rat King\'s Crown in a Banded Signet'].join(' | ');
     return names === want ? null : `the guarantee jobs read "${names}"`;
-  },
-  J15(M) {
-    /* THE BENCH SAYS THE GUARANTEE AND THE ODDS before the roll, at the hero's server level in the piece's own skill (the catalogue's table, the
-       one the engine rolls with): the perk a boss gem fixes, "always Hallmarked" for a minimum quality, the perks the roll may still draw. */
-    const lv = 41, cs = fakeCs({ skills: { smithing: { xp: M.XP.skillXpForLevel('smithing', lv), level: lv } }, features: [M.J.JEWEL_SWITCH] });
-    const jobs = guaranteeJobs(M), both = jobs.find((x) => x.perk && x.roll === 'seal'), shard = jobs.find((x) => x.perk && x.roll === 'gem');
-    const seal = jobs.find((x) => !x.perk && x.roll === 'seal'), base = M.RC.ARTISAN_RECIPES.smithing.find((x) => x.id === 'craft_banded_signet');
-    const pct = (kind, g) => M.JS.oddsPct(M.J.rollOdds(kind, lv)[g]);
-    /* the words are the text home's (src/data/text/work.js), read, never pasted; which row says each job, the skill, the level, the perks
-       and the odds are this claim's */
-    const T = M.PT.t, at = (grade, perks) => T('work.odds_at', { skill: 'Smithing', level: lv, grade, perks });
-    const always = (rest) => T('work.odds_always', { perk: 'Follow-through', rest });
-    const second = T('work.odds_second', { perks: T('work.odds_or', { list: 'Keen', last: 'Surge' }) });
-    const all = T('work.odds_perks', { perks: T('work.odds_or', { list: 'Keen, Surge', last: 'Follow-through' }) });
-    const want = [
-      [both, always(at(T('work.odds_sealed'), second))],
-      [shard, always(at(T('work.odds_fine', { hallmarked: pct('gem', 'hallmarked') }), second))],
-      [seal, at(T('work.odds_sealed'), all)],
-      [base, at(T('work.odds_plain', { fine: pct('base', 'fine'), hallmarked: pct('base', 'hallmarked') }), all)],
-    ];
-    for (const [job, line] of want) {
-      const got = M.WK.oddsWords(cs, { row: job });
-      if (got !== line) return `${job.id} says "${got}", not "${line}"`;
-    }
-    if (M.WK.oddsWords(fakeCs({}), { row: both }) !== '') return 'odds show before the server sends the level';
-    return null;
   },
   J16(M) {
     /* THE PLAIN CARD NAMES WHAT A GEM CAN ADD (post-140 audit C11: the notes said Fang Studs help swings land or give mana back, the plain
@@ -438,8 +373,6 @@ const claims = {
 
 /* Every rolled job's guarantee jobs (the dark ones, behind the switch), on every bench. */
 function guaranteeJobs(M) { return Object.values(M.RC.ARTISAN_RECIPES_EVERY).flat().filter((r) => r.switch === M.J.JEWEL_SWITCH); }
-/* A CharacterSession's read() over one envelope's sections. */
-function fakeCs(sections) { return { read: (k) => sections[k] }; }
 
 const MUTANTS = [
   { claim: 'J1', name: 'a gem roll can come out plain', edits: [['src/data/jewelry.js', "const fine = !t.fine ? ODDS_SCALE - hallmarked : at('fine');", "const fine = !t.fine ? ODDS_SCALE - hallmarked - 100 : at('fine');"]] },
@@ -449,12 +382,8 @@ const MUTANTS = [
   { claim: 'J3', name: 'the roll reads the wall clock, so the same window rolls twice', edits: [['src/core/artisan.js', 'const u = rng.next() * ODDS_SCALE;', 'const u = Math.random() * ODDS_SCALE;']] },
   { claim: 'J3', name: 'a roll makes a grade from another piece', edits: [['src/core/artisan.js', "  if (grade === 'plain') return { id: plain, grade, perks: [] };", "  if (grade === 'plain') return { id: 'ruby_signet', grade, perks: [] };"]] },
   { claim: 'J4', name: 'every bench job rolls a draw', edits: [['src/core/artisan.js', 'const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;', 'rng.next(); const rolled = recipe.roll ? rollJewel(recipe, c.skillLevel, rng) : null;']] },
-  { claim: 'J6', name: 'the end line reads every grade as a plain piece', edits: [['src/shell/town-work.js', '    const it = JEWELRY_ITEMS[id];', '    const it = null;']] },
-  { claim: 'J7', name: 'the ticker predicts a rolled job\'s grade', edits: [['src/shell/town-ticker.js', '  const rolled = !gather && !!w.row.roll;', '  const rolled = false;']] },
   { claim: 'J8', name: 'the T2 gem is a garnet again', edits: [['src/data/items.js', "road_carnelian:{n:'Road Carnelian'", "road_carnelian:{n:'Road Garnet'"]] },
-  { claim: 'J9', name: "a gem roll's inputs name the grades it makes", edits: [['src/shell/item-lore.js', "r.roll === 'gem' ? r.name : null", 'null']] },
   { claim: 'J3', name: 'the Banded Signet\'s jobs stay on the Crafting bench', edits: [['src/data/jewelry.js', "    skill: 'smithing', next: 'seam_jasper_band',", "    skill: 'crafting', next: 'seam_jasper_band',"]] },
-  { claim: 'J9', name: 'the reforge is not a use of the piece it takes', edits: [['src/shell/item-lore.js', 'for (const id of [o.from, o.metal, o.gem]) at(id).inputOf.push', 'for (const id of [o.metal, o.gem]) at(id).inputOf.push']] },
   { claim: 'J5', name: 'a rolled job pays the bench tax', edits: [['src/data/bench-tax.js', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output && !recipe.roll);', 'export const benchTaxed = (recipe) => !!(recipe && recipe.output);']] },
   /* THE GUARANTEE LAYER (Tyler 2026-11-14), dark behind jewel_guarantees */
   { claim: 'J10', name: 'a boss gem\'s perk is rolled like any other', edits: [['src/core/artisan.js', 'const fixed = recipe.perk || null;', 'const fixed = null;']] },
@@ -466,11 +395,7 @@ const MUTANTS = [
   { claim: 'J12', name: 'set_activity never asks the switch', edits: [['supabase/functions/hr-accrue/set-activity.js', '  if (!sw) return true;\n  const on', '  return true;\n  const on']] },
   { claim: 'J12', name: 'set_activity reads the switch inside `state`', edits: [['supabase/functions/hr-accrue/set-activity.js', 'const on = env && env.features;', 'const on = env && env.state && env.state.features;']] },
   { claim: 'J13', name: 'the dark jobs join the catalogue every client reads', edits: [['src/data/recipes.js', 'function openJobs(list) { return list.filter((r) => !r.switch); }', 'function openJobs(list) { return list; }']] },
-  { claim: 'J13', name: 'the bench offers a dark job without the server', edits: [['src/session/jewelry-sections.js', 'return !recipe || !recipe.switch || featureOn(cs, recipe.switch);', 'return true;']] },
   { claim: 'J14', name: 'a job names an item that is not its own', edits: [['src/data/jewelry.js', "words: 'a Crown Shard'", "words: 'a Crown Gem'"]] },
-  { claim: 'J15', name: 'a minimum-quality job reads "otherwise Fine"', edits: [['src/shell/windows/work.js', "    : o.fine === '0%' ? t('work.odds_sealed') : ", '    : ']] },
-  { claim: 'J15', name: 'the bench says no guarantee', edits: [['src/session/jewelry-sections.js', 'perk: recipe.perk && JEWEL_PERKS[recipe.perk] ? JEWEL_PERKS[recipe.perk].name : null,', 'perk: null,']] },
-  { claim: 'J15', name: 'the guarantee\'s perk is offered as a second roll', edits: [['src/session/jewelry-sections.js', 'perks: jobRolls(recipe).map(', 'perks: jobRolls({ roll: recipe.roll, output: recipe.output }).map(']] },
   { claim: 'J16', name: 'the plain card names no perk a gem can add', edits: [['src/shell/item-lore.js', '? perksFor(id).map((p) => JEWEL_PERKS[p].name) : [];', '? [] : [];']] },
   { claim: 'J10', name: 'a guarantee job takes longer than the gem job it replaces', edits: [['src/data/jewelry.js', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms + 1000,']] },
   { claim: 'J17', name: 'the card names a dark guarantee', edits: [['src/shell/item-lore.js', 'if (g && Array.isArray(features) && features.includes(JEWEL_SWITCH)) {', 'if (g) {']] },

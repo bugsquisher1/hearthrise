@@ -51,16 +51,18 @@ import { HUNT_INDEX } from './hunts.js';
 import { TRAINING_GEAR_ITEMS } from './training.js';
 import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js';
 import { STEP_MATERIALS } from './gear-tiers.js';
-import { STEP_TRAIT_BASES } from './slot-ladders.js';
+import { STEP_TRAIT_PIECES, TRAIT_BASE_HOLDS } from './slot-ladders.js';
 import { basePiecesOf } from './base-drops.js';
 import {
   cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js';
 
-/* THE TRAIT CRAFT'S DOOR (09-crafting.md 4.13, the bench cut): Artificing's Trait craft, after v0.3.0, sets a Trait on each of these bases.
-   A door on paper like a staged ground's drop: itemSources names it, reachableSources opens it only with the planned door (C11). */
+/* THE TRAIT CRAFT'S DOOR (09-crafting.md 4.13, the bench cut): Artificing's Trait craft, after v0.3.0, sets a Trait on each HELD base
+   (slot-ladders.js TRAIT_BASE_HOLDS, typed). A door on paper like a staged ground's drop: itemSources names it for the held rows only, and
+   reachableSources opens it, over every step tier's piece, only with the planned door (C11). */
 export const TRAIT_CRAFT_DOOR = 'the Trait craft (after v0.3.0)';
-/* THE GATHERING TROPHIES' DOOR (the bench cut): a Hearthfind trophy no HEARTHFIND_TABLE row pays waits for a gathering job's roll. */
+/* THE GATHERING TROPHIES' DOOR (the bench cut): what a gathering job's roll could pay, every Hearthfind trophy no HEARTHFIND_TABLE row does.
+   Only the door is derived: the three trophies it may hold are typed in UNREACHABLE.jobFind, so a new trophy with no source is C11a's. */
 const JOB_FIND_TROPHIES = Object.freeze(HEARTHFIND_ITEMS.filter((id) => !HEARTHFIND_TABLE.some((t) => t.item === id)));
 const JOB_FIND_DOOR = "a gathering job's find";
 
@@ -188,9 +190,8 @@ export const AWAITING_ROSTER = Object.freeze([
 export const UNREACHABLE_FATES = Object.freeze({
   staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (the Barrow March opened 2026-11-14, and a later staged pack files its rows here)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
-  /* A DERIVED fate (`derived`): its rows are computed, never typed, and are EXACTLY what its door adds (C11d reads them outside the ceiling) */
-  traitBase:  Object.freeze({ bucket: 'a', derived: true, door: "Artificing's Trait craft ships (after v0.3.0) and sets a Trait on the base (09-crafting.md 4.13)", open: Object.freeze({ traitCraft: true }) }),
-  jobFind:    Object.freeze({ bucket: 'a', derived: true, door: "a gathering job's set rolls it (the Hearthfind's job roll, the trade engine's to build; src/data/hearthfind.js)", open: Object.freeze({ jobFind: true }) }),
+  traitBase:  Object.freeze({ bucket: 'a', door: "Artificing's Trait craft ships (after v0.3.0) and sets a Trait on the base (09-crafting.md 4.13)", open: Object.freeze({ traitCraft: true }) }),
+  jobFind:    Object.freeze({ bucket: 'a', door: "a gathering job's set rolls it (the Hearthfind's job roll, the trade engine's to build; src/data/hearthfind.js)", open: Object.freeze({ jobFind: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
   cut:        Object.freeze({ bucket: 'c', door: 'none: dead weight, listed for a cut (Tyler approves)' }),
@@ -230,11 +231,11 @@ export const UNREACHABLE = Object.freeze({
       .filter((id) => ITEMS[id] && !OPEN_BODY_DROPS.has(id)),
   ]),
   /* THE TRAIT CRAFT'S BASES (09-crafting.md 4.13 and 4.16, the bench cut): every step tier's ring, earrings, necklace and cloak (bands 5 to
-     8), held for Artificing's Trait craft after v0.3.0. DERIVED from slot-ladders.js STEP_TRAIT_BASES, never a hand list, so like `staged`
-     it sits outside the ceiling, and C11c proves the door reaches these and nothing else */
-  traitBase: Object.freeze([...STEP_TRAIT_BASES]),
-  /* THE GATHERING TROPHIES (the bench cut: their node rows left with the nodes): every Hearthfind trophy no table row pays. DERIVED */
-  jobFind: Object.freeze([...JOB_FIND_TROPHIES]),
+     8), held for Artificing's Trait craft after v0.3.0. The typed, ruled list is slot-ladders.js TRAIT_BASE_HOLDS, inside the ceiling: a
+     new tier's piece joins only the door (STEP_TRAIT_PIECES), so it is C11a's until it has a source or a ruling */
+  traitBase: Object.freeze(Object.keys(TRAIT_BASE_HOLDS)),
+  /* THE GATHERING TROPHIES (the bench cut: their node rows left with the nodes; src/data/hearthfind.js). TYPED, inside the ceiling */
+  jobFind: Object.freeze(['worldroot_seed', 'deepvein_lodestar', 'tidecallers_pearl']),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
@@ -279,9 +280,11 @@ export const UNREACHABLE = Object.freeze({
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
 /* 55 -> 51 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 51; the Chitinweave Cloak stays, a cape rung) (28-named-pieces.md). */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-/* 51 -> 49 (lane/bench-cut-data, 2026-11-28): the Cooked Panther Meat and the Void Banquet left ITEMS with the bench. The Trait craft's
-   bases (`traitBase`) and the three gathering trophies (`jobFind`) are DERIVED fates, outside the ceiling like `staged`. */
-export const UNREACHABLE_CEILING = 49;
+/* 51 -> 49 (lane/bench-cut-data, 2026-11-28): the Cooked Panther Meat and the Void Banquet left ITEMS with the bench.
+   49 -> 68 (lane/bench-cut-data-guards, 2026-11-28): the sixteen Trait bases (`traitBase`, ruled in 09-crafting.md 4.13 to 4.16) and the three
+   gathering trophies (`jobFind`), sourced by the bench and the nodes until the cut, are counted here. The cut had them outside the ceiling
+   under lists that filled themselves, so a new unsourced trophy or ring passed. Not a precedent: the list only shrinks from 68. */
+export const UNREACHABLE_CEILING = 68;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:
@@ -321,8 +324,8 @@ export function reachableSources(opts = {}) {
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
   if (opts.jobFind) for (const id of JOB_FIND_TROPHIES) put(id, JOB_FIND_DOOR);
-  /* the Trait craft's bases, only with its planned door open (C11: UNREACHABLE.traitBase) */
-  if (opts.traitCraft) for (const id of STEP_TRAIT_BASES) put(id, TRAIT_CRAFT_DOOR);
+  /* the Trait craft, over every step tier's piece, only with its planned door open (C11: UNREACHABLE.traitBase holds the ruled ones) */
+  if (opts.traitCraft) for (const id of STEP_TRAIT_PIECES) put(id, TRAIT_CRAFT_DOOR);
   for (let grew = true; grew;) {
     grew = false;
     for (const k of Object.keys(CROPS)) if (m.has(CROPS[k].seed)) grew = put(CROPS[k].prod, 'harvested') || grew;
@@ -375,8 +378,8 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  /* the Trait craft's bases (slot-ladders.js STEP_TRAIT_BASES): a door on paper until Artificing's Trait craft ships (UNREACHABLE.traitBase) */
-  addSet(m, STEP_TRAIT_BASES, TRAIT_CRAFT_DOOR);
+  /* the HELD Trait bases (slot-ladders.js TRAIT_BASE_HOLDS): a door on paper until Artificing's Trait craft ships (UNREACHABLE.traitBase) */
+  addSet(m, Object.keys(TRAIT_BASE_HOLDS), TRAIT_CRAFT_DOOR);
   /* a job recipe's face (src/data/trades.js jobFaces): made by its trade (hr_trade_job_start, the job slice) */
   for (const j of jobFaces()) push(m, j.output, 'made by ' + j.trade);
   /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab

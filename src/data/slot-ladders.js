@@ -47,8 +47,8 @@ import { STEP_MATERIALS, materialWord, stepOf, onTier } from './gear-tiers.js';
 import { SUPPLY_GATES } from './core-model.js';
 
 /* THE TRAIT CRAFT'S BASES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and
-   book multiplier (the shipped rungs' vmul). No bench makes them since the cut (09-crafting.md 4.13): they are held sourceless for
-   Artificing's Trait craft (catalogue-coherence UNREACHABLE_FATES traitBase). */
+   book multiplier (the shipped rungs' vmul). No bench makes them since the cut (09-crafting.md 4.13): a piece with no real door is held for
+   Artificing's Trait craft only by its own ruled row (TRAIT_BASE_HOLDS below; catalogue-coherence UNREACHABLE_FATES traitBase). */
 const STEP_JEWELS = Object.freeze([
   Object.freeze({ key: 'ring', label: 'Ring', line: 'metal', slot: 'ring', type: 'jewelry', icon: '💍', vmul: 200 }),
   Object.freeze({ key: 'earrings', label: 'Earrings', line: 'metal', slot: 'earrings', type: 'jewelry', icon: '💎', vmul: 100 }),
@@ -196,9 +196,20 @@ export const SLOT_ITEMS = withGearStats({
   }))),
 });
 
-/** THE TRAIT CRAFT'S BASES (09-crafting.md 4.13 and 4.16): every step tier's ring, earrings, necklace and cloak, by id. No bench makes
-    them and no ground drops them, so they are held sourceless for Artificing's Trait craft (catalogue-coherence's `traitBase` fate). */
-export const STEP_TRAIT_BASES = Object.freeze(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => materialWord(m, j.line)[0] + '_' + j.key)));
+/** EVERY STEP TIER'S RING, EARRINGS, NECKLACE AND CLOAK, by id: what Artificing's Trait craft could set a Trait on. Derived, so a new tier
+    joins it, and joining it is no source and no hold (the door catalogue-coherence opens for the hold's proof, C11). */
+export const STEP_TRAIT_PIECES = Object.freeze(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => materialWord(m, j.line)[0] + '_' + j.key)));
+
+/** THE HELD BASES: the sixteen pieces no bench makes and no ground drops, kept for the Trait craft after v0.3.0, each with the section of
+    09-crafting.md whose ruling names it held (the fate table's "Held as the Trait craft's bases" rows, ruled in 4.13). TYPED, never derived:
+    a new tier's ring or cloak is NOT held until the designer rules it, so it needs a real door. tests/gear-stats.mjs GSF-9 reads the ruling
+    in the named section; tests/catalogue-coherence.mjs C11 counts every row against its ceiling. */
+export const TRAIT_BASE_HOLDS = Object.freeze({
+  ember_ring: '4.15', ember_earrings: '4.15', ember_necklace: '4.15', archmage_cloak: '4.15',
+  dawn_ring: '4.16', dawn_earrings: '4.16', dawn_necklace: '4.16', duskweave_cloak: '4.16',
+  cobalt_ring: '4.16', cobalt_earrings: '4.16', cobalt_necklace: '4.16', samite_cloak: '4.16',
+  wolfram_ring: '4.16', wolfram_earrings: '4.16', wolfram_necklace: '4.16', cerecloth_cloak: '4.16',
+});
 
 export const SLOT_DESC = {
   bronze_arrows: 'Plain arrows with blunt bronze heads. They\'re free, and you never run out of them',

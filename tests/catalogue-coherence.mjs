@@ -95,9 +95,10 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain as isEntryModule } from './_is-main.mjs';
 import { strip } from './_js-strip.mjs';
+import { plant as plantTree } from './hunt-core/fixtures/h1.js';
 import { GEAR_ITEMS } from '../src/data/gear-tiers.js';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../src/data/core-model.js';
 import { armourWeights, maxHpFor, maxManaFor } from '../src/core/vitals.js';
@@ -117,6 +118,8 @@ import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from
 import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+/* the module C11 judges: the shipped one, or a planted copy of the tree's (mutate() only: the bench cut's lists are frozen at load) */
+const LIVE = Object.freeze({ ITEMS, reachableSources, plannedDoors, UNREACHABLE_FATES, UNREACHABLE_CEILING });
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
 let KIT_PLANT = null;
 /* C10's ladder: the shipped one, or a planted one (mutate() only). */
@@ -392,7 +395,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
 
 /* C11. Every source a player can walk through, and every out-of-reach item tagged with the door that will
    source it, the tag proved by opening that door. */
-export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_ROSTER), unreachable = UNREACHABLE } = {}) {
+export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_ROSTER), unreachable = UNREACHABLE, cc = LIVE } = {}) {
+  const { ITEMS, reachableSources, plannedDoors, UNREACHABLE_FATES, UNREACHABLE_CEILING } = cc;
   const out = [];
   const reach = reachableSources();
   const fateOf = new Map();
@@ -417,18 +421,9 @@ export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_RO
       else if (without[fate].has(id)) out.push(`C11c ${id} is tagged ${fate} but another door reaches it (${without[fate].get(id)}): tag that door`);
     } else if (all.has(id)) out.push(`C11c ${id} is tagged ${fate} (no door) but a planned door reaches it (${all.get(id)}): tag that door`);
   }
-  /* A DERIVED fate (the bench cut's traitBase and jobFind) sits outside the ceiling only because its rows are computed: they must be
-     EXACTLY what its own door adds to the reachable set, so a hand-tagged row under it (or a doorless fate marked derived) is red. */
-  const derived = new Set();
-  for (const [fate, f] of Object.entries(UNREACHABLE_FATES)) {
-    if (!f.derived) continue;
-    if (fate === 'staged' || f.bucket !== 'a' || !f.open) { out.push(`C11d ${fate} is marked derived but is not a bucket (a) fate with a door of its own`); continue; }
-    const adds = [...reachableSources({ ...f.open }).keys()].filter((id) => !reach.has(id)).sort();
-    const rows = [...(unreachable[fate] || [])].sort();
-    if (adds.join() !== rows.join()) out.push(`C11d the derived fate ${fate} lists ${rows.length} row(s) but its door adds ${adds.length}: its rows must be exactly the door's (${rows.filter((id) => !adds.includes(id)).concat(adds.filter((id) => !rows.includes(id))).join(', ')})`);
-    else derived.add(fate);
-  }
-  const held = [...fateOf.values()].filter((f) => f !== 'staged' && !derived.has(f)).length;
+  /* Only `staged` sits outside the ceiling. The bench cut's traitBase and jobFind did too, under lists that filled themselves (every
+     sourceless step ring, every unpaid trophy): both are typed now, and C11a owns a new one. */
+  const held = [...fateOf.values()].filter((f) => f !== 'staged').length;
   if (held > UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, over the ceiling ${UNREACHABLE_CEILING}: the list only shrinks — source the item instead`);
   if (held < UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, under the ceiling ${UNREACHABLE_CEILING}: lower UNREACHABLE_CEILING to ${held}`);
   return { fails: out, counts: { outOfReach: fateOf.size, reachable: reach.size } };
@@ -536,7 +531,7 @@ export function armourLadderFails(items = ITEMS) {
    Every arm is driven red by a planted defect on the LIVE data objects (the
    same identities the module reads), then the plant is removed. A control run
    first proves the tree is clean, so a red mutant measures the plant alone. */
-function mutate() {
+async function mutate() {
   const results = [];
   const run = (name, arm, plant) => {
     let undo;
@@ -695,9 +690,38 @@ function mutate() {
     const restore = farFind('__mut_far2');
     return { unreachable: { ...UNREACHABLE, cut: [...UNREACHABLE.cut, '__mut_far2'] }, restore };
   });
-  /* the bench cut's derived fates sit outside the ceiling only while their rows are exactly their doors' (traitBase, jobFind) */
-  run('a held row moved under a derived fate to slip the ceiling', 'C11d', () => ({ unreachable: retag('dragon_gem', 'later', 'traitBase') }));
-  run('a derived fate drops one of its door\'s rows', 'C11d', () => ({ unreachable: { ...UNREACHABLE, jobFind: UNREACHABLE.jobFind.slice(1) } }));
+  /* the bench cut's two held lists (traitBase, jobFind) are typed, inside the ceiling, and hold only what their own door opens */
+  run('a row moved under the Trait craft\'s hold, which its door does not open', 'C11c', () => ({ unreachable: retag('dragon_gem', 'later', 'traitBase') }));
+  run('a row moved under the job find\'s hold, which its door does not open', 'C11c', () => ({ unreachable: retag('dragon_gem', 'later', 'jobFind') }));
+  run('a trophy dropped from the job find\'s hold', 'C11a', () => ({ unreachable: { ...UNREACHABLE, jobFind: UNREACHABLE.jobFind.slice(1) } }));
+  run('a Trait base dropped from its hold', 'C11a', () => ({ unreachable: { ...UNREACHABLE, traitBase: UNREACHABLE.traitBase.slice(1) } }));
+  run('a held Trait base a monster drops now', 'C11b', () => { MONSTERS.slime.drops.push({ id: UNREACHABLE.traitBase[0], ch: 0.01 }); return { restore: () => { MONSTERS.slime.drops.pop(); } }; });
+  /* A NEW UNSOURCED ITEM NEVER FILES ITSELF: each is planted in a copy of the data, so the lists are built from it as a new row's would be.
+     The arm and the item's own id must both be in the finding (a planted tree that cannot load throws, and fails the run). */
+  const planted = async (name, arm, names, edits) => {
+    const p = plantTree(edits);
+    try {
+      const cc = await import(pathToFileURL(join(p.root, 'src/data/catalogue-coherence.js')).href);
+      const f = reachFails({ src: cc.itemSources(), awaiting: new Set(cc.AWAITING_ROSTER), unreachable: cc.UNREACHABLE, cc }).fails;
+      results.push([name, f.some((x) => x.startsWith(arm) && x.includes(names))]);
+    } finally { p.done(); }
+  };
+  const TROPHY = ["  Object.freeze({ item: 'tidecallers_pearl', title: 'tidesworn',    titleName: 'Tidesworn' }),\n", "  tidecallers_pearl: {n:"];
+  const newTrophy = [['src/data/hearthfind.js', TROPHY[0], TROPHY[0] + "  Object.freeze({ item: '__mut_trophy', title: 'mut', titleName: 'Mut' }),\n"],
+    ['src/data/items.js', TROPHY[1], "  __mut_trophy:{n:'Mut',v:0,bop:true,hearthfind:true},\n" + TROPHY[1]]];
+  const jobFindRow = "jobFind: Object.freeze(['worldroot_seed', 'deepvein_lodestar', 'tidecallers_pearl'";
+  await planted('a new Hearthfind trophy no table row pays', 'C11a', '__mut_trophy', newTrophy);
+  await planted('a new trophy added to the job find\'s hold instead of sourced', 'C11d', 'over the ceiling', [...newTrophy, ['src/data/catalogue-coherence.js', jobFindRow, jobFindRow + ", '__mut_trophy'"]]);
+  await planted('a new trophy with the hold filling itself again (the cut\'s list)', 'C11d', 'over the ceiling', [...newTrophy, ['src/data/catalogue-coherence.js', jobFindRow + '])', 'jobFind: Object.freeze([...JOB_FIND_TROPHIES])']]);
+  /* a fifth piece a step tier: every tier's brooch joins the Trait craft's door, and none of them its hold */
+  const JEWEL = "  Object.freeze({ key: 'cloak', label: 'Cloak', line: 'cloth', slot: 'cape', type: 'armor', icon: '🦸', vmul: 240 }),\n";
+  const brooch = ['src/data/slot-ladders.js', JEWEL, "  Object.freeze({ key: 'brooch', label: 'Brooch', line: 'metal', slot: 'necklace', type: 'jewelry', icon: '📿', vmul: 200 }),\n" + JEWEL];
+  const HOLD = "export const TRAIT_BASE_HOLDS = Object.freeze({\n";
+  const DERIVED = 'traitBase: Object.freeze(Object.keys(TRAIT_BASE_HOLDS))';
+  const srcDerived = ['src/data/catalogue-coherence.js', 'addSet(m, Object.keys(TRAIT_BASE_HOLDS), TRAIT_CRAFT_DOOR)', 'addSet(m, STEP_TRAIT_PIECES, TRAIT_CRAFT_DOOR)'];
+  await planted('a new step piece the paper door names and nothing holds', 'C11a', 'ember_brooch', [brooch, srcDerived]);
+  await planted('a new step piece added to the Trait hold instead of sourced', 'C11d', 'over the ceiling', [brooch, ['src/data/slot-ladders.js', HOLD, HOLD + "  ember_brooch: '4.15',\n"]]);
+  await planted('a new step piece with the Trait hold filling itself again (the cut\'s list)', 'C11d', 'over the ceiling', [brooch, srcDerived, ['src/data/catalogue-coherence.js', DERIVED, 'traitBase: Object.freeze([...STEP_TRAIT_PIECES])']]);
 
   /* C12 — a house price a player can pay (Andy's report, 2026-10-31). */
   run('the Brook Bear loses its pelt (the wall Andy hit: the Keep asks for what nothing drops)', 'C12a', () => {
@@ -835,7 +859,7 @@ function mutate() {
 const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   try {
-    if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) mutate();
+    if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) await mutate();
     const { fails, counts } = check();
     if (fails.length) {
       console.error('catalogue-coherence: RED');

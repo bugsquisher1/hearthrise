@@ -749,7 +749,7 @@ export const MONSTERS = {
   gray_whelp: { name: 'Gray Wolf Pup', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     role: 'swarm',
     hp: 11, atk: 4, aim: 15, evasion: 7, def: 0, xp: 18, gp: [1, 4], formula: true, speed: 3800,
-    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0733, ch: 0.262, band: 'common' }, { id: 'bones', everyHours: 0.064, ch: 0.3, band: 'common' }, { id: 'whelp_milk_tooth', everyHours: 0.32, ch: 0.06, band: 'uncommon' }, { id: 'klappas_club', everyHours: 1, ch: 0.0192, band: 'scarce' },
+    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0733, ch: 0.262, band: 'common' }, { id: 'bones', everyHours: 0.064, ch: 0.3, band: 'common' }, { id: 'whelp_milk_tooth', everyHours: 0.32, ch: 0.06, band: 'uncommon' }, { id: 'klappas_club', everyHours: 2.5, ch: 0.00768, band: 'scarce' },
       { id: 'bronze_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }, { id: 'leather_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }, { id: 'apprentice_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }] },
   /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
@@ -757,9 +757,9 @@ export const MONSTERS = {
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
     role: 'stalker',
     hp: 19, atk: 4, aim: 18, evasion: 10, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,
-    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'bones', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'gray_dewclaw', everyHours: 0.3765, ch: 0.06, band: 'uncommon' }, { id: 'graypelt_cloak', everyHours: 10, ch: 0.00226, band: 'rare' },
+    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'bones', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'gray_dewclaw', everyHours: 0.3765, ch: 0.06, band: 'uncommon' },
       { id: 'bronze_helm', everyHours: 3.346, ch: 0.00675, band: 'scarce' }, { id: 'leather_helmet', everyHours: 3.346, ch: 0.00675, band: 'scarce' }, { id: 'apprentice_helmet', everyHours: 3.346, ch: 0.00675, band: 'scarce' },
-      { id: 'leather_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }, { id: 'apprentice_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }] },
+      { id: 'graypelt_cloak', everyHours: 40, ch: 0.000565, band: 'rare' }, { id: 'leather_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }, { id: 'apprentice_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
@@ -828,9 +828,9 @@ export const MONSTERS = {
     role: 'caster',
     hp: 1206, atk: 30, aim: 34, evasion: 37, def: 17, xp: 6137, gp: [94, 282], formula: true, speed: 2800,
     spells: ['slag_toss', 'slag_rain'],
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.833, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.39, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.78, ch: 0.144, band: 'uncommon' }, { id: 'steelgrate', everyHours: 20, ch: 0.02, band: 'rare' },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.833, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.39, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.78, ch: 0.144, band: 'uncommon' },
       { id: 'steel_platebody', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' },
-      { id: 'coppercap_shield', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'war_crown', everyHours: 29.6, ch: 0.0135, band: 'rare' },
+      { id: 'coppercap_shield', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'steelgrate', everyHours: 30, ch: 0.0133, band: 'rare' }, { id: 'war_crown', everyHours: 29.6, ch: 0.0135, band: 'rare' },
       { id: 'willow_wand', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_spellbook', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_staff', everyHours: 36.4, ch: 0.011, band: 'rare' },
       /* the Cauldron and his Rares keep him in the trophy band (125-150 h) and the rare band (20 h) a hero on the tier path (drop-tables.mjs); the Cauldron 274 h since steel is item Level 40 (lane/scale-grounds-2) */
       { id: 'verdigris_cake', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'coppercaps_cauldron', everyHours: 315, ch: 0.00127, band: 'trophy' }] },

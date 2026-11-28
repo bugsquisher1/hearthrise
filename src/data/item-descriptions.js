@@ -68,24 +68,9 @@ export const ITEM_DESC = {
   'runewood_wand': 'A runewood wand carved along the rune lines in the wood. Master mages use these',
   'apprentice_primer': 'A dog-eared book of first spells. You carry it in your off hand next to a wand',
   'oak_spellbook': 'A spellbook with oak covers. Someone scribbled corrections all over the margins',
-  /* Crafted jewelry's grades (src/data/jewelry.js): the Banded Signet with its stones, and the gem a Turncoat robs. */
-  'banded_signet_keen': 'A Banded Signet with an amber chip set in it, for fighters who want their hits to crit more',
-  'banded_signet_surge': 'A Banded Signet with a pale blue stone set in it. Casters wear it so some of their spells hit harder',
-  'banded_signet_follow': 'A Banded Signet with a red stone set in it. Some of your swings carry on into the monster beside your target',
-  'banded_signet_keen_surge': 'A gilt Banded Signet with its maker\'s stamp, set with an amber chip and a pale blue stone',
-  'banded_signet_keen_follow': 'A gilt Banded Signet with its maker\'s stamp, set with an amber chip and a red stone',
-  'banded_signet_surge_follow': 'A gilt Banded Signet with its maker\'s stamp, set with a pale blue stone and a red one',
+  /* The gem a Turncoat robs (its jewel grades left with the bench cut, 2026-11-28). */
   'road_carnelian': 'A red carnelian pried from a traveler\'s signet on the Thicket road. Sealing wax won\'t stick to it',
-  /* The tier 3 ring, the earrings' grades and the Warrens' gem (lane/d-jewelry-sample 2026-11-18). */
-  'seam_jasper_band_keen': 'A Seam Jasper Band with an amber chip set in it, for fighters who want their hits to crit more',
-  'seam_jasper_band_surge': 'A Seam Jasper Band with a pale blue stone set in it. Casters wear it so some of their spells hit harder',
-  'seam_jasper_band_follow': 'A Seam Jasper Band with a red stone set in it. Some of your swings carry on into the monster beside your target',
-  'seam_jasper_band_keen_surge': 'A gilt Seam Jasper Band with its maker\'s stamp, set with an amber chip and a pale blue stone',
-  'seam_jasper_band_keen_follow': 'A gilt Seam Jasper Band with its maker\'s stamp, set with an amber chip and a red stone',
-  'seam_jasper_band_surge_follow': 'A gilt Seam Jasper Band with its maker\'s stamp, set with a pale blue stone and a red one',
-  'fang_studs_steady': 'Fang Studs with a bone bead set in them. Your swings find their mark more often',
-  'fang_studs_focus': 'Fang Studs with a teal drop set in them. You get some mana back every time you finish a monster off',
-  'fang_studs_steady_focus': 'Fang Studs in gilt bronze with their maker\'s stamp, set with a bone bead and a teal drop',
+  /* The Warrens' gem (lane/d-jewelry-sample 2026-11-18). */
   'seam_jasper': 'A red and brown jasper the Warrens goblins break out of the copper seams. Smiths set it in steel',
   'willow_spellbook': 'A spellbook with willow-leaf pages, full of spells that go off a little quicker',
   'maple_spellbook': 'A spellbook with maple covers and a clasp that keeps the damp out',

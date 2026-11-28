@@ -194,8 +194,10 @@ export const ITEMS={
   /* Iron Bolts: against Iron Arrows (3/3) a bolt misses more and hits harder (1/4). */
   iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[1],madeLv:15},
   /* THE ARROW LADDER'S RUNG 2 (the bench cut, 09-crafting 4.13): band 1's arrow is its metal's, the Fletch Iron Arrows job's face, so it
-     takes the rung the Barbed Arrows held (cut with the bench as a second arrow at one band), on the rung's own numbers and gate. */
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:3,rangeStrB:3,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[1],madeLv:15},
+     takes the rung the Barbed Arrows held (cut with the bench as a second arrow at one band), on the rung's own numbers. It keeps the
+     first gate (b542, below): it is the one arrow a Level 1 hero buys off the storefront (Plain Iron Arrows), which a crossbow, with no
+     free bolt rung, fires from the first hour (tests/hunt-core/drop-tables.mjs ranger-floor). A rung opens by its band at the latest (09 4.16). */
+  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:3,rangeStrB:3,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[0],madeLv:15},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
   willow_log:{n:'Willow Log',icon:'🪵',v:15},maple_log:{n:'Maple Log',icon:'🪵',v:15},

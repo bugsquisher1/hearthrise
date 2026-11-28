@@ -34,19 +34,19 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 | Monster HP, damage, armor, resistances and behavior | 33 | 13 | 8 | 4 | 8 | 5 | 18 | 22 |
 | Spawn pacing and encounter composition | 10 | 7 | 0 | 3 | 0 | 0 | 6 | 5 |
 | Monster XP and loot values | 18 | 9 | 0 | 2 | 7 | 2 | 8 | 10 |
-| Equipment stats and progression | 24 | 10 | 4 | 10 | 0 | 0 | 16 | 18 |
+| Equipment stats and progression | 24 | 10 | 4 | 10 | 0 | 0 | 16 | 17 |
 | Imbuement effects | 2 | 1 | 0 | 1 | 0 | 0 | 2 | 1 |
 | Consumable costs and effectiveness | 9 | 4 | 3 | 2 | 0 | 1 | 1 | 2 |
 | Party bonuses and interactions | 6 | 1 | 3 | 0 | 2 | 2 | 2 | 3 |
 | Rare-drop probabilities | 8 | 4 | 0 | 3 | 1 | 0 | 6 | 5 |
-| Economy sources and sinks | 48 | 35 | 2 | 11 | 0 | 0 | 43 | 36 |
-| **All** | **237** | 131 | 28 | 52 | 26 | 27 | 129 | 133 |
+| Economy sources and sinks | 48 | 35 | 2 | 11 | 0 | 0 | 43 | 35 |
+| **All** | **237** | 131 | 28 | 52 | 26 | 27 | 129 | 131 |
 <!-- END GENERATED:COUNTS -->
 
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 742 (in 260 files, 16919 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 742 (in 260 files, 16920 typed numbers) |
 | Claimed by a lever | 308 |
 | Claimed by a not-a-lever reason | 434 |
 | Unclaimed | 0 |

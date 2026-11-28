@@ -43,8 +43,8 @@
 import { at, TOWN_MAP } from './town/plan.js';
 
 export const TAP_OPENS = Object.freeze({
-  anvil: Object.freeze({ open: 'skill', skill: 'smithing' }),
-  woodpile: Object.freeze({ open: 'skill', skill: 'woodcutting' }),
+  anvil: Object.freeze({ open: 'window', window: 'skills-trade' }),   // the Work window's jobs (the bench cut, 09-crafting 4.17)
+  woodpile: Object.freeze({ open: 'window', window: 'skills-trade' }),
   /* the Great Hearth itself: the Burning Tower's window (its chimney, and the chest on its ledge: Tyler 2026-11-14), and while the server
      hides the Tower (src/data/shell-windows.js `orElse`) the bag, where Fuel the hearth is (Tyler 2026-10-25; Inner Flame, src/data/hearth.js) */
   great_hearth: Object.freeze({ open: 'window', window: 'tower' }),
@@ -65,7 +65,8 @@ const south = (props) => props.map(([, x, y]) => [x, y + 1]);
 const nearest = (tiles, [tx, ty]) => tiles.slice().sort((a, b) => ((a[0] - tx) ** 2 + (a[1] - ty) ** 2) - ((b[0] - tx) ** 2 + (b[1] - ty) ** 2)
   || a[1] - b[1] || a[0] - b[0]);
 const win = (window) => Object.freeze({ open: 'window', window });
-const skill = (id) => Object.freeze({ open: 'skill', skill: id });
+/* a trade's station opens the Work window, where its jobs are (the bench cut: a trade is the company's, no skill screen) */
+const work = () => win('skills-trade');
 
 /* THE GREAT HEARTH (footprint 11 x 4 at x112-122 y45-48, town/sites.js) and its 24 fuel stands */
 /* the Hearth's fuel: the long log stack west, the chopping block east where it is split (never a mirror pair: town/sites.js) */
@@ -150,29 +151,29 @@ const ROWS = [
   { id: 'sewer_grate', district: 'sewer', kind: 'hunt', opens: null, props: [],
     stands: F(42, 68, 6, 1), overflow: [], fallback: 'gatehouse' },
   /* THE SMITHY YARD */
-  { id: 'smithy_forges', district: 'smithy', kind: 'artisan', skill: 'smithing', opens: skill('smithing'), props: [...FORGES, ...ANVILS],
+  { id: 'smithy_forges', district: 'smithy', kind: 'artisan', skill: 'smithing', opens: work(), props: [...FORGES, ...ANVILS],
     stands: [...south(FORGES), ...south(ANVILS)],
     overflow: [[64, 41], [63, 40], [65, 40], [66, 41], [64, 44], [61, 40], [68, 41], [64, 46]], fallback: 'square_benches' },
-  { id: 'smithy_benches', district: 'smithy', kind: 'artisan', skill: 'crafting', opens: skill('crafting'), props: BENCHES,
+  { id: 'smithy_benches', district: 'smithy', kind: 'artisan', skill: 'crafting', opens: work(), props: BENCHES,
     stands: south(BENCHES),
     overflow: [[73, 42], [72, 43], [74, 43], [72, 42], [74, 42], [76, 43], [72, 46], [74, 46], [70, 44], [76, 45], [75, 41], [70, 43]], fallback: 'square_benches' },
   /* THE TAVERN'S COOK YARD: two to a fire */
-  { id: 'tavern_kitchen', district: 'tavern', kind: 'artisan', skill: 'cooking', opens: skill('cooking'), props: FIRES,
+  { id: 'tavern_kitchen', district: 'tavern', kind: 'artisan', skill: 'cooking', opens: work(), props: FIRES,
     stands: FIRES.flatMap(([, x, y]) => [[x, y + 1], [x + 1, y + 1]]),
     overflow: [[65, 31], [68, 30], [64, 32], [68, 32], [69, 31], [63, 31], [67, 33], [62, 31], [70, 31], [67, 34], [63, 34], [61, 30], [66, 35], [68, 34]], fallback: 'square_benches' },
   /* THE TRAINING YARD: three to a dummy */
   { id: 'training_yard', district: 'training', kind: 'training', opens: win('training'), props: DUMMIES,
     stands: DUMMIES.flatMap(([, x, y]) => [[x, y + 1], [x - 1, y + 1], [x + 1, y + 1]]), overflow: [], fallback: 'square_benches' },
   /* GATHERING: one hero to a tree, a rock, a stretch of shore or a plot */
-  { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: skill('woodcutting'), props: TREES,
+  { id: 'westwood', district: 'westwood', kind: 'gather', skill: 'woodcutting', opens: work(), props: TREES,
     stands: treeStands(TREES), overflow: [], fallback: 'square_benches' },
-  { id: 'mine', district: 'mine', kind: 'gather', skill: 'mining', opens: skill('mining'), props: ROCKS,
+  { id: 'mine', district: 'mine', kind: 'gather', skill: 'mining', opens: work(), props: ROCKS,
     stands: south(ROCKS), overflow: [[149, 39], [155, 39], [148, 42], [156, 41], [152, 35], [147, 40]], fallback: 'square_benches' },
-  { id: 'rune_block', district: 'mine', kind: 'artisan', skill: 'runecrafting', opens: skill('runecrafting'), props: ALTARS,
+  { id: 'rune_block', district: 'mine', kind: 'artisan', skill: 'runecrafting', opens: work(), props: ALTARS,
     stands: F(150, 49, 8, 1), overflow: F(150, 50, 7, 1), fallback: 'square_benches' },
-  { id: 'shore', district: 'shore', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [['bucket', 48, 92]],
+  { id: 'shore', district: 'shore', kind: 'gather', skill: 'fishing', opens: work(), props: [['bucket', 48, 92]],
     stands: F(50, 93, 40, 1), overflow: [], fallback: 'square_benches' },
-  { id: 'river_bank', district: 'river', kind: 'gather', skill: 'fishing', opens: skill('fishing'), props: [],
+  { id: 'river_bank', district: 'river', kind: 'gather', skill: 'fishing', opens: work(), props: [],
     stands: F(87, 54, 1, 8), overflow: F(86, 54, 1, 8), fallback: 'shore' },
   { id: 'farm', district: 'farm', kind: 'gather', skill: 'farming', opens: win('farm'), props: [['cabbage_crate', 19, 86]],
     stands: FARM_PLOTS.flatMap(([x, y, w]) => F(x, y + 2, w, 1)), overflow: [], fallback: 'square_benches' },

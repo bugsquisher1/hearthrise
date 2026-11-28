@@ -42,7 +42,7 @@ export const GEAR_ECONOMY = [
     def: 'Keen +4/6% crit, Surge 6.7/10% of casts at x1.5, Follow-through 4/6%, Thrift 5.3/8% free casts, Deflect 2.7/4% blows turned, Steady 20/30% of misses land; the largest worn counts once',
     range: 'permille; one of each kind counts',
     touches: 'damage and survival of jeweled heroes', out: [...KILL, 'takenPerH'], f: ['C-JEWEL-PERKS'],
-    tests: [['tests/jewelry-rolls.mjs', 'the perks and their rolls']], testReads: ['JEWEL_PERKS'],
+    /* (its test, tests/jewelry-rolls.mjs, retired with the jewelry bench, 2026-11-28: no item carries a perk until the Trait craft) */
     perturb: P('the BiS kit wears the larger perk pair'),
     flags: [flag('redundant', 'One word, two mechanics: the jewel Steady (misses that land) and the food buff "defense" written to steady (a damage cut)', '44 X-STEADY-TWO-MEANINGS, CONFIRMED')],
     ev: 'CONFIRMED (read)' }),
@@ -726,10 +726,9 @@ export const GEAR_ECONOMY = [
     ev: 'CONFIRMED (read)' }),
   L('econ.jewelry-crafting', 'economy', 'content', 'Jewelry tiers, Hallmark and rolls', {
     at: [at('src/data/jewelry.js', 'export const JEWEL_TIERS'), at('src/data/jewelry.js', 'export const ROLL_ODDS'), at('src/data/jewelry.js', 'export const HALLMARK_DAY_LIMIT = 10')],
-    def: 'a Hallmark costs 25,000 gold at tier 2 and 100,000 at tier 3 (tiers 4 to 7 ruled 150k / 250k / 400k / 600k, not built); roll odds a 10,000 by Crafting level; ten a day',
+    def: 'DARK since the bench cut (2026-11-28: no bench rolls or Hallmarks a piece, the Trait craft replaces it): a Hallmark costs 25,000 gold at tier 2 and 100,000 at tier 3; roll odds a 10,000 by Crafting level; ten a day',
     range: 'whole',
     touches: 'a gold sink and the jewelry chase', out: [], f: ['E40', 'P18'],
-    tests: [['tests/jewelry-rolls.mjs', 'the roll odds']], testReads: ['ROLL_ODDS', 'JEWEL_TIERS'],
     perturb: NP('outside-hunt'),
     ev: 'CONFIRMED (read)' }),
   L('econ.tally', 'economy', 'content', 'Tally task rewards', {

@@ -106,7 +106,7 @@ import {
   CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS, AWAITING_ROSTER,
   reachableSources, plannedDoors, UNREACHABLE, UNREACHABLE_FATES, UNREACHABLE_CEILING,
   // The SAME data identities the module reads (see its re-export note).
-  ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS,
+  ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, MONSTERS,
 } from '../src/data/catalogue-coherence.js';
 
 import { unclassifiedGrantIds } from '../src/data/item-authority.js';
@@ -115,7 +115,6 @@ import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
 import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
-import { HUNT_TUTORIAL } from '../src/data/hunt-tutorial.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */

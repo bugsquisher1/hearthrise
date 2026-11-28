@@ -87,7 +87,7 @@ export const SHELL_WINDOWS = Object.freeze([
   /* The band says "Skills" (UI audit 2026-11-18: "Gathering and crafting" took two lines beside Back, ?, the key and Close, and the
      window can't be wider: it docks beside Party, 440, inside 60% of a 1440 World, tests/shell-core.mjs W18). Its two sections
      name the rest; the icon row keeps the full label. */
-  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', title: 'Skills', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
+  Object.freeze({ id: 'skills-trade', label: 'Work', title: 'Work', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', group: 'town', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),

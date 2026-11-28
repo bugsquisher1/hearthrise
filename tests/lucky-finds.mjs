@@ -39,7 +39,7 @@ import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
-import { JEWEL_PIECES } from '../src/data/jewelry.js';
+import { JEWEL_SHOP_PRICE } from '../src/data/jewelry.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
 import {
@@ -63,8 +63,9 @@ const FAUCET_SHARE = 0.05;
 const MIN_ROWS_PER_TIER = 4;
 /* ROWS THAT LEFT FOR A RULING (shrink-only): a lucky row taken off because its item may no longer drop anywhere. Tyler 2026-11-18: the two
    dropped Wickstead jewels become crafted (Smithing 15, src/data/jewelry.js), and a crafted piece drops nowhere (tests/jewelry-sources.mjs JS2),
-   so the Wolf Cub's Wolfbone Necklace and the Giant Bat's Fang Studs left. Each counts toward its tier's (e) floor only while its item is a
-   crafted piece no monster drops; a new lucky row on its tier takes the entry's place. Every lucky row stands on a monster no open ground spawns
+   so the Wolf Cub's Wolfbone Necklace and the Giant Bat's Fang Studs left. Since the bench cut (2026-11-28) no bench makes them: they are Shop
+   jewels (src/data/jewelry.js JEWEL_SHOP_PRICE). Each counts toward its tier's (e) floor only while its item is a
+   Shop jewel no monster drops; a new lucky row on its tier takes the entry's place. Every lucky row stands on a monster no open ground spawns
    (2026-11-18): whether the system stays is the designer's call (CONFLICTS 2026-11-18). */
 export const LEFT_BY_RULING = Object.freeze({
   wolfbone_torc: Object.freeze({ tier: 1, monster: 'small_wolf', why: 'Tyler 2026-11-18: crafted at Smithing 15' }),
@@ -199,8 +200,8 @@ function check(monsters) {
   }
   for (const [id, left] of Object.entries(LEFT_BY_RULING)) {
     const still = Object.entries(monsters).filter(([, om]) => (om.drops || []).some((od) => od && od.id === id)).map(([oid]) => oid);
-    ok(!!JEWEL_PIECES[id] && !still.length, 'e', `${id} is LEFT_BY_RULING (${left.why}) but ${still.length ? 'still drops from ' + still.join(', ') : 'is not a crafted piece'}`);
-    if (JEWEL_PIECES[id] && !still.length) perTier[left.tier] = (perTier[left.tier] || 0) + 1;
+    ok(Object.prototype.hasOwnProperty.call(JEWEL_SHOP_PRICE, id) && !still.length, 'e', `${id} is LEFT_BY_RULING (${left.why}) but ${still.length ? 'still drops from ' + still.join(', ') : 'is not a Shop jewel'}`);
+    if (Object.prototype.hasOwnProperty.call(JEWEL_SHOP_PRICE, id) && !still.length) perTier[left.tier] = (perTier[left.tier] || 0) + 1;
   }
   for (let t = 1; t <= 6; t++) {
     ok((perTier[t] || 0) >= MIN_ROWS_PER_TIER, 'e', `tier ${t} has ${perTier[t] || 0} lucky rows, needs ${MIN_ROWS_PER_TIER}`);

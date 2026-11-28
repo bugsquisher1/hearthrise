@@ -16,10 +16,11 @@
 //         the one body the tick and the hunt verbs run — lane C2) both. The
 //         free tier-1 rung of every ladder is in the starter kit and on the shop
 //         counter, so no new player is in the penalty state.
-//   RUNE  Runecrafting's level-1 loop closes with nothing else trained: mine
-//         Rune Essence -> cut Blank Runes -> bind CHALKED FIRE runes -> a Mage's
-//         Fireball spends them in a fight (Tyler 2026-10-23: runes fuel spells,
-//         never a staff's or a wand's blow). Every step runs through computeAccrual.
+//   RUNE  a Mage's Fireball spends CHALKED FIRE runes in a fight and out-kills a Mage
+//         with none (Tyler 2026-10-23: runes fuel spells, never a staff's or a wand's
+//         blow), through computeAccrual. (Its first half, Runecrafting's level-1 bench
+//         loop from the Essence Rock, retired with the bench cut, 2026-11-28: the runes
+//         are a Runecutting job's, whose band 0 chain tests/kit-recipes.mjs KR-CLOSED holds.)
 //   PRAY  RETIRED 2026-10-19 (core rebuild): Prayer wards are deleted (Tyler: Prayer
 //         is regen RATES only). Its replacement guards: tests/core-curves.mjs (the
 //         regen rate, JS = SQL) and tests/hunt-core/conditions.mjs (vitals by
@@ -68,19 +69,6 @@ const MUTATIONS = {
     find: "  bundleOffer('bronze_arrows', 50),\n",
     repl: '',
   },
-  chalked_back_at_15: {
-    file: 'src/data/runes.js',
-    why: 'Runecrafting\'s first rung that makes a SPENT rune is gated at 15 again, so the first '
-       + 'hour makes nothing anybody burns',
-    find: "Object.freeze({ tier: 1, name: 'Chalked', level: 1, stepPm: 1000 }),",
-    repl: "Object.freeze({ tier: 1, name: 'Chalked', level: 15, stepPm: 1000 }),",
-  },
-  blanks_need_stonemason: {
-    file: 'src/data/stonecraft.js',
-    why: 'the level-1 blank cut eats Stonemason blocks again, so Runecrafting cannot start alone',
-    find: "name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 6 },",
-    repl: "name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },",
-  },
 };
 
 /* ── HARNESS ────────────────────────────────────────────────────────────── */
@@ -123,7 +111,6 @@ export async function runAll({ mutate } = {}) {
     const { START_INVENTORY } = await imp('src/data/start-kit.js');
     const { SHOP_OFFERS } = await imp('src/data/shops.js');
     const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
-    const { TREES, ROCKS, FISH_SPOTS } = await imp('src/data/gathering.js');
     const C = await imp('src/core/combat.js');
 
     const AMMO = await imp('src/core/ammo.js');
@@ -134,10 +121,8 @@ export async function runAll({ mutate } = {}) {
     const { computeAccrual } = ACC;
 
     const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
+    /* no gathering node is town work since the bench cut: the engine's gather index is empty */
     const GATHER_INDEX = {};
-    for (const [skill, t] of [['woodcutting', TREES], ['mining', ROCKS], ['fishing', FISH_SPOTS]]) {
-      for (const n of t) GATHER_INDEX[n.id] = { skill, node: n };
-    }
     const xpAt = (lv) => xpForLevel(lv);
 
     /* ── Fixtures, derived from the catalogue (TESTING.md fixture rule) ── */
@@ -267,43 +252,11 @@ export async function runAll({ mutate } = {}) {
 
     // ═════════════════════════ RUNECRAFTING ════════════════════════════
     {
-      const rc = ARTISAN_RECIPES.runecrafting || [];
-      const lv1 = rc.filter((r) => (r.req || 1) <= 1);
-      const spentAt1 = lv1.filter((r) => ITEMS[r.output] && ITEMS[r.output].ammoPerShot > 0);
-      ok(spentAt1.length > 0,
-        `R1: no level-1 Runecrafting rung makes a rune that is SPENT (have ${lv1.map((r) => r.id)}) — the `
-        + 'first hour makes a rune nothing burns');
-      ok(!rc.some((r) => ITEMS[r.output] && ITEMS[r.output].slot === 'ammo' && !(ITEMS[r.output].ammoPerShot > 0)),
-        'R1: Runecrafting still makes a FREE rung (air) — that rune comes from the kit and the shop now');
-      /* Self-supply at level 1: every input of a level-1 rung is made by a
-         level-1 Runecrafting rung or MINED at a level-1 rock (the Essence Rock,
-         Game Designer b570: essence is gathered like copper, never conjured). */
-      const madeAt1 = new Set([...lv1.map((r) => r.output), ...ROCKS.filter((n) => (n.req || 1) <= 1).map((n) => n.prod)]);
-      ok(ROCKS.some((n) => n.id === 'essence_rock' && n.req === 1 && n.prod === 'rune_essence'),
-        'R1: the Essence Rock is not a level-1 mining node yielding rune_essence');
-      ok(!rc.some((r) => r.output === 'rune_essence'), 'R1: a Runecrafting rung makes essence — it is MINED (b570)');
-      for (const r of lv1) {
-        for (const inId of Object.keys(r.inputs || {})) {
-          ok(madeAt1.has(inId), `R1: level-1 rung ${r.id} eats ${inId}, which no level-1 Runecrafting rung makes`);
-        }
-      }
-
-      /* THE LOOP, through the engine. Runecrafting 1, Mining 1, Stonemason 0; a Magic-15 Mage. */
-      const skills = { runecrafting: 0, mining: 0, stonemason: 0, defense: xpAt(30), magic: xpAt(15), inner_flame: 0 };
-      const step = (id, inventory) => away({ kind: 'artisan', id, skills: { ...skills }, inventory, hp: 300 });
-      const mine = away({ kind: 'gather', id: 'essence_rock', skills: { ...skills }, inventory: {}, hp: 300 });
-      const ess = (mine.accrued && mine.delta.items && mine.delta.items.rune_essence) || 0;
-      ok(ess > 0, `R2: Mining 1 mined no Rune Essence at the Essence Rock (${mine.reason || JSON.stringify(mine.delta && mine.delta.items)})`);
-      ok(mine.accrued && mine.delta.xp && mine.delta.xp.mining > 0 && !(mine.delta.xp.runecrafting > 0),
-        'R2: mining essence must pay MINING, not Runecrafting');
-      const cut = step('cut_rune_blanks', { rune_essence: ess });
-      const blanks = (cut.accrued && cut.delta.items && cut.delta.items.rune_blank) || 0;
-      ok(blanks > 0, `R2: ${ess} essence cut no blanks at Runecrafting 1 (${cut.reason})`);
-      const bind = step('bind_chalked_fire_runes', { rune_blank: blanks });
-      const fire = (bind.accrued && bind.delta.items && bind.delta.items.chalked_fire_rune) || 0;
-      ok(fire > 0, `R2: ${blanks} blanks bound no Chalked Fire runes at Runecrafting 1 (${bind.reason})`);
-      ok(bind.accrued && bind.delta.xp && bind.delta.xp.runecrafting > 0, 'R2: binding Chalked Fire runes paid no Runecrafting XP');
-      if (fire > 0 && STAFF) {
+      /* a Magic-15 Mage with a bag of the Runecutting job's Chalked Fire Runes, enough for the whole span (a bag that runs dry ends the hunt) */
+      const skills = { defense: xpAt(30), magic: xpAt(15), inner_flame: 0 };
+      ok(ITEMS.chalked_fire_rune && ITEMS.chalked_fire_rune.ammoPerShot > 0, 'R1: the Chalked Fire Rune is not a SPENT rune: a spell would cast forever on one');
+      const fire = 20000;
+      if (STAFF) {
         const mageSk = { ...skills, magic: xpAt(15) };
         /* a Fireball slot on the one foe spends the Mage's own runes (the fixture has no gold for the store's) */
         const bar = [{ action: { type: 'ability', id: 'fireball' }, conditions: [], join: 'and' }];

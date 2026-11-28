@@ -51,6 +51,7 @@ export const AS_IS = Object.freeze({
 export const RUNTIME_MODULES = Object.freeze({
   'src/shell/windows/game-master-body.js': 'src/shell/windows/game-master.js imports it by URL on the window\'s first open',
   'src/shell/windows/talents/index.js': 'src/shell/windows/talents.js imports the Roads map by URL on the Talents window\'s first open',
+  'src/hunt-view/live-engine.js': 'src/session/live-link.js imports the hunt prediction\'s engine by URL when a viewed hero\'s hunt first opens',
 });
 /* A .js file loaded by URL that is not a module of the graph. */
 export const RUNTIME_FILES = Object.freeze({
@@ -126,7 +127,7 @@ export async function bundleGame(esbuild, siteDir, version, read = (rel) => read
     charset: 'utf8', legalComments: 'none', outdir: siteDir, outbase: siteDir, entryNames: '[dir]/[name]', chunkNames: CHUNKS + '[name]-[hash]',
     write: false, metafile: true, logLevel: 'silent', plugins: [plugin], absWorkingDir: siteDir,
   });
-  const files = new Map(), inputs = new Map(), graph = new Map();
+  const files = new Map(), inputs = new Map(), graph = new Map(), loads = new Map();
   for (const f of got.outputFiles) {
     const rel = site(f.path);
     if (!rel.endsWith('.js')) continue;
@@ -137,11 +138,16 @@ export async function bundleGame(esbuild, siteDir, version, read = (rel) => read
     if (!out.endsWith('.js')) continue;
     for (const i of Object.keys(o.inputs)) inputs.set(i, out);
     graph.set(out, o.imports.filter((x) => x.kind === 'import-statement' && !x.external).map((x) => x.path));
+    loads.set(out, o.imports.filter((x) => (x.kind === 'import-statement' || x.kind === 'dynamic-import') && !x.external).map((x) => x.path));
   }
   for (const f of files.keys()) if (!graph.has(f)) throw new Error('the bundle wrote ' + f + ' and its metafile does not name it');
   const signIn = new Set([ENTRY]);
   for (const f of signIn) for (const t of graph.get(f) || []) signIn.add(t);
-  const game = Array.from(files.keys()).filter((f) => f.startsWith(CHUNKS) && !signIn.has(f)).sort();
+  /* The game list is what the entry's literal import()s reach (the source's list, tests/module-preload.mjs MP-5). A chunk only a
+     RUNTIME_MODULES entry reaches (code a window or the hunt view shares with no module of the page) loads with that entry, on need. */
+  const reached = new Set([ENTRY]);
+  for (const f of reached) for (const t of loads.get(f) || []) reached.add(t);
+  const game = Array.from(files.keys()).filter((f) => f.startsWith(CHUNKS) && reached.has(f) && !signIn.has(f)).sort();
   return { files, entries, signIn: Array.from(signIn), game, inputs };
 }
 

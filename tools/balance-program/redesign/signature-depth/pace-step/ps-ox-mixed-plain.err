@@ -1,0 +1,25 @@
+V1: 24 seed jobs (1 cells x 24 seeds x 8 h) on 2 workers; ox_road, Levels 120 / 123 / 70
+[1/24] base:steady#0 63 s, 64 s elapsed
+[2/24] base:steady#1 64 s, 65 s elapsed
+[3/24] base:steady#2 63 s, 127 s elapsed
+[4/24] base:steady#3 63 s, 128 s elapsed
+[5/24] base:steady#4 70 s, 197 s elapsed
+[6/24] base:steady#5 71 s, 199 s elapsed
+[7/24] base:steady#6 68 s, 265 s elapsed
+[8/24] base:steady#7 68 s, 267 s elapsed
+[9/24] base:steady#8 62 s, 327 s elapsed
+[10/24] base:steady#9 62 s, 329 s elapsed
+[11/24] base:steady#10 62 s, 389 s elapsed
+[12/24] base:steady#11 62 s, 391 s elapsed
+[13/24] base:steady#12 66 s, 455 s elapsed
+[14/24] base:steady#13 67 s, 457 s elapsed
+[15/24] base:steady#14 64 s, 519 s elapsed
+[16/24] base:steady#15 64 s, 521 s elapsed
+[17/24] base:steady#16 62 s, 581 s elapsed
+[18/24] base:steady#17 62 s, 583 s elapsed
+[19/24] base:steady#18 61 s, 642 s elapsed
+[20/24] base:steady#19 62 s, 645 s elapsed
+[21/24] base:steady#20 62 s, 704 s elapsed
+[22/24] base:steady#21 63 s, 707 s elapsed
+[23/24] base:steady#22 63 s, 767 s elapsed
+[24/24] base:steady#23 63 s, 770 s elapsed

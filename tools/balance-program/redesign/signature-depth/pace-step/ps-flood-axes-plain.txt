@@ -1,0 +1,31 @@
+
+V1 on catacomb_flooded_wing (24 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady       475.7 +- 4.7     -0.9  53.1  87.8   15.4    1.8       1     76.1      0     0  0 (0/0/0)                       4  {"hold":10450,"climb":3839,"fall":300}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady       0.9323x  sd 0.0491  n 24  window 4 h  seeds 0.8948 0.978 1.0253 0.8747 0.9333 0.9172 0.9861 0.847 0.92 0.9206 0.8451 0.9656 0.947 0.9628 1.0221 0.9817 0.914 0.9702 0.891 0.9134 0.8735 0.9367 0.8999 0.9541
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L160  coin 16407 +- 377  income 24029 +- 644  store 5738  kit share 0.24 (meal 251, drink 723, charge 1457, shot 3307)  loot by band: common 1330, uncommon 724, scarce 0, other 5567  n 24
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles axes, bow, mage, healer
+  base:steady       axes 0.546  bow 0.194  mage 0.113  healer 0.147
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       axes dps 32.22 land 68.27% hit 77.41 (3291.71/h) | bow dps 44 land 91.75% hit 70.52 (1281.79/h) | mage dps 62.08 land 90.95% hit 77.46 (680.58/h) | healer dps 26.25 land 93.29% hit 87.14 (787.33/h)
+                    night_carter(caster) 95.4/h 27.2 s 2110 | shrouded_pauper(swarm) 220.6/h 19.9 s 653 | keeper_dunn(caster) 24.8/h 9.5 s 647 | bone_wall(brute) 62.6/h 26.8 s 1086 | vault_leech(stalker) 136.7/h 27.3 s 273
+                    broke off by: fall:shrouded_pauper@0 120, fall:night_carter@2 69, fall:bone_wall@0 67, fall:night_carter@0 29, fall:keeper_dunn@0 13, fall:vault_leech@0 2
+
+what an imbuement's condition touches (lane/designer-imbue-calls, 21 section 3.2): per seat, damage dealt by the struck monster's role and taken by the blow's element, thousandths
+  base:steady       axes dealt {"swarm":444,"brute":196,"stalker":187,"caster":173} taken {"none":811,"poison":175,"frost":13} | bow dealt {"stalker":424,"swarm":274,"caster":231,"brute":71} taken {"poison":511,"none":451,"frost":39} | mage dealt {"caster":322,"stalker":291,"swarm":285,"brute":102} taken {"poison":744,"none":205,"frost":51} | healer dealt {"swarm":345,"caster":250,"stalker":234,"brute":171} taken {"poison":678,"none":276,"frost":46}
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 160.8 (depth 10)  free 180  spell 804  food 16  taken 17.4 pm/s
+
+wall 434 s

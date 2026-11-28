@@ -68,6 +68,7 @@ import { ammoPerShot } from '../ammo.js';
 import { ITEMS } from '../../data/items.js';
 import { SIGNATURES } from '../../data/signatures.js';
 import { castCostOf } from './signature-costs.js';
+import { castRaiseOf, guardOf } from './signature-casts.js';
 import { auraPm } from './signature-auras.js';
 import { isRune } from '../../data/supplies.js';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
@@ -141,6 +142,9 @@ function targetFor(inst, hero, h, row, sc, cx) {
     /* ONE TARGET THAT LANDS ONLY ITS STATUS (Parry): never a monster still holding that status, so a cast never lands for nothing. */
     case 'enemy': {
       const fresh = landsBlow(row) || !row.status ? near : near.filter((m) => !holds(m, row.status));
+      /* (lane/signatures-batch-5) A GUARD (signature-casts.js guardOf, Ledgehide Breeches' Parry): the slot held on another hero's wind-up
+         beside the wearer (conditions.js target_winding_up names it, `cx.guard`), so the cast takes that monster */
+      if (cx && cx.guard && fresh.includes(cx.guard)) return cx.guard;
       if (Array.isArray(row.prefers)) {
         const picked = fresh.find((m) => { const r = monsterRoleOf(inst, m); return !!r && row.prefers.some((id) => MONSTER_ROLES[id] === r); });
         if (picked) return picked;
@@ -422,6 +426,9 @@ export function firstUsable(inst, hero, sc, only) {
      is its mirror: a hero alone in the world never tests it (the bar says "Party only"), and a row party only
      for some roles (Brand and Reave: the tank) a lone hero of those roles (partyOnly, the unit's own role). */
   const solo = aloneIn(inst.world, hero);
+  /* (lane/signatures-batch-5) A GUARDING AIM (signature-casts.js guardOf, Ledgehide Breeches): the wind-up beside the wearer its move answers
+     this sub-step, which the move's slot reads as "my target is winding up" (conditions.js); never written for a hero with no Signature */
+  if (typeof hero.signature === 'string' || h.guard) h.guard = typeof hero.signature === 'string' ? guardOf(inst, hero, (m) => inReach(inst, hero, h.range, m)) : null;
   /* (an AURA move is never cast: it holds while slotted, src/core/hunt/auras.js) */
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
     && !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].target === 'aura')
@@ -536,14 +543,21 @@ function effect(inst, u, row, t, sc, v) {
      the cast reached that still stands, after its hit: its wind-up ends (monster-spells.js interrupt) and its next swing waits pushMs more
      (damage.js's clock, persisted), so an interrupted monster does not swing at once instead; never more than the bound a row may carry
      (ABILITY_RULES.pushMaxMs: a modded row's push is held to it too). Draws nothing. */
+  /* (the wind-ups it ended, counted for a reaction's `interrupt` moment below, lane/signatures-batch-5: Stable Troll's Maul) */
+  let ended = 0;
   const answer = (m) => {
     if (!m || m.alive !== true) return;
+    const winding = !!m.cast;
     if (row.interrupts === true) interrupt(m, sc);
+    if (winding && !m.cast) ended++;
     if (row.pushMs > 0) m.swingLeftMs = Math.max(0, int(m.swingLeftMs)) + Math.min(row.pushMs, ABILITY_RULES.pushMaxMs);
   };
   /* THE CAST'S CONTEXT for the pieces (heal-rules.js: its inst, the row's `fx`, the mana it cost, whether a target was near fall-back) */
   const fx = row.fx || null;
   const cast = (v && v.cast) || { inst, fx, spent: 0, near: false };
+  /* (a hero that reacts to its own cast keeps the heals it lands, [hero, the heal's amount] in order: heal-rules.js landHeal writes them,
+     a reaction's heal 'again' reads them, lane/signatures-batch-5: Brewer's Apron) */
+  if (tally) cast.healed = tally.healed;
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u, row); break;
     case 'mark':
@@ -608,15 +622,19 @@ function effect(inst, u, row, t, sc, v) {
       break;
     default: break;
   }
+  /* THE WIND-UPS THIS CAST ENDED (a reaction's `interrupt`, react-queue.js; lane/signatures-batch-5, Stable Troll's Maul), `n` how many */
+  if (ended > 0) queueOn(inst, u, 'interrupt', { t, ability: row.id, n: ended });
 }
 
-/* THE RUNE SAVE ON THIS CAST for a hero wearing a Signature with `saves` ({ family, every }): { key, count, drop } (drop: this cast's rune
-   line is left unpaid), or null (no such Signature, or a cast of no rune of its family). The count is the cast's place in its run of `every` */
+/* THE RUNE SAVE ON THIS CAST for a hero wearing a Signature with `saves` ({ family, every, of? }): { key, count, drop } (drop: this cast's
+   rune line is left unpaid), or null (no such Signature, a cast of no rune of its family, or, with `of`, a cast of another move: lane/
+   signatures-batch-5, #25 The Cold Candle's Frost Lance, so only that move's casts are counted). The count is the cast's place in its run
+   of `every` */
 function runeSaveOf(u, pick) {
   const s = Object.prototype.hasOwnProperty.call(SIGNATURES, u.signature) ? SIGNATURES[u.signature] : null;
   const rune = pick && pick.row && pick.row.rune ? ITEMS[pick.row.rune] : null;
   /* (a rune spell's first line is its rune, own or bought: suppliesFor) */
-  if (!s || !s.saves || !rune || rune.family !== s.saves.family || !pick.lines.length) return null;
+  if (!s || !s.saves || !rune || rune.family !== s.saves.family || !pick.lines.length || (s.saves.of && s.saves.of !== pick.row.id)) return null;
   const key = '~n:' + s.id, count = (readyAt(u.cds, key) + 1) % s.saves.every;
   return { key, count, drop: count === 0 };
 }
@@ -635,8 +653,9 @@ export function fire(inst, u, pick, sc) {
   const row = pick.row;
   const version = Number.isInteger(pick.version) ? pick.version : 1;
   /* A NEXT CAST RAISED (statuses.js castPm, Kindled: a Signature's boon) lands its share on this cast's output, as a version's step, and is
-     spent on it; a hero that carries none casts at the pick's own output */
-  const raise = spendCastPm(u, row.id, sc);
+     spent on it; a hero that carries none casts at the pick's own output. A WORN SIGNATURE'S STANDING RAISE on its family's casts adds to it,
+     never spent (signature-casts.js castRaiseOf, lane/signatures-batch-5: Thrower's Ring's Earth shells) */
+  const raise = spendCastPm(u, row.id, sc) + (typeof u.signature === 'string' ? castRaiseOf(u, row) : 0);
   const pm = Math.floor(((Number.isInteger(pick.pm) ? pick.pm : 1000) * (1000 + raise)) / 1000);
   /* THE MANA THE CAST COSTS: its version's, less a self-shield's refund of the shell it replaces (shieldRefund). The
      cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
@@ -645,6 +664,11 @@ export function fire(inst, u, pick, sc) {
      Priest's Hood): its mana, or none, or health for it, and the counts, window and clock it writes; a hero with none pays as written */
   const cost = typeof u.signature === 'string' ? castCostOf(u, row, written, sc.atMs) : null;
   const paid = cost ? cost.mana : written;
+  /* MAGIC XP ON THE WRITTEN MANA (lane/signatures-batch-5; 15 "Batch 4's calls", HANDOFFS 2026-11-28 designer-sig-batch5 item 1): a
+     Signature changes what a cast costs, never what it trains. A cast paid another way trains what the same cast trains with no Signature:
+     its written mana less the cast's own refunds of it (a shell's, a ward's, read before the cast lands as theirs are; a Storm spell's mana
+     back, read after). `plain` is what the plain cast spends; undefined when the cast paid as written (the event's `mana` is the basis) */
+  const plain = paid !== written ? written - shieldRefund(u, row, written, pm, inst) - wardRefund(u, row, written, pm, inst, pick.target) : undefined;
   if (cost) {
     if (cost.hp > 0) u.hp = int(u.hp) - cost.hp;
     u.cds = Object.assign({}, u.cds || {}, cost.writes);
@@ -678,33 +702,37 @@ export function fire(inst, u, pick, sc) {
   if (cast) v.cast = cast;
   /* THE CAST'S OWN MOMENT (a reaction's `cast`, react-queue.js: Ossuary Helm, Floodwater Hatchets): what it landed, tallied only for a
      hero that reacts to one */
-  const tally = reactsOn(u, 'cast') ? { n: new Set(), dmg: 0 } : null;
+  const tally = reactsOn(u, 'cast') ? { n: new Set(), dmg: 0, healed: [] } : null;
   if (tally) v.tally = tally;
   /* A CAST THAT GIVES MANA BACK (abilities.js manaPerHit / manaPerKill, the Storm spells): its effect runs first with its events held,
      so the cast event, written once, carries the mana the cast KEPT (`back` came back: Magic XP is paid on the rest, as on a shell's
      refund), and the held events follow it in the order they happened, the order every other cast's take. Every other row: the cast,
      then its effect, as always. */
   const held = row.manaPerHit || row.manaPerKill ? [] : null;
-  let back = 0;
+  let back = 0, xpMana = plain;
   if (held) {
     const count = { hits: 0, kills: 0 };
     const emit = sc.emit;
     sc.emit = (ev) => { held.push(ev); };
     try { effect(inst, u, row, pick.target, sc, Object.assign({}, v, { back: count })); } finally { sc.emit = emit; }
     back = manaBack(u, row, count, spent);
+    /* (the plain cast's mana back: manaBack's want on what it spent, which its own room always holds, having spent it first) */
+    if (plain !== undefined) xpMana = plain - Math.min(plain, count.hits * (row.manaPerHit || 0) + count.kills * (row.manaPerKill || 0));
   }
   const mana = spent - back;
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
     ...(rune ? { supply: rune, version, power: pm } : pick.saved ? { saved: pick.saved, version, power: pm } : {}),
     ...(refund + wardBack > 0 ? { refund: refund + wardBack } : {}),
     ...(cost && cost.hp > 0 ? { paidHp: cost.hp } : {}),
+    /* (the Magic XP basis apart from the mana spent, when a worn Signature changed what the cast paid: hunt-rewards.js reads it) */
+    ...(xpMana !== undefined ? { xpMana } : {}),
     ...(back > 0 ? { back } : {}),
     ...(took ? { took } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
   if (held) for (const ev of held) sc.emit(ev);
   else effect(inst, u, row, pick.target, sc, v);
   castReturns(u, row, cast);
-  if (tally) queueOn(inst, u, 'cast', { t: pick.target, ability: row.id, n: tally.n.size, dmg: tally.dmg });
+  if (tally) queueOn(inst, u, 'cast', { t: pick.target, ability: row.id, n: tally.n.size, dmg: tally.dmg, healed: tally.healed });
   return true;
 }
 

@@ -106,3 +106,14 @@ SEEDS=36 run b5v-carters-leech-h60  carters_rest 117 $X --signatures -,-,-,zz_le
 SEEDS=36 run b5v-carters-leech-h70  carters_rest 117 $X --signatures -,-,-,zz_leech_h70
 SEEDS=36 RISK=bold run b5v-muster-cloak-90m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_90m --raw "$OUT/b5v-muster-cloak-90m36.raw.json"
 SEEDS=36 RISK=bold run b5v-muster-cloak-75m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_75m --raw "$OUT/b5v-muster-cloak-75m36.raw.json"
+# ── SYSTEMS, BATCH 5 BUILT (lane/signatures-batch-5, 2026-11-28; 15 "Batch 5: the rows and their moves"): each row by its real id on its
+#    cell against the same four with none and the same bar. A row whose move no recorded bar casts (Stagger, Parry, Gash) adds the move to
+#    its seat's bar in BOTH arms on the move's own new-slot trigger (`move@t`, tools/balance-sim/played.mjs playedSlot), so the Signature
+#    is the only difference. The plains play the tree with every row dark (engine-parity), so they replay on any tree that holds it. ──
+SW=sword,crossbow,mage,healer
+SEEDS=36 run b5s-carters-stagger36  carters_rest 117 $X --add-moves stagger@t,-,-,-
+run b5s-krell-stagger       krells_hold 97 $X --add-moves stagger@t,-,-,-
+run b5s-roost-sword-parry   wyvern_roost 140 $SW --add-moves parry@t,-,-,-
+run b5s-pyre-sword-parry    pyre_field 80 $S --add-moves parry@t,-,-,-
+run b5s-muster-axes-gash    muster_barrows 60 $A --add-moves gash@t,-,-,-
+run b5s-flood-axes-gash     catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,-

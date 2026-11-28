@@ -31,6 +31,8 @@
 //           (lane/signatures-batch-4, tauntOne below: Teamster's Mitts on Power Strike)
 // BATCH 4 (lane/signatures-batch-4): the filter `role` (the moment's monster plays that role: its striker, else the monster it names), a
 // status `at: 'lowest'` (on the monster attacking the lowest hero of the party), and a broken shell's moment carries its breaker (`src`).
+// BATCH 5 (lane/signatures-batch-5): the filter `min` (a moment that counts, `n`, at least that many: Gash's three), and a heal `to: 'again'`
+// (a cast's own heals: the hurt hero lowest on health of those it healed, healed pm of its own heal's amount, once a cast: Brewer's Apron).
 // WHERE IT LANDS (`to`, lane/signatures-batch-3): a heal to the moment's hero ('target', pm of its max health) or each living hero of the
 // party ('party'); mana to the moment's hero ('target', pm of the moment's amount: a heal's HP landed); a boon on the wearer ('self') or
 // the party ('party'). A status lands on the moment's monsters when it names them (`list`: a pull's pack, a Challenge's taunted).
@@ -76,6 +78,8 @@ function runOne(inst, sc, { u, row, ctx }) {
   if (row.of && ctx.ability !== row.of) return;
   if (row.row && !(ctx.t && standsIn(ctx.t) === row.row)) return;
   if (row.melee && !ctx.melee) return;
+  /* (lane/signatures-batch-5) a count floor on a moment that counts (Troll Picker's Hooks: a Gash that hits 3 or more) */
+  if (row.min !== undefined && !(int(ctx.n) >= row.min)) return;
   /* (lane/signatures-batch-4) `role`: the moment's monster plays that role (monster-roles.js roleIdOf, the Danger scale's: none off it), its
      striker for a blow at a hero (an ally hit, a broken shell), else the monster hit or fallen (Night Carter's Boots: a stalker; Bull's
      Tooth: a brute). A role never changes, so it is read here */
@@ -182,6 +186,17 @@ const DO = Object.freeze({
         if (t && t.alive === true && (t === u || isAlly(u, t)) && healNow(inst, sc, u, t, Math.max(1, Math.floor((int(t.maxHp) * row.pm) / 1000)), row.id) > 0) did = true;
       }
       return did;
+    }
+    /* (lane/signatures-batch-5) 'again': of the heroes the moment's cast healed (`healed`, abilities.js fire: [hero, its heal's amount] in
+       the order it landed them), the living one lowest on health (ties by id; a hero healed full is never lowest while one is hurt, and a
+       heal on a full one lands nothing), healed again pm of its own heal's amount through the heal door: one a cast, as the cast moment is
+       one (Brewer's Apron on Circle of Renewal) */
+    if (row.to === 'again') {
+      let t = null, amt = 0;
+      for (const [a, k] of Array.isArray(ctx.healed) ? ctx.healed : []) {
+        if (a.alive === true && (!t || share(a) < share(t) || (share(a) === share(t) && a.id < t.id))) { t = a; amt = k; }
+      }
+      return !!t && healNow(inst, sc, u, t, Math.floor((int(amt) * row.pm) / 1000), row.id) > 0;
     }
     let t = null;
     for (const a of inst.world.units) if (a.alive === true && isAlly(u, a) && int(a.hp) < int(a.maxHp) && (!t || share(a) - share(t) < 0 || (share(a) === share(t) && a.id < t.id))) t = a;

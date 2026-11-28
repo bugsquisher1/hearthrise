@@ -133,6 +133,7 @@
 const sig = (row) => Object.freeze({ ...row, home: Object.freeze(row.home), best: Object.freeze(row.best),
   ...(row.saves ? { saves: Object.freeze({ ...row.saves }) } : {}), ...(row.stackPlus ? { stackPlus: Object.freeze({ ...row.stackPlus }) } : {}),
   ...(row.costs ? { costs: Object.freeze({ ...row.costs }) } : {}), ...(row.aura ? { aura: Object.freeze({ ...row.aura }) } : {}), ...(row.save ? { save: Object.freeze({ ...row.save }) } : {}),
+  ...(row.raise ? { raise: Object.freeze({ ...row.raise }) } : {}), ...(row.aim ? { aim: Object.freeze({ ...row.aim }) } : {}),
   reacts: Object.freeze(row.reacts.map((r) => Object.freeze({ ...r }))) });
 
 export const SIGNATURES = Object.freeze({
@@ -153,9 +154,9 @@ export const SIGNATURES = Object.freeze({
     tip: 'Frost Lance hits: Hoarfrost is ready again',
     reacts: [{ on: 'hit', of: 'frost_lance', do: 'ready', move: 'hoarfrost' }] }),
   brewers_apron: sig({ id: 'brewers_apron', n: 18, name: 'Brewer\'s Apron', slot: 'body', move: 'circle_of_renewal',
-    home: { kind: 'monster', id: 'troll_brewer' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Circle of Renewal: each hero it heals deals 10% more damage for 4 s (once per cast)',
-    reacts: [{ on: 'heal', of: 'circle_of_renewal', do: 'boon', status: 'emboldened', ms: 4000 }] }),
+    home: { kind: 'monster', id: 'troll_brewer' }, best: { seat: 'healer', ground: 'carters_rest' },
+    tip: 'Circle of Renewal: the hurt ally lowest on health is healed a second time',
+    reacts: [{ on: 'cast', of: 'circle_of_renewal', do: 'heal', to: 'again', pm: 1000 }] }),
 
   /* ── BATCH 2 (lane/signatures-batch-2) ── */
   ossuary_helm: sig({ id: 'ossuary_helm', n: 2, name: 'Ossuary Helm', slot: 'helmet', move: 'frost_slam',
@@ -239,12 +240,12 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'cast', family: 'ice', do: 'boon', to: 'self', status: 'stoked' }] }),
   throwers_ring: sig({ id: 'throwers_ring', n: 26, name: 'Thrower\'s Ring', slot: 'ring', family: 'earth',
     home: { kind: 'monster', id: 'slate_thrower' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'When a shield you cast breaks, the monster that broke it has its next blow at half',
-    reacts: [{ on: 'shield_break', do: 'status', status: 'blunted' }] }),
+    tip: 'Earth rune shields you cast are 30% stronger',
+    raise: { family: 'earth', pm: 300, of: 'shell' }, reacts: [] }),
   the_cold_candle: sig({ id: 'the_cold_candle', n: 25, name: 'The Cold Candle', slot: 'necklace', family: 'ice',
     home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
-    tip: 'Your Ice rune spells use no runes',
-    saves: { family: 'ice', every: 1 }, reacts: [] }),
+    tip: 'Frost Lance uses no runes',
+    saves: { family: 'ice', every: 1, of: 'frost_lance' }, reacts: [] }),
   fledgling_claw: sig({ id: 'fledgling_claw', n: 29, name: 'Fledgling Claw', slot: 'necklace', family: 'rupture',
     home: { kind: 'monster', id: 'wyvern_fledgling' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
     tip: 'Rupture rune spells: Bleed on the target can stack to 6 instead of 5',
@@ -263,16 +264,16 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'ally_hit', belowPm: 300, do: 'heal', to: 'target', pm: 30, clockMs: 20000, per: 'target' }] }),
   teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves', move: 'power_strike',
     home: { kind: 'monster', id: 'dead_teamster' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
-    tip: 'Power Strike on a monster attacking an ally: it turns on you for 4 s',
-    reacts: [{ on: 'hit', of: 'power_strike', do: 'taunt', ms: 4000 }] }),
+    tip: 'Power Strike: the next blow you take lands at half',
+    reacts: [{ on: 'cast', of: 'power_strike', do: 'boon', to: 'self', status: 'braced' }] }),
   drowned_signet: sig({ id: 'drowned_signet', n: 38, name: 'Drowned Signet', slot: 'ring',
     home: { kind: 'monster', id: 'captain_hask' }, best: { seat: 'ranger', ground: 'muster_barrows' },
     tip: 'Your target boss below 25% health: you and your party deal 15% more damage for 10 s (once per boss)',
     reacts: [{ on: 'hit', boss: true, belowPm: 250, do: 'boon', to: 'party', status: 'emboldened', pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }] }),
   night_carters_boots: sig({ id: 'night_carters_boots', n: 42, name: 'Night Carter\'s Boots', slot: 'boots',
-    home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'When a stalker hits an ally below 45% health, its next blow lands at half',
-    reacts: [{ on: 'ally_hit', belowPm: 450, role: 'stalker', do: 'status', status: 'blunted' }] }),
+    home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'healer', ground: 'catacomb_bone_wing' },
+    tip: 'When a monster winds up a blow at an ally below half health, that blow lands at half',
+    reacts: [{ on: 'windup', belowPm: 500, do: 'status', status: 'blunted' }] }),
   bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',
     home: { kind: 'monster', id: 'bull_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
     tip: 'Single-target hits on a brute below half health deal double damage',
@@ -318,6 +319,20 @@ export const SIGNATURES = Object.freeze({
        the pair sized as one Signature, 15 "Batch 4, measured") */
     tip: 'With Convoy Bell in your party: below half health, you take 7.5% less damage',
     aura: { takenPm: -75, with: 'convoy_bell', belowPm: 500 }, reacts: [] }),
+
+  /* ── BATCH 5 (lane/signatures-batch-5): Stagger's, Parry's and Gash's (#8, and two new numbers, 47 and 48) ── */
+  stable_trolls_maul: sig({ id: 'stable_trolls_maul', n: 8, name: 'Stable Troll\'s Maul', slot: 'weapon', weapon: 'hammer', move: 'stagger',
+    home: { kind: 'monster', id: 'stable_troll' }, best: { seat: 'melee_dps', ground: 'carters_rest' },
+    tip: 'Stagger ends a wind-up: gain a shield of 10% of max health for each wind-up it ends',
+    reacts: [{ on: 'interrupt', of: 'stagger', do: 'shield', pm: 100 }] }),
+  ledgehide_breeches: sig({ id: 'ledgehide_breeches', n: 47, name: 'Ledgehide Breeches', slot: 'pants', move: 'parry',
+    home: { kind: 'monster', id: 'ledge_wyvern' }, best: { seat: 'melee_dps', ground: 'wyvern_roost' },
+    tip: 'Parry also guards an ally: it can answer a monster next to you winding up a blow at another hero',
+    aim: { move: 'parry', r: 1 }, reacts: [] }),
+  troll_pickers_hooks: sig({ id: 'troll_pickers_hooks', n: 48, name: 'Troll Picker\'s Hooks', slot: 'weapon', weapon: 'axe', move: 'gash',
+    home: { kind: 'monster', id: 'troll_picker' }, best: { seat: 'melee_dps', ground: 'muster_barrows' },
+    tip: 'Gash hits 3 or more: your next Rend deals 40% more damage',
+    reacts: [{ on: 'cast', of: 'gash', min: 3, do: 'boon', to: 'self', status: 'whetted' }] }),
 });
 
 /* THE RULES (15 "Proposed rules"): one Signature a hero plays (the first equipped); the switch that hands one, off until wave 4 */

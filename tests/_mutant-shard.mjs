@@ -19,7 +19,7 @@
 export const SHARD_FLAG = /(?:^|\s)--shard=(\d+)\/(\d+)(?=\s|$)/;
 
 /** argv's --shard=K/N: { k, n }, null when absent, or { bad } when malformed (K outside 1..N). */
-export function parseShard(argv) {
+function parseShard(argv) {
   const a = argv.find((x) => x.startsWith('--shard'));
   if (!a) return null;
   const m = /^--shard=(\d+)\/(\d+)$/.exec(a);

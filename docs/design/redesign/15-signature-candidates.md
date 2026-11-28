@@ -301,7 +301,48 @@ The lucky four holds 692.7 of Muster's 700, so the ground's top may hold this re
 
 With the support's 8, #8, #30, Parry and Gash, batch 4 is 21, one over a batch. Power Strike has no Signature in the pool, so CC-5 goes red on it once Signatures are live. Undertow is cut in `23` but is still a live move in `abilities.js`.
 
-BATCH3_TABLE_OWED
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with its mutant: 40 cases, 68 mutants caught) and on the real settle (both paths: the Boots' Chill at a pull's instant, the Tooth's carried overkill, the Ring's echo and the Key's party heal, each settling the same in 10-minute and 100-second windows). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is still owed.
+
+MEASURED on `lane/signatures-batch-3` snapshots 9af6ead96 (the plains, played from the hunt engine of `set/v0.2.144` a70e10fdf) and cae2bb140 to b6c9d1cf4 (the rows), `tools/balance-program/redesign/signature-depth/batch3.sh` and `sum.mjs --batch 3`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, held from hour 4), paired against the same four with none on the same seeds. The plain fours were played again on this tree first: the re-cut bands moved them (the Muster tank four's first seed held 671 in batch 2 and 672 here, its pace 0.90 and 1.00 of the hours table). engine-parity held with the switch off, before and after merging the set at 669db6867, so the readings stand on the merged tree. Each seed's pace is now read to five places (v1-climb `payX.exact`): batch 2's hundredths moved a paired reading in quanta of about 2.6 pace steps. Shapes tried were temporary ids on a scratch copy, taken out (the `b3v-*` reports).
+
+| Signature (seat) | Best cell | Plain held | Held delta (se) | Pace steps (se) | Coin a hero-hour | Second ground | Its pace steps (se) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| #19 Lock-Keeper's Chain (healer) | Muster Barrows | 606.0 | +13.3 (2.7) | **+12.0 (2.7)** | | The Slake | +3.3 (1.7) | **In band, spread holds.** Can turn on |
+| #20 Greened Bracers (healer) | Muster Barrows | 606.0 | +8.0 (3.0) | **+7.2 (2.8)** | | The Slake, its home | +5.0 (1.6) | **In band, spread holds within its se.** Can turn on |
+| #22 Slake Waders (a lone sword) | The Slake, its home | 52.5 | +5.6 (0.8) | **+7.5 (0.8)** | | Muster Barrows | -0.0 (1.5) | **In band, spread holds.** Can turn on |
+| #1 Bannerman's Pavise (tank) | Muster Barrows | 669.3 | -1.8 (2.8) | -1.3 (2.7) | | (the tank's others pinned or unsettled) | | Under. Dark |
+| #42 Night Carter's Boots (tank) | Muster Barrows | 669.3 | -1.8 (1.8) | -1.9 (1.8) | | | | Under. Dark |
+| #26 Thrower's Ring (healer) | Muster Barrows | 606.0 | +1.4 (2.5) | +1.1 (2.1) | | | | Under (a heal). Dark |
+| #31 The Cellar Key (healer) | Muster Barrows | 606.0 | +0.3 (2.0) | +0.0 (1.8) | | | | Under (a heal). Dark |
+| #24 Stoker's Ring (mage) | Muster Barrows | 606.0 | +0.2 (2.5) | +0.2 (2.2) | | | | Under (a rare moment). Dark |
+| #43 Bull's Tooth (ranger) | Muster Barrows | 606.0 | +0.2 (2.9) | +0.3 (2.5) | | | | Under (a rare moment). Dark |
+| #28 Vault Leech Ring (healer) | Muster Barrows | 606.0 | -1.6 (3.7) | -1.3 (3.4) | | | | Under. Dark |
+| #38 Drowned Signet (ranger) | Muster Barrows, the Captain's ground | 606.0 | +2.6 (3.5) | +2.6 (3.4) | | | | Under (a boss-fight piece). Dark |
+| #29 Fledgling Claw (axes) | Muster Barrows | 608.5 | +0.0 (0.0) | +0.0 (0.0) | | | | No moment: the identical hunt. Dark |
+| #25 The Cold Candle (mage), 4 seeds | Muster Barrows | 608.1 | +0.0 (0.0) | +0.0 (0.0) | store -107, all runes | | | A coin piece: the identical fight, the four's store bill 2.3% lower |
+| #27 Riverstone Earrings (healer), 4 seeds | Muster Barrows | 608.1 | -3.3 (2.1) | -3.0 (2.1) | store -51 (drink -41) | | | A coin piece: 1.1% off the bill |
+| #33 Teamster's Mitts (tank), 4 seeds | Muster Barrows | 673.1 | +0.0 (0.0) | +0.0 (0.0) | 0 | | | No moment: the tank never drinks. Dark |
+
+Shapes tried (each against its row's plain four):
+
+| Shape | Held delta (se) | Pace steps (se) | Reading |
+|---|---|---|---|
+| #31 every fifth death: a shield of 3% on each hero of the party | +0.5 (2.5) | +0.2 (2.1) | A 3% shell never replaces the healer's bigger Protective Ward |
+| #26 a shell you cast breaks: its hero gets a 6% shield | +103.3 (1.8) | **+115.7 (2.6)** | Runs away: the new shell is the wearer's too, so its break sets the rule off again, blow after blow |
+| #26 the same, once every 30 s a hero | +1.4 (2.6) | +1.1 (2.2) | Under. The strength was all in the chain |
+PAVISE_BOOTS_ROWS
+
+**What the readings say.**
+
+- **A save reads, a top-up does not.** The Chain brings Spring Tide back as a hero crosses its near-fall line (12.0). The Bracers raise the next Greater Mend, which the healer casts at the hero under 80% (7.2). The Waders heal a lone hero, which no healer covers (7.5). The Key's party heal (0.0) and the Ring's heal on a broken shell (1.1) land when the healer has the pull covered, so they are overheal. Heal rules behave the way mana did in batch 2: they read where healing binds. Batch 4's #45 inherits this.
+- **A shield-on-break rule needs a clock, and the clock is its size.** Unclocked, the Ring's shell renewed itself on every breaking blow (+115.7). At 30 s it read 1.1. "A reaction never sets off another" holds inside one drain, not across blows, so any rule that answers a broken shell with a shell carries a clock.
+- **A rare moment reads nothing at any number.** The Stoker's echo is about 0.5% of the mage's damage (its Fire hits seldom find a chilled monster), the Tooth's carried overkill about 1% of the bow's, the Signet's boon about 70 s an hour (Captain Hask dies about 7 times an hour on Muster; the piece is for his own fight, which the harness does not play).
+- **No moment, the identical hunt:** the Claw (the axes' Bleed never stands at five on one monster: Rend lays one a cast and a stack lasts 6 s) and the Mitts (the tank's mana never runs low, so it never drinks).
+- **The Challenge's room is crowded by its own Roads.** Shield Priest heals on a taunt, Taunting Guard shields on one, Hard Challenge and Braced Call cut what the tank takes. Armor Break on the taunted is damage on monsters already held (-1.3). PAVISE_LINE
+- **The pull-start Chill is spent walking in.** Chill slows swings, not steps, and the pack walks to the tank in its first seconds (-1.9). BOOTS_LINE
+- **Coin pieces have no bar yet.** The Candle's fight is identical and its four's store bill is 107 coin a hero-hour lower (2.3%), the Riverstone's 51 (1.1%). 15 sizes coin pieces with the market, which has no number yet.
+- **Repetition, audited.** Armor Break is new to Signatures (#1). Chill gains a pull-start source (#42). Emboldened carries #18 and #38, "a hero's next cast raised" #16 (Kindled) and #20 (Steeped), the shell's break #3 (Guarded) and #26 (a heal). Different seats, moves and moments, one status a key.
+- **The luck ceiling (V10)** is still owed. No batch-3 row turns on before the kit sampler reads it with its seat's Traits.
 
 ## How Signatures work
 

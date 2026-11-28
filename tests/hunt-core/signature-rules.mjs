@@ -975,7 +975,7 @@ const mutants = [
   { name: 'the Vault Leech Ring passes a Bleed', case: 'sickness-passes', edits: [[SG, "{ on: 'death', do: 'pass', what: 'sickness' }", "{ on: 'death', do: 'pass', what: 'bleed' }"]] },
   { name: 'a raised stack cap is never read', case: 'bleed-six', edits: [[ST, '    else if (before < row.maxStacks + stackPlus(inst, row, src)) list.push(fresh());\n', '']] },
   { name: 'every is never counted', case: 'every-fifth-death', edits: [[RX, '    if (c !== 0) return;\n', '']] },
-  { name: 'a party heal lands on the wearer only', case: 'every-fifth-death', edits: [[RX, "for (const t of row.to === 'party' ? partyOf(inst, u) : [ctx.t])", 'for (const t of [u])']] },
+  { name: 'a party heal lands on the wearer only', case: 'every-fifth-death', edits: [[RX, "for (const t of row.to === 'party' ? partyOf(inst, u) : [ctx.t]) {", 'for (const t of [u]) {']] },
   { name: 'the Mitts pay on a hit', case: 'kill-mana', edits: [[SG, "{ on: 'kill', do: 'mana', pm: 20 }", "{ on: 'hit', do: 'mana', pm: 20 }"]] },
   { name: 'boss is never read', case: 'boss-low-party', edits: [[RQ, '(row.boss !== true || bossOf(inst, ctx.t))', 'true']] },
   { name: 'the Signet has no clock', case: 'boss-low-party', edits: [[SG, "pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }", 'pw: 1500, ms: 10000 }']] },

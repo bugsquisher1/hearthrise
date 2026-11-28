@@ -633,6 +633,11 @@
         "bytes": 3913853,
         "on": "2026-11-28",
         "why": "kit-bands-2-3: 34 band 2-3 job recipes, their job faces and 2 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
+      },
+      {
+        "bytes": 3932802,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-3: 15 dark Signature rows (src/data/signatures.js) and the general reaction pieces they play on (react-queue.js filters family/single/boss/alone, the pull moment in pull-cycle.js, reactions.js every and the doers' to, abilities.js rune save, status.js stack cap, the Steeped status): 18,949 B of source the settle engine reads, half of it their comments"
       }
     ]
   }

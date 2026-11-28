@@ -4,6 +4,8 @@
 //
 //   node tools/balance-program/redesign/signature-depth/sum.mjs            the sample (run.sh)
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 2  batch 2 (batch2.sh): the size bar and the spread bar a row
+//   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 3  batch 3 (batch3.sh, lane/signatures-batch-3): the same bars, the
+//                                                                           coin pieces' coin a hero-hour, the shapes tried
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -180,11 +182,14 @@ if (BATCH === '3') {
   for (const [name, best, other] of ROWS3) {
     const read = (x) => { if (!x) return { g: '(none read)', owed: true, none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
     const B = read(best), O = read(other);
-    const size = B.owed ? 'owed' : sizeOf(B.q);
-    const spread = B.owed || !B.q ? 'owed' : B.q.m < LO ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'
+    /* (a coin piece is the market's, never the size bar's; a row under its size reads no second ground) */
+    const isCoin = / coin/.test(name), under = !B.owed && !!B.q && B.q.m < LO;
+    const size = B.owed ? 'owed' : isCoin ? 'a coin piece (the market\'s, no bar)' : sizeOf(B.q);
+    const spread = B.owed || !B.q ? 'owed' : isCoin ? 'n/a' : under ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'
       : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+    const second = O.none ? '' : O.owed ? (under || isCoin ? 'not read' : 'owed') : show(O.q);
     console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), B.owed ? 'owed' : show(B.h, true), B.owed ? 'owed' : show(B.q),
-      B.owed ? '' : pct(B.s.killsPerH, B.p.killsPerH), B.owed ? '' : coin(B.p, B.s), O.g, O.owed ? (O.none ? '' : 'owed') : show(O.q), size, spread].join(' | ') + ' |');
+      B.owed ? '' : pct(B.s.killsPerH, B.p.killsPerH), B.owed ? '' : coin(B.p, B.s), O.g, second, size, spread].join(' | ') + ' |');
   }
   if (VARIANTS3.length) console.log('\n| Shape tried | Held delta (se, seeds) | Pace steps (se) | Size bar | Kills/h |\n|---|---|---|---|---|');
   for (const [name, a, b] of VARIANTS3) {

@@ -61,15 +61,15 @@ import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { setGold } from './_gold.mjs';
 import { runTick } from '../supabase/functions/hr-accrue/tick.js';
-import { sessionFromRoster, settleGatherSession, GATHER_CATALOGUES }
-  from '../supabase/functions/hr-accrue/tick-gather.js';
+import { sessionFromRoster, settleArtisanSession }
+  from '../supabase/functions/hr-accrue/tick-artisan.js';
 import { engineInputsFromEnvelope, ENGINE_INPUT_KEYS }
   from '../supabase/functions/hr-accrue/envelope.js';
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import * as WORK from '../src/core/work-day.js';
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -84,15 +84,14 @@ const group = (t) => console.log(`\n${t}`);
 const say = (s) => { if (VERBOSE) console.log(s); };
 
 /* ── THE PROBE CHARACTER ─────────────────────────────────────────────────────
-   Mining 61 on `mithril_rock` (req 60, 8000 ms) with a Mithril Pickaxe in the
-   BAG — `bestTool` reads inventory and equipment alike, and the bag is the
-   shape the production character was in. 302,288 xp is the first xp at level
-   61 (src/core/xp.js `levelFromXp`), i.e. the narrowest possible margin over
-   the gate: one lost skills map and this character is level 0, which is
-   exactly the failure being reproduced. */
-const NODE = 'mithril_rock';
-const SKILL = 'mining';
-const TOOL = 'mithril_pickaxe';
+   Inner Flame 61 on the Great Hearth's `fuel_bones` run with a bag of Bones (the town pointer since the
+   one-town-work cut; the measured defect was a Mining-61 gatherer on `mithril_rock`). A fuel run reads its FUEL off
+   the bag: one lost inventory map and the run stops at its first action (supplies) and ENDS, which is the same
+   failure in this channel — the tick idling a character who can do the work. */
+const NODE = 'fuel_bones';
+const SKILL = 'inner_flame';
+const FUEL = 'bones';
+const STOCK = 1000;
 const XP_AT_61 = 302288;
 const U = (n) => `00000000-0000-4000-8000-0000000d${String(n).padStart(4, '0')}`;
 
@@ -135,7 +134,7 @@ async function tickEntry() {
   await writeFile(join(dir, 'tick.js'), tickSrc.replace(marker, '  }, st);'), 'utf8');
 
   const m = await import(pathToFileURL(join(dir, 'tick.js')).href);
-  const g = await import(pathToFileURL(join(dir, 'tick-gather.js')).href);
+  const g = await import(pathToFileURL(join(dir, 'tick-artisan.js')).href);
   return { runTick: m.runTick, sessionFromRoster: g.sessionFromRoster, dir };
 }
 
@@ -146,7 +145,7 @@ const execSeam = async (text, params) => {
   finally { await db.exec('commit'); }
 };
 
-/** Write one probe character, gathering `mithril_rock` since two hours ago with
+/** Write one probe character, fuelling the Hearth with Bones since two hours ago with
     `accrued_to` one flush period behind the server clock. */
 async function seed(u, o) {
   const opt = o || {};
@@ -155,24 +154,22 @@ async function seed(u, o) {
     insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
     values ('${u}', 0, 40, 1, now() - interval '95 seconds',
-            'gather', '${NODE}', now() - interval '2 hours')
+            'artisan', '${NODE}', now() - interval '2 hours')
     on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '95 seconds',
-      active_kind = 'gather', active_id = '${NODE}';`);
+      active_kind = 'artisan', active_id = '${NODE}';`);
   await db.exec(`delete from public.player_skills    where user_id = '${u}';`);
   await db.exec(`delete from public.player_inventory where user_id = '${u}';`);
   await db.exec(`
     insert into public.player_skills (user_id, slot, skill_id, xp)
     values ('${u}', 0, '${SKILL}', ${opt.xp == null ? XP_AT_61 : opt.xp}),
            ('${u}', 0, 'hitpoints', 12000);`);
-  if (opt.tool !== false) {
-    await db.exec(`
-      insert into public.player_inventory (user_id, slot, item_id, qty)
-      values ('${u}', 0, '${TOOL}', 1);`);
-  }
+  await db.exec(`
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+    values ('${u}', 0, '${FUEL}', ${STOCK});`);
   await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
   await db.exec(`
     insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
-    values ('${u}', 0, 'gather', true, '${opt.holder || 'proofs'}', now() + interval '5 minutes');`);
+    values ('${u}', 0, 'artisan', true, '${opt.holder || 'proofs'}', now() + interval '5 minutes');`);
 }
 
 /* ── THE COMBAT PROBE (F3/F4) ────────────────────────────────────────────────
@@ -180,7 +177,7 @@ async function seed(u, o) {
    auto-eat on, an enchanted weapon, a chosen style, six deaths today and sixty
    in the ladder. Every one of those is a different COLUMN or a different TABLE,
    and `hr_state_of` puts them on two different LEVELS of one envelope — which
-   is the whole point: the gather probe above can only see `skills` and
+   is the whole point: the Hearth probe above can only see `skills` and
    `inventory` move level, and the nine inputs a combat window is priced from
    are exactly the ones it cannot see (M1f F4).
 
@@ -253,25 +250,25 @@ try {
      `hr_activities` is the generated catalogue the fence validates against, so
      it is the thing to ask — not src/data, which is the copy this guard is
      trying to prove the server agrees with. */
-  group('H0  the probe is a character who CAN mine this node');
+  group('H0  the probe is a character who CAN fuel the Hearth with this run');
   {
     const [act] = (await db.query(
-      "select req_skill, req_lv from public.hr_activities where kind = 'gather' and activity_id = $1",
+      "select req_skill, req_lv from public.hr_activities where kind = 'artisan' and activity_id = $1",
       [NODE])).rows;
     judge('H0a', !!act && act.req_skill === SKILL,
-      `hr_activities knows ${NODE} as a ${act && act.req_skill} node at level ${act && act.req_lv}`,
-      `hr_activities has no gather row for ${NODE} — the catalogue migration did not replay, so `
+      `hr_activities knows ${NODE} as a ${act && act.req_skill} run at level ${act && act.req_lv}`,
+      `hr_activities has no artisan row for ${NODE} — the catalogue migration did not replay, so `
       + 'nothing below measures what it claims');
     if (!act) throw new Error('no catalogue row');
     const [lv] = (await db.query('select public.hr_level_from_xp($1::bigint) as lv', [XP_AT_61])).rows;
     judge('H0b', Number(lv.lv) >= Number(act.req_lv),
-      `the probe's ${XP_AT_61} xp is ${SKILL} level ${lv.lv}, at or above the node's ${act.req_lv}`,
-      `the probe is ${SKILL} level ${lv.lv} and the node needs ${act.req_lv} — fix the fixture, `
+      `the probe's ${XP_AT_61} xp is ${SKILL} level ${lv.lv}, at or above the run's ${act.req_lv}`,
+      `the probe is ${SKILL} level ${lv.lv} and the run needs ${act.req_lv} — fix the fixture, `
       + 'not the assertion');
-    judge('H0c', (ITEMS[TOOL] || {}).toolSkill === SKILL,
-      `${TOOL} is a ${SKILL} tool (tier ${(ITEMS[TOOL] || {}).toolTier}), so the bag alone `
-      + 'equips the speed and double-yield ladder',
-      `${TOOL} is not a ${SKILL} tool in src/data/items.js`);
+    const run = FUEL_RUNS[NODE];
+    judge('H0c', !!run && run.recipe.input === FUEL && !!ITEMS[FUEL],
+      `${NODE} burns ${FUEL}, an item the bag holds ${STOCK} of, so the bag alone feeds the run`,
+      `${NODE} is not a run on ${FUEL} in catalogue.js FUEL_RUNS`);
   }
 
   // ── H1 ── THE SHIPPED ENTRY, END TO END ───────────────────────────────────
@@ -308,29 +305,29 @@ try {
           + `verdict: ${JSON.stringify(fire)}`);
 
     /* THE CLAIM. `would_ticks` is `meta.ticks` — the ACTIONS the engine ran.
-       Zero on a 90 s window at a ~6.4 s action interval is the defect verbatim. */
+       Zero on a 90 s window at a 640 ms action interval is the defect verbatim. */
     judge('H1b', !!h1Row && Number(h1Row.would_ticks) > 0,
-      `the tick would have mined ${h1Row && h1Row.would_ticks} actions in ${FLUSH_MS / 1000}s — `
-      + 'the engine saw the skills map',
-      `would_ticks = ${h1Row && h1Row.would_ticks} for a Mining-61 character on a level-60 node. `
-      + 'The session was hydrated from `env.state`, where no skills live, so the engine priced '
-      + `this character at ${SKILL} 0 and refused the node. delta: ${JSON.stringify(h1Row && h1Row.delta)}`);
+      `the tick would have burnt ${h1Row && h1Row.would_ticks} fuel in ${FLUSH_MS / 1000}s — `
+      + 'the engine saw the bag',
+      `would_ticks = ${h1Row && h1Row.would_ticks} for a character with ${STOCK} ${FUEL} in the bag. `
+      + 'The session was hydrated from `env.state`, where no inventory lives, so the engine saw an empty '
+      + `bag and stopped the run. delta: ${JSON.stringify(h1Row && h1Row.delta)}`);
 
-    judge('H1c', !!h1Row && Number(h1Row.would_qty) > 0,
-      `and would have banked ${h1Row && h1Row.would_qty} ore`,
-      `would_qty = ${h1Row && h1Row.would_qty} — nothing was gathered`);
+    const burnt = h1Row && h1Row.delta && h1Row.delta.items ? -Number(h1Row.delta.items[FUEL] || 0) : 0;
+    judge('H1c', burnt > 0 && burnt === Number(h1Row.would_ticks),
+      `and would have burnt ${burnt} ${FUEL}, one an action`,
+      `the window burnt ${burnt} ${FUEL} for ${h1Row && h1Row.would_ticks} actions — nothing was spent`);
 
-    /* THE OTHER HALF, AND THE ONE THAT COSTS A PLAYER SOMETHING. A LEVEL stop
+    /* THE OTHER HALF, AND THE ONE THAT COSTS A PLAYER SOMETHING. A supplies stop
        does not merely pay zero: accrual.js answers `activity:{kind:'idle'}`,
        which in step 2 is hr_apply ENDING the activity. A tick that mis-hydrates
-       does not under-pay a gathering character, it stops them gathering. */
+       does not under-pay a Hearth run, it ends it. */
     const act = h1Row && h1Row.delta && h1Row.delta.activity;
     judge('H1d', !act,
       'the proposed delta carries NO `activity` key — the tick is not about to end this '
-      + "character's gathering",
-      `the proposed delta would have set activity to ${JSON.stringify(act)}. A LEVEL stop makes `
-      + 'the tick END the activity of a character who can mine that node — every window, for '
-      + 'every gatherer, the moment shadow becomes step 2.');
+      + "character's run",
+      `the proposed delta would have set activity to ${JSON.stringify(act)}. An empty-bag stop makes `
+      + 'the tick END the run of a character with fuel to burn — every window, the moment shadow becomes step 2.');
   }
 
   // ── H2 ── CALLER PARITY ON ONE WINDOW ─────────────────────────────────────
@@ -366,9 +363,7 @@ try {
       version: env.version,
       cap_ms: capMs,
     }, MUTATE ? env.state : env);
-    const run = settleGatherSession(session, fromMs, toMs, {
-      cadenceMs: FLUSH_MS, flushMs: FLUSH_MS, seedOf: () => SEED, holder: 'proofs',
-    });
+    const run = settleArtisanSession(session, fromMs, toMs, { seedOf: () => SEED, holder: 'proofs' });
     /* `writeIntent` returns the RPC CALL — `{rpc, args:{p_delta, …}, window}` —
        because that is what step 2 hands hr_tick_settle. The journal meta is the
        same object hr_tick_shadow stores in its `delta` column, which is why H1
@@ -393,11 +388,9 @@ try {
       seed: SEED,
       bestiaryKills: null,
       perks: null,
-      unlockedRecipes: null,
       items: ITEMS,
       monsters: MONSTERS,
-      nodes: GATHER_NODES,
-      recipes: ARTISAN_RECIPES_ALL,
+      recipes: FUEL_RUNS,
       caller: 'accrue',
       callerAuthority: CALLER_AUTHORITY,
     });
@@ -418,9 +411,10 @@ try {
       `the two callers disagree: tick ${tickMeta && tickMeta.ticks} actions vs accrue `
       + `${accrueMeta && accrueMeta.ticks}. One of them is not reading the envelope the other is.`);
 
-    judge('H2d', !!tickMeta && Number(tickMeta.qty) === Number(accrueMeta && accrueMeta.qty),
-      `and banked the same ${tickMeta && tickMeta.qty} ore`,
-      `yields differ: tick ${tickMeta && tickMeta.qty} vs accrue ${accrueMeta && accrueMeta.qty}`);
+    const spentOf = (d) => (d && d.items ? Number(d.items[FUEL] || 0) : 0);
+    judge('H2d', !!tickDelta && spentOf(tickDelta) < 0 && spentOf(tickDelta) === spentOf(accrue.delta),
+      `and burnt the same ${-spentOf(tickDelta)} ${FUEL}`,
+      `the burn differs: tick ${spentOf(tickDelta)} vs accrue ${spentOf(accrue.delta)}`);
 
     /* THE FIELD LIST ITSELF. Both callers spread ONE map, so the property
        worth asserting is that the map fills every key it declares from an
@@ -464,7 +458,7 @@ try {
        and none off this object. */
     const hostile = {
       user_id: u, slot: 0,
-      skills: { [SKILL]: 99999999 }, inventory: { [TOOL]: 99 }, equipment: {},
+      skills: { [SKILL]: 99999999 }, inventory: { [FUEL]: 99 }, equipment: {},
       cap_ms: 999999999, version: 9999,
       accrued_to: '1970-01-01T00:00:00.000Z',
       active_kind: 'combat', active_id: 'goblin',
@@ -475,7 +469,7 @@ try {
       body: { op: 'tick', roster: [hostile], cadence_ms: CADENCE_MS, flush_ms: FLUSH_MS },
     });
     const rows = (await db.query(
-      'select would_ticks, would_qty, version, delta from public.hr_tick_shadow'
+      'select would_ticks, version, delta from public.hr_tick_shadow'
       + ` where user_id = '${u}' order by id`)).rows;
     const row = rows[0] || null;
     say(`      shadow : ${JSON.stringify(row)}`);
@@ -484,14 +478,15 @@ try {
        with a bare `{user_id, slot}` entry. Identical numbers mean the extra
        fields were inert; a difference in either direction means one of them
        was read. */
+    const burnOf = (r) => (r && r.delta && r.delta.items ? Number(r.delta.items[FUEL] || 0) : 0);
     judge('H3a', !!row && !!h1Row
         && Number(row.would_ticks) === Number(h1Row.would_ticks)
-        && Number(row.would_qty) === Number(h1Row.would_qty),
+        && burnOf(row) === burnOf(h1Row),
       `a roster entry carrying a forged skills map, inventory, cap, version and watermark `
       + `produced the same window as a bare one (${row && row.would_ticks} actions, `
-      + `${row && row.would_qty} ore) — every field came off hr_state_of`,
-      `the forged roster entry changed the window: ${row && row.would_ticks}/${row && row.would_qty} `
-      + `vs ${h1Row && h1Row.would_ticks}/${h1Row && h1Row.would_qty} from a bare entry. A request `
+      + `${-burnOf(row)} ${FUEL}) — every field came off hr_state_of`,
+      `the forged roster entry changed the window: ${row && row.would_ticks}/${burnOf(row)} `
+      + `vs ${h1Row && h1Row.would_ticks}/${burnOf(h1Row)} from a bare entry. A request `
       + 'field reached the engine.');
 
     judge('H3b', !!row && Number(row.version) === 1,
@@ -499,57 +494,17 @@ try {
       `the shadow row carries version ${row && row.version} — the body named it`);
 
     judge('H3c', !!row && row.delta && row.delta.journal
-        && row.delta.journal.meta && row.delta.journal.meta.node === NODE,
-      `and the window is still a ${NODE} gather, not the body's 'goblin' combat`,
+        && row.delta.journal.meta && row.delta.journal.meta.recipe === NODE,
+      `and the window is still a ${NODE} run, not the body's 'goblin' combat`,
       `the body's activity pointer was honoured: ${JSON.stringify(row && row.delta && row.delta.journal)}`);
   }
 
-  // ── H4 ── THE CHAIN STILL PAYS AT THE PRODUCTION CADENCE ──────────────────
-  group('H4  the same window at the 10 s cadence conserves the actions');
-  {
-    const u = U(4);
-    await seed(u);
-    const { env, capMs } = await envelopeOf(u);
-    const fromMs = Date.parse(env.state.accrued_to);
-    const toMs = fromMs + FLUSH_MS;
-    const row = {
-      user_id: u, slot: 0, shard: 0,
-      active_kind: env.state.active_kind,
-      active_id: env.state.active_id,
-      active_since: env.state.active_since,
-      accrued_to: new Date(fromMs).toISOString(),
-      version: env.version,
-      cap_ms: capMs,
-    };
-    const envIn = MUTATE ? env.state : env;
-    const one = settleGatherSession(entry.sessionFromRoster(row, envIn), fromMs, toMs,
-      { cadenceMs: FLUSH_MS, flushMs: FLUSH_MS, seedOf: () => SEED, holder: 'proofs' });
-    const many = settleGatherSession(entry.sessionFromRoster(row, envIn), fromMs, toMs,
-      { cadenceMs: CADENCE_MS, flushMs: FLUSH_MS, seedOf: () => SEED, holder: 'proofs' });
-    const ticksOf = (r) => {
-      const d = r.intents[0] && r.intents[0].args && r.intents[0].args.p_delta;
-      return (d && d.journal) ? Number(d.journal.meta.ticks) : 0;
-    };
-    say(`      one-shot ${ticksOf(one)} actions in ${one.polls} poll(s); `
-      + `cadence ${ticksOf(many)} actions in ${many.polls} poll(s)`);
-
-    judge('H4a', ticksOf(many) > 0,
-      `the 10 s cadence chain settled ${ticksOf(many)} actions over ${many.polls} polls`,
-      `the 10 s cadence chain settled ZERO actions over ${many.polls} polls — the hydrated `
-      + 'session never reaches the node');
-    judge('H4b', ticksOf(many) === ticksOf(one),
-      'and exactly as many as the one-shot window — the carry crosses the poll boundary '
-      + '(RULE 1: chain on the engine\'s watermark)',
-      `decomposition lost actions: ${ticksOf(many)} at a 10 s cadence vs ${ticksOf(one)} in one `
-      + 'call. The sub-action remainder is being forfeited, not carried.');
-    judge('H4c', many.unsettledMs < 12000,
-      `the unsettled tail is ${many.unsettledMs} ms — under one action interval, owed not lost`,
-      `the unsettled tail is ${many.unsettledMs} ms, which is more than one action interval`);
-  }
+  // ── H4 ── RETIRED with the gather tick's poll chain (the one-town-work cut): the artisan channel settles a window
+  //          in ONE engine call, so there is no cadence decomposition to conserve actions across.
 
   // ── H5 ── EVERY ENGINE INPUT, PINNED TO THE LEVEL IT IS READ FROM ─────────
   /* M1f F3: the lane killed the INSTANCE and not the CLASS. H2e covers
-     `skills`, `inventory`, `hp` and `activeId`, and H2c/H2d are a GATHER
+     `skills`, `inventory`, `hp` and `activeId`, and H2c/H2d are a HEARTH
      comparison — so twenty-one of the twenty-five inputs were unasserted
      against a real envelope. If a later `hr_state_of` restatement moved
      `enchant`, `buffs` or `combatStyle` between levels, `envelope.js` would
@@ -571,8 +526,7 @@ try {
   {
     const u = U(5);
     await seedFighter(u);
-    await db.exec(`update public.player_state set active_left = 7 where user_id = '${u}' and slot = 0;`);
-    await db.exec(`insert into public.account_bank (user_id, item_id, qty) values ('${u}', 'copper_ore', 3) on conflict (user_id, item_id) do update set qty = 3;`);
+    await db.exec(`insert into public.account_bank (user_id, item_id, qty) values ('${u}', 'bones', 3) on conflict (user_id, item_id) do update set qty = 3;`);
     const { env, nowMs } = await envelopeOf(u);
 
     /* THE DECLARED SOURCE OF EVERY KEY. `from` is the envelope NAME, `level`
@@ -589,7 +543,6 @@ try {
       levelXp: { from: 'level_xp', level: 'state' },
       gold: { from: 'gold', level: 'state' },
       fight: { from: 'fight', level: 'state' },
-      toolCarry: { from: 'tool_carry', level: 'state' },
       /* Lane C2 (closed rebuild) deleted the Auto-Eat trio, the fall streak,
          the combat-XP watermark, the enchant, the pet's XP remainder, the
          stance/stop pair, traits and Vigour as ENGINE inputs: a fight is a
@@ -617,18 +570,10 @@ try {
          409 on. It cannot carry a swap arm because absent and present are the
          same answer — named here rather than silently skipped. */
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
-      /* "MAKE N" (2026-12-01-bench-count.sql): the run's count rides the `bench_run` section,
-         read as `bench_run.left` (the probe below carries 7 so the swap arm is not vacuous). */
-      activeLeft: { from: 'bench_run', level: 'top' },
-      /* A JOB'S END (1026-job-counts.sql): the switch is the same section naming `count` (the chain end's does). */
-      jobEnds: { from: 'bench_run', level: 'top' },
-      /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql): the account's Storage a bench draws on, read off the
-         top-level `bank` only where the `skill_inputs` section names it (the probe holds a Storage stack so the swap
-         arm is not vacuous); the bag's stack cap off `state.bank_cap`. */
+      /* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql): the account's Storage a fuel run burns from, read
+         off the top-level `bank` only where the `skill_inputs` section names it (the probe holds a Storage stack so
+         the swap arm is not vacuous). (The bench's count, job end, bag cap and tax left with the one-town-work cut.) */
       storage: { from: 'bank', level: 'top' },
-      bagCap: { from: 'bank_cap', level: 'state' },
-      /* THE WORK BENCH TAX (2027-02-19-bench-tax.sql): the whole section, read at the top level. */
-      benchTax: { from: 'bench_tax', level: 'top' },
       /* THE HERO'S WORK DAY (1059-company-trades.sql): the `work_day` section, read at the top level (src/core/work-day.js workStateOf). */
       workDay: { from: 'work_day', level: 'top' },
     };
@@ -685,7 +630,7 @@ try {
       activeKind: env.state.active_kind,
       activeId: env.state.active_id,
       hp: env.state.hp, levelXp: env.state.level_xp, gold: env.state.gold,
-      fight: env.state.fight, toolCarry: env.state.tool_carry,
+      fight: env.state.fight,
       deathsTodayBefore: env.state.deaths_today,
       deathsLifetimeBefore: env.state.deaths_lifetime,
       hearthfindReady: env.state.hearthfind_ready,
@@ -700,12 +645,7 @@ try {
       inventory: env.inventory, equipment: env.equipment,
       buffs: env.buffs,
       ammoCarry: null,
-      activeLeft: env.bench_run && env.bench_run.left,
-      /* the replayed chain ends past 1026-job-counts.sql, so its envelope's bench_run names `count`: job ends are on */
-      jobEnds: true,
       storage: env.skill_inputs && env.skill_inputs.from && env.skill_inputs.from.includes('storage') ? env.bank : null,
-      bagCap: env.state.bank_cap,
-      benchTax: env.bench_tax,
       workDay: WORK.workStateOf(env.work_day),
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
@@ -781,7 +721,7 @@ if (MUTATE) {
      and about `engineInputsFromEnvelope` itself, which this mutation does
      not touch, and listing an arm that cannot go red would make this list
      the thing it is guarding against. */
-  const MUST_FAIL = ['H1b', 'H1c', 'H1d', 'H2c', 'H2d', 'H2e', 'H4a', 'H5b'];
+  const MUST_FAIL = ['H1b', 'H1c', 'H1d', 'H2c', 'H2d', 'H2e', 'H5b'];
   const missed = MUST_FAIL.filter((id) => !problems.includes(id));
   if (missed.length) {
     console.log(`world-tick-hydration --mutate: FAILED — env.state-only hydration did NOT turn `

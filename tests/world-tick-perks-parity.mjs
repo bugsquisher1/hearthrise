@@ -8,15 +8,17 @@
 // permanent perk stack is NOT an envelope field — `hr_perks_of` is its own read
 // (index.ts's accrue path and set-activity.js's collect each make it). So every
 // tick window priced at ZERO perks: the −2.56% XP gap the shadow parity read
-// carried as a known under-pay (tick-gather.js sessionFromRoster's note).
+// carried as a known under-pay (the gather tick's sessionFromRoster note).
 // tick.js (1b) now makes the same read, with the same 42883-only degrade.
 //
-// THE ARM. A Smithing-61 character smelting copper (smelt_copper, the artisan
-// channel the tick drives) with the Forge at rung 4 (smithSpeed +8%:
-// room:forge, a rung hr_unlock_buy SELLS, stored as the server-owned
-// `player_progress` unlock row hr_perks_of reads). It was the Shrine's
-// flameSpeed over fuel_bones until 1011-approved-rows-unlock-offers held the
-// Shrine (its room not built yet), so nothing could buy it. It was a Woodcutting night
+// THE ARM. An Inner Flame character fuelling the Hearth (fuel_bones, the artisan
+// channel the tick drives, and its only run since the one-town-work cut) with the
+// Shrine at rung 4 (flameSpeed +8%, stored as the server-owned `player_progress`
+// unlock row hr_perks_of reads). The Shrine is HELD (1011-approved-rows-unlock-offers:
+// its room not built yet), and no sold perk prices a town run since the bench left,
+// so the fixture plants the held rung the server still reads: the claim is that the
+// tick hands the engine the perks the accrue path does, whichever rung it is. It was
+// the Forge's smithSpeed over smelt_copper until the cut, and a Woodcutting night
 // with the Library's allXP, then two Tool Sheds' gatherSpeed: a home stopped
 // granting XP (Master Design Reference §9, 2026-10-14) and the plot buildings
 // were cut as unreachable (lane/c-dead-plot-deed, 2026-11-07), so no perk a
@@ -37,14 +39,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { bootReplay } from './schema-replay.mjs';
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
 import { engineInputsFromEnvelope } from '../supabase/functions/hr-accrue/envelope.js';
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 import { ITEMS } from '../src/data/items.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const U = '00000000-0000-4000-8000-00000000f930';
-const RECIPE = 'smelt_copper';
-const SKILL = 'smithing';
+const RECIPE = 'fuel_bones';
+const SKILL = 'inner_flame';
 const WINDOW_MS = 90000;
 
 /* ── THE MUTATION ── the tick stops handing the engine its perks, in a COPY of
@@ -94,7 +96,7 @@ console.log(`\nworld-tick-perks-parity${MUTATE ? ' [--mutate: perks read removed
 const holder = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
 /* The artisan channel, NOT armed: the fence journals the window to hr_tick_shadow and pays nothing, so the
    comparison reads one row and moves no player state. */
-await db.exec("update public.hr_tick_config set channels = array['combat','gather','artisan']::text[],"
+await db.exec("update public.hr_tick_config set channels = array['combat','artisan']::text[],"
   + ' enabled = true, armed_channels = array[]::text[] where id;');
 await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
 await db.exec(`insert into public.player_state (user_id, slot, hp, version,
@@ -103,21 +105,19 @@ await db.exec(`insert into public.player_state (user_id, slot, hp, version,
                  'artisan', '${RECIPE}', now() - interval '2 hours')`);
 await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                values ('${U}', 0, '${SKILL}', 302288)`);
-/* Copper ore for the whole window and more: a run that ran dry would end the window early and measure the stop. */
-await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${U}', 0, 'copper_ore', 1000)`);
-/* The Forge at rung 4 (smithSpeed +8%, a KEPT and SOLD perk: the Shrine this arm stood on is held since 1011-approved-rows-unlock-offers, its room not built yet). */
+/* Bones for the whole window and more: a run that ran dry would end the window early and measure the stop. */
+await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${U}', 0, 'bones', 1000)`);
+/* The Shrine at rung 4 (flameSpeed +8%): the rung the fuel run's interval reads. */
 await db.exec(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
-               values ('${U}', 0, 'unlock', 'room:forge', '', 4)`);
+               values ('${U}', 0, 'unlock', 'room:shrine', '', 4)`);
 await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                values ('${U}', 0, 'artisan', true, '${holder}', now() + interval '1 hour')`);
 
-// P0 — the fixture carries a perk the server itself reports, and a player can buy it.
+// P0 — the fixture carries a perk the server itself reports.
 const perkEnv = (await one('select public.hr_perks_of($1::uuid, 0) as p', [U])).p;
-const sold = (await one(`select count(*)::int as n from public.hr_unlock_offers
-                          where unlock_id = 'room:forge' and value = 4 and refusal is null`)).n;
-judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.rooms || {}).forge) === 4 && sold === 1,
-  `hr_perks_of reports the Forge at rung ${perkEnv && perkEnv.rooms && perkEnv.rooms.forge} (smithSpeed), a rung hr_unlock_offers sells`,
-  `hr_perks_of did not report the planted Forge, or no offer sells rung 4 (${sold}): ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
+judge('P0', perkEnv && perkEnv.ok === true && Number((perkEnv.rooms || {}).shrine) === 4,
+  `hr_perks_of reports the Shrine at rung ${perkEnv && perkEnv.rooms && perkEnv.rooms.shrine} (flameSpeed)`,
+  `hr_perks_of did not report the planted Shrine: ${JSON.stringify(perkEnv)} — fix the fixture, not the assertion`);
 
 // The envelope and the label, read BEFORE the fire (shadow moves neither).
 const [row] = (await db.query(
@@ -146,8 +146,7 @@ const accrueWith = (perks) => computeAccrual({
   ...engineInputsFromEnvelope(env, toMs),
   accruedToMs: fromMs, capMs: Number(row.cap_ms) || 0, actionBudget: null, attended: null,
   seed: Number(row.seed), bestiaryKills: null, perks,
-  unlockedRecipes: (perks && perks.unlockedRecipes) ?? null,
-  items: ITEMS, monsters: {}, nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+  items: ITEMS, monsters: {}, recipes: FUEL_RUNS,
   caller: 'accrue', callerAuthority: CALLER_AUTHORITY,
 });
 const withPerks = accrueWith(perkEnv);

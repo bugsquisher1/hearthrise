@@ -126,6 +126,7 @@ export function validateImbues(rows = IMBUE_RULES) {
     if (r.when && !(Number.isInteger(r.fire) && r.fire >= IMBUE.steps && r.fire <= IMBUE.fireMax)) out.push(id + ': a condition fires at ' + r.fire + ' steps, not a whole number from its rated ' + IMBUE.steps + ' to ' + IMBUE.fireMax + ' (D-17)');
     if (!r.when && r.fire !== null) out.push(id + ': a rule row has no condition to fire on, so no fire size');
     if (r.convert && !ELEMENTS.includes(r.convert.element)) out.push(id + ': converts to ' + r.convert.element + ', no element the data names');
+    if (r.convert && r.when) out.push(id + ': a conversion answers itself, so it takes no condition (it writes its steps or waits, D-22)');
     const home = PART_HOME.get(r.part);
     if (!home) out.push(id + ': part ' + r.part + ' is in no ground pack');
     else if (home.ground === r.best.ground) out.push(id + ': its part comes from its own best ground; every imbuement makes a trade between two grounds');

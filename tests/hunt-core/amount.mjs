@@ -367,10 +367,11 @@ const mutants = [
   /* lane/imbue-engine (21 D-18): the conversion and the leech in the fight */
   { name: 'a conversion is never priced', case: 'imbue', edits: [[A, 'element: c.element || null, convert }, u.heroLv)', 'element: c.element || null, convert: null }, u.heroLv)']] },
   { name: 'a conversion reads the blow\'s element as the target\'s Fire', case: 'imbue', edits: [[A, 'convertMult(cv, elementOn(other, cv.element), c.el)', 'convertMult(cv, c.el, c.el)']] },
-  { name: 'a conversion\'s cost is held to nothing', case: 'imbue', edits: [['src/core/imbue.js', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });', '      if (n > 0) out.push({ slice: \'consumable\', raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });']] },
-  { name: 'a conversion skips the clamp', case: 'imbue', edits: [['src/core/imbue.js', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });', '      if (n) out.push({ slice: \'consumable\', raises: channel, steps: (n * steps) / IMBUE.steps, room: 2, key: r.key });']] },
-  /* lane/imbue-d21-d22 (21 D-22): a conversion that changes the blow by nothing still takes its room */
-  { name: 'a conversion that changes nothing takes no room', case: 'imbue', edits: [['src/core/imbue.js', "      else out.push({ slice: 'consumable', raises: channel, steps, key: r.key, holds: false });\n", '']] },
+  { name: 'a conversion\'s cost is held to nothing', case: 'imbue', edits: [['src/core/imbue.js', '    if (n) out.push({ slice: \'consumable\', raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });', '    if (n > 0) out.push({ slice: \'consumable\', raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });']] },
+  { name: 'a conversion skips the clamp', case: 'imbue', edits: [['src/core/imbue.js', '    if (n) out.push({ slice: \'consumable\', raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });', '    if (n) out.push({ slice: \'consumable\', raises: channel, steps: (steps * n) / IMBUE.steps, room: 2, key: r.key });']] },
+  /* lane/imbue-d21-d22 (21 D-22): a conversion that changes the blow by nothing still takes its room (planted: the rule as it stood) */
+  { name: 'a conversion that changes nothing takes no room', case: 'imbue', edits: [['src/core/imbue.js', '    else if (on && holdsOn(r, ctx)) {',
+    "    else if (on && r.convert && ctx && typeof ctx.convert === 'function') continue;\n    else if (on && holdsOn(r, ctx)) {"]] },
   { name: 'the leech never reaches the blow', case: 'leech', edits: [['src/core/hunt/damage.js', '&& r.dmg > 0 ? leechOn(source, target, r.dmg) : null;', '&& r.dmg > 0 ? null : null;']] },
   { name: 'a status tick leeches', case: 'leech', edits: [['src/core/hunt/damage.js', 'source.imbues && !(ability && ability.dot) && r.dmg > 0 ?', 'source.imbues && r.dmg > 0 ?']] },
   { name: 'the leech heals with no event', case: 'leech', edits: [['src/core/hunt/damage.js', "  if (lee && lee.hp) sc.emit(makeEvent('heal', sc.atMs, { u, t: u, amount: lee.hp, ability: lee.id }));\n", '']] },

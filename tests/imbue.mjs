@@ -73,6 +73,8 @@ async function pure(base) {
   /* D-17: a conditional row fires at its measured size, whole, from its rated 2 to fireMax; a rule row has none */
   plant({ fire: null }, 'fires at'); plant({ fire: 1 }, 'fires at'); plant({ fire: 21 }, 'fires at'); plant({ fire: 4.5 }, 'fires at');
   if (!D.validateImbues({ ...D.IMBUE_RULES, fire_edge: { ...D.IMBUE_RULES.fire_edge, fire: 3 } }).some((p) => p.includes('no fire size'))) out.push('IM-1 a rule row with a fire size was not refused');
+  /* a conversion takes no condition (imbueRows: it writes its steps or waits, D-22, never fires) */
+  if (!D.validateImbues({ ...D.IMBUE_RULES, fire_edge: { ...D.IMBUE_RULES.fire_edge, when: { metric: 'target_role', eq: 'brute' }, fire: 5 } }).some((p) => p.includes('takes no condition'))) out.push('IM-1 a conversion with a condition was not refused');
   if (D.IMBUE_RULES.brute_edge.fire !== 5 || D.IMBUE_RULES.fire_ward.fire !== 11 || D.IMBUE_RULES.life_leech.leech.pm !== 20) out.push('IM-1 the measured sizes moved (21 section 11): Brute Edge ' + D.IMBUE_RULES.brute_edge.fire + ', Fire Ward ' + D.IMBUE_RULES.fire_ward.fire + ', Life Leech ' + D.IMBUE_RULES.life_leech.leech.pm);
   plant({ best: { ground: 'pyre_field', seat: 'melee' } }, 'own best ground');
   plant({ part: 'coal_tongs' }, 'does not open');
@@ -238,7 +240,7 @@ const MUTANTS = [
   ['heroSetup never reads the read\'s instant', 'src/core/hunt-spawn.js', 'wornImbuesOf(o.wornImbues, o.readAtMs)', 'wornImbuesOf(o.wornImbues)'],
   ['no contest curve behind the band', 'src/core/imbue.js', 'return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));', 'return IMBUE.steps;'],
   ['a band past wearAhead is worn', 'src/core/imbue.js', 'if (!b || !L || b > L + GEAR_STEPS.wearAhead) return 0;', 'if (!b || !L) return 0;'],
-  ['an imbuement fires on any monster', 'src/core/imbue.js', 'if (r.raises === channel && holdsOn(r, ctx)) {', 'if (r.raises === channel) {'],
+  ['an imbuement fires on any monster', 'src/core/imbue.js', 'else if (on && holdsOn(r, ctx)) {', 'else if (on) {'],
   ['a waiting imbuement takes no room', 'src/core/power-ledger.js', 'if (ch.fire.has(key) || !ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;', 'if (false) room += g;'],
   /* IM-9 (D-17) */
   ['a firing row fires its rated 2', 'src/core/imbue.js', 'const fire = Number.isInteger(r.fire) ? r.fire : IMBUE.steps;', 'const fire = IMBUE.steps;'],
@@ -253,13 +255,16 @@ const MUTANTS = [
   ['a Mana Leech fills past max mana', 'src/core/hunt/imbue-leech.js', 'Math.min(pay.back, int(u.maxMana) - int(u.mana))', 'pay.back'],
   ['a Mana Leech heals HP', 'src/core/hunt/imbue-leech.js', "if (l.of === 'mana') {", "if (false) {"],
   ['the leech pays off a blow at an ally', 'src/core/hunt/imbue-leech.js', ' || !t || !isEnemy(u, t)) return null;', ') return null;'],
-  ['a leech past wearAhead plays', 'src/core/imbue.js', '    if (steps > 0) return { id: w.id, of: r.leech.of,', '    if (r && r.leech && whole(r.leech.pm)) return { id: w.id, of: r.leech.of,'],
+  ['a leech past wearAhead plays', 'src/core/imbue.js', '    if (steps) return { id: w.id, of: r.leech.of,', '    if (pm) return { id: w.id, of: r.leech.of,'],
   /* IM-9 and IM-10 (lane/imbue-d21-d22: 21 D-21, D-22) */
-  ['the leech skips the contest curve', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: whole(r.leech.pm) };'],
-  ['the leech rounds down', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: Math.max(1, Math.floor((whole(r.leech.pm) * steps) / IMBUE.steps)) };'],
-  ['the leech can round to nothing', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: Math.round((whole(r.leech.pm) * steps) / IMBUE.steps) };'],
-  ['a conversion skips the contest curve', 'src/core/imbue.js', "raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });", "raises: channel, steps: n, key: r.key });"],
-  ['a conversion that changes nothing takes no room', 'src/core/imbue.js', "      else out.push({ slice: 'consumable', raises: channel, steps, key: r.key, holds: false });\n", ''],
+  ['the leech skips the contest curve', 'src/core/imbue.js', 'pm: Math.round((pm * steps) / IMBUE.steps) || 1 };', 'pm: pm };'],
+  ['the leech rounds down', 'src/core/imbue.js', 'pm: Math.round((pm * steps) / IMBUE.steps) || 1 };', 'pm: Math.floor((pm * steps) / IMBUE.steps) || 1 };'],
+  ['the leech can round to nothing', 'src/core/imbue.js', 'pm: Math.round((pm * steps) / IMBUE.steps) || 1 };', 'pm: Math.round((pm * steps) / IMBUE.steps) };'],
+  ['a conversion skips the contest curve', 'src/core/imbue.js', 'raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });', 'raises: channel, steps: n, key: r.key });'],
+  /* (the rule as it stood: a priced conversion that converts nothing writes no row) */
+  ['a conversion that changes nothing takes no room', 'src/core/imbue.js', '    else if (on && holdsOn(r, ctx)) {',
+    "    else if (on && r.convert && ctx && typeof ctx.convert === 'function') continue;\n    else if (on && holdsOn(r, ctx)) {"],
+  ['a conversion row with a condition passes', 'src/data/imbue-rules.js', 'if (r.convert && r.when)', 'if (false)'],
   ['the consumable slice has no cap', 'src/core/power-ledger.js', 'Math.max(0, Math.min(cap, gains + room) - room)', 'Math.max(0, gains)'],
   ['the consumable slice ramps again', 'src/data/power-ledger.js', 'max: POWER_LEDGER.consumableStepsMax, ramps: false,', 'max: POWER_LEDGER.consumableStepsMax, ramps: true,'],
   ['a conditional row with no fire size passes', 'src/data/imbue-rules.js', 'if (r.when && !(Number.isInteger(r.fire)', 'if (false && !(Number.isInteger(r.fire)'],

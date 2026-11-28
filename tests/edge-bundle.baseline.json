@@ -698,6 +698,11 @@
         "bytes": 4064757,
         "on": "2026-11-28",
         "why": "sig4-followups: damage.js's BasicCost typedef (the type ratchet's two TS2339), and tauntOne and fallBackNow moved beside their engine readers in reactions.js and fall-save.js (their own imports) so the town path loads neither"
+      },
+      {
+        "bytes": 4065739,
+        "on": "2026-11-28",
+        "why": "imbue-d21-d22: the Leech's permille and the conversion's steps on the contest curve and Fire Edge's waiting row (21 D-21, D-22) in imbue.js, a conversion-takes-no-condition rule in imbue-rules.js validateImbues, and the rule notes in imbue.js, imbue-leech.js, imbue-rules.js (+982 B, nearly all comments)"
       }
     ]
   }

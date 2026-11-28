@@ -116,20 +116,16 @@ export function convertMult(convert, toPm, blowPm) {
  * 0, else it waits (holds: false) and takes its room. [] with none.
  */
 export function imbueRows(worn, channel, ctx, heroLevel) {
-  const set = Array.isArray(worn) ? worn : null;
-  if (!set || !set.length) return [];
+  if (!Array.isArray(worn) || !worn.length) return [];
   const out = [];
-  for (const w of set) {
+  for (const w of worn) {
     const r = own(IMBUE_RULES, w.id) ? IMBUE_RULES[w.id] : null;
     const steps = r ? imbueStepsAt(w.band, heroLevel) : 0;
     if (!steps) continue;
-    if (r.convert && r.raises === channel && ctx && typeof ctx.convert === 'function') {
-      const n = ctx.convert(r.convert);
-      if (n) out.push({ slice: 'consumable', raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });
-      else out.push({ slice: 'consumable', raises: channel, steps, key: r.key, holds: false });
-      continue;
-    }
-    if (r.raises === channel && holdsOn(r, ctx)) {
+    /* a conversion (no condition, so it never fires) writes n x c, or waits on a blow it does not change (n 0) */
+    const on = r.raises === channel, n = on && r.convert && ctx && typeof ctx.convert === 'function' ? ctx.convert(r.convert) : 0;
+    if (n) out.push({ slice: 'consumable', raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });
+    else if (on && holdsOn(r, ctx)) {
       /* fire x c: the measured fire size at the band's contest curve (c = steps / IMBUE.steps), its room the rated steps (D-17) */
       const fire = Number.isInteger(r.fire) ? r.fire : IMBUE.steps;
       out.push({ slice: 'consumable', raises: channel, steps: (steps * fire) / IMBUE.steps, room: steps, key: r.key });
@@ -145,8 +141,8 @@ export function leechOf(worn, heroLevel) {
   if (!Array.isArray(worn)) return null;
   for (const w of worn) {
     const r = w && own(IMBUE_RULES, w.id) ? IMBUE_RULES[w.id] : null;
-    const steps = r && r.leech && whole(r.leech.pm) ? imbueStepsAt(w.band, heroLevel) : 0;
-    if (steps > 0) return { id: w.id, of: r.leech.of, pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };
+    const pm = r && r.leech ? whole(r.leech.pm) : 0, steps = pm ? imbueStepsAt(w.band, heroLevel) : 0;
+    if (steps) return { id: w.id, of: r.leech.of, pm: Math.round((pm * steps) / IMBUE.steps) || 1 };
   }
   return null;
 }

@@ -53,7 +53,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT } from './_client-harness.mjs';
+import { ROOT, tradeJobsFixture } from './_client-harness.mjs';
 import { wait, reloadAndPlay, pushEnvelope, openWin, sent, pageRun, plain, mutate, shardPlan } from './_alpha-windows.mjs';
 
 /* The town the playtest checks walk (its size and the mill hatch, from the map row itself). */
@@ -205,16 +205,20 @@ async function checks(overrides, shots, opts) {
         await page.waitForTimeout(700);
         const mv = sent(s, 'hr_bank_move');
         if (mv.length !== 1 || mv[0].body.p_item !== 'oak_logs' || mv[0].body.p_qty !== 12 || mv[0].body.p_dir !== 'withdraw') fails.push('AW-16 a storage press sent ' + JSON.stringify(mv.map((c) => c.body)));
-        /* AW-17 (desktop) neither skills window scrolls; an unlock names each thing and what it is for (Tyler 10-18:
-           "and 1 more" made the smithing tools read as weapon crafting). */
+        /* AW-17 (desktop) neither skills window scrolls; the Work window's trades are the company's (09-crafting 4.17), with no combat
+           skill among them, and a trade's unlock names the job it opens (Tyler 10-18: "and 1 more" read as nothing). */
+        s.env.trade_jobs = tradeJobsFixture(s.env.now, { smithing: 5 });
+        await pushEnvelope(page, s);
         for (const [key, id] of [['g', 'skills-trade']]) {
           await openWin(page, key, id);
           await page.waitForTimeout(300);
           const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight }; }, id);
           if (m.sh > m.ch + 1) fails.push('AW-17 ' + id + ' at 1440x900 scrolls (' + m.sh + ' > ' + m.ch + ')');
         }
-        const smith = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent).find((t) => /^Smithing/.test(t.trim())) || '');
-        if (!/Next at level \d+: .*Bronze Axe \(woodcutting tool\)/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the smithing unlock does not say what it is: ' + JSON.stringify(smith));
+        const ledger = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skills .hw-skill')).map((li) => li.textContent.trim()));
+        const smith = ledger.find((t) => /^Smithing/.test(t)) || '';
+        if (!/^Smithing\s*5/.test(smith) || !/Lv 11: Smelt Iron Bar/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the Smithing trade line reads ' + JSON.stringify(smith));
+        if (ledger.some((t) => /^(Melee|Defense|Inner Flame|Magic|Ranged)/.test(t))) fails.push('AW-17 the Work window lists a combat skill: ' + JSON.stringify(ledger));
       }
       if (errors.length) fails.push('AW-13 console errors in town: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -721,7 +725,7 @@ const MUTANTS = [
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
   ['a hunt carries only part of its own stack', 'src/shell/hunt-list.js', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty, 10) }))'],
   ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', "{ id, dir: action, qty: ev.shiftKey ? 'all' : 1 }", '{ id, dir: action, qty: 1 }'],
-  ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
+  ['the skills are one window again', 'src/shell/windows/work.js', "import { tradeLedger } from './skills.js';", "import { tradeLedger as tradeOnly, combatLedger } from './skills.js';\nconst tradeLedger = Object.assign(() => combatLedger() + tradeOnly(), { patch: (b, c) => { combatLedger.patch(b, c); tradeOnly.patch(b, c); } });"],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],
   ['AW-30 the opacity fades the whole window, words and all', 'src/styles/shell.css', '  image-rendering: pixelated; opacity: var(--panel-alpha);\n}', '  image-rendering: pixelated;\n}\n.hs-win { opacity: var(--panel-alpha); }'],

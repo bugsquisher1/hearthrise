@@ -57,7 +57,6 @@ import { fitsSlot, dollTip, DRAG_WORN, pieceSlotOf } from './doll.js';
 import { askElsewhere } from './elsewhere.js';
 import { skillsOf, bagOf } from '../../../session/item-sections.js';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed, cookTarget } from './bury.js';
-import { gotoAttr } from '../../goto.js';
 import { equipUpgrades } from '../../widgets/upgrade-line.js';
 import { wearBlock } from '../../gear-gate.js';
 import { levelOf, featuresOf } from '../../../session/character-sections.js';
@@ -332,9 +331,9 @@ function openMenu(ctx, body, st, id, at, repaint) {
   /* an outfit's bundle: Use owns the outfit for this hero (off, with why, once the server says it owns it already) */
   const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
   if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
-  /* a raw food: Cook is a link to its Cooking job in the Work window (the shell's link press follows it: goto.js) */
+  /* a raw food: Cook opens its Cooking job in the Work window (goCook, through the window manager's one door: goto.js) */
   const ck = cookTarget(id);
-  if (ck) h += item('m-cook', 'Cook', true, gotoAttr(ck));
+  if (ck) h += item('m-cook', 'Cook', true);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'Shop won\'t buy this';
   /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */
@@ -560,6 +559,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-bury': doBury(st, id, repaint); return true;
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
+    case 'm-cook': closeMenu(ctx, st); goCook(st, id); return true;
     case 'm-use': doBundle(st, id, repaint, el); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;

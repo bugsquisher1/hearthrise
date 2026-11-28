@@ -163,7 +163,7 @@ export function tradeUnlockLine(trade, level) {
   if (!next.length) return { one: '', more: '', all: '' };
   const at = next.filter((j) => j.R === next[0].R);
   return { one: t('work.skill_next', { level: next[0].R, name: at[0].name }), more: at.length > 1 ? t('work.skill_more', { count: at.length - 1 }) : '',
-    all: at.map((j) => t('work.skill_next', { level: j.R, name: j.name })).join(', ') };
+    all: t('work.skill_next', { level: next[0].R, name: at.map((j) => j.name).join(', ') }) };
 }
 
 /** A trade's { level, into, need } for the bar: the server's Level and XP, the marks from the trades' one table; null when the server's XP

@@ -73,7 +73,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, UID, serve, SDK_STUB, tradeJobsFixture } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { mutantShard, controlArgv } from './_mutant-shard.mjs';
@@ -364,13 +364,15 @@ async function checks(overrides, shots) {
         const more = await page.evaluate(() => document.querySelector('.hw-dl-row.is-open .hw-dl-more').textContent);
         if (!/90 Level XP, 50 Melee XP/.test(more)) fails.push('CW-5 the open row says ' + JSON.stringify(more));
         if (shots) await shot(page, 'character-1440x900-deaths');
-        /* CW-6: Gathering and crafting has no combat skill; the unlock names its kind. */
+        /* CW-6: the Work window's trades (09-crafting 4.17) hold no combat skill; a trade's unlock names the job its next Level opens. */
+        s.env.trade_jobs = tradeJobsFixture(s.env.now || new Date().toISOString(), { smithing: 5 });
+        await push(page, s);
         await openWin(page, 'g', 'skills-trade');
         await page.waitForTimeout(300);
-        const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent + '|' + (li.querySelector('.hw-skill-next').getAttribute('title') || '')));
-        if (trade.some((t) => /^\s*(Melee|Defense|Inner Flame|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
+        const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skills .hw-skill')).map((li) => li.textContent + '|' + (li.querySelector('.hw-skill-next').getAttribute('title') || '')));
+        if (trade.some((t) => /^\s*(Melee|Defense|Inner Flame|Magic|Ranged)/.test(t))) fails.push('CW-6 the Work window lists a combat skill');
         const wc = trade.find((t) => /^\s*Smithing/.test(t)) || '';
-        if (!/Next at level \d+: .*\((woodcutting|mining) tool\)/.test(wc)) fails.push('CW-6 the smithing unlock does not name its kind: ' + JSON.stringify(wc));
+        if (!/\|Lv 11: Smelt Iron Bar/.test(wc)) fails.push('CW-6 the Smithing unlock does not name its job: ' + JSON.stringify(wc));
       }
       if (errors.length) fails.push('CW-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
@@ -815,7 +817,7 @@ const MUTANTS = [
   ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
   ['an earned outfit (a bundle, faction pieces) shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit-looks.js', '    if (!earnedOnly(r) || owns(o, id)) return true;', '    return true;'],
-  ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
+  ['the trade skills list the combat skills', 'src/shell/windows/work.js', "import { tradeLedger } from './skills.js';", "import { tradeLedger as tradeOnly, combatLedger } from './skills.js';\nconst tradeLedger = Object.assign(() => combatLedger() + tradeOnly(), { patch: (b, c) => { combatLedger.patch(b, c); tradeOnly.patch(b, c); } });"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
   ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), null), sc.opening === 'done');"],
   ['the portrait shows at 1.5 px an art px (CW-10)', 'src/styles/character.css', '.hw-cs-portrait { flex: none; width: calc(42 * var(--art-px));', '.hw-cs-portrait { flex: none; width: 60px;'],

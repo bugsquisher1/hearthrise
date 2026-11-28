@@ -11,7 +11,7 @@
 //   node tests/alpha-windows-storage.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-storage.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/bag-model.js src/shell/windows/storage.js src/shell/town-work.js src/styles/windows.css
+// mutant-anchors: src/shell/press-ack.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/bag-model.js src/shell/windows/storage.js src/styles/windows.css
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -36,16 +36,16 @@
 //   AW-19 FUEL THE HEARTH (Tyler live 10-18, "can't bury bones"; 10-25: Inner Flame replaces
 //         Prayer): bones offer Burn all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
 //         and nothing else, the Fueling line reads the server's pointer, Stop is ONE set_activity
-//         idle, and the bag and the Inner Flame XP change only from the envelope (and stay after a reload)
-//   AW-20 COOK ALL (playtest 10-22: Raw Wolf Meat sold for 1 gp, nothing said it cooks):
-//         raw food with a one-input Cooking recipe to food offers Cook all, the same ONE
-//         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
-//         server's pointer; Stop says what the server made and burnt; the tooltip says it
-//         cooks; Sell all junk keeps it; a level under the recipe's says so in words
+//         idle and says what the server burned, and the bag and the Inner Flame XP change only from
+//         the envelope (and stay after a reload); a fuel above the server's Inner Flame says so in
+//         words and sends nothing
+//   AW-20 COOK IS A JOB (playtest 10-22: Raw Wolf Meat sold for 1 gp, nothing said it cooks; 09-crafting
+//         4.17: no bench): a raw fish a Cooking job takes offers Cook, which opens the Work window on
+//         that job's row and sends nothing; the bag moves only from the server
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT } from './_client-harness.mjs';
+import { ROOT, tradeJobsFixture } from './_client-harness.mjs';
 import { clone, wait, reloadAndPlay, pushEnvelope, openWin, count, sent, pageRun, plain, mutate, shardPlan } from './_alpha-windows.mjs';
 
 /* The page rules, in the monolith's order (a mutant is caught by the first rule that goes red: tests/_alpha-windows.mjs pageRun). */
@@ -177,7 +177,8 @@ async function checks(overrides, shots, opts) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
-        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2, bronze_arrows: 12000 });
+        e.inventory = Object.assign({}, e.inventory, { shrimp: 4, big_bones: 2, bronze_arrows: 12000 });
+        e.trade_jobs = tradeJobsFixture(e.now);
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
@@ -188,7 +189,6 @@ async function checks(overrides, shots, opts) {
           else {
             const inv = s.env.inventory;
             if (s.env.state.active_id === 'fuel_bones') { s.env.skills.inner_flame.xp += 6 * (inv.bones || 0); delete inv.bones; }
-            if (s.env.state.active_id === 'cook_wolf_meat') { s.env.skills.cooking.xp += 100; inv.cooked_wolf_meat = inv.raw_wolf_meat - 1; inv.burnt_food = 1; delete inv.raw_wolf_meat; }
             Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
           }
         }
@@ -299,7 +299,7 @@ async function checks(overrides, shots, opts) {
           if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"fuel_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
             fails.push('AW-19 Burn all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-          if (!/^Fueling the Great Hearth with Bones: 8 Bones left/.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
+          if (!/^Fueling the Great Hearth with Bones · 8 left/.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
           if (shots) await shot(page, 'alpha-1440x900-burying');
           await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -307,44 +307,36 @@ async function checks(overrides, shots, opts) {
           const stop = sent(s, 'hr-accrue', 'set_activity').slice(1);
           if (stop.length !== 1 || JSON.stringify(stop[0].body.activity) !== '{"kind":"idle"}') fails.push('AW-19 Stop sent ' + JSON.stringify(stop.map((c) => c.body)));
           const after = await page.evaluate(() => ({ bones: !!document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]'), msg: document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent }));
-          if (after.bones || after.msg !== 'Done: +48 Inner Flame XP.') fails.push('AW-19 after the server burnt them: ' + JSON.stringify(after));
+          if (after.bones || !/: 8 Bones burned in the Great Hearth · Inner Flame \d+$/.test(after.msg)) fails.push('AW-19 after the server burnt them: ' + JSON.stringify(after));
           if (!(await reloadAndPlay(page))) fails.push('AW-19 the reload did not come back');
           else {
             await openWin(page, 'b', 'inventory');
             await page.waitForTimeout(300);
             if (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]')) fails.push('AW-19 the bones came back after a reload');
-            /* AW-20 a dish above the server's Cooking level (11 < 40) says so in words and sends nothing */
-            await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_bear_meat"]');
-            /* the control is checked, not clicked blind: raw food with no Cook all is AW-20 red BY NAME, never a click timeout (HARNESS) */
-            const bear = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
-            if (bear !== 'Cook all') fails.push('AW-20 the raw bear meat offers ' + JSON.stringify(bear) + ', not Cook all');
+            /* AW-19 a fuel above the server's Inner Flame (Big Bones need 15; the hero has 2) says so in words and sends nothing */
+            await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="big_bones"]');
+            const big = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden ? b.textContent : null; });
+            if (big !== 'Burn all 2') fails.push('AW-19 the big bones offer ' + JSON.stringify(big) + ', not Burn all 2');
             else await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
             await page.waitForTimeout(300);
             const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-            if (bear === 'Cook all' && (low !== 'Requires Cooking 40, now 11' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
-            /* AW-20 cook all: the raw meat's primary is Cook all; the same ONE set_activity; Stop says what the server made */
-            await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]');
-            const cp = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
-            if (cp !== 'Cook all') fails.push('AW-20 the raw meat offers "' + cp + '", not Cook all');
+            if (big === 'Burn all 2' && (low !== 'Big Bones: requires Inner Flame 15' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-19 Burn all above the level said ' + JSON.stringify(low));
+            /* AW-20 Cook: the raw fish's item menu offers Cook (its primary is Eat: it heals), a link to its job in the Work window; it sends
+               nothing and the bag stays the server's */
+            await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="shrimp"]', { button: 'right' });
+            await page.waitForTimeout(250);
+            const cp = await page.evaluate(() => { const b = document.querySelector('.hw-menu.is-on [data-hs-act="m-cook"]'); return b && !b.disabled ? b.textContent : null; });
+            if (cp !== 'Cook') fails.push('AW-20 the raw fish\'s menu offers ' + JSON.stringify(cp) + ', not Cook');
             else {
-              await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
-              await page.waitForTimeout(800);
-              const go = sent(s, 'hr-accrue', 'set_activity').slice(2);
-              if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"cook_wolf_meat"}') fails.push('AW-20 Cook all sent ' + JSON.stringify(go.map((c) => c.body)));
-              const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-              if (!/^Cooking Raw Wolf Meat: 0 cooked so far, 4 Raw Wolf Meat left/.test(line)) fails.push('AW-20 no Cooking line from the server pointer: ' + JSON.stringify(line));
-              if ((await count(page, 'raw_wolf_meat')) !== '4') fails.push('AW-20 the bag painted the cook before the server did it: x' + (await count(page, 'raw_wolf_meat')));
-              if (shots) await shot(page, 'alpha-1440x900-cooking');
-              await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
-              await page.waitForTimeout(800);
-              const msg = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-              if (msg !== 'Done: 3 Cooked Wolf Meat, 1 burnt, +100 Cooking XP.') fails.push('AW-20 after the server cooked them: ' + JSON.stringify(msg));
-              if (!(await reloadAndPlay(page))) fails.push('AW-20 the reload did not come back');
-              else {
-                await openWin(page, 'b', 'inventory');
-                await page.waitForTimeout(300);
-                if ((await count(page, 'cooked_wolf_meat')) !== '3' || (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]'))) fails.push('AW-20 after a reload the bag shows cooked x' + (await count(page, 'cooked_wolf_meat')));
-              }
+              await page.click('.hw-menu.is-on [data-hs-act="m-cook"]');
+              await page.waitForTimeout(600);
+              const at = await page.evaluate(() => ({ win: !!document.querySelector('[data-hs-win="skills-trade"] [data-hs-built]'),
+                row: !!document.querySelector('[data-hs-win="skills-trade"] .hw-job[data-key="meal_b0"]') }));
+              if (!at.win || !at.row) fails.push('AW-20 Cook did not open the Work window on its job: ' + JSON.stringify(at));
+              if (sent(s, 'hr-accrue', 'set_activity').length !== 2) fails.push('AW-20 Cook sent a town intent: ' + JSON.stringify(sent(s, 'hr-accrue', 'set_activity').slice(2).map((c) => c.body)));
+              if (shots) await shot(page, 'alpha-1440x900-cook-job');
+              await openWin(page, 'b', 'inventory');
+              if ((await count(page, 'shrimp')) !== '4') fails.push('AW-20 the bag moved on Cook: shrimp x' + (await count(page, 'shrimp')));
             }
           }
         }
@@ -442,9 +434,9 @@ const MUTANTS = [
   ['AW-18m Deposit all materials takes a locked stack (audit A8)', 'src/shell/storage-model.js', "if (kindOf(r.id) !== 'material' || (locked && locked.has(r.id))) continue;", "if (kindOf(r.id) !== 'material') continue;"],
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
-  ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
-  ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
-  ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) {", "  if (false) {"],
+  ['Stop does not collect', 'src/shell/windows/inventory/bury.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
+  ['raw food offers no Cook', 'src/shell/bag-model.js', "      if (j.trade !== 'cooking' || kindOf(j.face) !== 'food') continue;", '      continue;'],
+  ['the Hearth ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < (e.recipe.req || 1)) return", "  if (false) return"],
 ];
 
 const COMPANION = {};

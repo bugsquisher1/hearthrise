@@ -22,6 +22,15 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 export const UID = '11111111-2222-3333-4444-555555555555';
 
+/* THE JOBS LIST'S SECTION (09-crafting 4.17: the Work window is the town work), as hr_trade_jobs_view projects it: the company's trade
+   Levels (`levels`, a trade -> Level; every other trade at 1) and one job the server quotes open, Cook Shrimp (meal_b0) for 10. */
+export function tradeJobsFixture(nowIso, levels = {}) {
+  const trades = ['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', 'runecutting', 'artificing'];
+  const quote = { ok: true, count: 10, fee: 0, ends_at: new Date(Date.parse(nowIso) + 4 * 3600000).toISOString() };
+  return { trades: Object.fromEntries(trades.map((t) => [t, { xp: 0, level: levels[t] || 1 }])), job: null, last: null, stock: {},
+    recipes: [{ id: 'meal_b0', name: 'Cook Shrimp', trade: 'cooking', kind: 'meal', band: 0, face: 'cooked_shrimp', r_level: 1, inputs: { shrimp: 1 }, quote }] };
+}
+
 /* The stamp every module is served at: the tree's release, read once. A planted build-info (a newer release on the server)
    moves no stamp, as it moved none when the stamps were written in the source: a page's later imports keep its keys. */
 let RELEASE = null;

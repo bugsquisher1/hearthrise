@@ -27,10 +27,10 @@
 //   IP-5  ?debug=live ONLY: without it there is no overlay; with it the corner
 //         shows the envelope version and age, the last ask's verb and ms, the
 //         asks in flight and fps, with zero console errors
-//   IP-6  THE PLAY CAP IN THE MIDDLE OF THE SCREEN (Tyler 2026-11-01), at 1440x900, 922x423 and 667x375: a gather
-//         Start and a hunt Enter refused by the cap open one centered popup with the plain words, nothing at the
+//   IP-6  THE PLAY CAP IN THE MIDDLE OF THE SCREEN (Tyler 2026-11-01), at 1440x900, 922x423 and 667x375: a job's
+//         Start (the Work window's Jobs list, 09-crafting 4.17) and a hunt Enter refused by the cap open one centered popup with the plain words, nothing at the
 //         window's foot, OK closes it; a party's Start names the seat; another refusal stays on the window's line
-//   IP-7  THE ANSWER IS IN VIEW (Tyler 2026-11-01: "it was hard to see"): a refused Shop Buy and a refused Start,
+//   IP-7  THE ANSWER IS IN VIEW (Tyler 2026-11-01: "it was hard to see"): a refused Shop Buy and a refused job Start,
 //         pressed high in a window that scrolls, say why on screen, and the pressed control stays there, uncovered
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -60,6 +60,10 @@ const townEnv = () => {
   e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
   /* A Buy tab long enough to scroll: the first items, as tools at 1 g each. */
   e.shop.offers = Object.keys(ITEMS).slice(0, 16).map((item) => ({ offer: 'tool.' + item, item, kind: 'tool', price: 1 }));
+  /* The Work window's Jobs list (09-crafting 4.17: the town work): the trades' Levels and one job the server quotes open */
+  const quote = { ok: true, count: 10, fee: 0, ends_at: new Date(Date.parse(e.now || '2026-11-01T12:00:00Z') + 4 * 3600000).toISOString() };
+  e.trade_jobs = { trades: Object.fromEntries(['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', 'runecutting', 'artificing'].map((t) => [t, { xp: 0, level: 1 }])),
+    job: null, last: null, stock: {}, recipes: [{ id: 'meal_b0', name: 'Cook Shrimp', trade: 'cooking', kind: 'meal', band: 0, face: 'cooked_shrimp', r_level: 1, inputs: { shrimp: 1 }, quote }] };
   return e;
 };
 const shotsAt = process.argv.indexOf('--shots');
@@ -154,15 +158,10 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
   /* a tap: its pointerdown holds the scroll region it lands in (window-fit.js), as a finger does; a bare click() left the body to be re-trimmed under the answer */
   const press = (page, q) => page.evaluate((x) => { const b = document.querySelector(x); if (!b || b.disabled) return false; b.scrollIntoView({ block: 'nearest' }); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); return true; }, q);
   const answered = (page, q) => wait(page, (x) => { const m = document.querySelector(x); return m && m.textContent && !/…$/.test(m.textContent); }, q, 4000);
-  const openWoodcutting = async (page) => {
+  const JOB_START = '[data-hs-win="skills-trade"] .hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]';
+  const openJobs = async (page) => {
     await page.keyboard.press('g');
-    await wait(page, () => document.querySelector('[data-hs-win="skills-trade"] .hw-skill[data-skill="woodcutting"]'), null, 4000);
-    /* IP-7: the head's Back comes WITH the skill's rows, in the press's own frame: painted on a later refresh it grew the head under the
-       next press and pushed the pressed Start out of a 667x375 body (release run 44098000549) */
-    const back = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="skills-trade"] .hw-skill[data-skill="woodcutting"]'); b.scrollIntoView({ block: 'nearest' }); b.click();
-      const k = document.querySelector('[data-hs-win="skills-trade"] > .hs-win-head .hs-back'); return !!k && !k.hidden; });
-    if (!back) fails.push('IP-7 opening a skill leaves the window\'s Back for a later paint (the head grows under the next press)');
-    await wait(page, () => document.querySelector('.hw-work-go[data-kind="gather"]:not([disabled])'), null, 4000);
+    await wait(page, (q) => document.querySelector(q + ':not([disabled])'), JOB_START, 4000);
   };
   const POPUP = '[data-hs-win="play-cap"] .hplaycap-words';
   /* The popup as a player meets it: where it stands, its words, its size, what is under its OK, and every window's line. */
@@ -265,19 +264,18 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       }
       await ctx.close();
     }
-    // IP-6: each size, a gather Start and a hunt Enter; the two refusals, each with its own words.
+    // IP-6: each size, a job Start and a hunt Enter; the two refusals, each with its own words.
     const HERE = 'Four heroes already playing on this connection';
     const OWN = 'Four heroes already playing, stop one first';
     for (const [tag, viewport] of [['1440x900', { width: 1440, height: 900 }], ['922x423', { width: 922, height: 423 }], ['667x375', { width: 667, height: 375 }]]) {
       const { ctx, page, errors, s } = await inTown(viewport);
-      s.edgeNo = { set_activity: 'too_many_playing_here' };
-      s.rpcNo = { hr_hunt_enter: { ok: false, error: 'too_many_playing', max: 4 } };
-      await openWoodcutting(page);
-      await press(page, '.hw-work-go[data-kind="gather"]:not([disabled])');
+      s.rpcNo = { hr_trade_job_start: { ok: false, error: 'too_many_playing_here' }, hr_hunt_enter: { ok: false, error: 'too_many_playing', max: 4 } };
+      await openJobs(page);
+      await press(page, JOB_START + ':not([disabled])');
       await answered(page, POPUP);
       await sleep(50);
-      popupRule(tag, 'a gather Start', await readPopup(page), HERE);
-      if (SHOTS) { await mkdir(SHOTS, { recursive: true }); await page.screenshot({ path: join(SHOTS, 'play-cap-gather-' + tag + '.png') }); }
+      popupRule(tag, 'a job Start', await readPopup(page), HERE);
+      if (SHOTS) { await mkdir(SHOTS, { recursive: true }); await page.screenshot({ path: join(SHOTS, 'play-cap-job-' + tag + '.png') }); }
       await press(page, '[data-hs-act="play-cap-ok"]');
       if (!(await wait(page, () => !document.querySelector('[data-hs-win="play-cap"]'), null, 2000))) fails.push('IP-6 [' + tag + '] OK did not close the popup');
       await page.keyboard.press('h');
@@ -341,7 +339,8 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
     // IP-7: the press is high in a window that scrolls, and the line's own place is below the fold.
     for (const [tag, viewport] of [['1440x900', { width: 1440, height: 900 }], ['667x375', { width: 667, height: 375 }]]) {
       const { ctx, page, s } = await inTown(viewport);
-      s.edgeNo = { shop_buy: 'quote_changed', set_activity: 'bag_full' };
+      s.edgeNo = { shop_buy: 'quote_changed' };
+      s.rpcNo = { hr_trade_job_start: { ok: false, error: 'work_cap' } };
       await page.keyboard.press('v');
       const buy = '[data-hs-win="shop"] [data-pane="buy"] [data-hs-act="buy"]:not([disabled])';
       await wait(page, (q) => document.querySelector(q), buy, 4000);
@@ -351,11 +350,11 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       inViewRule(tag, 'a refused Buy', await readInView(page, 'shop', '.hw-shop > .hh-intent-msg', '[data-pane="buy"] [data-hs-act="buy"]'));
       if (SHOTS) await page.screenshot({ path: join(SHOTS, 'answer-buy-' + tag + '.png') });
       if (await page.evaluate(() => !!document.querySelector('[data-hs-win="play-cap"]'))) fails.push('IP-7 [' + tag + '] a refused Buy opened the play-cap popup');
-      await openWoodcutting(page);
-      await press(page, '.hw-work-go[data-kind="gather"]:not([disabled])');
+      await openJobs(page);
+      await press(page, JOB_START + ':not([disabled])');
       await answered(page, '.hw-trade > .hh-intent-msg');
       await sleep(50);
-      if (tag === '667x375') inViewRule(tag, 'a refused Start', await readInView(page, 'skills-trade', '.hw-trade > .hh-intent-msg', '.hw-work-go'));
+      if (tag === '667x375') inViewRule(tag, 'a refused job Start', await readInView(page, 'skills-trade', '.hw-trade > .hh-intent-msg', '.hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]'));
       if (SHOTS) await page.screenshot({ path: join(SHOTS, 'answer-start-' + tag + '.png') });
       await ctx.close();
     }
@@ -408,7 +407,6 @@ const MUTANTS = [
   ['every refusal opens the popup', 'src/shell/intent-words.js', 'if (PLAY_CAP.has(r.error)) return r.error;', "if (r.error) return 'too_many_playing';"],
   ['an alert also says the play cap on its line', 'src/shell/widgets/alerts.js', "playCapOf(r) ? '' : refusalWords(r.error, a.action === 'join' ? 'party_join' : undefined)", 'refusalWords(r.error)'],
   ['the answer covers the press', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', ''],
-  ['a skill\'s Back waits for a later paint', 'src/shell/windows/work.js', "sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repage();", "sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repaint();"],
   ['the answer to a press scrolls away', 'src/styles/windows.css', '{ position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '{ padding: 6px 10px; }'],
 ];
 

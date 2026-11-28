@@ -85,7 +85,7 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
      ADDITIVE   the key is a signed movement; folding is addition.
      ABSOLUTE   the key is a CHECKPOINT of resulting state; folding is "last
                 window wins". accrual.js's own header calls these out by name:
-                `fight`, `tool_carry`, `ammo_carry`,
+                `fight`, `ammo_carry`,
                 `accrued_to`, `hp`, `activity`.
      APPEND     the key is a list of events; folding is concatenation, and the
                 per-call clamp (one death row, the progress-op cap) must be
@@ -93,13 +93,9 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
 /* level_xp (the core rebuild): Level XP is a signed movement credited by the hunt settle, folded by addition. */
 export const ADDITIVE_SCALAR = Object.freeze(['gold', 'level_xp']);
 export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
-/* active_left (2026-12-01-bench-count.sql): the bench run's REMAINING count, a
-   checkpoint the later window supersedes, never a movement to add. */
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
-  'ammo_carry', 'tool_carry', 'active_left',
-  /* the work bench tax's count (2027-02-19-bench-tax.sql): an artisan window is one engine call and is never folded (tick-artisan.js). */
-  'bench_tax',
+  'ammo_carry',
   /* where a window's work ended (1059-company-trades.sql): polls are contiguous, so the folded window's work ends where its last
      poll's did, and hr_apply spends the hero's day from the fence's mark up to it. */
   'work_to',
@@ -297,7 +293,6 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
      hp                a window that starts at the row's hp re-fights from full
      fight             every window restarts the foe at full HP: kills inflate
      ammo_carry        the sub-action remainder is forfeit every window
-     tool_carry        the same, on gather, and it is forfeit TODAY
      activity          a pointer the engine idled keeps being settled
    ADDITIVE, as CUMULATIVE MOVEMENT rather than as an absolute:
      gold, xp, items   the bag is the one input the engine SPENDS. Without it
@@ -312,7 +307,7 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
 
    ── WHAT IS DELIBERATELY NOT CARRIED, EACH WITH ITS REASON ─────────────────
      maxHp             NOT A KEY: derived from Level and armour (src/core/vitals.js),
-                       never carried (a chained window is gather or artisan).
+                       never carried (a chained window is a fuel run).
      hearthfindReady   `hr_state_of` projects the LITERAL `true`
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for
@@ -409,7 +404,6 @@ export function shadowStateOf(char, opts) {
   if (typeof c.hp === 'number') st.hp = Math.floor(c.hp);
   if ('fight' in c) st.fight = c.fight;
   if ('ammoCarry' in c) st.ammo_carry = c.ammoCarry;
-  if ('toolCarry' in c) st.tool_carry = c.toolCarry;
   if (chain.activity) st.activity = chain.activity;
   if (chain.gold) st.gold = Math.floor(chain.gold);
   if (xp) st.xp = xp;
@@ -451,7 +445,6 @@ export function applyShadowState(session, state) {
   if (typeof st.hp === 'number') s.hp = st.hp;
   if ('fight' in st) s.fight = st.fight;
   if ('ammo_carry' in st) s.ammoCarry = st.ammo_carry;
-  if ('tool_carry' in st) s.toolCarry = st.tool_carry;
   if (st.activity && st.activity.kind) {
     s.activeKind = st.activity.kind;
     s.activeId = st.activity.id;

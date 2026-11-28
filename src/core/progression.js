@@ -9,7 +9,7 @@
 // never knows either exists.
 //
 // These functions DO mutate the state object they are handed (skills,
-// xpFrac, toolCarry). That is deliberate: the alternative is copying a
+// xpFrac). That is deliberate: the alternative is copying a
 // whole character on every 500 ms tick. They mutate nothing else, read no
 // free variables, and perform no I/O — which is the property that lets
 // them run in Deno.
@@ -19,7 +19,6 @@
 
 import { skillLevelFromXp } from './xp.js';
 import { pacedXp } from './pacing.js';
-import { advanceToolCarry } from './tools.js';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
    (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
@@ -160,36 +159,4 @@ export function grantXp(state, skillId, amt, ctx) {
 export function xpMultiplierParts(bonus) {
   const b = typeof bonus === 'function' ? bonus : () => 0;
   return { all: Number(b('allXP')) || 0, combat: Number(b('combatXP')) || 0 };
-}
-
-/**
- * The whole of doSkillAction's maths — node lookup, level gate, yield roll,
- * the deterministic tool carry.
- *
- * @param action  the TREES/ROCKS/FISH_SPOTS row
- * @param ctx     { skillId, level, toolCarry, toolDouble, toolXpB, rng }
- * @returns { ok, reason?, qty, toolDoubles, product, xpAmount }
- *
- * `ok:false, reason:'level'` is the seam that stops the activity — core
- * states the fact, the caller decides whether that means stopSkill() (client)
- * or a `not_unlocked` error code (server).
- */
-export function resolveGatherAction(action, ctx) {
-  const c = ctx || {};
-  if (!action) return { ok: false, reason: 'no_action', qty: 0, toolDoubles: 0, product: null, xpAmount: 0 };
-  if ((c.level || 0) < (action.req || 0)) {
-    return { ok: false, reason: 'level', qty: 0, toolDoubles: 0, product: action.prod, xpAmount: 0 };
-  }
-  let qty = c.rng.int(action.qty[0], action.qty[1]);
-  /* Wave 3: extra tool yield is a DETERMINISTIC fractional carry, never an
-     RNG roll, specifically so the offline replay is byte-identical. */
-  let toolDoubles = 0;
-  const dbl = c.toolDouble || 0;
-  if (dbl > 0 && c.toolCarry) {
-    toolDoubles = advanceToolCarry(c.toolCarry, c.skillId, qty, dbl);
-    qty += toolDoubles;
-  }
-  const toolXp = c.toolXpB || 0;
-  const xpAmount = toolXp > 0 ? (action.xp * (1 + toolXp)) : action.xp;
-  return { ok: true, qty, toolDoubles, product: action.prod, xpAmount };
 }

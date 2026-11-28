@@ -7,33 +7,30 @@
 // exploit surface of an accrual engine is its inputs, and inputs are only
 // auditable if a reviewer can see all of them in one function signature). That
 // rule is right, and it has one consequence: anything derived from src/data has
-// to be derived by the CALLER — and there are two callers, `index.ts` (the
-// accrue verb) and `set-activity.js` (the collect that a switch runs).
+// to be derived by the CALLER — and there are three callers, `index.ts` (the
+// accrue verb), `set-activity.js` (the collect that a switch runs) and the world
+// tick (tick-artisan.js).
 //
-// Two callers deriving one index is a drift generator, and this codebase has
+// Callers deriving one index each is a drift generator, and this codebase has
 // the receipt for exactly that shape: tests/accrual-engine.mjs' A14 guard
 // exists because the auto-eat workstream added four inputs to one call site and
 // not the other, so a collect would have fought with no food and died early.
 //
-// So the derivation lives here, once, and both callers import the SAME OBJECT.
-// A14 still forces both to pass it.
+// So the derivation lives here, once, and every caller imports the SAME OBJECT.
+// A14 still forces both player paths to pass it.
 //
-// ⚠ NOTHING IS COPIED. The skill↔array mapping below is the only place in the
-//   server payload that says "TREES are woodcutting", and it is the same
-//   statement tools/gen-catalogues.mjs makes when it generates `hr_activities`
-//   — which is what the database re-validates an activity id against. Two
-//   statements of one fact, in two languages, is the `unifyObject` failure this
-//   whole program exists to prevent; the drift guard between them is
-//   `gen-catalogues --check`, wired into tests/run-smoke.mjs as a preflight.
+// ⚠ NOTHING IS COPIED. The fuel runs are src/data/recipes.js's `inner_flame`
+//   rows (built from src/data/hearth.js HEARTH_FUELS), the same rows
+//   tools/gen-catalogues.mjs generates `hr_activities` from — which is what the
+//   database re-validates an activity id against. The drift guard between them
+//   is `gen-catalogues --check`, wired into tests/run-smoke.mjs as a preflight.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random, no fetch.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, EQUIP_SLOTS, expandItemSlot }
-  from '../../../src/data/gathering.js';
-import { indexGatherNodes } from '../../../src/core/skill-sim.js';
-import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../../../src/data/recipes.js';   // the dark (switched) jobs too: set_activity asks the switch
-import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
+import { EQUIP_SLOTS, expandItemSlot } from '../../../src/data/gathering.js';
+import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
+import { indexFuelRuns } from '../../../src/core/artisan-sim.js';
 import { SHOP_OFFERS, SUPPLY_PRICE_LIST } from '../../../src/data/shops.js';
 import { SHOP_LISTED_OFFER_IDS } from '../../../src/data/supply-basics.js';
 
@@ -48,48 +45,19 @@ import { dialedSale, SALE_FIT_PM, LOWER_TWIN } from '../../../src/data/loot-sale
 import { jobSaleBounds } from '../../../src/core/trades.js';
 
 /**
- * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
+ * `{ [recipeId]: { skill, recipe } }` over the Great Hearth's fuel runs: the ONE
+ * artisan index the engine prices, the activity intent accepts and the tick
+ * settles (09-crafting.md 4.17, the bridge: the bench left with the one-town-
+ * work cut). `indexFuelRuns` (src/core/artisan-sim.js) takes a `fuel_<item>`
+ * row of the `inner_flame` bench that makes nothing and nothing else, so a
+ * bench row src/data still held could not become payable by being authored.
  *
- * NULL-PROTOTYPE (see `indexGatherNodes`): `active_id` is bounded by
+ * NULL-PROTOTYPE (see `indexFuelRuns`): `active_id` is bounded by
  * /^[a-z0-9_]{1,64}$/ at the request layer, which matches `__proto__` and
- * `constructor`. On a plain object both are truthy and a lookup followed by a
- * property read walks straight past a truthiness check. Here there is no
- * prototype to inherit from.
+ * `constructor`; with no prototype a lookup followed by `recipe.inputs` cannot
+ * walk past a truthiness check.
  */
-export const GATHER_NODES = indexGatherNodes({
-  woodcutting: TREES,
-  mining: ROCKS,
-  fishing: FISH_SPOTS,
-});
-
-/**
- * `{ [recipeId]: { skill, recipe } }` over all 290 artisan recipes, and the
- * PAYABLE subset of it.
- *
- * ⚠ TWO INDEXES, AND THE DIFFERENCE IS LOAD-BEARING.
- *
- *   ARTISAN_RECIPES_ALL  every authored recipe. The ENGINE resolves against
- *                        this, so a pointer on an unpayable bench comes back as
- *                        a NAMED refusal (`unpayable_bench`) that DEFERS the
- *                        window, rather than as `unknown_recipe`, which would
- *                        be a lie about content that plainly exists.
- *   ARTISAN_RECIPES      the payable subset. The INTENT's shape check uses
- *                        this, so an unpayable bench is refused BEFORE any
- *                        database work and can therefore never become the
- *                        pointer — which is what stops the refusal above from
- *                        ever being reachable through a player gesture.
- *
- * Both are null-prototype (see `indexArtisanRecipes`), which matters more here
- * than for gather: a truthy miss on a plain object reaches `recipe.inputs` and
- * `recipe.cost`.
- *
- * The payable subset is DERIVED from src/core/artisan-sim.js's
- * `benchPayable` — the same predicate `src/net/activity.js` reads for the
- * client's downgrade — so the three sides cannot disagree about which benches
- * exist tonight.
- */
-export const ARTISAN_RECIPES_ALL = indexArtisanRecipes(ARTISAN_RECIPES);
-export const ARTISAN_RECIPES_PAYABLE = payableRecipeIndex(ARTISAN_RECIPES_ALL);
+export const FUEL_RUNS = indexFuelRuns(ARTISAN_RECIPES);
 
 /* ════════════════════════════════════════════════════════════════════════
    THE EQUIP CATALOGUE (b366) — the SAME two derivations

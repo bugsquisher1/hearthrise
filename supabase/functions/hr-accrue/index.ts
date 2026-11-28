@@ -104,7 +104,7 @@ import { withCors } from './cors.js';
 import { tickGate, tickBodyAuthOk, runTick, readTickBytes, parseTickBytes } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { closedAnswer } from './closed-gate.js';
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
+import { FUEL_RUNS } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 
@@ -926,7 +926,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
     /* ⚠ THE ENVELOPE'S OWN FIELDS ARE NOT LISTED HERE ANY MORE (2026-09-22).
        They were, and the world tick listed them a SECOND time in
-       `tick-gather.js sessionFromRoster` — off `env.state` instead of off the
+       the gather tick's `sessionFromRoster` — off `env.state` instead of off the
        envelope top level, so the tick handed the engine `skills {}` for a
        Mining-61 character and every shadow window came back `would_ticks: 0`
        with `activity: {kind:'idle'}`. One two-level shape, two readers, and
@@ -1003,18 +1003,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          and the engine reads that as 0 for every key, which is the `zeroBonus`
          behaviour that shipped before b349. Nothing here is request-derived. */
       perks,
-      /* THE ARTISAN GATE. `?? null`, not `?? {}` — null means this database
-         predates the model, and the engine reads that as LOCKED. Nothing here
-         comes from the request. */
-      unlockedRecipes: ((perkEnv && perkEnv.ok === true ? perkEnv.unlockedRecipes : null) ?? null) as Record<string, boolean> | null,
       items: ITEMS,
       monsters: MONSTERS,
-      nodes: GATHER_NODES,
-      /* THE ARTISAN INDEX — the FULL one, so the engine can tell "no such
-         recipe apart from a bench that is not server-owned yet. Built once in
-         ./catalogue.js; nothing here comes from the request.
-         Mirrors set-activity.js field for field (A14). */
-      recipes: ARTISAN_RECIPES_ALL,
+      /* THE FUEL RUNS, the one artisan index (the Great Hearth's `fuel_*` rows;
+         the bench left with the one-town-work cut). Built once in ./catalogue.js;
+         nothing here comes from the request. Mirrors set-activity.js field for
+         field (A14). */
+      recipes: FUEL_RUNS,
     });
 
     let out = runAccrual({ capMs, actionBudget: null });
@@ -1109,8 +1104,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          attempt++) {
       /* WHAT "SMALLER" MEANS IS THE ENGINE'S DECISION, NOT THIS FILE'S. It used
          to be `Math.floor(out.grantMs / 2)` right here, which is correct only
-         while output is proportional to time — true for combat and gathering,
-         FALSE for artisan, where the bag can bound the night and halving the
+         while output is proportional to time — true for combat, FALSE for a
+         fuel run, where the bag can bound the night and halving the
          span then shrinks the proposal by less than half or not at all
          (Security C1). `degradeStep` picks the right knob per kind and returns
          null when there is nothing smaller left to ask for. */
@@ -1228,15 +1223,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         // for the whole twelve hours".
         foodEaten: out.foodEaten,
         /* ── WHY THE RUN ENDED BEFORE THE ABSENCE DID (b345, restored) ──────
-           The engine has stated all five of these since the artisan/gather
-           simulations landed (`src/core/artisan-sim.js` returns `burnt`,
-           `stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`;
-           `src/core/skill-sim.js` returns the first four of those, gathering
-           consuming nothing) and `out.summary` spreads the whole span summary —
+           The engine states all four of these (`src/core/artisan-sim.js`
+           returns `stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`)
+           and `out.summary` spreads the whole span summary —
            they were dropped HERE, at the response boundary, and nowhere else.
-           The cost is the exact bug b345 exists to have deleted: eight Raw
-           Shrimp against an eight-hour absence earns for 31 seconds and the
-           card reports eight hours of honest pay with nothing about the stop.
+           The cost is the exact bug b345 exists to have deleted: eight Bones
+           against an eight-hour absence burn for seconds and the card reports
+           eight hours of honest pay with nothing about the stop.
 
            PASS-THROUGH ONLY. Nothing is computed, inferred or defaulted to a
            guess: a path that did not state a stop sends `null`/`0`, which the
@@ -1248,8 +1241,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            A STOP IS A STRING OR IT IS NOTHING, for the same reason the client
            translator says so: a non-string truthy value reaches a renderer as
            "something stopped" with nothing to say about it, which is worse than
-           silence. `burnt` and `stoppedPerHour` are counts, so they floor at 0. */
-        burnt: Math.max(0, Math.floor(Number(out.summary.burnt) || 0)),
+           silence. `stoppedPerHour` is a count, so it floors at 0. */
         stoppedBy: typeof out.summary.stoppedBy === 'string' && out.summary.stoppedBy
           ? out.summary.stoppedBy : null,
         stoppedById: typeof out.summary.stoppedById === 'string' && out.summary.stoppedById

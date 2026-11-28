@@ -3,7 +3,7 @@
 //
 // A piece of the accrual engine (accrual.js: the door, the module map).
 // The floors and the span fuse, whether a window is pending, where `accrued_to`
-// may stand after one, its receipt, and the tool carry in and out.
+// may stand after one, and its receipt.
 // ============================================================================
 
 import { nat, PAYABLE_KINDS } from './accrual-contract.js';
@@ -19,7 +19,7 @@ export const ACCRUE_MIN_MS = 60000;
 
 /* ── THE TOWN SETTLE FLOOR (lane c-live-town-work, Tyler 2026-10-22: "the bag
    needs to update in real time, not when it's done") ─────────────────────────
-   A town pointer (a gathering node or a bench recipe) is the `accrue` verb's
+   A town pointer (the Great Hearth's fuel run, since the one-town-work cut) is the `accrue` verb's
    only payable kind today (a fight is a hunt session: SKIP.HUNT_OPEN /
    SKIP.HUNT_REQUIRED answer before the floor). While the Work window or the bag
    is open the client asks one settle per SESSION_CONFIG.townPollMs (16 s), the
@@ -40,7 +40,7 @@ export const TOWN_SETTLE_MIN_MS = 15000;
 
 /** The `accrue` caller's floor for a pointer of `activeKind`: 15 s for town work, ACCRUE_MIN_MS otherwise. */
 export function accrueFloorMs(activeKind) {
-  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;
+  return activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;
 }
 
 /**
@@ -69,7 +69,7 @@ export function accrueFloorMs(activeKind) {
  *   server has not finished settling — invisible to hr_state_of, DELETED by an
  *   absolute replace. Under this engine that cannot arise while the flag is
  *   true, for two structural reasons hr_state_of DEPENDS ON:
- *     (1) ATOMIC SETTLE — accrueArtisan/accrueGather/the combat tail each emit
+ *     (1) ATOMIC SETTLE — accrueArtisan and the combat tail each emit
  *         ONE signed item delta (inputs consumed + outputs produced) that
  *         hr_apply applies in ONE transaction, so player_inventory never holds a
  *         half-settled craft.
@@ -191,7 +191,7 @@ export function windowEnvelope(credit, ranMs) {
    forfeits the sub-tick remainder of the action that was in progress when it
    closed. `simulateSpan` budgets each segment as `seg.ms * rate + carryMs` and
    takes `floor(budget / tickMs)` ticks (combat-sim.js:689-691); `sliceSpan`
-   does the identical thing per slice (skill-sim.js:332). Both open with
+   does the identical thing per slice (artisan-sim.js). Both open with
    `let carryMs = 0;`, so the remainder rides across a segment boundary INSIDE
    one call and dies at the call boundary. Meanwhile the delta advanced
    `accrued_to` to `now()` unconditionally — so the remainder was not deferred
@@ -204,7 +204,7 @@ export function windowEnvelope(credit, ranMs) {
    `now()`. Here it reads: advance to the last instant the simulation ACCOUNTED FOR, and leave the sub-tick tail open so the NEXT window
    re-simulates it.
 
-   ⚠ THE ENGINES ARE NOT TOUCHED. `combat-sim.js` and `skill-sim.js` are
+   ⚠ THE ENGINES ARE NOT TOUCHED. `combat-sim.js` and `artisan-sim.js` are
      SHA-pinned and repacked into this function by tools/pack-edge.mjs, and they
      are the SAME bytes the live client runs (AWAY-1). The remainder is
      recovered from the summary the engine already states, not by threading a
@@ -214,8 +214,8 @@ export function windowEnvelope(credit, ranMs) {
    `accounted` is the equality combat-sim.js:886 states outright
    (`paidMs + recoverMs + idleMs === awayMs`, modulo the remainder), expressed
    in the one unit every path has: whole ticks. `recoverMs` and `idleMs` are
-   combat-only fields and read as 0 on the skill paths, which is correct — those
-   paths have neither.
+   combat-only fields and read as 0 on the fuel run, which is correct: it has
+   neither.
 
    ── THE FOUR REFUSALS, each of which would otherwise be a mint or a stall ──
 
@@ -248,8 +248,7 @@ export function windowEnvelope(credit, ranMs) {
    (c) THE REMAINDER IS NOT A REMAINDER. A deferral is only ever the sub-tick
        carry, so `remainder < tickMs` is a REQUIREMENT, not an observation. When
        the simulation stopped early in a way the summary does not account for —
-       a gathering node that ran out of supplies, a bench that hit its gate,
-       any future stop with no `idleMs` — `grantMs - accounted` is a large
+       a fuel run whose fuel ran out, any future stop with no `idleMs` — `grantMs - accounted` is a large
        number, and re-opening that span would re-simulate a stopped activity
        every window, forever. Above one tick the window stamps `now()` and the
        behaviour is byte-for-byte what shipped.
@@ -311,57 +310,4 @@ export function settledWatermarkMs(span, summary, tickMs, opts) {
      `Math.min` makes the stated range true by construction instead of by the
      arithmetic of whoever calls next. tests/settle-carry-defer.mjs D9. */
   return Math.min(nowMs, Math.max(floorMs, nowMs - remainder));
-}
-
-/* ── THE TOOL CARRY, NORMALISED ─────────────────────────────────────────────
-   `player_state.tool_carry` is jsonb the database CHECKs is an object, but it
-   arrives here through a jsonb round trip where a bigint is a string and a
-   NULL column is `null`. Every value is coerced into the half-open [0,1) the
-   carry is defined on: `advanceToolCarry` banks `qty × rate` and pays out whole
-   units, so a carry of 0.9 is legal and a carry of 900 would be a 900-item mint
-   on the first action of the next span. Out-of-range, non-finite and negative
-   values are DROPPED rather than clamped — a carry is worth less than one item
-   and there is no honest way for it to be 900, so the only safe reading of a
-   corrupt one is "start again".
-
-   Returns null when the input is null/absent, and that null is load-bearing:
-   see the `toolCarry` note in computeAccrual's contract. */
-export function normaliseToolCarry(raw) {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const out = {};
-  for (const k in raw) {
-    if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
-    const n = Number(raw[k]);
-    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = n;
-  }
-  return out;
-}
-
-/* The carry is a float and jsonb stores it exactly, but 17 significant digits
-   per skill in a column read on every accrual is noise: nine decimals is ~1e-9
-   of one item, the same epsilon `advanceToolCarry` already uses to decide a
-   payout. Quantising at the boundary keeps the stored value readable and
-   bounded without changing a payout — asserted, not assumed, by the CARRY
-   ROUNDING block in tests/accrual-engine.mjs.
- *
- * ⚠ FLOOR, NEVER ROUND, AND THAT IS A BUG FIX RATHER THAN A PREFERENCE.
- *   `Math.round` was the first version and it is unsafe at exactly one place:
- *   the top of the range. A carry of 0.9999999999 is legal — the range is the
- *   half-open [0,1) — and `Math.round(0.9999999999 * 1e9) / 1e9` is **1**,
- *   which hr_apply refuses as `bad_tool_carry`. That refusal is not on
- *   index.ts's DEGRADABLE list, so it does not shorten the span, it 409s it:
- *   the engine would have proposed an impossible value and cost the player
- *   THE ENTIRE NIGHT. Every raw carry at or above 0.9999999995 hits it.
- *   Flooring cannot leave the range by construction, and it gives away at most
- *   1e-9 of one item — four orders of magnitude inside the payout epsilon.
- *   Found by an edge-case assertion, not by reading the code; the assertion
- *   (`a carry one epsilon under 1.0`) stays. */
-export function roundCarry(carry) {
-  const out = {};
-  for (const k in (carry || {})) {
-    const n = Number(carry[k]);
-    if (Number.isFinite(n) && n > 0 && n < 1) out[k] = Math.floor(n * 1e9) / 1e9;
-  }
-  return out;
 }

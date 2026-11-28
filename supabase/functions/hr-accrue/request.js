@@ -216,10 +216,6 @@ export const ACTIVITY_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisa
 export const CATALOGUE_ID_RE = /^[a-z0-9_]{1,64}$/;
 export const ACTIVITY_ID_RE = CATALOGUE_ID_RE;
 
-/** The largest count a job takes ("make N", and a gathering job's swings since 1026-job-counts.sql):
-    player_state.active_left's CHECK (2026-12-01-bench-count.sql). */
-export const BENCH_COUNT_MAX = 100000;
-
 /** A SHOP OFFER id — `equip.bronze_sword`, `room.cellar.3`. Dotted, because the
     generator builds it as `<table>.<row>`; bounded to four segments and 64
     characters for the same reason as above. Verified against all 128 authored
@@ -660,20 +656,11 @@ export function readActivity(body) {
   const out = Object.create(null);
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
-  /* "MAKE N" (2026-12-01-bench-count.sql): an optional whole number of actions. ABSENT is
-     `undefined` (run until the bag is out); present but not a whole number 1..BENCH_COUNT_MAX
-     is `null`, which the intent layer refuses BY NAME rather than silently running unbounded. */
-  if (Object.prototype.hasOwnProperty.call(a, 'count')) {
-    const c = a.count;
-    out.count = (Number.isInteger(c) && c >= 1 && c <= BENCH_COUNT_MAX) ? c : null;
-  }
-  /* A JOB'S "THEN" as `next` (1026-job-counts.sql; never `then`, which would make the object a thenable): what the hero does
-     once the server has counted the job out, as a plain id. ABSENT is `undefined` (wait); present but not a plain id is `null`,
-     refused by name by the intent layer, which also checks the id against src/data/hunt-after.js JOB_NEXTS. */
-  if (Object.prototype.hasOwnProperty.call(a, 'next')) {
-    const th = ownString(a, 'next');
-    out.next = (th !== null && /^[a-z_]{1,16}$/.test(th)) ? th : null;
-  }
+  /* A `count` or a `next` (the bench's "make N" and a job's THEN, both gone with the one-town-work cut) is REMEMBERED
+     as present, never read: the intent layer refuses it by name, so a client still sending "Burn" as a count of one is
+     told so instead of burning the whole stack. */
+  if (Object.prototype.hasOwnProperty.call(a, 'count')) out.count = null;
+  if (Object.prototype.hasOwnProperty.call(a, 'next')) out.next = null;
 
   return out;
 }

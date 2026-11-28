@@ -54,10 +54,9 @@ import {
    hunt settle, and a hunter may not switch (hr_hunt_leave moves the pointer). */
 import { settleHunt, huntOpenOf, HUNT_SETTLE_MIN_MS, OWED_WINDOW_REASONS } from './hunt-settle.js';
 import { refusalBody } from './envelope.js';
-import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
+import { FUEL_RUNS } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-import { JOB_NEXT_INDEX } from '../../../src/data/hunt-after.js';
 import { huntFor } from '../../../src/core/hunt-spawn.js';
 
 /* ── THE INTENT'S ALLOWLIST — DERIVED FROM THE PAYER, NEVER RESTATED ────────
@@ -66,22 +65,16 @@ import { huntFor } from '../../../src/core/hunt-spawn.js';
    PAYABLE_KINDS in accrual.js for why a wider allowlist would create an
    under-payment with the very rule that closed the over-payment.
 
-   Deriving it (rather than typing `['idle','combat']`) is the load-bearing
-   part: when gathering accrual lands, `PAYABLE_KINDS` grows and this grows with
-   it, in one edit, with no second list to remember. */
+   Deriving it (rather than typing `['idle','combat','artisan']`) is the
+   load-bearing part: when the one-town-work cut took `gather` out of
+   `PAYABLE_KINDS`, this lost it in the same edit, with no second list to
+   remember. A `gather` declaration still PARSES (request.js ACTIVITY_KINDS) so
+   it is refused by name, `activity_unsupported`, never as malformed. */
 export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
-
-/** Is a recipe's `switch` on for this account, as the server's envelope says (hr_state_of's `features` section, which sits BESIDE
-    `state`, not in it)? A row with no switch is. */
-export function switchedOn(env, sw) {
-  if (!sw) return true;
-  const on = env && env.features;
-  return Array.isArray(on) && on.includes(sw);
-}
 
 /**
  * Validate the DECLARATION. Pure — no database, no clock.
@@ -127,23 +120,14 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* A JOB'S COUNT AND ITS "THEN" (2026-12-01-bench-count.sql "make N"; 1026-job-counts.sql). A gathering job or a bench
-     run takes a count; a GATHERING job must (every job has an end: 6,001 ore for a 20-ore errand). An unreadable count or
-     THEN (the wire's `next`: a `then` key would make the object a thenable) is refused by name (request.js reads it as null)
-     instead of running unbounded or doing nothing at the end. A THEN needs a count: "All" ends when its inputs run out,
-     which is not the count reached. hr_apply re-checks all of it. */
-  const job = kind === 'gather' || kind === 'artisan';
-  if (a.count !== undefined && (!job || a.count === null)) {
-    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: !job ? 'only a job takes a count' : 'count is a whole number 1..100000' } };
+  /* NO ACTIVITY TAKES A COUNT OR A "THEN" (the one-town-work cut). A fuel run burns until its fuel is out: the
+     server keeps no count to stop it at (the `bench_run` section left with the bench), so a `count` or `next`
+     (request.js reads both, an unreadable one as null) is refused by name rather than silently ignored, which would
+     burn the whole stack when the player asked for one. A job's count is the trade job's (hr_trade_job_start). */
+  if (a.count !== undefined || a.next !== undefined) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'no activity takes a count or a next' } };
   }
-  if (kind === 'gather' && a.count === undefined) {
-    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'a gathering job takes a count' } };
-  }
-  if (a.next !== undefined && (!job || a.count === undefined || a.next === null || !catalogueHas(JOB_NEXT_INDEX, a.next))) {
-    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'next is one of ' + Object.keys(JOB_NEXT_INDEX).join(', ') + ', on a job with a count' } };
-  }
-  return { ok: true, kind, id: kind === 'idle' ? null : id,
-    ...(a.count !== undefined ? { count: a.count } : {}), ...(a.next !== undefined ? { next: a.next } : {}) };
+  return { ok: true, kind, id: kind === 'idle' ? null : id };
 }
 
 /**
@@ -156,18 +140,12 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from, count, next) {
-  /* A JOB'S COUNT AND "THEN": the count rides the statement (hr_apply stores it as player_state.active_left and
-     active_count), the THEN beside it as `next` (active_next); a statement with neither clears both. */
-  const n = (kind === 'artisan' || kind === 'gather') && Number.isInteger(count) ? count : null;
-  const th = n !== null && typeof next === 'string' ? next : null;
+export function activityDelta(kind, id, from) {
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
-      ...(n !== null ? { count: n } : {}),
-      ...(th !== null ? { next: th } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -181,8 +159,7 @@ export function activityDelta(kind, id, from, count, next) {
       /* Small, and genuinely useful: it records the TRANSITION, which no other
          row does. The window that was paid on the way here has its own ledger
          row with its own `ms`, so nothing is duplicated. */
-      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null, ...(n !== null ? { count: n } : {}),
-              ...(th !== null ? { next: th } : {}) },
+      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null },
     },
   };
 }
@@ -322,54 +299,16 @@ export async function runSetActivity(o) {
       body: { ok: false, error: INTENT_ERRORS.HUNT_REQUIRED, kind: decl.kind, id: decl.id },
     };
   }
-  /* The same early answer for the other payable kind. Both catalogues, one
-     rule — a kind that can be SET but whose id is never checked here would
-     reach hr_apply, which refuses it correctly but one round trip later and
-     after the collect has already run. */
-  if (decl.kind === 'gather' && !catalogueHas(GATHER_NODES, decl.id)) {
+  /* ── AN ARTISAN DECLARATION IS A FUEL RUN OR NOTHING (the one-town-work cut, 09-crafting.md 4.17) ──
+     The Great Hearth's `fuel_<item>` runs are the artisan kind's only rows (catalogue.js FUEL_RUNS). Any other id,
+     a cut bench recipe included, is `unknown_activity`, answered on SHAPE: before the rate gate, before any database
+     work, so the pointer can never come to hold an id the engine cannot price. hr_apply re-checks the pair against the
+     generated hr_activities catalogue, the authority a compromised engine cannot lie to. */
+  if (decl.kind === 'artisan' && !catalogueHas(FUEL_RUNS, decl.id)) {
     return {
       status: 409,
       body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
     };
-  }
-  /* ── THE THIRD CATALOGUE, AND IT IS THE ONE WITH TWO ANSWERS ─────────────
-     `artisan` is settable, but not every artisan recipe is. A bench whose
-     destructive bonus key is not yet server-owned (cooking's `noBurn`) is
-     refused HERE, on shape, before any database work — which is not a nicety,
-     it is what keeps the deferral safe:
-
-       · the pointer can never come to hold an unpayable recipe, so the engine's
-         `unpayable_bench` refusal can never stand between the player and their
-         next switch (the `no_cap` lockout shape, avoided by construction);
-       · nothing is confiscated, because the switch never ran and hr_apply never
-         stamped `accrued_to`;
-       · it costs no rate budget and no idempotency key.
-
-     TWO LOOKUPS, TWO ANSWERS, and the order is the same one `validateDeclaration`
-     uses for kinds: a recipe that does not exist is `unknown_activity`; a recipe
-     that exists on a bench this build cannot price is `activity_unsupported` —
-     the code that already means "real, and not server-side yet". Telling a
-     player "unknown recipe" about Cooked Shark files a bug against the wrong
-     system, exactly as `activity_unsupported` vs `bad_activity` does above. */
-  if (decl.kind === 'artisan') {
-    if (!catalogueHas(ARTISAN_RECIPES_ALL, decl.id)) {
-      return {
-        status: 409,
-        body: { ok: false, error: INTENT_ERRORS.UNKNOWN_ACTIVITY, kind: decl.kind, id: decl.id },
-      };
-    }
-    if (!catalogueHas(ARTISAN_RECIPES_PAYABLE, decl.id)) {
-      return {
-        status: 409,
-        body: {
-          ok: false,
-          error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED,
-          kind: decl.kind,
-          id: decl.id,
-          bench: ARTISAN_RECIPES_ALL[decl.id].skill,
-        },
-      };
-    }
   }
 
   /* (1) GATE + READ. The bucket comes out of the registry, never a literal. */
@@ -383,20 +322,6 @@ export async function runSetActivity(o) {
     return { status: 409, body: { ok: false, error: (env && env.error) || INTENT_ERRORS.NO_CHARACTER } };
   }
   const st = env.state;
-
-  /* ── (1-sw) A SWITCHED JOB (src/data/jewelry.js JEWEL_SWITCH: the guarantee jobs, until they are played) ──────────
-     A recipe row that names a `switch` is real for the accounts that switch is on for and for nobody else. The answer is
-     the server's: `features` is hr_features_view's list (2027-03-21-feature-switches.sql), read inside this one gate-then-read,
-     and the client's bench never offers the job without it, so only a forged intent meets this. Answered before the collect:
-     nothing settles for a switch that cannot happen. A job the hero already runs keeps running if the switch closes later (a
-     switch gates the door, never a running window), and the after-the-hunt resume only resumes a job this door let start. */
-  const sw = decl.kind === 'artisan' ? ARTISAN_RECIPES_ALL[decl.id].recipe.switch : null;
-  if (!switchedOn(env, sw)) {
-    return {
-      status: 409,
-      body: { ok: false, error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED, kind: decl.kind, id: decl.id, switch: sw },
-    };
-  }
 
   /* ── (1a) ON A HUNT? (lane C2) ───────────────────────────────────────────
      The pointer belongs to the session (C1's guard refuses any other writer
@@ -482,12 +407,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  /* A JOB'S COUNT AND "THEN" REACH ONLY A DATABASE THAT STORES THEM (the self-configuring switch: 1026-job-counts.sql's
-     `bench_run` section names `count`). Before that file a bench keeps its "make N" and a gathering job runs uncounted,
-     as it did, so the edge and the migration are safe in either order; production applies the file first. */
-  const counts = !!env.bench_run && Object.prototype.hasOwnProperty.call(env.bench_run, 'count');
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id },
-    counts || decl.kind === 'artisan' ? decl.count : undefined, counts ? decl.next : undefined);
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 
@@ -784,7 +704,7 @@ export async function collectCurrentWindow(o) {
        ⚠ THIS WAS THIRTY HAND-COPIED LINES AND A14 WAS ALL THAT HELD IT
          TOGETHER. It held it against THIS file and index.ts and against
          nothing else — and the world tick, a third caller of the same engine,
-         had a fourth copy in `tick-gather.js sessionFromRoster` that read
+         had a fourth copy in the gather tick's `sessionFromRoster` that read
          `env.state.skills` (where no skills live) for four days. Every shadow
          window for a Mining-61 character on `mithril_rock` came back
          `would_ticks: 0` with `activity: {kind:'idle'}`, while THIS path paid
@@ -809,23 +729,11 @@ export async function collectCurrentWindow(o) {
        first draft added `perks` to index.ts only and the parity guard went red
        before a single line of it shipped. */
     perks,
-    /* THE ARTISAN GATE (b352) — and it is the SAME defect a second time. The
-       first draft of the artisan model added `unlockedRecipes` to index.ts only,
-       and A14 caught it again, by name, before it shipped: "Only in index.ts
-       (accrue): [unlockedRecipes]". Inert today (nothing in the engine reads it
-       until 'artisan' enters PAYABLE_KINDS) and wired anyway, because the day it
-       stops being inert is the day a collect and an accrue over the same window
-       would price a gated recipe differently. `?? null`, not `?? {}`: null means
-       this database predates the model, and the engine reads that as LOCKED. */
-    unlockedRecipes: ((perkEnv && perkEnv.ok === true ? perkEnv.unlockedRecipes : null) ?? null),
     items: ITEMS,
     monsters: MONSTERS,
-    nodes: GATHER_NODES,
-    /* THE FULL artisan index, not the payable subset — see the field's note in
-       computeAccrual's contract. The subset is what the SHAPE check above
-       filters with; the engine needs both facts so its refusal can be honest.
-       Mirrors index.ts field for field (A14). */
-    recipes: ARTISAN_RECIPES_ALL,
+    /* THE FUEL RUNS (catalogue.js), the one artisan index the engine prices and
+       the shape check above filters with. Mirrors index.ts field for field (A14). */
+    recipes: FUEL_RUNS,
     /* THE LADDER'S KNOB — always null HERE, and the null is the statement.
        This intent has NO degrade ladder, deliberately (intents.js rule 5): it
        can refuse the switch and leave the window intact for the `accrue` verb,

@@ -44,23 +44,3 @@ export function toolDouble(tool) {
   if (!tool) return 0;
   return (typeof tool.toolDouble === 'number') ? tool.toolDouble : (tool.toolTier || 0) * 0.02;
 }
-
-/**
- * The DETERMINISTIC extra-yield carry — deliberately NOT an RNG roll, so an
- * offline replay is byte-identical run to run. Each action banks
- * `qty × toolDouble` into a per-skill fractional carry and pays out whole
- * units as they accrue (a 10%-double tool = one bonus every ~10 actions).
- *
- * Mutates `carry` (the client's G.toolCarry, the server's equivalent
- * column) and returns the whole units earned this action.
- *
- * The +1e-9 matters: 0.1 accumulated ten times floats to 0.9999999999999999
- * and would never pay out without it.
- */
-export function advanceToolCarry(carry, skill, qty, doubleRate) {
-  if (!(doubleRate > 0)) return 0;
-  const c = (carry[skill] || 0) + qty * doubleRate;
-  const whole = Math.floor(c + 1e-9);
-  carry[skill] = c - whole;
-  return whole;
-}

@@ -30,8 +30,8 @@
 //   • never advances or reseeds the chain: every function here reads a deep
 //     COPY of the session, never `run.char`, never the carrier;
 //   • never computes a number of its own: the one-span answer is the
-//     channel's own poll (`gatherTick` / `combatTick` → `computeAccrual`),
-//     the same functions every shadow window calls (AWAY-12).
+//     channel's own poll (→ `computeAccrual`), the same function every shadow
+//     window calls (AWAY-12).
 //
 // PURE ESM, Node + Deno. No `?v=` (not under src/**).
 // ============================================================================
@@ -39,7 +39,6 @@
 import { createHash } from 'node:crypto';
 
 import { hydrate } from './tick-shadow.js';
-import { CHANNEL as GATHER_CHANNEL, gatherTick } from './tick-gather.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 
 /* The probe span (ruling 1: "every 4 h"). The SQL side restates the floor and
@@ -65,11 +64,12 @@ export const MAX_PROBE_RESULT_BYTES = 16384;
 export const MAX_PROBES_PER_FIRE = 4;
 
 /* The channels a probe can price. Same dispatch rule as tick.js CHANNELS:
-   a kind with no entry is never probed under another channel's rules. */
-const ONE_SPAN = Object.freeze({
-  [GATHER_CHANNEL]: (char, fromMs, toMs, seed) =>
-    gatherTick(char, fromMs, toMs, { seedOf: () => seed }),
-});
+   a kind with no entry is never probed under another channel's rules.
+   EMPTY SINCE THE ONE-TOWN-WORK CUT: gather, the one shadowed channel it priced,
+   left (09-crafting.md 4.17), and the artisan channel is armed directly (below).
+   The probe and its two statements stay the fence's shadow-mode instrument; the
+   cut's F1 pass retires them with the gather branches the SQL still holds. */
+const ONE_SPAN = Object.freeze({});
 export const PROBE_CHANNELS = Object.freeze(Object.keys(ONE_SPAN));
 
 /* DRIVEN CHANNELS THE PROBE DOES NOT PRICE, each with its reason (the same

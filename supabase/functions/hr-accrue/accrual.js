@@ -17,8 +17,7 @@
 //                        catalogue id)
 //   accrual-window.js    the floors, the span fuse, the watermark, the receipt,
 //                        the tool carry
-//   accrue-gather.js     a gathering pointer's window     (KIND_ACCRUERS.gather)
-//   accrue-artisan.js    a bench pointer's window         (KIND_ACCRUERS.artisan)
+//   accrue-artisan.js    a fuel run's window (the Great Hearth; KIND_ACCRUERS.artisan)
 //   accrue-hunt.js       one settle of one hunt instance  (hunt-settle.js)
 // The text guards read the door and its pieces as ONE engine
 // (tests/_accrual-engine.mjs): a piece is read the day an engine file imports it.
@@ -49,9 +48,6 @@
 // PURE ESM, every piece. No DOM, no window, no timers, no Math.random, no fetch.
 // ============================================================================
 
-/* A bench's payability (src/core/artisan-sim.js), the one set-activity.js and
-   src/net/activity.js read too. */
-import { benchPayable, benchBlockedBy } from '../../../src/core/artisan-sim.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
@@ -65,7 +61,6 @@ import { huntFor } from '../../../src/core/hunt-spawn.js';
 import { catalogueHas } from './intents.js';
 import { nat, SKIP, PAYABLE_KINDS, accrualCaller } from './accrual-contract.js';
 import { accrueFloorMs, ACCRUE_MAX_SPAN_MS } from './accrual-window.js';
-import { accrueGather } from './accrue-gather.js';
 import { accrueArtisan } from './accrue-artisan.js';
 /* THE HERO'S WORK DAY (1059-company-trades.sql): when town work must stop. One rule, the server's twin is hr_work_fold. */
 import { workStopMs, isWorkKind } from '../../../src/core/work-day.js';
@@ -74,7 +69,7 @@ import { workStopMs, isWorkKind } from '../../../src/core/work-day.js';
 export { SKIP, PAYABLE_KINDS, ACCRUAL_CALLERS, CALLER_AUTHORITY, accrualCaller } from './accrual-contract.js';
 export {
   ACCRUE_MIN_MS, TOWN_SETTLE_MIN_MS, accrueFloorMs, ACCRUE_MAX_SPAN_MS, inventoryBaselineComplete,
-  settledWatermarkMs, normaliseToolCarry,
+  settledWatermarkMs,
 } from './accrual-window.js';
 export { HUNT_MAX_WINDOW_MS, encodeWorld, accrueHunt, huntProposal } from './accrue-hunt.js';
 
@@ -121,8 +116,8 @@ export function deltaHasValue(delta) {
  * at the last-resort forfeit that pays NOTHING.
  *
  * ⚠ HALVING THE SPAN IS ONLY CORRECT WHEN OUTPUT IS PROPORTIONAL TO TIME
- *   (Security C1, b356). It is, for combat and gathering. It is NOT for
- *   artisan: an artisan night is bounded by the BAG whenever the player left
+ *   (Security C1, b356). It is, for combat. It is NOT for a fuel run (and was
+ *   not for the bench before it): such a night is bounded by the BAG whenever the player left
  *   less material than the clock could consume, and halving the span of a
  *   bag-bound run reduces the proposal by less than half — sometimes by
  *   NOTHING AT ALL. Measured on `forge_dawn_axe`, 24h absence, 4,000-craft
@@ -190,7 +185,6 @@ export function degradeStep(out, attempt) {
    container with no prototype removes the hazard instead of guarding it. */
 export const KIND_ACCRUERS = (() => {
   const t = Object.create(null);
-  t.gather = accrueGather;
   t.artisan = accrueArtisan;
   return Object.freeze(t);
 })();
@@ -262,60 +256,29 @@ export function zeroBonus() { return 0; }
  *   seed         hr_seed(user, slot, 'accrue:<accrued_to>') — mixes a 256-bit
  *                server-only secret, so the roll is replayable for a dispute
  *                but not precomputable by the player (design §3, review S20)
- *   gold         the envelope's purse, which the bench tax reads
  *   skills       { skill_id: xp }        from player_skills
  *   equipment    { equip_slot: item_id } from player_equipment
  *   inventory    { item_id: qty }        from player_inventory — READ, and
- *                SPENT by a bench, which is why its delta is signed.
+ *                SPENT by a fuel run, which is why its delta is signed.
+ *   storage      { item_id: qty }        the account's Storage a fuel run burns
+ *                from after the bag (envelope.js storageInputs), or null
  *   items        ITEMS,   the authored catalogue (src/data/items.js)
  *   monsters     MONSTERS, ditto
  *   actionBudget the DEGRADE LADDER'S knob, and the only input on this object
  *                that is not a fact about the player — it is the number of
- *                artisan actions the engine's PREVIOUS attempt is allowed to
+ *                fuel actions the engine's PREVIOUS attempt is allowed to
  *                be cut down to (see `degradeStep`). `null` on a first
- *                attempt and on every non-artisan path, which means
- *                unbounded and is byte-for-byte the pre-b356 behaviour.
+ *                attempt and on every combat path, which means unbounded.
  *                ⚠ It is computed by index.ts from `out.summary.ticks` — the
  *                  engine's own previous answer — and NEVER from a request
  *                  body. Even if it were forged it could only ever REDUCE a
- *                  grant (`simulateArtisanSpan` floors it at 0 and treats a
+ *                  grant (`simulateFuelSpan` floors it at 0 and treats a
  *                  non-finite value as no cap), so the hostile direction is
- *                  under-paying yourself. Asserted, not assumed, in
- *                  tests/artisan-accrual.mjs T8.
- *   recipes      the ARTISAN INDEX — `indexArtisanRecipes(ARTISAN_RECIPES)`,
- *                built once in ./catalogue.js (`ARTISAN_RECIPES_ALL`) so the
- *                recipe↔bench mapping exists in exactly one place.
- *                Null-prototype, so a `__proto__` id cannot resolve — which
- *                matters more here than for gather, because a truthy miss
- *                reaches `recipe.inputs` and `recipe.cost`.
- *                ⚠ THE **FULL** INDEX, NOT THE PAYABLE SUBSET. The engine has
- *                to be able to tell a missing recipe apart from a bench that is
- *                not server-owned yet; ./set-activity.js is the one that filters.
- *   unlockedRecipes  `{ <scroll_id>: true }` from `hr_perks_of` — the artisan
- *                GATE, not a magnitude, which is why it is a field of its own
- *                rather than a key inside `perks` (see §5 of
- *                2026-08-16-artisan-progress-model.sql). **NULL means this
- *                database predates the model**, and the engine reads that as
- *                LOCKED: `gateOk` refuses, the span stops with GATE, and only
- *                the time actually worked is paid. Fail-closed is the shape's
- *                own default here — an absent row is an absent key is a locked
- *                recipe — so there is no branch to forget.
- *   nodes        the GATHER INDEX — `indexGatherNodes({woodcutting: TREES,
- *                mining: ROCKS, fishing: FISH_SPOTS})`, built once in
- *                ./catalogue.js so the skill↔array mapping exists in exactly
- *                one place. Null-prototype, so a `__proto__` id cannot resolve.
- *   toolCarry    player_state.tool_carry — the deterministic fractional
- *                double-yield carry, `{ skill: 0..1 }`. **NULL means the
- *                column does not exist yet**, and that is a deliberate,
- *                self-configuring switch rather than a flag: the engine then
- *                starts each span from an empty carry and OMITS `tool_carry`
- *                from the delta, because hr_apply refuses an unknown delta key
- *                and that refusal would cost the player a whole night. The day
- *                2026-08-15-tool-carry.sql is applied, hr_state_of starts
- *                returning `{}` instead of undefined and the key starts being
- *                written. Cost of the gap: at most one bonus unit per skill
- *                per accrual (~0.5 expected), measured in
- *                tests/accrual-engine.mjs' carry-continuity fixture.
+ *                  under-paying yourself.
+ *   recipes      the FUEL RUNS — catalogue.js FUEL_RUNS, the Great Hearth's
+ *                `fuel_<item>` rows and nothing else (the bench left with the
+ *                one-town-work cut, 09-crafting.md 4.17). Null-prototype, so a
+ *                `__proto__` id cannot resolve and reach `recipe.inputs`.
  *   buffs        THE CONSUMABLE BUFF QUEUE (2026-09-13) — the envelope's OWN
  *                top-level `buffs` block, i.e. player_state.buffs projected as
  *                [{type, magnitude, until, remaining_ms}]. Written ONLY by
@@ -323,20 +286,21 @@ export function zeroBonus() { return 0; }
  *                hr_item_buffs, `until` from now()), so nothing here is a client
  *                value — the client cannot even NAME a magnitude or an expiry
  *                (a buff_apply carrying one is refused bad_buff_item).
- *                The three activity builders convert it with
+ *                The fuel run converts it with
  *                `buffQueueFromServer(inp.buffs, credit.fromMs)`: absolute
- *                `until` → the `remainingMs` shape the simulators drain, measured
+ *                `until` → the `remainingMs` shape the simulator drains, measured
  *                at the START of the paid window because the drain is WALL-CLOCK
  *                (BUFF_DRAIN_RULE, src/core/buffs.js) — a buff that ran out
  *                mid-absence pays the slice it was alive for and no more.
  *                **NULL/absent means the projection (or the column) does not
  *                exist** ⇒ [] ⇒ `bonusFor`'s layer 2 is 0 for every key and no
- *                boundary splits the span, which is byte-for-byte the
- *                pre-2026-09-13 behaviour. The engine proposes NO delta key for
+ *                boundary splits the span. The engine proposes NO delta key for
  *                it: the queue is drained IN the simulation for pricing, and the
  *                durable expiry is the absolute `until` the server already holds,
  *                so there is nothing to write back and no way for the engine to
  *                post an arbitrary queue.
+ *   workDay      the hero's work day (envelope.js, the `work_day` section), or
+ *                null on a database without it: nothing is cut
  *   huntOpen     true when the character holds an OPEN session and this call
  *                is NOT the hunt settle (accrue / collect): the engine then
  *                answers SKIP.HUNT_OPEN and prices nothing — the old combat
@@ -350,11 +314,10 @@ export function zeroBonus() { return 0; }
 export function computeAccrual(input) {
   const inp = input || {};
 
-  // ── (0) The activity pointer. Combat only in Phase C. ────────────────────
-  // Gathering and artisan accrual are the next slices; refusing them here —
-  // rather than falling through to "no ticks" — matters, because a fall-through
-  // would advance the watermark and silently confiscate the gathering time the
-  // next phase is supposed to pay.
+  // ── (0) The activity pointer. ────────────────────────────────────────────
+  // A kind this engine cannot price (a `gather` pointer since the cut) is
+  // refused rather than fallen through to "no ticks": a fall-through would
+  // advance the watermark and confiscate the window without a word.
   if (!PAYABLE_KINDS.includes(inp.activeKind) || !inp.activeId) {
     /* The predicate is lifted out of the `reason:` expression on purpose: the
        A17 coverage guard reads every `reason:` site and requires it to name a
@@ -375,32 +338,15 @@ export function computeAccrual(input) {
      /^[a-z0-9_]{1,64}$/ at the request layer — which matches `constructor` and
      `__proto__`, both of which are truthy on any plain object. See catalogueHas
      in ./intents.js for the measurement and for why it stops being harmless the
-     moment a lookup is followed by a property read.
-     (The gather index is null-prototype, so its own lookup needs no such
-     guard — see `indexGatherNodes`. It is checked through the same helper
-     anyway, because one reader is one rule.) */
+     moment a lookup is followed by a property read. */
   if (inp.activeKind === 'combat' && !hunt && !catalogueHas(monsters, inp.activeId)) {
     return { accrued: false, reason: SKIP.NO_TARGET };
   }
-  if (inp.activeKind === 'gather' && !catalogueHas(inp.nodes || {}, inp.activeId)) {
-    return { accrued: false, reason: SKIP.NO_NODE };
-  }
-  /* The third catalogue, and it is checked against the FULL recipe index rather
-     than the payable subset on purpose — the two answers are different facts
-     and a player deserves the right one. "That recipe does not exist" and "that
-     bench is not server-owned yet" both refuse and both defer, but only the
-     second one becomes payable by deploying a commit. */
-  if (inp.activeKind === 'artisan') {
-    if (!catalogueHas(inp.recipes || {}, inp.activeId)) {
-      return { accrued: false, reason: SKIP.NO_RECIPE };
-    }
-    const bench = inp.recipes[inp.activeId].skill;
-    if (!benchPayable(bench)) {
-      /* `blockedBy` names the BONUS KEY, not the bench — "cooking is not
-         supported" sends somebody looking at cooking; "`noBurn` is not
-         server-owned" points at the one commit that opens it. */
-      return { accrued: false, reason: SKIP.UNPAYABLE_BENCH, bench, blockedBy: benchBlockedBy(bench) };
-    }
+  /* An artisan pointer is a FUEL RUN or nothing (catalogue.js FUEL_RUNS): a cut
+     bench recipe an old row still names is refused, deferred, and forfeited by
+     the player's own STOP (a POINTER reason, ./intents.js). */
+  if (inp.activeKind === 'artisan' && !catalogueHas(inp.recipes || {}, inp.activeId)) {
+    return { accrued: false, reason: SKIP.NO_RECIPE };
   }
 
   /* ── THE FAIL-CLOSED `active_since` RULE (Phase-D, the half that is not SQL) ─
@@ -517,11 +463,10 @@ export function computeAccrual(input) {
   /* ── (1b) THE KIND BRANCH, AND IT IS TOTAL ───────────────────────────────
      Everything above is shared: the pointer, the two watermarks, the cap and
      the minimum span are properties of an ABSENCE, not of what was being done
-     in it. Everything below is combat. `accrueGather` and `accrueArtisan` run
-     the same shape over src/core/skill-sim.js and src/core/artisan-sim.js and
-     return the same envelope; they are separate functions rather than branches
-     inside this one so that the combat path is textually unchanged and its
-     parity fixtures still cover the bytes they were written against.
+     in it. A town kind is priced by its accruer (`accrueArtisan`: the fuel run,
+     over src/core/artisan-sim.js), a separate function rather than a branch
+     inside this one; a pointer combat is answered above (a fight is a hunt
+     session).
 
      ⚠ THE `UNSUPPORTED` LINE IS NOT DEAD CODE, AND IT IS THE ONLY THING THE
        BLOCK ABOVE PAYABLE_KINDS CAN HONESTLY CLAIM. Without it a kind added to
@@ -529,7 +474,7 @@ export function computeAccrual(input) {
        contract — and every caller reads that as whatever its own default is.
        With it, an unsimulated kind is refused with a REFUSING reason: delta
        NONE, watermark unmoved, window DEFERRED until somebody writes the
-       simulation. Unreachable today by construction (the three names below are
+       simulation. Unreachable today by construction (KIND_ACCRUERS plus combat is
        exactly PAYABLE_KINDS, and the intent's allowlist is derived from it), so
        tests/artisan-accrual.mjs T1 reaches it directly with a synthetic fourth
        kind. Deleting it is how "add a kind" becomes "pay it wrong". */

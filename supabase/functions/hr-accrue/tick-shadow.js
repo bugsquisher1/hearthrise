@@ -17,7 +17,7 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows, countersFromProgress } from './tick-contract.js';
+import { countersFromProgress } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
 import { foldWork, isWorkKind } from '../../../src/core/work-day.js';
 
@@ -103,12 +103,8 @@ export function advance(char, res) {
   if (typeof d.hp === 'number') char.hp = d.hp;
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
   if (typeof d.ammo_carry !== 'undefined') char.ammoCarry = d.ammo_carry;
-  if (typeof d.tool_carry !== 'undefined') char.toolCarry = d.tool_carry;
-  /* A JOB'S COUNT (1026-job-counts.sql), a checkpoint: the next poll of this flush window caps at what this one left,
-     or a 90 s window of 10 s polls would pay each poll the whole count. 0 (counted out) leaves none. */
-  if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;
-  /* THE WORK DAY (1059-company-trades.sql), a checkpoint: the next poll of this flush window stops at what this one left of the hero's
-     day, or a 90 s window of 10 s polls would let every poll work the whole of it. The fold hr_apply makes, from the same rule
+  /* THE WORK DAY (1059-company-trades.sql), a checkpoint: the next window stops at what this one left of the hero's
+     day, or every window would work the whole of it. The fold hr_apply makes, from the same rule
      (src/core/work-day.js foldWork): [this window's watermark, where its work ended], never past its new watermark. */
   if (char.workDay && d.accrued_to && isWorkKind(char.activeKind) && Number.isFinite(char.accruedToMs)) {
     const to = Date.parse(d.accrued_to);
@@ -182,26 +178,9 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     ...engineStateOf(char),
     items: catalogues.items,
     monsters: catalogues.monsters,
-    /* THE GATHER CHANNEL'S INPUTS (2026-09-18, step-2 prep). `nodes` is the
-       gather index and `toolCarry` is the server-owned sub-action remainder of
-       the tool double roll; without them `computeAccrual` refuses a `gather`
-       pointer as an unknown node and the tick settles nothing. All five keys
-       are `undefined` for the combat fixtures, so the combat arms are
-       byte-identical to before — asserted by P1..P5 staying green.
-       `toolCarry: null` is NOT the same as absent and must survive: null means
-       "the column does not exist for this character", and emitting the key
-       against an hr_apply that does not implement it is a 409. */
-    nodes: catalogues.nodes,
-    /* THE ARTISAN CHANNEL'S INPUTS (2026-10-29, tick-artisan.js): the recipe
-       index, the artisan gate and "make N"'s count, each named exactly as the
-       accrue path names it (index.ts runAccrual: `recipes`, `unlockedRecipes`,
-       and `activeLeft` through engineInputsFromEnvelope). PRESENT ONLY WHEN THE
-       CHANNEL CARRIES THEM: gather's catalogues have no `recipes` and its session
-       no `unlockedRecipes` key. `activeLeft` rides a gathering job's count too
-       (1026-job-counts.sql); a job with none carries no key, as before. */
+    /* THE ARTISAN CHANNEL'S CATALOGUE (tick-artisan.js): the fuel runs, named exactly as the accrue path
+       names it (index.ts runAccrual: `recipes`). PRESENT ONLY WHEN THE CHANNEL CARRIES IT. */
     ...(catalogues.recipes ? { recipes: catalogues.recipes } : {}),
-    ...(Object.prototype.hasOwnProperty.call(char, 'unlockedRecipes') ? { unlockedRecipes: char.unlockedRecipes } : {}),
-    ...(Number.isInteger(char.activeLeft) ? { activeLeft: char.activeLeft } : {}),
     /* NOT from the envelope: `hr_perks_of` is its own read, made by tick.js
        (1b) and carried on the session (2026-09-28); a fixture's pinned value
        offline. Absent ⇒ zero perks, the under-paying direction. */
@@ -215,7 +194,7 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        (tests/world-tick-combat-parity.mjs C1), which compares this object
        against index.ts's own source in BOTH directions for exactly that reason. */
     /* ── NO HUNTER (lane C2). `huntOpen` is the accrue path's key (index.ts
-       reads hr_hunt_open_of): a tick session is a gather session, never a
+       reads hr_hunt_open_of): a tick session is a fuel run, never a
        hunter's — a fight is a hunt session, settled by ./hunt-settle.js — so it
        is false, and hr_hunt_accrue_fence refuses the row if it ever were. */
     huntOpen: false,

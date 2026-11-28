@@ -77,18 +77,6 @@ export const SKIP = {
   TOO_SOON: 'below_min_span',
   NO_TARGET: 'unknown_monster',
   NOTHING: 'nothing_accrued',
-  /* A `gather` pointer whose id is not in the gather index. The mirror of
-     NO_TARGET for the other payable kind, and a separate code because
-     "unknown_monster" is a lie about a missing tree — the two are produced by
-     different catalogues and a support request has to be able to tell them
-     apart. REFUSING, exactly like NO_TARGET: an unpriceable window must be
-     deferred, never confiscated by a switch. */
-  NO_NODE: 'unknown_node',
-  /* The pointer names a node whose skill is not the one the character is set
-     to. Reachable only from an inconsistent row (the server holds no skill
-     column, so this is the CLIENT-side arm), and paying it would credit the
-     wrong skill's XP. REFUSING. */
-  WRONG_SKILL: 'wrong_skill',
   /* An activity pointer with no `active_since`. Fail-closed rather than
      substituted — see the precondition below. */
   NO_ACTIVE_SINCE: 'no_active_since',
@@ -97,26 +85,13 @@ export const SKIP = {
      REFUSING_SKIP_REASONS in ./intents.js. Unreachable today: the cap function
      floors at 12h. */
   NO_CAP: 'no_cap',
-  /* An `artisan` pointer whose id is not in the recipe index. The third
-     member of the NO_TARGET / NO_NODE family, and a separate code for the same
-     reason those two are separate: three catalogues, three truths, and a
-     support request has to be able to tell a cut monster apart from a renamed
-     tree apart from a recipe that never existed. REFUSING. */
+  /* An `artisan` pointer whose id is not a fuel run (catalogue.js FUEL_RUNS):
+     a cut bench recipe or a fuel the catalogue no longer has. The NO_TARGET of
+     the other payable kind, and a separate code because a support request has
+     to be able to tell a cut monster apart from a cut recipe. REFUSING, and a
+     POINTER reason: a STOP forfeits the window as a journalled forfeit
+     (./intents.js POINTER_SKIP_REASONS), so nobody is frozen on it. */
   NO_RECIPE: 'unknown_recipe',
-  /* The recipe EXISTS and its bench is one the server may not pay tonight —
-     `benchPayable` is false because a bonus key that can DESTROY value on it
-     (cooking's `noBurn`) is not yet sourced from server-owned state. See the
-     property block at the foot of src/core/artisan-sim.js.
-
-     REFUSING, and that is the whole point of it being a distinct code rather
-     than `unsupported_activity`: this window is real work the engine will be
-     able to price the day `SERVER_OWNED_BONUS_KEYS` gains `noBurn`, so it must
-     be DEFERRED (delta NONE, watermark unmoved) and never confiscated by a
-     switch. Unreachable through the intent surface — ./set-activity.js refuses
-     an unpayable bench on SHAPE, before any database work, so the pointer can
-     never hold one — which makes this the arm for an inconsistent row or for a
-     bench that becomes unpayable under a live character. */
-  UNPAYABLE_BENCH: 'unpayable_bench',
   /* THE CHARACTER IS ON A HUNT (lane C2). A hunt session's window is settled by
      the hunt settle (./hunt-settle.js: the world tick and the hunt verbs) and by
      nothing else, so the accrue/collect pricing of the same pointer answers
@@ -189,34 +164,17 @@ export const SKIP = {
    What is still NOT checked, so nobody mistakes this list for one: that the
    simulation a new kind dispatches to is CORRECT. Only fixtures do that.
 
-   ── THE ROLL CALL ──────────────────────────────────────────────────────
-   `gather` joined `combat` on 2026-08-15 (23 of the 344 rows). `artisan` joins
-   on 2026-08-16 (290 rows, 84% of the catalogue) now that both of its blockers
-   are closed by 2026-08-16-artisan-progress-model.sql: `unlockedRecipes` is a
-   `kind='flag'` progress row projected by `hr_perks_of`, and the Kitchen rung
-   is a `kind='unlock'` row read through `hr_unlock_levels`.
+   ── THE ROLL CALL (the one-town-work cut, 09-crafting.md 4.17) ──────────
+   `combat` (a hunt session, settled by ./hunt-settle.js) and `artisan`, which
+   is the Great Hearth's fuel runs and nothing else (catalogue.js FUEL_RUNS;
+   the bench left with the cut). `gather` LEFT: town work is a company's jobs,
+   settled in SQL. A `gather` declaration is refused by name
+   (`activity_unsupported`), and a gather pointer an old row still holds is
+   priced by nothing (UNSUPPORTED, a POINTER reason: a STOP forfeits it as a
+   journalled forfeit). The cut file idles every such pointer before this
+   payload deploys. F1's company flame retires `artisan` too (4.13 row 3). */
+export const PAYABLE_KINDS = Object.freeze(['combat', 'artisan']);
 
-   ⚠ ALL FOUR BENCHES NOW SETTLE, cooking included (cooking real-fix). The
-     Kitchen rung is server-owned END TO END: `src/legacy.js upgradeRoom()`
-     routes the purchase through `hr_unlock_buy`
-     (`window.HearthriseGold.buyUnlock`), `rooms` is on SERVER_OF_RECORD with
-     the rooms record arm live so the client no longer authors `G.rooms`, and
-     the rung is READ here through `hr_perks_of` → makeBonus → `noBurn`. So a
-     server reading a Kitchen 0 against a real Kitchen 3 can no longer happen —
-     the server holds the only copy. `benchPayable('cooking')` in
-     src/core/artisan-sim.js is now true (its arm flag flipped, `noBurn` is a
-     server-owned bonus key), so this engine settles the cooking bench at the
-     CORRECT burn rate. §9(3) of 2026-08-16-artisan-progress-model.sql
-     authorised exactly this shape.
-
-   ⚠ AND `PAYABLE_KINDS` IS THE WRONG PLACE TO EXPRESS IT. Removing `artisan`
-     from this array would take the other 261 recipes down with it AND make
-     cooking un-settable-but-silent again; instead the intent refuses an
-     unpayable BENCH on shape (set-activity.js) and the engine answers a pointer
-     that somehow holds one with `unpayable_bench`, which DEFERS. Kind-level
-     coarseness is how "cooking is not ready" would have become "artisan pays
-     nothing", which is where this whole item started. */
-export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);
 
 /* A finite, non-negative integer or the fallback. Used on every number that
    crosses into this engine from a database row — a NULL column, a bigint

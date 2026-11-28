@@ -125,17 +125,16 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'hp', 'levelXp', 'gold',
   'skills', 'xpFrac', 'inventory', 'equipment',
   'buffs',
-  'toolCarry', 'ammoCarry', 'fight',
+  'ammoCarry', 'fight',
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
-  'storage', 'bagCap', 'benchTax',
-  'jobEnds',
+  'storage',
   'workDay',
 ]);
 
-/* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage a bench
-   draws on after the bag, read ONLY where the envelope's `skill_inputs` section names it. That section is the
-   switch: a database whose hr_apply takes bench inputs from the bag alone has no such section, the engine then
+/* SKILLS FROM STORAGE (2027-01-24-skills-from-storage.sql, Tyler 2026-10-25): the account's Storage the Hearth's
+   fuel run burns from after the bag, read ONLY where the envelope's `skill_inputs` section names it. That section is the
+   switch: a database whose hr_apply takes the fuel from the bag alone has no such section, the engine then
    prices the run against the bag alone, and this edge is safe on either side of the apply. */
 function storageInputs(e) {
   const from = e && e.skill_inputs && Array.isArray(e.skill_inputs.from) ? e.skill_inputs.from : null;
@@ -147,7 +146,7 @@ function storageInputs(e) {
    OVERRIDES these per window (the tick's watermark is the fence's mark, not
    `state.accrued_to`), which is why they are named apart from the state. */
 export const ENGINE_POINTER_KEYS = Object.freeze([
-  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId', 'activeLeft',
+  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId',
 ]);
 
 /** Every key `engineInputsFromEnvelope` produces. */
@@ -158,8 +157,7 @@ export const ENGINE_INPUT_KEYS = Object.freeze(
  * Map an `hr_state_of` envelope to the engine inputs it OWNS.
  *
  * It answers for the envelope and for nothing else: `seed`, `perks`,
- * `unlockedRecipes`, `capMs`, `nowMs`, the
- * catalogues, `caller` and `callerAuthority` all come from other reads or are
+ * `capMs`, `nowMs`, the catalogues, `caller` and `callerAuthority` all come from other reads or are
  * server literals, and each call site still names them itself.
  *
  * @param env    the full envelope — `hr_state_of`'s result, NOT `env.state`.
@@ -201,10 +199,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,
-    /* "MAKE N" (2026-12-01-bench-count.sql): the actions left on an artisan run, from the
-       `bench_run` section. Absent (a database without the section) or null = until the bag
-       runs out, today's behaviour, and accrueArtisan then proposes no `active_left`. */
-    activeLeft: (e.bench_run && Number.isInteger(e.bench_run.left) && e.bench_run.left > 0) ? e.bench_run.left : null,
 
     /* ── THE COLUMNS ON THE ROW `hr_apply` LOCKS ─────────────────────────── */
     hp: Number(st.hp) || 0,
@@ -220,17 +214,9 @@ export function engineInputsFromEnvelope(env, nowMs) {
     /* `inventory` is an input the engine SPENDS (ammo) as well as reads, which
        is why the returned delta's `items` map is signed. */
     inventory: e.inventory || {},
-    /* THE ACCOUNT'S STORAGE a bench draws on after the bag (`bank`, top level), or null where the server
-       does not take bench inputs from it (see storageInputs). Read for a bench's INPUTS only: tools and the
-       bag's room stay the bag's. */
+    /* THE ACCOUNT'S STORAGE a fuel run burns from after the bag (`bank`, top level), or null where the server
+       does not take its fuel from it (see storageInputs). */
     storage: storageInputs(e),
-    /* THE BAG'S STACK CAP (player_state.bank_cap: hr_apply's bank_full fuse), so a bench stops BAG_FULL
-       instead of proposing a stack the server refuses. null = unknown, no fuse. */
-    bagCap: Number.isSafeInteger(st.bank_cap) && st.bank_cap > 0 ? st.bank_cap : null,
-    /* THE WORK BENCH TAX (2027-02-19-bench-tax.sql): the running job's fee, the carry and the gold kept. The section is the
-       switch: a database without it has no tax and an hr_apply that would refuse a `bench_tax` key, so an edge deployed before
-       the migration proposes none. */
-    benchTax: e.bench_tax ?? null,
     /* THE CONSUMABLE BUFF QUEUE (2026-09-13). player_state.buffs, written only
        by hr_apply's buff_apply block from hr_item_buffs + now(). PRESENCE OF
        KEY, not `|| []`: an ABSENT key means this database has no buff column
@@ -239,13 +225,8 @@ export function engineInputsFromEnvelope(env, nowMs) {
     buffs: ('buffs' in e) ? e.buffs : null,
 
     /* ── THE SELF-CONFIGURING SWITCHES ───────────────────────────────────── */
-    /* THE GATHER CARRY. `?? null` and NOT `?? {}`: null means the column does
-       not exist on this database, and the engine reads that as "do not write a
-       tool_carry key", because hr_apply refuses an unknown delta key and that
-       refusal costs a whole night. The presence of the column IS the switch. */
-    toolCarry: st.tool_carry ?? null,
-    /* THE CONSUMPTION CARRY (design item E2). `?? null` for exactly the reason
-       above; resolves to null today because `player_state.ammo_carry` does not
+    /* THE CONSUMPTION CARRY (design item E2). `?? null` and NOT `?? {}`: null means the column does not
+       exist on this database, and the engine then writes no key hr_apply would refuse. Resolves to null today because `player_state.ammo_carry` does not
        exist yet. */
     ammoCarry: st.ammo_carry ?? null,
     /* THE IN-FLIGHT FIGHT (Phase 0). `?? null` and NOT `?? {}`: with the column
@@ -267,10 +248,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
        player their night. The switch is the ENVELOPE, never a deploy flag. */
     /* THE WALL (2027-03-13-gm-tools.sql): a walled hero rolls no find, so the server's Nth-ever counters count only real heroes. */
     hearthfindReady: st.hearthfind_ready === true && e.gm !== true,
-    /* A JOB'S END, THE SAME KIND OF SWITCH (1026-job-counts.sql): only a database whose `bench_run` section names `count`
-       takes an `active_left` beside the engine's `activity: idle` (what an ending job left; 0 runs its THEN). Before it,
-       the engine ends a counted run as it always did, and hr_apply is never asked for a key it would refuse. */
-    jobEnds: !!e.bench_run && typeof e.bench_run === 'object' && Object.prototype.hasOwnProperty.call(e.bench_run, 'count'),
     /* THE HERO'S WORK DAY (1059-company-trades.sql, the `work_day` section): the last day it worked, the ms of it, its base day
        and today's bought work. The section is the switch: a database without it has no cap and an hr_apply that would refuse a
        `work_to` key, so the engine then stops nothing early and proposes none (src/core/work-day.js workStateOf: null). */

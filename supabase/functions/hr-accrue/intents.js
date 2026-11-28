@@ -965,13 +965,7 @@ export const COLLECT_OUTCOMES = Object.freeze(['paid', 'nothing', 'refused']);
      because proceeding CONFISCATES it:
          unsupported_activity  a real activity this engine cannot simulate yet
          unknown_monster       the pointer names a target that is not in the data
-         unknown_node          ditto, for a gathering node (2026-08-15). A
-                               SEPARATE code because the two are produced by
-                               different catalogues, and "unknown_monster" is a
-                               lie about a missing tree
-         wrong_skill           the pointer's node belongs to a different skill
-                               than the character is set to — paying it would
-                               credit the wrong skill's XP
+         unknown_recipe        ditto, for an artisan pointer that is no fuel run
          no_active_since       an inconsistent row; the span cannot be bounded
          no_cap                hr_offline_cap_ms returned 0, so NOTHING in the
                                window can be priced — see the note below
@@ -1038,26 +1032,11 @@ export const SAFE_SKIP_REASONS = Object.freeze([
 export const REFUSING_SKIP_REASONS = Object.freeze([
   'unsupported_activity', // SKIP.UNSUPPORTED
   'unknown_monster',      // SKIP.NO_TARGET
-  'unknown_node',         // SKIP.NO_NODE      — the gather mirror of NO_TARGET
-  'wrong_skill',          // SKIP.WRONG_SKILL
   'no_active_since',      // SKIP.NO_ACTIVE_SINCE
   'no_cap',               // SKIP.NO_CAP — see the lockout note above
   'unknown_recipe',       // SKIP.NO_RECIPE — the artisan member of the
-                          //   NO_TARGET / NO_NODE family. Three catalogues,
-                          //   three truths.
-  /* SKIP.UNPAYABLE_BENCH — the recipe EXISTS and its bench is not one the
-     server may pay tonight (cooking, until `noBurn`'s WRITE path is
-     server-owned; see src/core/artisan-sim.js `benchPayable`).
-
-     REFUSING, and the choice is the same one `no_cap` documents above: this is
-     real work that BECOMES payable by deploying a commit, so confiscating it
-     would be permanent while deferring it is not. Unlike `no_cap` it carries no
-     lockout, because ./set-activity.js refuses an unpayable bench on SHAPE —
-     before any database work, before the collect — so `player_state` can never
-     come to hold one and this reason can never be the thing standing between a
-     player and their next switch. That asymmetry is why the two can share a
-     group without sharing a risk. */
-  'unpayable_bench',      // SKIP.UNPAYABLE_BENCH
+                          //   NO_TARGET family: an artisan pointer that is
+                          //   no fuel run (a cut bench recipe).
   /* SKIP.WORLD_TOO_LARGE (lane c-tick-shards) — a HUNT window whose world would
      encode past the bound. REFUSING: the window is owed and deferred (the
      instance does not move); it is a property of the window, not of a pointer,
@@ -1107,12 +1086,9 @@ export const CLASSIFIED_SKIP_REASONS = Object.freeze(
    reason is therefore a lockout until somebody decides it belongs here, which
    is the safe direction and is asserted by tests/activity-intent.mjs A17. */
 export const POINTER_SKIP_REASONS = Object.freeze([
-  'unsupported_activity', // the kind is not payable by this build
+  'unsupported_activity', // the kind is not payable by this build (a gather pointer, since the cut)
   'unknown_monster',      // the pointer names content that is not in the data
-  'unknown_node',
-  'unknown_recipe',
-  'unpayable_bench',      // real content, this build cannot price the bench
-  'wrong_skill',          // an inconsistent row; stopping is the repair
+  'unknown_recipe',       // an artisan pointer that is no fuel run (a cut bench recipe)
 ]);
 
 /**

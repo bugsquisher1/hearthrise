@@ -3,7 +3,7 @@
 // CANNOT CARRY, READ ONCE PER CHARACTER, BY ONE DEFINITION.
 //
 // `hr_perks_of` (the permanent perk stack: room rungs, plot buildings, the
-// property tier, unlockedRecipes) is not an `hr_state_of` field, so every
+// property tier) is not an `hr_state_of` field, so every
 // caller that prices a window makes it as its own statement. tick.js (step
 // (1b)) and hunt-settle.js (a hunt session's settle) call THIS function — one
 // code path, never a second copy (AWAY-12). The bestiary read left with the

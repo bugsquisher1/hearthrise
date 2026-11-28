@@ -43,6 +43,7 @@ import { mkdtempSync, cpSync, writeFileSync, rmSync, readFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
@@ -228,8 +229,39 @@ export async function plain(g, argv = process.argv) {
 }
 
 /** --mutate [--only=<prefix>] [--shard=K/N]: every planted defect must turn a NAMED rule red. Exit code (tests/_mutant-verdict.mjs). */
+/* ONE PROCESS A PURE MUTANT (main run 44835810099, the full proofs): a pure judge imports a whole copy of src per mutant, and ES
+   modules never unload, so one process holding every copy reached V8's 2 GB heap on GitHub (alpha-windows-pure after the AW-65 plans),
+   under a spray of "a listener failed RangeError: Maximum call stack size exceeded" from every copy's listeners on the shared
+   globals. Each pure mutant is judged in a child process (`--one-mutant=<name>`), which prints its verdict and exits with its copy. */
+const ONE = '--one-mutant=';
+function plantOf(g, n, file, from, to, read) {
+  const over = {};
+  for (const [f, x, y] of [[file, from, to]].concat(g.companion[n] ? [g.companion[n]] : [])) {
+    const text = over[f] !== undefined ? over[f] : read(f);
+    if (!text.includes(x)) return { missing: f };
+    over[f] = text.replace(x, y);
+  }
+  return { over };
+}
+function verdictIn(g, n) {
+  const r = spawnSync(process.execPath, [join(ROOT, g.guard), '--mutate', ONE + n], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1e8 });
+  const line = String(r.stdout || '').split('\n').reverse().find((l) => l.startsWith('VERDICT '));
+  if (line) { try { return JSON.parse(line.slice(8)); } catch { /* below */ } }
+  return { kind: 'harness', why: 'the mutant\'s process exited ' + r.status + ' with no verdict: ' + String(r.stderr || r.stdout || '').trim().split('\n').slice(-2).join(' | ').slice(0, 240) };
+}
+
 export async function mutate(g, argv = process.argv) {
   const name = nameOf(g);
+  const one = (argv.find((x) => x.startsWith(ONE)) || '').slice(ONE.length);
+  if (one) {   // the child: judge exactly this pure mutant, say its verdict, exit with its copy of src
+    const m = g.mutants.find(([n]) => n === one);
+    const by = m && Object.keys(g.judges).find((p) => one.startsWith(p));
+    const p = m && plantOf(g, one, m[1], m[2], m[3], (f) => readFileSync(join(ROOT, f), 'utf8'));
+    const v = !m || !by ? { kind: 'harness', why: 'no pure mutant named ' + one }
+      : p.missing ? { kind: 'harness', why: 'anchor not found in ' + p.missing } : await judge(() => g.judges[by](p.over, m[1]));
+    console.log('VERDICT ' + JSON.stringify(v));
+    return 0;
+  }
   /* --only=<prefix>: just the mutants whose name starts with it (`--only=ticker:` re-proves the town ticker in seconds:
      its clean control is the pure rules, which are all that judge those mutants). */
   const only = (argv.find((x) => x.startsWith('--only=')) || '').slice(7);
@@ -257,7 +289,7 @@ export async function mutate(g, argv = process.argv) {
     }
     if (missing) { console.log('  ✗ ' + n + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
     const by = judgeOf(n);
-    const v = await judge(() => (by ? g.judges[by](over, file) : g.checks(over, null, { stopAtFirst: true })));
+    const v = by ? verdictIn(g, n) : await judge(() => g.checks(over, null, { stopAtFirst: true }));
     console.log(report(n, v, counts));
   }
   console.log(exitOf(counts) ? name + ' --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : name + ' --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === g.mutants ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + g.mutants.length + ')'));

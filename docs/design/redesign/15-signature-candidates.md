@@ -603,6 +603,96 @@ Shapes tried (each against its row's plain four, temporary ids on the scratch co
 - **The Cloak is a Bold piece the pace bar cannot see.** Its worth is in the deaths it turns away: four in twelve days where the plain four had eleven, and a four that lives to the end. Pace from the held start reads only seeds whose four was still whole at hour 4 (5 of 12 plain, 10 of 12 with the Cloak), so the two arms cannot be paired. A Bold Signature needs its own measure (deaths avoided and Level XP kept, or the whole hunt's Level XP a hero-hour), a call for the designer.
 - **Repetition, audited.** Blunted carries #4, #23, #26 and #42 (a sword's target, a tank's neighbors, a broken shell's breaker, a stalker on a low ally). Guarded's key carries #1, #3, #17, #35 and #46. The taunt is new to Signatures (#33), the lowest-hero pick is new (#28), and the auras, the pair, the cast costs, the saved shot and the save are each one piece.
 
+## Batch 4's calls and the out-of-band rows, ruled (game designer, 2026-11-28, lane/designer-sig-batch5)
+
+**How it plays:** a Signature never makes a hero train slower, a coin piece saves about a seat's whole supply line, and a piece that turns away deaths is worth what it adds over the safest play without it. A healer's ring keeps the weakest ally standing, a ranger's earrings finish the big ones, and a party that wants to push Bold has a cloak that buys it about a Signature's worth of extra Level XP, never a free pass.
+
+### The calls (CONFLICTS 2026-11-28, batch 4)
+
+| Call | Ruling | Why |
+|---|---|---|
+| P1, auras as standing effects, not ledger rows | **Confirmed** | One rule for every Signature is its measured size ("Decision: how a Signature stays inside the gear slice"). Through the ledger the gear slice cap would hold #45's +30% and #46's cut to about 7% on their wearers, a second hidden cut no tooltip shows. The cuts still sit in Guarded's key under its 30% cap, so a stack of them stays bounded |
+| A free or health-paid cast pays no Magic XP | **Changed. Magic XP is paid on the cast's written mana**, the mana the same cast pays with no Signature. A Signature changes what a cast costs, never what it trains | As built, a mage wearing the Hood trains almost no Magic above 70% health, and every coin piece quietly trades Magic for coin. Casts are bound by cooldowns, not mana (drinks are always sold), so the wearer casts what a plain hero casts and earns the same Magic XP an hour, no more. A refund that is a move's own design (a shell's refund, a Storm spell's mana back) keeps paying on the net, as now. An engine line (HANDOFFS item 1) |
+| #44's health straight off HP, never through a shell | **Confirmed** | A standing shield paying the spell would make the Hood free on any shielded mage |
+| #41 a credit after N landed basic shots, basic shots only | **Confirmed.** Re-worded to what it does: "Every third arrow that hits: your next shot costs no arrow" | A move's arrows are that move's cost. Drawing the hit before the arrow would move every ranger's dice |
+| P4 never takes a monster a Challenge holds | **Confirmed** | The Challenge's hold is the tank's decision. A striker's Signature never undoes it |
+| P7 breaks the pull off on any stance, only on the scale | **Confirmed** | "Falls back instead" is a fall back's step, never a death's. Off the scale there is no pull to break |
+| The two cuts, #35 Gatekeeper's Plate 8% to 4%, #46 Lead Rein 15% to 7.5% | **Confirmed**, and **a pair is barred piece by piece** | Each piece costs its wearer the one Signature it plays, so each half is sized as one Signature (the Bell 9.1, the Rein 10.0). The pair as set reads 23.7 (3.0), two Signatures for two heroes |
+| #40 Hearth Mason's Cloak: how a death-save Signature is judged | **Rule F, below** | The held start cannot pair a Bold four: its first death ends the four before hour 4 on 7 of 12 seeds |
+| P8, the boss cell, and #38 | **Rule D is replaced: no Signature waits on a boss alone.** #38 Drowned Signet keeps its home and gets a rule that pays on its ground | Captain Hask is about 9 kills an hour of Muster's 460, and a called room is off the Danger scale, so a boss rule pays about 70 s an hour on its ground and has no ruler in its room. A boss's chase is what it drops. A second ruler for one row is a second path to keep right |
+
+### Rule F: a Signature that turns away deaths
+
+| Call | Ruling |
+|---|---|
+| The cell | Its stance's own cell: the seat's reference four on Bold, the only stance that can die (CLAUDE.md section 6) |
+| The metric | **Level XP kept**: each seed's whole hunt, the Level XP its heroes earned less what their deaths took, a hero over the hunt's wall hours (`v1-climb --raw`, `sum.mjs --batch 5` BOLD5), paired by seed against **the plain four's better stance**, Bold or Steady by its mean, in the ground's pace step |
+| The bar | 10 +- 3, as every fight row, on 36 seeds. A death moves a seed's Level XP kept by about a fifth, so 12 seeds read se 22 and 36 read se 12. Its number is set between a clock that reads over and one that reads under, never on one reading's mean, and the Lab reads it again on more seeds before it turns on |
+
+**Why against the better stance.** A party with no Cloak does not push Bold where Bold dies. On Muster Barrows the plain four keeps 159,000 Level XP a hero-hour on Bold and 221,000 on Steady (a death takes about 1.95 million Level XP, a whole day of one hero's gains), so its best play is Steady. The Cloak is worth what Bold with it adds over that, which is the decision it changes.
+
+### Rule D, replaced
+
+A Signature never keys on a boss alone. A boss is one monster in thirty on its ground, and its called fight is off the Danger scale, so a boss rule reads on no ruler the pool shares. A boss's own chase is its drops, its Signature among them. #38 Drowned Signet is rewritten for its seat on its ground (below), and its home stays Captain Hask.
+
+### The rows
+
+MEASURED on `lane/designer-sig-batch5` (the hunt engine of `set/v0.2.144` 40a8fa815: the plain mixed four on Steady replays `b3-muster-mixed` seed for seed, pace and held equal on all 12), `signature-depth/batch5.sh` and `sum.mjs --batch 5`, batch 4's cell, each ground's own pace step. Shapes were temporary ids on a scratch copy (`b5v-*`), three with a scratch engine line named in the table. REPLAY=1 plays each kept row's first two seeds by its real id.
+
+| # | Signature | The rule now | Best cell | Held delta (se) | Pace, coin or Bold steps (se) | Second ground (pace steps) | Verdict | Now |
+|---|---|---|---|---|---|---|---|---|
+| 19 | Lock-Keeper's Chain | A hero near fall-back: Spring Tide is ready again (**once a minute**) | Muster Barrows | +8.4 (2.8) | **+8.5 (2.9)** | the Slake +3.5 (batch 3, 30 s) | In band. At 30 s 13.0 and 40 s 13.7: Spring Tide's own minute was the clock that bound | Data set |
+| 23 | Ferry Pennies | **Unchanged**: Mend below 45%, Blunted next to you | Muster Barrows, the tank four | +11.0 (2.3) | **+10.2 (2.4)** | (the tank's others pinned) | In band on this tree. The 13.7 was batch 2's reports, an older tree's plain four. Under 40% read 0.5: the line is a cliff | Kept |
+| 4 | Charred Saber | **Unchanged**: Flame Strike's target Blunted | Pyre Field, the sword four, **24 seeds** | +9.0 (1.9) | **+13.6 (3.4)** | Muster +3.7 (batch 2) | Over by 0.6, se 3.4 over the bar: **36 seeds owed** before any number moves. 12 seeds read 14.6 (5.1). The 6.4 was batch 2's tree | Kept, dark |
+| 43 | Bull's Tooth | Single-target hits on a brute **below half health** deal double damage | Muster Barrows | +0.2 (2.8) | **+10.5 (2.9)** | Wyvern Roost, its home, +4.9 (1.2) | In band, the spread holds. Under 30% read 2.2 at home, 5.2 on Muster | Data set, `best` Muster |
+| 31 | The Cellar Key | An ally hit below 30% heals **3%** of max health (once every **20 s** an ally) | Carter's Rest, its home, 36 seeds | +10.5 (2.6) | **+10.0 (2.4)** | | In band. 2% at 30 s read 5.7 | Data set |
+| 28 | Vault Leech Ring | **Reshaped:** Poison rune spells heal the hurt ally lowest on health for 50% of their damage | Carter's Rest, 36 seeds | PENDING | **PENDING** | Muster +4.7 (2.7) | PENDING | PENDING |
+| 32 | Ledger Ring | **Every fourth** spell costs no mana | Muster Barrows, 4 seeds | -0.3 (6.1) | **17.0 coin** | | In band (coin bar). Every fifth 13.7 | Data set |
+| 41 | Brood Bracers | **Every third** arrow that hits: your next shot costs no arrow | Muster Barrows, 4 seeds | 0.0 (0.0) | **20.9 coin** | | In band. After five 12.5 | Data set |
+| 37 | Lychgate Leggings | **Below half mana**: heals cost no mana for 5 s (**40 s** cooldown) | Muster Barrows, 4 seeds | -2.3 (2.4) pace | **23.1 coin** | | In band. Under 30% the healer drinks first (3.0, and 7.1 at 10 s a 30 s clock). Under half the line is crossed every few casts, so the clock is the lever (5 s a 30 s clock 28.0, 10 s 43.0) | Data set |
+| 25 | The Cold Candle | **Reshaped:** Frost Lance uses no runes | Muster Barrows, 4 seeds | 0.0 (0.0) | **19.6 coin** (scratch `saves.of`) | | In band. Every Ice spell 27.8, every other 13.9: no count lands between. Frost Lance is 70% of the mage's Ice casts | Specced (HANDOFFS item 2). The data row stays every Ice spell, dark, until `saves.of` lands |
+| 40 | Hearth Mason's Cloak | **Once every 2 hours**, a hero of your party who would die falls back instead | Muster Barrows, Bold, 36 seeds | | **PENDING** Bold steps vs plain Steady | | PENDING | PENDING |
+| 33 | Teamster's Mitts | **Cut, replaced (spec):** Power Strike: the next blow you take lands at half | | | | | Every shape read under: the taunt -3.6 (sword four) and -1.6 (tank four), Blunted on a monster attacking an ally -3.6 and -0.8, a heal of 8% under half -0.5 and +5.4, its target Sickened PENDING | Batch 5 (a hero-side Blunted) |
+| 26 | Thrower's Ring | **Cut, replaced (spec):** Earth rune shields you cast are 30% stronger | | | | | Every shape read under: the breaker Blunted 2.9, monsters hitting the shell Blunted 4.9, Weakened 3.9, Sapped 0.6, Protective Ward ready 5.5. A healer's shell is seldom the defense that binds, so a rule hung on its moments pays little | Batch 5 (a Signature's raise on a family's shells) |
+| 42 | Night Carter's Boots | **Cut, replaced (spec):** When a monster winds up a blow at an ally below half health, that blow lands at half | | | | | The stalker filter read -1.2 and +1.1, a caster filter -1.8 (the Bone Wing), -0.6 (the Flooded Wing), +1.5 (Pyre). Blunted spends on the striker's next blow, and a caster's comes a spell later. The wind-up is the blow itself, and only grounds with wind-ups have it, so the spread holds by construction | Batch 5 (a `windup` moment) |
+| 18 | Brewer's Apron | **Cut, replaced (spec):** Circle of Renewal: the hurt ally lowest on health is healed a second time | | | | | Every Circle shape read under at home: Emboldened 2.8, +4% on a hero under half 0.9, Guarded 15% for 4 s -0.9. Circle tops up a party already covered. The one heal that reads at home lands on the lowest ally (#28) | Batch 5 (a heal on the lowest from a heal) |
+| 38 | Drowned Signet | **Rewritten (rule D):** below half health, you deal 25% more damage for 4 s (once every 20 s) | Muster Barrows, the sword four | PENDING | **PENDING** | | PENDING | PENDING |
+
+Every shape read (`sum.mjs --batch 5` prints the four tables):
+
+SHAPES_TABLE
+
+**What the readings say.**
+
+- **The re-read moved rows by their tree, not their ruler.** Batch 2's readings sit on batch 2's plain fours. Played again on this tree, Ferry Pennies reads 10.2 (it read 13.7 on the old reports in the new steps) and the Charred Saber 13.6 on 24 seeds (6.4). Every batch 2 row is re-read on this tree before it turns on (HANDOFFS item 8).
+- **A clock that never binds is no lever.** The Chain read 13.0 at 30 s and 13.7 at 40 s, then 8.5 at a minute: a near fall-back comes less often than every 40 s, and Spring Tide's own cooldown is a minute.
+- **Heals read where healing binds, and on the lowest ally.** The Leech's heal on the lowest ally read 4.7 and 5.0 on Muster (50% and 100%) and 21.4 at 100% on Carter's Rest. Circle of Renewal's every shape read nothing there. The Key reads 10.0 on 3% a 20 s clock.
+- **A coin piece reads in coin steps and its line is a cliff.** The Leggings read 3.0 and 7.1 under 30% mana and 28 to 63 under half, since a healer that drinks at 30% sits between the two. A clock on the half line sets it (23.1 at 40 s).
+- **The Bold four keeps less than the Steady one on Muster.** 159,000 to 221,000 Level XP a hero-hour: a death costs a hero about a day of Level XP. With the Cloak at once an hour Bold keeps 238,600 (36 seeds), past Steady by 21.3 (11.8) steps. That is the death package's balance as much as the Cloak's, a reading for the Lab (HANDOFFS item 8).
+- **Repetition, audited.** The cuts take Blunted off #26 and #42 and the taunt off #33, and the replacements are new pieces: a hero-side Blunted (#33, the mirror of #4's), a raise on a family's shells (#26), a wind-up moment (#42), a heal on the lowest ally from a heal (#18, beside #28's from a spell). Blunted keeps #4 and #23. Guarded keeps #1, #3, #17, #35 and #46.
+
+### Batch 5: the rows and their moves (spec)
+
+**How it plays:** the club's Stagger, the sword's Parry and the axes' Gash each get the piece their move was missing, the support's eight arrive with the support, and the rows this batch cut come back on the pieces they need.
+
+Nothing below is built. Each row reads its moments first (`moments.mjs`), then 12 seeds on its cell (36 on Carter's Rest), on rules A to F. A row that needs a piece names it, and each piece is built once for every row that uses it.
+
+| # | Signature | Move | Home · slot | The rule (to build) | Piece | Cell | Notes |
+|---|---|---|---|---|---|---|---|
+| 8 | Stable Troll's Maul | Stagger | Carter's Rest, Stable Troll · weapon (hammer) | Stagger ends a wind-up: gain a shield of 10% of your max health for each wind-up it ends | an `interrupt` moment (the wind-ups a hero's move ended, `n` its count) | the mixed four's hammer on Carter's Rest (36 seeds), Krell's Hold | Wide Stagger ends more than one, so the count is the branch's, never the Signature's. Repeats no branch (Long Stagger, Shaken, Wide Stagger) |
+| new | Ledgehide Breeches | Parry | Wyvern Roost, Ledge Wyvern · pants | Parry also guards an ally: it can answer a monster next to you winding up a blow at another hero | Parry's aim reads a wind-up on any hero within 1 tile of the wearer | the sword four on Wyvern Roost (the Crag Wyvern casts), Pyre Field | Riposte, Answering, Long, Disarming, Quick and Calm Parry are the branches. A bodyguard's Parry repeats none |
+| new | Troll Picker's Hooks | Gash | Carter's Rest, Troll Picker · weapon (axes) | Gash hits 3 or more: your next Rend deals 40% more damage | a count floor on a cast moment (`min`), a Kindled-key status on Rend (`whetted`) | the axes four on Muster Barrows and the Flooded Wing | A crowd move fuels the single-target one. Deep, Wide, Crippling, Red, Feeding and Carrying Gash are the branches. Carter's Rest then holds five (8, 18, 26, 31 and this) |
+| 29 | Fledgling Claw | Rupture | Wyvern Roost · necklace | Re-read as built with Gash on the axes bar | none | the axes four on Muster and the Flooded Wing | Its moment (five Bleed stacks on one monster) is read first. A second Bleed stack on each Rend read 4.4 |
+| 30 | Raft Builder's Earrings | Brand (Storm) | the Tower, Silver lock · earrings | Waits | | | Brand is held (`23`). Built when Brand goes live, sword only. Re-homed if Brand is cut. Not counted in the batch |
+| 33 | Teamster's Mitts | Power Strike | Ox Road, Dead Teamster · gloves | Power Strike: the next blow you take lands at half | a hero-side Blunted (`braced`, on the `once` path a monster's Blunted takes) | the sword four and the tank four on Muster | Guard Strike (-4% for 3 s) is the branch. One whole blow halved every 6 s is the front's danger moment, rule E |
+| 26 | Thrower's Ring | Earth rune | Carter's Rest, Slate Thrower · ring | Earth rune shields you cast are 30% stronger | a Signature's standing raise on a family's casts (`raise: { family, pm }`) | the mixed four's healer on Muster, the tank four's tank | Shelter, Arcane Barrier, Protective Ward and Warm Stone are the Earth shells. Read on the healer and on the tank, both cast one |
+| 42 | Night Carter's Boots | any | Unmarked Catacombs, Night Carter · boots | When a monster winds up a blow at an ally below half health, that blow lands at half | a `windup` moment (a monster's wind-up marked on a hero: `t` that hero, `src` the monster) | the mixed four on the Bone Wing and the Flooded Wing, Pyre Field | Muster has no wind-ups, so the spread holds by construction |
+| 18 | Brewer's Apron | Circle of Renewal | Carter's Rest, Troll Brewer · body | Circle of Renewal: the hurt ally lowest on health is healed a second time | a heal to the lowest ally that reads its own heal's amount, once a cast | the healer on Carter's Rest (36 seeds) | #28's heal on the lowest ally read 21.4 there at 100%. Lasting Circle and Wide Circle are the branches |
+| 38 | Drowned Signet | any | Captain Hask · ring | Below half health: you deal 25% more damage for 4 s (once every 20 s) | none (`hp_below`, a boon on the wearer) | the sword four on Muster and Pyre Field | Rule D. PENDING |
+| support | Ash-Pit Mitts, Firebrick Belt, Farmhand's Gloves, Lye Pouch, Watchfire Cloak, Smoored Locket, Bedstone Boots, Pyre-Cloth Wraps | the support's 7 moves and its fires | as `22` section 7.1 | as `22` section 7.1, with the corrections beside | a status-ended moment (Ash-Pit), `min` (Firebrick), a shield to the party (Farmhand's), mana to the party (Lye Pouch), a fire filter (Watchfire, Smoored), `ready` on the moment's hero (Bedstone), two fires (Pyre-Cloth) | the support four on its best grounds (`22` section 2.2) | Built with L13, never before. Corrections from batches 2 to 4: Firebrick Belt's ready lands on a lane 95% full and reads nothing, so it is reshaped before it is built. Watchfire Cloak and Lye Pouch are kill-keyed and read under in every batch so far, so each reads its moments first. Lye Pouch and Smoored Locket are coin pieces on the coin bar. Smoored Locket's 20% line is under where an ally drinks (30%) |
+
+**Count:** 8, Parry's, Gash's, 29, 33, 26, 42, 18 and 38 (9 rows on 8 new pieces) plus the support's 8 with L13: 17 rows, 20 or fewer. #30 waits on Brand.
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.

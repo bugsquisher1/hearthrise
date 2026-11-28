@@ -12,6 +12,7 @@
 // Buttons are off while a press is in flight, while a job runs, and wherever the quote is a refusal; the server re-checks all of it.
 // ════════════════════════════════════════════════════════════════════════
 import { tradeJobsOf } from '../../session/trade-sections.js';
+import { serverNowOf } from '../../session/hunt-sections.js';
 import { startTradeJob, endTradeJob } from '../../session/trade-intents.js';
 import { TRADES } from '../../data/trades.js';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js';
@@ -29,14 +30,18 @@ export function jobsPaneHtml() {
     + '<div class="hw-burying hw-jobs-now" role="status"><span class="hw-burying-q"></span>'
     + '<button type="button" class="hh-tool" data-hs-act="tjob-collect">' + esc(t('work.job_collect')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="tjob-stop">' + esc(t('work.job_stop')) + '</button></div>'
-    + '<p class="hs-note hw-jobs-last" role="status"></p><ul class="hw-ledger hw-jobs-rows"></ul></div>';
+    + '<p class="hs-note hw-jobs-last" role="status"></p><ul class="hw-ledger hw-work-rows hw-jobs-rows"></ul></div>';
 }
 
+/* A JOB IS A GENRE ROW (the work row's layout, windows.css .hw-work-row): what it makes is the row's icon, its name with the trade Level
+   that opens it ("Lv 11") on its first line, what one attempt uses under it, then the server's quote or why it is shut; Start at the right.
+   data-hs-find: a link to this job (the bag's Cook, an item's "Made with", the coach: src/shell/goto.js) brings this row into view. */
 function rowHtml(g, r) {
-  /* data-hs-find: a link to this job (the bag's Cook, an item's "Made with", the coach: src/shell/goto.js) brings this row into view */
-  return '<li class="hw-skill hw-job" data-key="' + esc(r.id) + '" data-hs-find="' + esc(r.id) + '">' + itemIconHtml(g, r.face)
-    + '<span class="hw-job-text"><b class="hw-job-name"></b><small class="hw-job-inputs"></small><small class="hw-job-quote"></small></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="tjob-start" data-id="' + esc(r.id) + '">' + esc(t('work.job_start')) + '</button></li>';
+  return '<li class="hw-line hw-work-row hw-job" data-key="' + esc(r.id) + '" data-hs-find="' + esc(r.id) + '">'
+    + '<span class="hw-ico" title="' + esc(itemName(r.face)) + '">' + itemIconHtml(g, r.face) + '</span>'
+    + '<span class="hw-line-name"><span class="hw-work-top"><b class="hw-job-name"></b><small class="hw-work-lv">' + esc(t('work.row_level', { level: r.rLevel })) + '</small></span>'
+    + '<small class="hw-job-inputs"></small><small class="hw-job-quote hw-work-why"></small></span>'
+    + '<button type="button" class="hh-tool hw-work-go" data-hs-act="tjob-start" data-id="' + esc(r.id) + '">' + esc(t('work.job_start')) + '</button></li>';
 }
 
 /** Why a row is shut, in the server's own words and numbers. */
@@ -61,6 +66,10 @@ function patchRow(li, r, sc, job, now) {
     : shutWords(r));
   prop(li.querySelector('[data-hs-act="tjob-start"]'), 'disabled', !(q && q.ok) || !!job || sc.pending);
   cls(li, 'is-off', !(q && q.ok));
+  cls(li, 'is-locked', !(q && q.ok));
+  /* the running job's own row reads as on (the line above has its Stop) */
+  cls(li, 'is-on', !!job && job.recipe === r.id);
+  cls(li.querySelector('.hw-work-lv'), 'is-short', !!q && q.error === 'rung_locked');
 }
 
 /** Patch the pane in place (the Work window's patch). */
@@ -71,7 +80,9 @@ export function patchJobsPane(root, ctx, sc) {
   const s = tradeJobsOf(cs);
   attr(pane, 'hidden', s ? null : '');
   if (!s) return;
-  const now = Date.now();
+  /* the countdown runs on the server's clock (the session's offset), never this machine's: display only */
+  const srv = serverNowOf(cs);
+  const now = Number.isFinite(srv) ? srv : Date.now();
   const job = s.job;
   const line = pane.querySelector('.hw-jobs-now');
   cls(line, 'is-on', !!job);

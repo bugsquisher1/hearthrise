@@ -34,7 +34,7 @@
 // mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/core/hunt/imbue-leech.js src/core/hunt/status-effects.js src/shell/action-facts.js src/shell/slot-waits.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { makeReport, ROOT, plant, loadCore, mon, hero, world, instOf, subStep } from './fixtures/h1.js';
+import { makeReport, ROOT, plant, loadCore, mon, hero, world, instOf, subStep, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { oneHero, supplySession, rngOf, loadData } from './fixtures/h4.js';
 import { H, E, inst2, sc2, world as world2, PARTY_GROUND } from './fixtures/h2.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
@@ -459,28 +459,29 @@ async function loadAll(root, shippedRoot) {
       ITEMS: (await si('src/data/items.js')).ITEMS, SB: await si('src/data/supply-basics.js'), AD: await si('src/data/abilities.js'), MONSTERS: (await si('src/data/monsters.js')).MONSTERS } };
 }
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
-const home = plant([LIVE], TREES);
-try {
-  const X = await loadAll(home.root, ROOT);
-  for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
-    let why = null;
-    try { why = await fn(X); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-    R.ok(!why, cn + ': ' + why);
-  }
-} finally { home.done(); }
+if (!inMutantBatch()) {
+  const home = plant([LIVE], TREES);
+  try {
+    const X = await loadAll(home.root, ROOT);
+    for (const [cn, fn] of Object.entries(cases).filter(([k]) => !ONLY || ONLY.includes(k))) {
+      let why = null;
+      try { why = await fn(X); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+      R.ok(!why, cn + ': ' + why);
+    }
+  } finally { home.done(); }
+}
 const PICKED = mutants.filter((m) => !ONLY || ONLY.includes(m.case));
-for (const mu of PICKED) {
+/* ten mutants a process (tests/_mutant-batch.mjs): each loads two copies with the play trees, and one process held all 33 at 712 MB on
+   GitHub's Node 20 */
+const WHYS = await judgeMutants(PICKED, async (mu) => {
   /* a `shipped` mutant plants into a copy read as the repo as shipped (the switch off); every other into the live copy */
   const p = plant(mu.shipped ? mu.edits : [LIVE, ...mu.edits], TREES);
-  try {
-    let why = null;
-    try {
-      const X = await loadAll(p.root, p.root);
-      why = await cases[mu.case](X);
-    } catch (e) { why = 'threw ' + e.message; }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-    if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
-  } finally { p.done(); }
-}
+  try { return await cases[mu.case](await loadAll(p.root, p.root)); } finally { p.done(); }
+}, { per: 10 });
+PICKED.forEach((mu, i) => {
+  const why = WHYS[i];
+  R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
+  if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
+});
 if (!R.fails.length) console.log('  ' + (ONLY ? ONLY.length : Object.keys(cases).length) + ' cases, ' + PICKED.length + ' mutants caught');
 R.finish();

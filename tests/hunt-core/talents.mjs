@@ -20,7 +20,7 @@
 // mutant-anchors: src/core/talents.js src/core/hunt/talent-rows.js src/core/hunt/abilities.js src/core/hunt/targeting.js src/core/hunt/auras.js src/core/member.js src/core/hunt/cast-targets.js src/core/hunt/conditions.js src/core/hunt-spawn.js
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
-import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
+import { loadCore, plant, makeReport, ROOT, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { H, E, inst2, sc2, world } from './fixtures/h2.js';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
@@ -508,20 +508,23 @@ const mutants = [
 
 /* the suite: cases on the repo, each mutant on a planted copy must be caught (h1/h2's rule) */
 const R = makeReport('talents');
-const M0 = await load(ROOT);
-for (const [cn, fn] of Object.entries(cases)) {
-  let why = null;
-  try { why = await fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
-  R.ok(!why, cn + ': ' + why);
-}
-if (!process.argv.includes('--no-mutants')) for (const mu of mutants) {
-  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-  const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures']);
-  try {
+if (!inMutantBatch()) {
+  const M0 = await load(ROOT);
+  for (const [cn, fn] of Object.entries(cases)) {
     let why = null;
-    try { why = await cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-  } finally { p.done(); }
+    try { why = await fn(M0); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    R.ok(!why, cn + ': ' + why);
+  }
+}
+if (!process.argv.includes('--no-mutants')) {
+  for (const mu of mutants) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+  const named = mutants.filter((mu) => cases[mu.case]);
+  /* a batch of mutants a process (tests/_mutant-batch.mjs): one process held every planted copy, 581 MB on GitHub's Node 20 */
+  const whys = await judgeMutants(named, async (mu) => {
+    const p = plant(mu.edits, ['src/render', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures']);
+    try { return await cases[mu.case](await load(p.root)); } finally { p.done(); }
+  });
+  named.forEach((mu, i) => R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i])));
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');
 R.finish();

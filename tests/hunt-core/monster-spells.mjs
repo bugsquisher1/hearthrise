@@ -27,7 +27,7 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:f
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { loadCore, plant, makeReport, ROOT, hero, mon, world, instOf, groundRow, gridOf, spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
+import { loadCore, plant, makeReport, ROOT, hero, mon, world, instOf, groundRow, gridOf, spanFixture, runSpan, member, T0, judgeMutants, inMutantBatch } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
@@ -707,23 +707,24 @@ const R = makeReport('hunt-core/monster-spells');
 const M = await load(ROOT);
 const at = process.argv.indexOf('--only');
 const only = at > 0 ? new Set(String(process.argv[at + 1] || '').split(',')) : null;
-for (const [cn, fn] of Object.entries(cases)) {
+if (!inMutantBatch()) for (const [cn, fn] of Object.entries(cases)) {
   if (only && !only.has(cn)) continue;
   let why = null;
   try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
-for (const mu of process.argv.includes('--no-mutate') ? [] : mutants) {
-  if (only && !only.has(mu.case)) continue;
-  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
+const picked = (process.argv.includes('--no-mutate') ? [] : mutants).filter((mu) => !only || only.has(mu.case));
+for (const mu of picked) if (!cases[mu.case]) R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case);
+const named = picked.filter((mu) => cases[mu.case]);
+/* a batch of mutants a process (tests/_mutant-batch.mjs): one process held every planted copy, 853 MB on GitHub's Node 20 */
+const whys = await judgeMutants(named, async (mu) => {
   const p = plant(mu.edits);
-  try {
-    let why = null;
-    try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
-    if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + why);
-    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
-  } finally { p.done(); }
-}
+  try { return cases[mu.case](await load(p.root)); } finally { p.done(); }
+});
+named.forEach((mu, i) => {
+  if (process.env.H2_WHY) console.log('  mutant "' + mu.name + '" -> ' + whys[i]);
+  R.ok(caughtBy(whys[i]), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(whys[i]));
+});
 const ran = (n) => !only || only.has(n);
 if (!R.fails.length) console.log('  ' + Object.keys(cases).filter(ran).length + ' cases, ' + mutants.filter((mu) => ran(mu.case)).length + ' mutants caught');
 R.finish();

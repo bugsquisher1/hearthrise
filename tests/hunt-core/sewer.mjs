@@ -2611,8 +2611,9 @@ if (process.argv.includes('--report')) {
 const ONLY = process.argv.includes('--only') ? new Set(String(process.argv[process.argv.indexOf('--only') + 1] || '').split(',')) : null;
 /* --batch a:b (this file's own child): mutants a..b-1 alone, no cases. Every mutant imports its planted copy of the module tree (about
    10 MB of heap each, never freed: an ES module stays cached), so ~180 of them in one process passed CI's 2 GB default heap (run
-   45005524881: heap out of memory). The parent runs them in batches of MUTANT_BATCH, each in a fresh process whose heap is freed. */
-const MUTANT_BATCH = 40;
+   45005524881: heap out of memory). The parent runs them in batches of MUTANT_BATCH, each in a fresh process whose heap is freed.
+   Twenty since lane/nightly-red-1128: a batch of 40 held 824 MB on GitHub's Node 20, 80% of run-all's 1,024 MB heap budget. */
+const MUTANT_BATCH = 20;
 const batchArg = process.argv.includes('--batch') ? String(process.argv[process.argv.indexOf('--batch') + 1] || '') : null;
 const [bFrom, bTo] = batchArg ? batchArg.split(':').map(Number) : [0, Infinity];
 if (!batchArg) {

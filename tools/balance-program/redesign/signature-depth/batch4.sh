@@ -40,6 +40,8 @@ if [ -n "$REPLAY" ]; then
   SEEDS=2 run b4r-carters-key     carters_rest 117 $X --signatures -,-,-,the_cellar_key
   SEEDS=2 run b4r-muster-candle   muster_barrows 60 $X --signatures -,-,the_cold_candle,-
   SEEDS=2 run b4r-muster-river    muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
+  # (lane/signatures-batch-4: the Plate cut to 4%, its reading the b4w-muster-plate4 shape's)
+  SEEDS=2 run b4r-muster-plate    muster_barrows 60 $T --signatures gatekeepers_plate,-,-,-
   exit 0
 fi
 # ── CARTER'S REST ON ITS OWN PACE STEP (lane/pace-step-per-ground, 2026-11-28; pace-step.mjs): the Key's 36 seeds owed at home, and the
@@ -119,3 +121,10 @@ SEEDS=4 run b4s-muster-ledger    muster_barrows 60 $X --signatures -,-,ledger_ri
 SEEDS=4 run b4s-muster-leggings  muster_barrows 60 $X --signatures -,-,-,lychgate_leggings
 SEEDS=4 run b4s-muster-bracers   muster_barrows 60 $X --signatures -,brood_bracers,-,-
 SEEDS=4 run b4s-muster-sash      muster_barrows 60 $X --signatures -,-,-,sergeants_sash
+# ── BATCH 4'S SHAPES (b4w-*): temporary ids on a scratch copy of the lane's commit (ROOT=<copy>, never committed; sum.mjs VARIANTS4B names
+#    each): the Plate's cut at 4% and 2.5%, and the pair's halves apart (each piece's effect with the other worn inert) and at half size ──
+run b4w-muster-plate4    muster_barrows 60 $T --signatures zz_plate4,-,-,-
+run b4w-muster-plate25   muster_barrows 60 $T --signatures zz_plate25,-,-,-
+run b4w-muster-bell      muster_barrows 60 $T --signatures zz_rein0,-,-,zz_bell
+run b4w-muster-rein      muster_barrows 60 $T --signatures zz_rein,-,-,zz_bell0
+run b4w-muster-pair-half muster_barrows 60 $T --signatures zz_rein75,-,-,zz_bell15

@@ -1126,7 +1126,8 @@ const cases = {
     return null;
   },
   'aura-guard': (M) => {
-    /* #35 Gatekeeper's Plate (P1, an aura): the wearer and every ally within 2 tiles take 8% less, added to Guarded under its key's 30% cap;
+    /* #35 Gatekeeper's Plate (P1, an aura; CUT to 4%, lane/signatures-batch-4: 8% read 22.0 pace steps, over the band): the wearer and every
+       ally within 2 tiles take 4% less, added to Guarded under its key's 30% cap;
        an ally 3 tiles off, or anyone once the wearer has fallen, none; the cut lands on a monster's blow */
     const play = (worn) => {
       const k = H(M, 1, 12, 3, 'tank', { hp: 50000, maxHp: 50000 }), a = H(M, 2, 14, 4, 'mage', { hp: 50000, maxHp: 50000 }), far = H(M, 3, 15, 6, 'healer', { hp: 50000, maxHp: 50000 });
@@ -1139,13 +1140,13 @@ const cases = {
       return { k, a, far, eff, took };
     };
     const w = play(true), p = play(false);
-    if (w.eff(w.k) !== -80 || w.eff(w.a) !== -80 || w.eff(w.far) !== 0) return 'the Plate\'s cut on the wearer, an ally 2 tiles off and one 3 off: ' + [w.eff(w.k), w.eff(w.a), w.eff(w.far)] + ' (want -80, -80, 0)';
+    if (w.eff(w.k) !== -40 || w.eff(w.a) !== -40 || w.eff(w.far) !== 0) return 'the Plate\'s cut on the wearer, an ally 2 tiles off and one 3 off: ' + [w.eff(w.k), w.eff(w.a), w.eff(w.far)] + ' (want -40, -40, 0)';
     if (p.took.some((n) => !(n >= 500)) || w.took[2] !== p.took[2]) return 'CONTROL: the blows landed ' + JSON.stringify([w.took, p.took]);
-    for (const i of [0, 1]) if (Math.abs(w.took[i] - Math.floor((p.took[i] * 920) / 1000)) > 1) return 'a blow under the Plate landed ' + w.took[i] + ' where the plain one landed ' + p.took[i] + ' (want 8% less)';
-    w.a.statuses = [{ s: 'guarded', src: 9, left: 4000, next: 0, scale: 1000, pw: 2500 }];
-    if (w.eff(w.a) !== -300) return 'the Plate beside a Guarded -25% reads ' + w.eff(w.a) + ' (want the key\'s cap, -300)';
+    for (const i of [0, 1]) if (Math.abs(w.took[i] - Math.floor((p.took[i] * 960) / 1000)) > 1) return 'a blow under the Plate landed ' + w.took[i] + ' where the plain one landed ' + p.took[i] + ' (want 4% less)';
+    w.a.statuses = [{ s: 'guarded', src: 9, left: 4000, next: 0, scale: 1000, pw: 2800 }];
+    if (w.eff(w.a) !== -300) return 'the Plate beside a Guarded -28% reads ' + w.eff(w.a) + ' (want the key\'s cap, -300)';
     w.k.alive = false;
-    if (w.eff(w.a) !== -250) return 'the Plate held on after its wearer fell: ' + w.eff(w.a);
+    if (w.eff(w.a) !== -280) return 'the Plate held on after its wearer fell: ' + w.eff(w.a);
     return null;
   },
   'aura-regen': (M) => {
@@ -1473,6 +1474,8 @@ const mutants = [
   { name: 'the Hood\'s line is never read', case: 'spell-health', edits: [[SCO, '  if (c.aboveHpPm !== undefined && !(int(u.hp) * 1000 > c.aboveHpPm * int(u.maxHp))) paysOther = false;\n', '']] },
   { name: 'a health cost may leave its caster under 1 HP', case: 'spell-health', edits: [[SCO, 'int(u.hp) - mana >= 1 ? { mana: 0, hp: mana, writes }', 'true ? { mana: 0, hp: mana, writes }']] },
   { name: 'a health cost takes no health', case: 'spell-health', edits: [[AB, '    if (cost.hp > 0) u.hp = int(u.hp) - cost.hp;\n', '']] },
+  /* (the Plate at the 8% that read 22.0 pace steps, over the band) */
+  { name: 'the Plate at 8%', case: 'aura-guard', edits: [[SG, 'aura: { takenPm: -40, r: 2 }', 'aura: { takenPm: -80, r: 2 }']] },
   { name: 'an aura reaches past its r', case: 'aura-guard', edits: [[SA, 'w === unit || (Number.isInteger(a.r) && cheb(w, unit) <= a.r)', 'w === unit || Number.isInteger(a.r)']] },
   { name: 'a blow reads no aura', case: 'aura-guard', edits: [[DM, "isHero(u) ? auraEffects(inst, u, 'takenPm') : null", 'null']] },
   { name: 'a standing effect is never folded into its key', case: 'aura-guard', edits: [[SE, '  for (const e of held) keys = foldStanding(keys, e);\n', '']] },

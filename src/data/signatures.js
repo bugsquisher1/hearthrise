@@ -286,8 +286,9 @@ export const SIGNATURES = Object.freeze({
     aura: { regenPm: 200, r: 8 }, reacts: [] }),
   gatekeepers_plate: sig({ id: 'gatekeepers_plate', n: 35, name: 'Gatekeeper\'s Plate', slot: 'body',
     home: { kind: 'monster', id: 'gatekeeper' }, best: { seat: 'tank', ground: 'muster_barrows' },
-    tip: 'Aura: you and allies within 2 tiles take 8% less damage',
-    aura: { takenPm: -80, r: 2 }, reacts: [] }),
+    /* (CUT from 8%: 22.0 pace steps on the tank four, over the band; 4% read 8.5, 2.5% 2.3: 15 "Batch 4, measured") */
+    tip: 'Aura: you and allies within 2 tiles take 4% less damage',
+    aura: { takenPm: -40, r: 2 }, reacts: [] }),
   lychgate_leggings: sig({ id: 'lychgate_leggings', n: 37, name: 'Lychgate Leggings', slot: 'pants',
     home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
     tip: 'Below 30% mana: your heals cost no mana for 5 s (90 s cooldown)',

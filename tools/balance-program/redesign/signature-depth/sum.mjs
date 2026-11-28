@@ -308,6 +308,15 @@ const ROWS4B = [
   ['#41 Brood Bracers (ranger, coin): every fifth arrow that hits costs no arrow', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-bracers'], null],
   ['#34 Sergeant\'s Sash (healer, coin): allies within 8 tiles regenerate 20% more mana', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b4s-muster-sash'], null],
 ];
+/* BATCH 4'S SHAPES (b4w-*: a temporary id on a scratch copy, batch4.sh): the over rows' numbers, and the pair's halves apart (each piece's
+   effect with its partner worn inert, so the other half plays nothing) */
+const VARIANTS4B = [
+  ['#35 the Plate at 4% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate4'],
+  ['#35 the Plate at 2.5% (Muster, the tank four)', 'pace', 'b3-muster-tank', 'b4w-muster-plate25'],
+  ['#45 the Bell\'s half alone: +30% heals on the tank under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-bell'],
+  ['#46 the Rein\'s half alone: the tank -15% under half (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-rein'],
+  ['#45 + #46 at half size: +15% heals, -7.5% taken (Muster)', 'pace', 'b3-muster-tank', 'b4w-muster-pair-half'],
+];
 if (BATCH === '4') {
   const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
   const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / stepOf(p);
@@ -328,7 +337,7 @@ if (BATCH === '4') {
       O.none ? '' : O.owed ? 'owed' : show(O.q), bar, spread].join(' | ') + ' |');
   }
   console.log('\n| Shape tried | Kind | Held delta (se, seeds) | Pace steps (se) | Coin steps | Bar | Kills/h |\n|---|---|---|---|---|---|---|');
-  for (const [name, kind, a, b] of VARIANTS4) {
+  for (const [name, kind, a, b] of VARIANTS4B.concat(VARIANTS4)) {
     const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
     const coin = p && s ? coinSteps(p, s) : null;
     console.log('| ' + [name, kind, h ? show(h, true) : 'owed', q ? show(q) : 'owed', coin === null ? 'owed' : sgn(coin),

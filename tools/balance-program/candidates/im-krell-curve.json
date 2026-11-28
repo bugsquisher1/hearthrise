@@ -1,0 +1,23 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "im-krell-curve",
+ "why": "lane/designer-imbue-i3 (21 section 11.6, D-21): im-krell-fire with the Life Leech read at its band by the contest curve, as every imbuement is: pm x (imbueStepsAt(band, Level) / IMBUE.steps), rounded to a whole permille (17 for band 50 at Level 97). I3 on Krell's Hold as ruled",
+ "base": "tree",
+ "edits": [
+  {
+   "file": "src/core/combat-sim.js",
+   "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);",
+   "to": "  const imb = imbuesAt([{\"id\":\"brute_edge\",\"band\":70,\"untilMs\":null},{\"id\":\"fire_ward\",\"band\":45,\"untilMs\":null},{\"id\":\"life_leech\",\"band\":50,\"untilMs\":null}], atMs);"
+  },
+  {
+   "file": "src/core/imbue.js",
+   "from": "return { id: w.id, of: r.leech.of, pm: whole(r.leech.pm) };",
+   "to": "return { id: w.id, of: r.leech.of, pm: Math.max(1, Math.round((whole(r.leech.pm) * imbueStepsAt(w.band, heroLevel)) / IMBUE.steps)) };"
+  }
+ ],
+ "assumptions": [
+  "each imbuement at its part's real band (imbueBandOf); it never runs out inside the hunt (untilMs null)",
+  "the fire sizes are the measured shares on the base cells (21 section 11.4), rounded to whole steps a firing blow (src/data/imbue-rules.js fire)",
+  "the Leech's permille x the contest curve at its band (21 D-21; the engine half is HANDOFFS, not built)"
+ ]
+}

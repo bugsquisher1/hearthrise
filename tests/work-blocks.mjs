@@ -14,7 +14,7 @@
 //   read from the replayed chain (pg_get_functiondef), inside the arm's rolled-back transaction; the §6 clock mutant plants into the
 //   text WB-MIDNIGHT-CHECK reads, in memory; no tracked file is patched)
 //
-// ci-step: db-replay | Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
+// ci-step: db-replay-17 | Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
 // ci-run: node tests/work-blocks.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate
 //

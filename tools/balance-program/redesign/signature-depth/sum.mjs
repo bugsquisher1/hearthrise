@@ -168,9 +168,7 @@ const ROWS3 = [
 /* THE SHAPES TRIED on a batch-3 row that missed (a temporary id on a scratch copy, b3v-*): [label, plain, worn] */
 const VARIANTS3 = [
   ['#1 Bannerman\'s Pavise, a Challenge: the monsters it taunts Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-pavise-weak'],
-  ['#1 Bannerman\'s Pavise, a Challenge: the monsters it taunts Chilled 4 s (Muster)', 'b3-muster-tank', 'b3v-muster-pavise-chill'],
   ['#42 Night Carter\'s Boots, a pull: its pack Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-boots-weak'],
-  ['#42 Night Carter\'s Boots, a pull: its pack Chilled 8 s (Muster)', 'b3-muster-tank', 'b3v-muster-boots-chill8'],
   ['#31 The Cellar Key, every fifth death: a shield of 3% of max health on each hero of the party (Muster)', 'b3-muster-mixed', 'b3v-muster-key-shield'],
   ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health (Muster; the new shell breaks too, so it never stops)', 'b3-muster-mixed', 'b3v-muster-thrower-shield'],
   ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health, once every 30 s a hero (Muster)', 'b3-muster-mixed', 'b3v-muster-thrower-shield30'],

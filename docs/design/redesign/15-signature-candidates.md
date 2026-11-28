@@ -330,7 +330,8 @@ Shapes tried (each against its row's plain four):
 | #31 every fifth death: a shield of 3% on each hero of the party | +0.5 (2.5) | +0.2 (2.1) | A 3% shell never replaces the healer's bigger Protective Ward |
 | #26 a shell you cast breaks: its hero gets a 6% shield | +103.3 (1.8) | **+115.7 (2.6)** | Runs away: the new shell is the wearer's too, so its break sets the rule off again, blow after blow |
 | #26 the same, once every 30 s a hero | +1.4 (2.6) | +1.1 (2.2) | Under. The strength was all in the chain |
-PAVISE_BOOTS_ROWS
+| #1 a Challenge: the monsters it taunts Weakened (-8%, 8 s) | -0.8 (1.5) | -1.0 (1.5) | Under |
+| #42 a pull: its pack Weakened (-8%, 8 s) | -2.3 (1.8) | -2.0 (1.9) | Under. Even the whole pack's blows cut for the pull's first 8 s buys nothing |
 
 **What the readings say.**
 
@@ -338,8 +339,8 @@ PAVISE_BOOTS_ROWS
 - **A shield-on-break rule needs a clock, and the clock is its size.** Unclocked, the Ring's shell renewed itself on every breaking blow (+115.7). At 30 s it read 1.1. "A reaction never sets off another" holds inside one drain, not across blows, so any rule that answers a broken shell with a shell carries a clock.
 - **A rare moment reads nothing at any number.** The Stoker's echo is about 0.5% of the mage's damage (its Fire hits seldom find a chilled monster), the Tooth's carried overkill about 1% of the bow's, the Signet's boon about 70 s an hour (Captain Hask dies about 7 times an hour on Muster; the piece is for his own fight, which the harness does not play).
 - **No moment, the identical hunt:** the Claw (the axes' Bleed never stands at five on one monster: Rend lays one a cast and a stack lasts 6 s) and the Mitts (the tank's mana never runs low, so it never drinks).
-- **The Challenge's room is crowded by its own Roads.** Shield Priest heals on a taunt, Taunting Guard shields on one, Hard Challenge and Braced Call cut what the tank takes. Armor Break on the taunted is damage on monsters already held (-1.3). PAVISE_LINE
-- **The pull-start Chill is spent walking in.** Chill slows swings, not steps, and the pack walks to the tank in its first seconds (-1.9). BOOTS_LINE
+- **The Challenge's room is crowded by its own Roads.** Shield Priest heals on a taunt, Taunting Guard shields on one, Hard Challenge and Braced Call cut what the tank takes. Armor Break on the taunted is damage on monsters already held (-1.3), and Weakened on them read -1.0. A Challenge Signature that reads has to pay at the tank's danger moment, the way Ferry Pennies does (a Mend under 45%, 12.7 in batch 2), and none of the Challenge's own moments is that.
+- **The pull's start is not the tank's danger.** A 3 s Chill is spent while the pack walks in (-1.9), and the whole pack Weakened for the pull's first 8 s read -2.0. The tank rows that read in batch 2 pay on a moment of the fight itself (its shell breaking, its Frost Slam landing, its Mend under 45%), never on the pull's start. The Boots stay as written, dark, for the designer. (A Chill of 8 s on the pull and on the taunted were queued and not played: the Weakened readings answered them.)
 - **Coin pieces have no bar yet.** The Candle's fight is identical and its four's store bill is 107 coin a hero-hour lower (2.3%), the Riverstone's 51 (1.1%). 15 sizes coin pieces with the market, which has no number yet.
 - **Repetition, audited.** Armor Break is new to Signatures (#1). Chill gains a pull-start source (#42). Emboldened carries #18 and #38, "a hero's next cast raised" #16 (Kindled) and #20 (Steeped), the shell's break #3 (Guarded) and #26 (a heal). Different seats, moves and moments, one status a key.
 - **The luck ceiling (V10)** is still owed. No batch-3 row turns on before the kit sampler reads it with its seat's Traits.
@@ -371,7 +372,7 @@ PAVISE_BOOTS_ROWS
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
 Challenge: monsters it taunts lose a quarter of their armor for 6 s
 Best for: Tank
-Note: The tank calls them off the back row and opens their guard for the party. Works with every Challenge branch (none of them touches armor). (Batch 3, 2026-11-27: a new rule on the same piece and home. The first-blow rule was dropped in batch 2 at 0.8 pace steps. On this set the played tank casts its Challenge about 270 times an hour, so the taunt is a moment it meets every pull. The Shield Priest vow already heals on a taunt and Taunting Guard shields on one, so this rule takes neither.)
+Note: The tank calls them off the back row and opens their guard for the party. Works with every Challenge branch (none of them touches armor). (Batch 3, 2026-11-27: a new rule on the same piece and home. The first-blow rule was dropped in batch 2 at 0.8 pace steps. On this set the played tank casts its Challenge about 270 times an hour, so the taunt is a moment it meets every pull. The Shield Priest vow already heals on a taunt and Taunting Guard shields on one, so this rule takes neither. -1.3 (2.7) pace steps on Muster, and Weakened on the taunted -1.0 (1.5). Dark.)
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
 Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
@@ -504,17 +505,17 @@ Note: Ice then fire. Makes a party want both. (Batch 3, 2026-11-27: played as a 
 **25. The Cold Candle** · Necklace · Drops from: Keeper Dunn
 Ice rune spells: every third one uses no rune
 Best for: Mage, Tank
-Note: Fewer runes to buy for a frost build. Sized with the market. (Batch 3, 2026-11-27: "a 30% chance" is every third, so no dice are drawn and the bill is the same on every seed. On the Security list, `13` N-14.)
+Note: Fewer runes to buy for a frost build. Sized with the market. (Batch 3, 2026-11-27: "a 30% chance" is every third, so no dice are drawn and the bill is the same on every seed. On the Security list, `13` N-14. On Muster the fight is identical and the four's store bill is 107 coin a hero-hour lower, 2.3%.)
 
 **26. Thrower's Ring** · Ring · Drops from: Carter's Rest, Slate Thrower
 When a shield you cast breaks, its wearer heals 6% of max health
 Best for: Tank, Healer, Mage
-Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8. (Batch 3, 2026-11-27: "30% of the shield" became 6% of max health, about the same on a Protective Ward. The engine keeps a shell's points left, not its size, and keeping the size would be a new stored field on every hero.)
+Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8. (Batch 3, 2026-11-27: "30% of the shield" became 6% of max health, about the same on a Protective Ward. The engine keeps a shell's points left, not its size, and keeping the size would be a new stored field on every hero. 1.1 (2.1) pace steps on Muster: a heal on a four with a healer is overheal. As a 6% shield it ran away, +115.7, since the new shell breaks too, and at once every 30 s a hero it read 1.1. Dark.)
 
 **27. Riverstone Earrings** · Earrings · Drops from: Hask's Ford, Banded Pikeman
 Water rune heals: the hero healed gets mana equal to 10% of the healing
 Best for: Healer
-Note: Keeps the Mage and the healer going on long hunts. A coin piece: fewer drinks, sized with the market.
+Note: Keeps the Mage and the healer going on long hunts. A coin piece: fewer drinks, sized with the market. (Batch 3, 2026-11-27: -3.0 (2.1) pace steps on Muster and 51 coin a hero-hour off the four's bill, 1.1%.)
 
 **28. Vault Leech Ring** · Ring · Drops from: Unmarked Catacombs, Vault Leech
 Poison rune spells: when a monster with their Sickness dies, the Sickness moves to the nearest monster
@@ -540,7 +541,7 @@ Note: Updraft is cut, so Brand (4 mana back on a kill, Sword only when live) is 
 **31. The Cellar Key** · Necklace · Drops from: Carter's Rest, The Landlord
 Every fifth monster that dies heals your party for 3% of max health
 Best for: Healer, any
-Note: Best on grounds with big pulls. (Batch 3, 2026-11-27: "on kill, a 20% chance" became every fifth death, anyone's blow. A healer kills little, and a count draws no dice.)
+Note: Best on grounds with big pulls. (Batch 3, 2026-11-27: "on kill, a 20% chance" became every fifth death, anyone's blow. A healer kills little, and a count draws no dice. 0.0 (1.8) pace steps on Muster, and as a 3% party shield 0.2 (2.1). Dark.)
 
 **32. Ledger Ring** · Ring · Drops from: Hask's Ford, Ledger Wight
 On crit: your next spell costs no mana (10s cooldown)
@@ -550,7 +551,7 @@ Note: Wants crit on the rest of the kit. Only weapon hits crit today. (Batch 4: 
 **33. Teamster's Mitts** · Gloves · Drops from: Ox Road, Dead Teamster
 On kill: restore 2% of your max mana
 Best for: Melee
-Note: Fewer drinks on big pulls. A coin piece, sized with the market. (Batch 3, 2026-11-27: 4 mana became a share of the pool, so it means the same at every Level.)
+Note: Fewer drinks on big pulls. A coin piece, sized with the market. (Batch 3, 2026-11-27: 4 mana became a share of the pool, so it means the same at every Level. The tank four on Muster played the identical hunt: a tank never drinks, so mana on a kill does nothing. Dark.)
 
 ## Auras
 
@@ -683,6 +684,8 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
 | Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
 | Blunted (a monster's next blow) | #4, #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| A hero's next cast raised | #16 (Kindled: Fireball, Frost Lance), #20 (Steeped: Greater Mend) | One key: the strongest stack on the hero, spent on the cast it names (batch 3) |
+| Armor Break (a monster's armor) | Power Strike's and Stagger's Roads options, a Roads vow, #1 | One a monster, the largest counts |
 | Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |

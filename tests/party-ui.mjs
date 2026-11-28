@@ -203,13 +203,14 @@ async function pureRules(M, base) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
 
-  /* PI-TOWN (live v0.2.11, Andy: "no Stop line"): every town pointer the server holds (a resumed gather, a bench,
-     training) is named on the Inventory's Stop line and in the Characters window; nothing runs unseen. */
+  /* PI-TOWN (live v0.2.11, Andy: "no Stop line"): every town pointer the server holds (a fuel run at the Great Hearth, the one artisan
+     pointer the bench cut keeps, 09-crafting 4.17; training) is named on the Inventory's Stop line and in the Characters window; nothing
+     runs unseen. */
   await t('PI-TOWN', async () => {
     const at = (st) => ({ read: (k) => (k === 'state' ? st : null) });
-    for (const [st, want] of [[{ active_kind: 'gather', active_id: 'shrimp_s' }, 'fishing at the Shrimp Spot'],
-      [{ active_kind: 'gather', active_id: 'copper_rock' }, 'mining the '], [{ active_kind: 'training', active_id: 'dummy' }, 'training'],
-      [{ active_kind: 'artisan', active_id: 'no_such_recipe' }, 'at a workbench']]) {
+    for (const [st, want] of [[{ active_kind: 'artisan', active_id: 'fuel_bones' }, 'fueling the Great Hearth with Bones'],
+      [{ active_kind: 'training', active_id: 'dummy' }, 'training'],
+      [{ active_kind: 'artisan', active_id: 'no_such_recipe' }, 'at the Great Hearth']]) {
       const line = M.BURY.buryLine(at(st));
       if (!line || !/^[A-Z]/.test(line) || !line.toLowerCase().includes(want.toLowerCase())) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
       const doing = M.PS.assignmentOf(at(st)).text;
@@ -508,15 +509,15 @@ async function pureRules(M, base) {
     const a = srv.calls[0][1];
     if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
     if (M.IW.refusalText(r) !== 'Nobody went in. Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
-    /* Live v0.2.11 "busy in town": an own character still gathering is settled through the engine first
+    /* Live v0.2.11 "busy in town": an own character still fueling the Hearth is settled through the engine first
        (set_activity idle collects before it switches), then the party starts. */
-    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'gather', active_id: 'shrimp_s' });
+    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'artisan', active_id: 'fuel_bones' });
     await c0.load();
     srv.calls.length = 0;
     srv.reply = { ok: true };
     await M.PI.startPartyHunt(acc, c0, 'millrace_sewer');
     const order = srv.calls.map((c) => (c[0] === 'accrue' ? 'accrue:' + JSON.stringify(c[1].activity || c[1].verb || '') : c[0])).filter((x) => x !== 'hr_load');
-    if (!/^accrue:.*idle/.test(order[0] || '') || !order.includes('hr_hunt_party_start')) return 'a gathering own character was not settled before the start: ' + JSON.stringify(order);
+    if (!/^accrue:.*idle/.test(order[0] || '') || !order.includes('hr_hunt_party_start')) return 'a fueling own character was not settled before the start: ' + JSON.stringify(order);
     srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'idle', active_id: null });
     await c0.load();
     /* An ok re-reads every own character the verb touched: the party's, and the one that joined. */
@@ -1541,11 +1542,11 @@ const PURE_MUTANTS = [
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
   ['a malformed seat is sent', 'src/session/character-session.js', "if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };", "if (this._closed) return { ok: false, error: 'bad_intent' };"],
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
-  ['a training pointer runs with no Stop line', 'src/session/party-sections.js', "gather: 'gathering', artisan: 'at a workbench', training: 'training' });", "gather: 'gathering', artisan: 'at a workbench' });"],
-  ['a resumed gather is not named', 'src/session/party-sections.js', "  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),\n", ''],
-  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? [{ key: 'lead', text: words.charAt(0)", "  return words && false ? [{ key: 'lead', text: words.charAt(0)"],
+  ['a training pointer runs with no Stop line', 'src/session/party-sections.js', "artisan: 'at the Great Hearth', training: 'training' });", "artisan: 'at the Great Hearth' });"],
+  ['a fuel run is not named', 'src/session/party-sections.js', "  .map((r) => ['artisan:' + r.id, 'fueling the Great Hearth with ' + r.name]));", "  .map((r) => ['artisan:' + r.id + ':x', 'fueling the Great Hearth with ' + r.name]));"],
+  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';", "  return '';"],
   ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
-  ['the start does not settle a gathering own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
+  ['the start does not settle a fueling own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],

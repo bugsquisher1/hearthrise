@@ -983,7 +983,7 @@ async function runTests(mods) {
     eq(CS.sanitizeResidueField('coach', { backAt: 5 }), {}, 'never without its return');
     eq(CS.sanitizeResidueField('coach', { back: 's-1', backAt: -1 }), { back: 's-1' }, 'and bounded');
   });
-  t('R3b the away line for a hero working in town: what the job did, from two server answers', () => {
+  t('R3b the away line for a hero fueling the Great Hearth: what the run burned, from two server answers (09-crafting 4.17: no bench, no node)', () => {
     const T0 = 1_800_000_000_000, H8 = 8 * 3600 * 1000, MIN = 60 * 1000;
     const iso = (ms) => new Date(ms).toISOString();
     const hero = (now, state, skills, inventory, stamp, hunt = null) => ({
@@ -992,46 +992,47 @@ async function runTests(mods) {
       serverNow: () => now,
       read: (k) => ({ name: 'Tess', state, skills, inventory, hunt })[k],
     });
-    /* `sl` is the skill level the server said with `sx`; the XP is what this build's curve calls Mining 30, so a level worked
-       out in the browser says "Mining 30 to 47" (lane/c-level-from-server) */
-    const rock = { s: 'town:gather:copper_rock', at: T0, sx: XP.skillXpForLevel('mining', 30), sl: 26, n: 10 };
-    const mining = (accrued) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(T0 - H8), accrued_to: iso(accrued) });
-    const paid = { mining: { xp: XP.skillXpForLevel('mining', 47), level: 47 } };
+    /* `sl` is the skill level the server said with `sx`; the XP is what this build's curve calls Inner Flame 30, so a level worked
+       out in the browser says "Inner Flame 30 to 47" (lane/c-level-from-server) */
+    const run = { s: 'town:artisan:fuel_bones', at: T0, sx: XP.skillXpForLevel('inner_flame', 30), sl: 26, n: 4313 };
+    const fueling = (accrued) => ({ active_kind: 'artisan', active_id: 'fuel_bones', active_since: iso(T0 - H8), accrued_to: iso(accrued) });
+    const paid = { inner_flame: { xp: XP.skillXpForLevel('inner_flame', 47), level: 47 } };
     /* a hero who has never hunted: no hunt section at all */
-    const back = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock));
-    /* STILL RUNNING SAYS HOW IT ENDS, AND ITS PRESS STOPS OR CHANGES IT (retention dive 2026-11-20: 6,001 Copper Ore for a 20-ore errand, "Still mining" and no way back) */
-    ok(back && back.text === 'Away 8 h 0 min · Tess mined the Copper Rock · +4,303 Copper Ore, Mining 26 to 47 · Still mining · Runs until stopped (Gathering and crafting)', 'the gathering line: ' + JSON.stringify(back && back.text));
-    ok(back && back.action === 'work' && back.button === 'Stop or change it' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens Gathering and crafting and is shown once: ' + JSON.stringify(back));
+    const back = AR.awayRecapOf(hero(T0 + H8, fueling(T0 + H8), paid, { bones: 10 }, run));
+    ok(back && back.text === 'Away 8 h 0 min · Tess fed the Great Hearth with Bones · 4,303 burned, Inner Flame 26 to 47 · Runs until out of materials', 'the fuel line: ' + JSON.stringify(back && back.text));
+    ok(back && back.action === 'work' && back.button === 'Stop or change it' && back.session === null && back.id === 'away:town:artisan:fuel_bones:' + T0, 'it opens the Work window and is shown once: ' + JSON.stringify(back));
     /* the first read back is from before the sign-in's settle: the line waits for the numbers */
-    const unpaid = hero(T0 + H8, mining(T0), { mining: { xp: rock.sx, level: 26 } }, { copper_ore: 10 }, rock);
+    const unpaid = hero(T0 + H8, fueling(T0), { inner_flame: { xp: run.sx, level: 26 } }, { bones: 4313 }, run);
     ok(AR.awayRecapOf(unpaid) === null && AR.awaySettled(unpaid) === false, 'nothing is judged before the settle that pays it');
     ok(AR.stampAway(unpaid) === false, 'and the stamp is not renewed over the numbers it must compare with');
-    ok(AR.awaySettled(hero(T0 + 5 * MIN, mining(T0), {}, {}, rock)) === true, 'a look under ten minutes is no absence: nothing is waited for');
-    const ended = hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock, { session_id: 's-old', hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left', ended_at: iso(T0 - MIN) }, hero: {}, pose: { units: [] } });
-    ok(/mined the Copper Rock/.test((AR.awayRecapOf(ended) || {}).text || '') && !/hunt/i.test(AR.awayRecapOf(ended).text), 'the job, never the hunt that ended before it: ' + JSON.stringify(AR.awayRecapOf(ended)));
-    /* a bench that ran out: what it made, the level, when and why it stopped */
-    const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), sl: 10, n: 0 };
+    ok(AR.awaySettled(hero(T0 + 5 * MIN, fueling(T0), {}, {}, run)) === true, 'a look under ten minutes is no absence: nothing is waited for');
+    const ended = hero(T0 + H8, fueling(T0 + H8), paid, { bones: 10 }, run, { session_id: 's-old', hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left', ended_at: iso(T0 - MIN) }, hero: {}, pose: { units: [] } });
+    ok(/fed the Great Hearth/.test((AR.awayRecapOf(ended) || {}).text || '') && !/hunt/i.test(AR.awayRecapOf(ended).text), 'the run, never the hunt that ended before it: ' + JSON.stringify(AR.awayRecapOf(ended)));
+    /* a run that burned out: what it burned, the level, when and why it stopped */
     const idle = { active_kind: 'idle', active_id: null, accrued_to: iso(T0 + 50 * MIN) };
-    const benched = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { crafting: { xp: XP.skillXpForLevel('crafting', 29), level: 29 } }, { normal_plank: 392 }, saw));
-    ok(benched && /^Away 50 min · Tess made Normal Plank · \+392 Normal Plank, Crafting 10 to 29 · Stopped about \d+ min in, out of Normal Log$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
+    const out = { s: 'town:artisan:fuel_bones', at: T0, sx: XP.skillXpForLevel('inner_flame', 10), sl: 10, n: 392 };
+    const burned = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { inner_flame: { xp: XP.skillXpForLevel('inner_flame', 29), level: 29 } }, {}, out));
+    ok(burned && /^Away 50 min · Tess fed the Great Hearth with Bones · 392 burned, Inner Flame 10 to 29 · Stopped( about \d+ min in)?, out of Bones$/.test(burned.text), 'the burned-out line: ' + JSON.stringify(burned && burned.text));
     /* nothing came of it: no line */
-    ok(AR.awayRecapOf(hero(T0 + H8, idle, { crafting: { xp: saw.sx, level: 10 } }, {}, saw)) === null, 'a job that made nothing raises no line');
+    ok(AR.awayRecapOf(hero(T0 + H8, idle, { inner_flame: { xp: out.sx, level: 10 } }, { bones: 392 }, out)) === null, 'a run that burned nothing raises no line');
     /* the stamp: at the server's watermark, with the server's skill and bag */
-    const going = hero(T0 + 11 * MIN, mining(T0 + 11 * MIN), paid, { copper_ore: 50 }, rock);
-    ok(AR.stampAway(going) === true && going.writes[0][1].s === rock.s && going.writes[0][1].at === T0 + 11 * MIN && going.writes[0][1].sx === paid.mining.xp && going.writes[0][1].sl === 47 && going.writes[0][1].n === 50, 'a job is stamped as of its watermark, with the server\'s skill level: ' + JSON.stringify(going.writes));
+    const going = hero(T0 + 11 * MIN, fueling(T0 + 11 * MIN), paid, { bones: 50 }, run);
+    ok(AR.stampAway(going) === true && going.writes[0][1].s === run.s && going.writes[0][1].at === T0 + 11 * MIN && going.writes[0][1].sx === paid.inner_flame.xp && going.writes[0][1].sl === 47 && going.writes[0][1].n === 50, 'a run is stamped as of its watermark, with the server\'s skill level: ' + JSON.stringify(going.writes));
     /* a stamp from a build that kept no level says the XP gained, never a level worked out from the stamped XP */
-    const oldRock = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, { s: rock.s, at: T0, sx: rock.sx, n: 10 }));
-    ok(oldRock && !/Mining \d+ to \d+/.test(oldRock.text) && /Mining XP/.test(oldRock.text), 'a job stamp with no level names none: ' + JSON.stringify(oldRock && oldRock.text));
-    const young = hero(T0 + 9 * MIN, mining(T0 + 9 * MIN), paid, { copper_ore: 50 }, rock);
+    const oldRun = AR.awayRecapOf(hero(T0 + H8, fueling(T0 + H8), paid, { bones: 10 }, { s: run.s, at: T0, sx: run.sx, n: 4313 }));
+    ok(oldRun && !/Inner Flame \d+ to \d+/.test(oldRun.text) && /Inner Flame XP/.test(oldRun.text), 'a run stamp with no level names none: ' + JSON.stringify(oldRun && oldRun.text));
+    const young = hero(T0 + 9 * MIN, fueling(T0 + 9 * MIN), paid, { bones: 50 }, run);
     ok(AR.stampAway(young) === false, 'and renewed no oftener than a hunt');
-    const stopped = hero(T0 + 3 * MIN, idle, paid, { copper_ore: 50 }, rock);
-    ok(AR.stampAway(stopped) === true && stopped.writes[0][1].s === 'idle', 'a job stopped in view leaves nothing for the next return: ' + JSON.stringify(stopped.writes));
-    /* the card: "Still mining" goes when the record says otherwise; a stopped job's line is history */
-    ok(AR.awayLineNow(hero(T0 + H8, mining(T0 + H8), paid, {}, rock), back) === back.text, 'a job still running keeps its card');
-    ok(AR.awayLineNow(hero(T0 + H8, idle, paid, {}, rock), back) === null, 'stopped since: the card goes');
-    ok(typeof AR.awayLineNow(hero(T0 + 50 * MIN, idle, {}, {}, saw), benched) === 'string', 'a card about a job that stopped while away stays');
-    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:copper_rock', at: 5, sx: 9, sl: 3, n: 1, extra: 1 }), { s: 'town:gather:copper_rock', at: 5, sx: 9, sl: 3, n: 1 }, 'a job\'s stamp survives the residue');
-    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:gather:x', at: 5, sx: -1, n: 1.5 }), { s: 'town:gather:x', at: 5 }, 'and is bounded');
+    const stopped = hero(T0 + 3 * MIN, idle, paid, { bones: 50 }, run);
+    ok(AR.stampAway(stopped) === true && stopped.writes[0][1].s === 'idle', 'a run stopped in view leaves nothing for the next return: ' + JSON.stringify(stopped.writes));
+    /* the card: a run still burning goes when the record says otherwise; a stopped run's line is history */
+    ok(AR.awayLineNow(hero(T0 + H8, fueling(T0 + H8), paid, {}, run), back) === back.text, 'a run still burning keeps its card');
+    ok(AR.awayLineNow(hero(T0 + H8, idle, paid, {}, run), back) === null, 'stopped since: the card goes');
+    ok(typeof AR.awayLineNow(hero(T0 + 50 * MIN, idle, {}, {}, out), burned) === 'string', 'a card about a run that stopped while away stays');
+    /* a gathering stamp from before the cut is no town work any more: no line */
+    ok(AR.awayRecapOf(hero(T0 + H8, idle, paid, { copper_ore: 4313 }, { s: 'town:gather:copper_rock', at: T0, sx: 1, sl: 1, n: 10 })) === null, 'a gathering stamp raised a line after the bench cut');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:artisan:fuel_bones', at: 5, sx: 9, sl: 3, n: 1, extra: 1 }), { s: 'town:artisan:fuel_bones', at: 5, sx: 9, sl: 3, n: 1 }, 'a run\'s stamp survives the residue');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'town:artisan:x', at: 5, sx: -1, n: 1.5 }), { s: 'town:artisan:x', at: 5 }, 'and is bounded');
   });
 
   /* THE HOOK, COUNTED (designer 2026-11-10: the funnel's three missing steps), sent from the alert centre, which sees the page go and the line come up */
@@ -1117,7 +1118,7 @@ async function runTests(mods) {
   const iso = (ms) => new Date(ms).toISOString();
   const END = T0 + 3 * H + 14 * MIN;                                   // the hunt ran 3 h 14 min on the server
   const idleSince = (ms) => ({ active_kind: 'idle', active_id: null, active_since: iso(ms) });
-  const mining = (ms) => ({ active_kind: 'gather', active_id: 'copper_rock', active_since: iso(ms) });
+  const mining = (ms) => ({ active_kind: 'artisan', active_id: 'fuel_bones', active_since: iso(ms) });   // a fuel run (09 4.17: no gathering node is town work)
   const wrenna = (now, state, reason = 'stamina', o = {}) => Object.assign({
     slot: 0, writes: [], record: { residue: { awaySeen: { s: 's-1', at: T0, xp: XP.charXpForLevel(10), lv: 10, gold: 0, kills: 0 } } },
     setResidue(f, v) { this.writes.push([f, v]); return true; },
@@ -1140,7 +1141,7 @@ async function runTests(mods) {
     ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('Waited in town: 5 h 56 min'), 'the wait is the record\'s now');
     /* the server put the hero back on its gathering job at the walk home's end (active_since = ended_at + travel): it says so, no wait, no advice */
     const went = AR.awayRecapOf(wrenna(NOW, mining(END)));
-    ok(went && went.text.includes('Out of stamina · Then: back to mining the Copper Rock') && !/Waited|Start mining/.test(went.text),
+    ok(went && went.text.includes('Out of stamina · Then: back to fueling the Great Hearth with Bones') && !/Waited|Start mining/.test(went.text),
       'a resumed job: ' + JSON.stringify(went && went.text));
     /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
     const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
@@ -1162,7 +1163,7 @@ async function runTests(mods) {
     eq(atEnd, STAMINA_NEXT, 'watched as it ends: the one next thing, no wait yet');
     const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
     eq(leftOpen, 'Waited in town: 2 h 0 min · ' + STAMINA_NEXT, 'a page left open on the card');
-    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then: back to mining the Copper Rock', 'a resumed job');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then: back to fueling the Great Hearth with Bones', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
   });
@@ -1192,7 +1193,7 @@ async function runTests(mods) {
     const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
     eq(yard('hours'), 'Tip: start training again', 'the 12-hour cap');
     eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
-    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then: back to mining the Copper Rock', 'a resumed job is still said');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then: back to fueling the Great Hearth with Bones', 'a resumed job is still said');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Tip: longer hunt (up to stamina left)', 'a hunt\'s own limit keeps its line');
   });
   /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
@@ -1222,14 +1223,14 @@ async function runTests(mods) {
     const TR = { skills: ['melee', 'ranged'], max_hours: 12, quotes: [{ skill: 'melee', level: 12, fee_h: 122 }, { skill: 'ranged', level: 3, fee_h: 68 }],
       rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } };
     const hero = (after, training = TR) => ({ read: (k) => ({ hunt_after: after, training })[k] });
-    const ROCK = { kind: 'gather', id: 'copper_rock' };
+    const ROCK = { kind: 'artisan', id: 'fuel_bones' };
     /* a hero with a job, on the default: the job is offered and picked, beside waiting and each yard skill */
     const a = HA.afterChoices(hero({ choice: 'job', skill: null, job: ROCK }));
     eq(JSON.stringify(a.options.map((o) => o.value)), '["job","wait","train:melee","train:ranged"]', 'the choices, in the data\'s order');
-    eq(a.options[0].label, 'Go back to mining the Copper Rock', 'the job, in the server\'s words');
+    eq(a.options[0].label, 'Go back to fueling the Great Hearth with Bones', 'the job, in the server\'s words');
     eq(a.picked, 'job', 'the server\'s choice is the picked one');
     /* a bench says what it still has to make: the server's count */
-    const b = HA.afterChoices(hero({ choice: 'job', skill: null, job: { kind: 'artisan', id: 'cook_shrimp', left: 7 } }));
+    const b = HA.afterChoices(hero({ choice: 'job', skill: null, job: { kind: 'artisan', id: 'fuel_bones', left: 7 } }));
     eq(b.note, 'Makes the last 7', 'a bench\'s count');
     /* no job to go back to: the job is not offered, and the default reads as what will happen */
     const c = HA.afterChoices(hero({ choice: 'job', skill: null, job: null }));
@@ -1248,8 +1249,8 @@ async function runTests(mods) {
       '[{"choice":"train","skill":"melee"},{"choice":"wait","skill":null},null,null,null]', 'afterPick');
     /* the running hunt's own plan */
     const run = (choice, skill, job) => HA.thenWords(hero({ choice: 'wait', skill: null, job, now: { session: 's-9', choice, skill } }));
-    eq(run('job', null, ROCK), 'Then: back to mining the Copper Rock', 'then: the job');
-    ok(/\(7 left\)$/.test(run('job', null, { kind: 'artisan', id: 'cook_shrimp', left: 7 })), 'then: a bench and its count');
+    eq(run('job', null, ROCK), 'Then: back to fueling the Great Hearth with Bones', 'then: the job');
+    ok(/\(7 left\)$/.test(run('job', null, { kind: 'artisan', id: 'fuel_bones', left: 7 })), 'then: a bench and its count');
     eq(run('job', null, null), 'Then: wait in town', 'then: no job is waiting');
     eq(run('train', 'melee', ROCK), 'Then: train Melee at the yard', 'then: the yard');
     eq(HA.thenWords(hero({ choice: 'job', skill: null, job: ROCK })), '', 'no hunt running: no plan line');
@@ -1268,7 +1269,7 @@ async function runTests(mods) {
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: null }), 'Wrenna waited in town · Yard: 122 gp/h', 'a purse the server did not send is not said');
     eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town · Yard requires Level 10', 'under the Level');
     eq(came({ state: 'waited', why: 'chose_wait' }), 'Wrenna waited in town', 'chose to wait');
-    eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');
+    eq(came({ state: 'resumed', kind: 'artisan', id: 'fuel_bones' }), '', 'back on the job: the pointer\'s own line says it');
     eq(came({ state: 'started', skill: 'melee' }, 's-0'), '', 'another hunt\'s summary says nothing of this one');
   });
 
@@ -1401,46 +1402,35 @@ async function runTests(mods) {
       } finally { Date.now = real; }
     });
 
-    t('R7 a bench run watched to its end says what it did, once; a run never watched says nothing (audit 2026-11-18 A17)', () => {
+    t('R7 a fuel run watched to its end says what it burned, once; a run stopped or never watched says nothing (audit 2026-11-18 A17)', () => {
       const SINCE = iso(T0);
-      const env = (e, active) => ({ name: 'Ashwick',
+      const env = (bones, active) => ({ name: 'Ashwick', inventory: { bones },
         state: active ? { active_kind: 'artisan', active_id: 'fuel_bones', active_since: SINCE, accrued_to: iso(T0 + MIN) } : { active_kind: 'idle', active_id: null },
-        skills: { inner_flame: { xp: 900, level: 3 } },
-        bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: Object.assign({ r: 'fuel_bones', s: SINCE, c: 14, g: 0, at: iso(T0 + 6 * MIN) }, e ? { e } : {}) } });
-      const cs = heroOf(env(null, true), null, T0 + 6 * MIN);
+        skills: { inner_flame: { xp: 900, level: 3 } } });
+      const cs = heroOf(env(14, true), null, T0 + 6 * MIN);
       const centre = centreOf(cs);
       ok(!centre.list().some((a) => a.kind === 'work'), 'a run still burning raised a line');
-      /* the bones ran out: the server's stop and its count */
-      cs.env = env('supplies', false);
+      /* a settle part way: 6 burned, the run goes on */
+      cs.env = env(8, true);
+      for (const fn of cs.subs) fn(cs, 'changed');
+      ok(!centre.list().some((a) => a.kind === 'work'), 'a settle part way raised a line');
+      /* the bones ran out: the server's pointer is idle and its bag holds none, so the run counts from the first read it saw */
+      cs.env = env(0, false);
       for (const fn of cs.subs) fn(cs, 'changed');
       const line = centre.list().find((a) => a.kind === 'work');
-      ok(line && line.text === 'Ashwick: 14 Bones burned in the Great Hearth · Inner Flame 3', 'the Fuel all watched to its end: ' + JSON.stringify(line && line.text));
+      ok(line && line.text === 'Ashwick: 14 Bones burned in the Great Hearth · Inner Flame 3', 'the Burn all watched to its end: ' + JSON.stringify(line && line.text));
       for (const fn of cs.subs) fn(cs, 'changed');
       ok(centre.list().filter((a) => a.kind === 'work').length === 1, 'told once: ' + JSON.stringify(centre.list().map((a) => a.text)));
       centre.destroy();
-      /* the player's own Stop is no news, and a page that never saw the run (a load after it ended) leaves it to the away card */
-      const stopped = heroOf(env(null, true), null, T0 + 6 * MIN);
+      /* the player's own Stop leaves fuel in the bag: no news (its Stop said it) */
+      const stopped = heroOf(env(14, true), null, T0 + 6 * MIN);
       const sc = centreOf(stopped);
-      stopped.env = env('idle', false);
+      stopped.env = env(6, false);
       for (const fn of stopped.subs) fn(stopped, 'changed');
       ok(!sc.list().some((a) => a.kind === 'work'), 'a run the player stopped raised a line');
       sc.destroy();
-      /* a short run paid whole by its first settle: its tally was never read running, only the activity pointer was (played on the local
-         world: Fuel all of 14 Bones, the first envelope back already said 14 burned and out of Bones) */
-      const quick = heroOf(Object.assign(env(null, true), { bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0 } }), null, T0 + MIN);
-      const qc = centreOf(quick);
-      quick.env = env('supplies', false);
-      for (const fn of quick.subs) fn(quick, 'changed');
-      ok(qc.list().some((a) => a.kind === 'work'), 'a run paid whole by its first settle raised no line: ' + JSON.stringify(qc.list().map((a) => a.text)));
-      qc.destroy();
-      /* the run's tally counts crafts: a bar is a craft each, but a dish can burn, so a Cooking run says no number the bag could disagree with */
-      const bench = (id, skill, e) => ({ name: 'Ashwick', state: e ? { active_kind: 'idle', active_id: null } : { active_kind: 'artisan', active_id: id, active_since: SINCE },
-        skills: { [skill]: { xp: 900, level: 7 } }, bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: Object.assign({ r: id, s: SINCE, c: 20, g: 0, at: iso(T0 + 6 * MIN) }, e ? { e } : {}) } });
-      const said = (id, skill) => { const h = heroOf(bench(id, skill, null), null, T0 + MIN), c = centreOf(h); h.env = bench(id, skill, 'supplies');
-        for (const fn of h.subs) fn(h, 'changed'); const l = c.list().find((a) => a.kind === 'work'); c.destroy(); return l ? l.text : null; };
-      eq([said('smelt_bronze', 'smithing'), said('cook_shrimp', 'cooking')],
-        ['Ashwick: made 20 Bronze Bar · Smithing 7', 'Ashwick: Cooked Shrimp done · Cooking 7'], 'a bar run says its count, a dish run never does');
-      const late = centreOf(heroOf(env('supplies', false), null, T0 + 6 * MIN));
+      /* a page that never saw the run (a load after it ended) leaves it to the away card */
+      const late = centreOf(heroOf(env(0, false), null, T0 + 6 * MIN));
       ok(!late.list().some((a) => a.kind === 'work'), 'a run never watched raised a line');
       late.destroy();
     });
@@ -1823,10 +1813,9 @@ const MUTANTS = [
   { test: 'R3j', file: 'src/shell/alerts.js', from: 'stampNow(cs, leaving, (id) => wasSeen(cs, id))', to: 'stampNow(cs, leaving)' },
   /* R7, R8: town news said once (audit 2026-11-18 A17 A24; src/shell/town-news.js) */
   { test: 'R7', file: 'src/shell/alerts.js', from: '    const done = workDoneOf(cs, benchSeen.get(cs.slot));', to: '    const done = null;' },
-  { test: 'R7', file: 'src/shell/town-news.js', from: ' || runKey(run) !== sawKey || ', to: ' || ' },
-  { test: 'R7', file: 'src/shell/town-news.js', from: "const FINISHED = new Set(['supplies', 'count']);", to: "const FINISHED = new Set(['supplies', 'count', 'idle']);" },
-  { test: 'R7', file: 'src/shell/town-news.js', from: "  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string'", to: "  return st && benchRunOf(cs) && benchRunOf(cs).end === null && st.active_kind === 'artisan' && typeof st.active_id === 'string'" },
-  { test: 'R7', file: 'src/shell/town-news.js', from: "    const exact = w.skill !== 'cooking' && !w.row.roll;", to: '    const exact = true;' },
+  { test: 'R7', file: 'src/shell/town-news.js', from: '  if (!row || (now && now.key === saw.key)) return null;', to: '  if (!row) return null;' },
+  { test: 'R7', file: 'src/shell/town-news.js', from: '  if (left >= row.need || !(n > 0)) return null;', to: '  if (!(n > 0)) return null;' },
+  { test: 'R7', file: 'src/shell/alerts.js', from: '    if (running && (!was || was.key !== running.key)) benchSeen.set(cs.slot, running);', to: '    if (running) benchSeen.set(cs.slot, running);' },
   { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
   /* R3k-R3m: the post-patch audit's return findings (2026-11-18 v0.2.139 B4 B5 B3) */
   { test: 'R3k', file: 'src/shell/away-recap.js', from: '  const a = over ? pastHuntOf(cs, was.s) : analyzerOf(cs);', to: '  const a = over ? null : analyzerOf(cs);' },
@@ -1868,8 +1857,8 @@ const MUTANTS = [
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'return paid > was.at && now - paid < SETTLED_WITHIN_MS;', to: 'return true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "const still = !!goes && keyOf(goes) === was.s;", to: 'const still = true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "if (!parts.length) return null;", to: '' },
-  { test: 'R3b', file: 'src/shell/away-work.js', from: "if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemNameFor(made, gained));", to: '' },
-  { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(w), at: Math.floor(at),", to: "return { s: keyOf(w), at: Math.floor(serverNowOf(cs)) + 1,"},
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "  if (burned > 0) parts.push(whole(burned) + ' burned');", to: '' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(row), at: Math.floor(at),", to: "return { s: keyOf(row), at: Math.floor(serverNowOf(cs)) + 1,"},
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'if (isWorkStamp(was) && (!h || h.ended)) {', to: 'if (false) {' },
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },
   { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'sp', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'lv', 'gold', 'sp', 'kills'])" },

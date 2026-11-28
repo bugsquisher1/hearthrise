@@ -147,8 +147,6 @@ export const CLIENT_RPCS = Object.freeze({
   hr_trade_job_end: 'MONEY: collect a finished kit-trade job (not_due until the server\'s clock says so) or stop one now; the goods from the server\'s seed (trade-intents.js endTradeJob)',
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
-  hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
-  hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
   /* THE TRAIT PIECES (1072-piece-verbs.sql; src/session/piece-intents.js): a piece is a row the server owns, named by its id */
   hr_piece_wear: 'one of the account\'s Trait pieces onto this hero in town; the server re-proves the piece and the slot (piece-intents.js wearPiece)',
@@ -166,7 +164,6 @@ export const CLIENT_RPCS = Object.freeze({
   /* The Unmarked Catacombs (2027-05-08-catacombs.sql, behind the `unmarked_catacombs` switch): a slot, a wing id and a vault door the server
      lists for that wing, with a fresh key; the same door rules as a climb. */
   hr_catacomb_start: 'start a descent on a wing the server lists, after a vault door it lists for this hero in that wing (a party: its leader, every seat); refused bad_wing / bad_landing otherwise (tower-intents.js startDescent)',
-  hr_recipe_learn: 'learn one pattern for this hero: the pattern\'s item id, the slot and a fresh key; the server checks its own catalogue, refuses one this hero knows before it takes anything, takes one from this hero\'s bag and journals it (recipe-intents.js learnRecipe; 2026-09-14-recipe-learn.sql)',
   hr_outfit_bundle_use: 'use one outfit bundle (the Sweep\'s Coat): the slot and the bundle\'s item id, with a fresh key; the server reads the outfit from its catalogue, takes the bundle from the bag or Storage and owns it for this hero (outfit-intents.js useOutfitBundle; 2027-04-30-sweeps-coat.sql)',
   hr_chest_open: 'use keys at the Hearth Chest, stoked with the hero\'s SAVED default (p_stokes null); the server prices the stokes and rolls on its own dice (tower-intents.js openChest)',
   hr_chest_stoke_default: 'the hero\'s own default stoke count for one kind of key; moves no value (tower-intents.js saveStokes)',

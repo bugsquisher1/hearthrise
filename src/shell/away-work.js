@@ -19,7 +19,7 @@
 import { SKILLS_DEF } from '../data/skills.js';
 import { whole } from '../render/format.js';
 import { t } from '../render/player-text.js';
-import { itemName, itemNameFor } from './widgets/bits.js';
+import { itemName } from './widgets/bits.js';
 import { heldOf, nameOf, skillsOf } from '../session/item-sections.js';
 import { serverNowOf } from '../session/hunt-sections.js';
 import { fuelRowOf, fuelRunOf, fuelEachMs } from '../session/hearth-sections.js';
@@ -69,7 +69,7 @@ export function awayWorkLineOf(cs, was, awayWords) {
   if (!row || !Number.isFinite(now)) return null;
   const parts = [];
   const burned = Number.isSafeInteger(was.n) ? was.n - heldIn(cs, row.item) : 0;
-  if (burned > 0) parts.push(whole(burned) + ' ' + itemNameFor(row.item, burned));
+  if (burned > 0) parts.push(whole(burned) + ' burned');
   const sk = (skillsOf(cs) || {})[FLAME];
   const skill = (SKILLS_DEF[FLAME] && SKILLS_DEF[FLAME].name) || FLAME;
   const xp = sk && Number.isSafeInteger(was.sx) ? sk.xp - was.sx : 0;
@@ -88,7 +88,7 @@ export function awayWorkLineOf(cs, was, awayWords) {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     /* a run still burning: its press is the window that stops it (windows/away.js OPENS.work) */
     action: still ? 'work' : 'show', button: still ? t('away.work_change') : 'See your hero',
-    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess fed the Great Hearth with Bones · 4,303 Bones") */
+    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess fed the Great Hearth with Bones · 4,303 burned") */
     facts: { name, gone: now - was.at, body: t('away.card_work', { who, facts }) },
     text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' · ' + facts,
   };

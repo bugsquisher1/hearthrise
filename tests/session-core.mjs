@@ -128,7 +128,7 @@
 //   SKL-1  a skill's bar (fill, pending segment, 'N XP to L+1', 'Mastered') draws the envelope's `skill_levels` cell
 //          (hr_skill_block), fed one that DISAGREES with this build's curve for the same XP (lane/c-skills-from-server)
 //   SKL-2  no section (or a broken cell) draws no bar, never this build's curve; a pushed frame's marks replace the load's
-//   SKL-3  the town-work burn check reads the server's Cooking level, never one worked out of the XP
+//   (SKL-3, the town ticker's burn check, retired with the bench: 09-crafting 4.17, lane/bench-cut-client)
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -154,7 +154,7 @@ async function load(base) {
     SI: await import(u('src/app/sign-in.js')),
     CFG: await import(u('src/session/config.js')),
     TP: await import(u('src/session/town-poll.js')),
-    TW: await import(u('src/shell/town-work.js')),
+    HSX: await import(u('src/session/hearth-sections.js')),
     PS: await import(u('src/session/party-sections.js')),
     HB: await import(u('src/world/hearth-burn.js')),
     I: await import(u('src/session/item-sections.js')),
@@ -169,11 +169,8 @@ async function load(base) {
     HS: await import(u('src/session/hunt-sections.js')),
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
     LEVEL_REQ: (await import(u('src/data/gear-tiers.js'))).LEVEL_REQ,
-    /* a skill's bar and the town-work burn check (SKL-1 .. SKL-3) */
+    /* a skill's bar (SKL-1, SKL-2) */
     SW: await import(u('src/shell/windows/skills.js')),
-    TT: await import(u('src/shell/town-ticker.js')),
-    RCP: (await import(u('src/data/recipes.js'))).ARTISAN_RECIPES,
-    ARTISAN: await import(u('src/core/artisan.js')),
     /* the priced presses outside the session (QUOTE-1) */
     TI: await import(u('src/session/training-intents.js')),
     HI: await import(u('src/session/home-intents.js')),
@@ -244,7 +241,6 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/faction-intents.js': { rule: 1 },
   'src/session/hero-color-intents.js': { read: 1, rule: 1 },
   'src/session/outfit-intents.js': { rule: 1 },
-  'src/session/recipe-intents.js': { rule: 1 },
   'src/session/party-intents.js': { rule: 8 },
   'src/session/preset-intents.js': { rule: 1 },
   'src/session/title-intents.js': { rule: 1 },
@@ -257,7 +253,6 @@ const ASKVIA_SITES = Object.freeze({
   /* lane/k1-job-slice (1073-k1-job-slice.sql): a kit-trade job's start and its end, one askVia each on the one rule */
   'src/session/trade-intents.js': { rule: 2 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
-  'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
   'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
   'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
   'src/session/preset-read.js': { read: 1 },
@@ -311,7 +306,6 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/faction-intents.js', 'joinFaction', 'hr_faction_join', ['wardens']],
   ['src/session/hero-color-intents.js', 'saveHeroColors', 'hr_hero_colors_set', [{ head: 1, body: 2, legs: 1, feet: 2 }, 2400]],
   ['src/session/outfit-intents.js', 'useOutfitBundle', 'hr_outfit_bundle_use', ['sweeps_coat_bundle']],
-  ['src/session/recipe-intents.js', 'learnRecipe', 'hr_recipe_learn', ['kingsgrate_rivets']],
   ['src/session/preset-intents.js', 'renameSetup', 'hr_hunt_preset_rename', [0, 'Mill run']],
   ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
   ['src/session/piece-intents.js', 'sellPiece', 'hr_piece_sell', [{ id: '11111111-1111-4111-8111-111111111111', sell: 26184 }]],
@@ -340,7 +334,7 @@ const ASKVIA_RULE_CALLS = Object.freeze([
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, AC, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, HS, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
+  const { E, R, C, A, AC, S, AU, NB, AR, SI, CFG, TP, HSX, PS, HB, I, FI, FS, XP, CS, GG, AWAY, HS, ITEMS, LEVEL_REQ, SW, TI, HI } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1164,7 +1158,7 @@ async function rules(M) {
      once per townPollMs (just over the engine's 15 s town floor), and the answer replaces the bag. */
   await t('TOWN-1', async () => {
     let clock = 1000;
-    const work = (v, inv) => env(v, { state: { gold: 1, active_kind: 'artisan', active_id: 'cook_shrimp' }, inventory: inv });
+    const work = (v, inv) => env(v, { state: { gold: 1, active_kind: 'artisan', active_id: 'fuel_bones' }, inventory: inv });
     const calls = [];
     let release = null;
     const srv = {
@@ -1192,8 +1186,10 @@ async function rules(M) {
     if (TP.watchTown(cs)) return 'it asked again at once after an answer';
     const run = (k, id, hunt) => TP.townWorkRunning({ active_kind: k, active_id: id }, hunt || null);
     if (run('idle', null) || run('combat', 'wolf')) return 'an idle hero or a fight is re-read as town work';
-    if (run('gather', 'normal_tree', { session_id: 'h1', ended: false })) return 'a hunter is re-read as town work (the hunt has its own re-read)';
-    if (!run('gather', 'normal_tree', { session_id: 'h1', ended: true }) || !run('artisan', 'cook_shrimp')) return 'a node or a bench after a hunt is not re-read';
+    if (run('artisan', 'fuel_bones', { session_id: 'h1', ended: false })) return 'a hunter is re-read as town work (the hunt has its own re-read)';
+    if (!run('artisan', 'fuel_bones', { session_id: 'h1', ended: true }) || !run('artisan', 'fuel_bones')) return 'a fuel run after a hunt is not re-read';
+    /* the bench cut (09-crafting 4.17): no gathering node is town work, so a stale gather pointer is never polled */
+    if (run('gather', 'normal_tree')) return 'a gathering pointer is re-read as town work after the bench cut';
     return true;
   });
   /* TOWN-2 (report #68, live v0.2.63: "Shows me still refueling the hearth when I don't have any items"): the engine
@@ -1205,9 +1201,9 @@ async function rules(M) {
     let clock = 1000;
     const T0 = Date.parse('2026-10-29T02:10:00.000Z');
     const iso = (ms) => new Date(ms).toISOString();
-    const w = TW.workRow('artisan', 'fuel_bones');
-    if (!w) return 'fuel_bones is not a bench row';
-    const step = TW.actionMs({ read: () => ({}) }, w);
+    const w = HSX.fuelRowOf('fuel_bones');
+    if (!w) return 'fuel_bones is not a Hearth fuel row';
+    const step = HSX.fuelEachMs(w);
     const bones = Math.ceil((CFG.SESSION_CONFIG.townPollMs + 5000) / step);
     const fueling = env(1, { now: iso(T0), inventory: { bones },
       state: { gold: 1, active_kind: 'artisan', active_id: 'fuel_bones', accrued_to: iso(T0), active_since: iso(T0) } });
@@ -1223,18 +1219,18 @@ async function rules(M) {
     };
     const cs = new C.CharacterSession({ slot: 2, uid: UID, server: srv, now: () => clock, ...timers });
     await cs.load();
-    const spentAt = TW.benchSpentAtMs(cs);
+    const spentAt = HSX.fuelSpentAtMs(cs);
     if (!Number.isFinite(spentAt) || spentAt < T0 + bones * step) return 'the spent instant is not past the server\'s supply: ' + spentAt;
     if (!/fueling/i.test(PS.assignmentOf(cs).text)) return 'the fixture is not fueling: ' + PS.assignmentOf(cs).text;
     /* not yet spent by the server's own numbers (its watermark + its bag): nothing is asked, even past townPollMs */
     clock = 1000 + (spentAt - T0) - 1;
-    if (TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'a bench with fuel left was settled early';
+    if (TP.settleSpentBench(cs, HSX.fuelSpentAtMs(cs))) return 'a bench with fuel left was settled early';
     clock = 1000 + (spentAt - T0) + 1;
-    if (!TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'an unviewed bench past its spent instant was never settled (#68)';
+    if (!TP.settleSpentBench(cs, HSX.fuelSpentAtMs(cs))) return 'an unviewed bench past its spent instant was never settled (#68)';
     for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
     if (calls.join(',') !== 'hr_load,accrue:2') return 'the settle did not reach the engine for the slot: ' + calls.join(',');
     if (PS.assignmentOf(cs).kind !== 'idle') return 'the idle answer did not replace the record: ' + PS.assignmentOf(cs).text;
-    if (TW.benchSpentAtMs(cs) !== null || TP.settleSpentBench(cs, TW.benchSpentAtMs(cs))) return 'an idle hero is still settled as a bench';
+    if (HSX.fuelSpentAtMs(cs) !== null || TP.settleSpentBench(cs, HSX.fuelSpentAtMs(cs))) return 'an idle hero is still settled as a bench';
     /* THE WORLD (src/world/world-boot.js hearthState): the hero at its Hearth stand throws only while the server's record
        says a bench runs; after the settle it stands idle */
     const view = HB.createHearthView({ T: 32, ambient: [{ id: 'hearth_fire', x: 117, y: 48, lift: 86 }] }, { sprites: new Proxy({}, { get: (o, k) => ({ id: k }) }) });
@@ -2753,7 +2749,7 @@ async function rules(M) {
     let got = el.read();
     if (got.fill !== '25%' || got.now !== '25' || got.words !== '750 XP to 32' || got.seg !== '0%' || got.ahead)
       return 'the Mining bar draws ' + JSON.stringify(got) + ', the server said 250 of 1,000 XP into level 31';
-    /* town work's certain XP (town-ticker.js) is pending after the fill, against the SERVER's marks, and stops at its level */
+    /* a pending XP part (the hunt analyzer's) is drawn after the fill, against the SERVER's marks, and stops at its level */
     SW.patchSkillProgress(el, sl.mining, 100);
     got = el.read();
     if (got.fill !== '25%' || got.segAt !== '25%' || got.seg !== '10%' || got.words !== '650 XP to 32' || !got.ahead) return 'with 100 XP pending the bar draws ' + JSON.stringify(got);
@@ -2794,19 +2790,6 @@ async function rules(M) {
     const el = fakeBar();
     SW.patchSkillProgress(el, I.skillLevelsOf(cs).mining, 0);
     return el.read().words === '1,100 XP to 33' || 'after the frame the bar says ' + JSON.stringify(el.read());
-  });
-  await t('SKL-3', () => {
-    /* THE TOWN-WORK BURN CHECK READS THE SERVER'S COOKING LEVEL: the XP this build's curve calls Cooking 99 (no burns), the server
-       says Cooking 1 (a quarter burn): the cooked shrimp is unsure, in no stack; and the other way round, certain. */
-    const row = RCP.cooking.find((r) => r.id === 'cook_shrimp');
-    if (!row || !(ARTISAN.burnChance(row, 1, 0) > 0) || ARTISAN.burnChance(row, 99, 0) !== 0) return 'HARNESS: cook_shrimp does not burn at 1 and not at 99';
-    const t0 = Date.UTC(2026, 10, 10, 12, 0, 0), at = new Date(t0).toISOString();
-    const tick = (xp, level) => TT.predictTown({ w: { kind: 'artisan', id: row.id, skill: 'cooking', row },
-      state: { active_kind: 'artisan', active_id: row.id, accrued_to: at, active_since: at }, nowMs: t0 + 20000,
-      skills: { cooking: { xp, level } }, inventory: { shrimp: 50 }, equipment: {} });
-    const low = tick(XP.skillXpForLevel('cooking', 99), 1), high = tick(0, 99);
-    if (!low || !(low.unsure > 0) || (low.items[row.output] || 0) > 0) return 'the server says Cooking 1 and the ticker counts the cooking certain: ' + JSON.stringify(low);
-    return (!!high && high.unsure === 0 && (high.items[row.output] || 0) > 0) || 'the server says Cooking 99 and the ticker counts it unsure: ' + JSON.stringify(high);
   });
   /* ── THE SERVER'S WATCHED MARK (1060-watched-stamp.sql, AR-6 follow-up) ──────────────────────────────────────────────────
      The `watched` section rides the envelope like every section: REPLACED by each one (an envelope without it, or with null, drops
@@ -2856,7 +2839,7 @@ async function rules(M) {
 
 /* The modules outside src/core that may take a curve from src/core/xp.js, each with the names it takes and why (LVL-0). Sorted names. */
 /* None since lane/c-skills-from-server (2026-11-10): the skill bars read the server's two XP marks (`skill_levels`) and the
-   town-work burn check the server's Cooking level, where they took this build's curves. A new row needs its why here. */
+   town ticker's burn check the server's Cooking level (retired with the bench, 09 4.17), where they took this build's curves. A new row needs its why here. */
 const CURVE_USE = Object.freeze({
   /* The wiki's public formulas (lane/b-wiki): it prints the curves themselves (XP to reach Level 10, 25, 50...) and works their example
      with the engine's own function, so the page cannot drift from it. It never reads a hero's XP or draws a hero's Level or bar. */
@@ -3099,7 +3082,7 @@ const MUTANTS = [
   ['a watched bench waits until it is done', 'src/session/town-poll.js', '  if (!townAskDue(running, a.busy, a.at, cs.receivedAt, now)) return false;', '  return false;'],
   ['an unwatched spent bench is never settled (#68)', 'src/session/town-poll.js', '  return askTown(cs, townWorkRunning(cs.read(\'state\'), cs.read(\'hunt\')));\n}\n\nfunction askTown', '  return false;\n}\n\nfunction askTown'],
   ['a bench is settled before its supply is spent', 'src/session/town-poll.js', '  if (!Number.isFinite(serverNow) || serverNow < spentAtMs) return false;', '  if (!Number.isFinite(serverNow)) return false;'],
-  ['the spent instant ignores the server\'s supply', 'src/shell/town-work.js', '  return from + runs * actionMs(cs, w) + SLACK_MS;', '  return from + SLACK_MS;'],
+  ['the spent instant ignores the server\'s supply', 'src/session/hearth-sections.js', '  return from + coverOf(cs, row) * fuelEachMs(row) + 2000;', '  return from + 2000;'],
   ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
   ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
@@ -3130,9 +3113,7 @@ const MUTANTS = [
     "import { skillXpForLevel as mutXp, skillLevelFromXp as mutLv } from '../core/xp.js';\nexport function skillLevelsOf(cs) {\n  const mutSk = read(cs, 'skills');\n"
     + "  const sk = isObj(mutSk) ? Object.fromEntries(Object.entries(mutSk).map(([id, r]) => { const lv = mutLv(id, r.xp); return [id, { xp: r.xp, level: lv, into: r.xp - mutXp(id, lv), need: mutXp(id, lv + 1) - mutXp(id, lv) }]; })) : null;\n"],
   ['a broken skill cell is drawn', 'src/session/item-sections.js', ' || !Number.isInteger(r.level) || r.level < 1 || (need > 0 && into >= need)) continue;', ') continue;'],
-  ['the burn check reads no server Cooking level', 'src/shell/town-ticker.js', '? o.skills.cooking.level : 1;', '? 99 : 1;'],
   ['the skill ledger takes a curve from src/core/xp.js again', 'src/shell/windows/skills.js', "import { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js", "import { skillXpForLevel } from '../../core/xp.js';\nimport { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js"],
-  ['the town ticker takes a curve from src/core/xp.js again', 'src/shell/town-ticker.js', "import { ITEMS } from '../data/items.js", "import { levelOf } from '../core/xp.js';\nimport { ITEMS } from '../data/items.js"],
 ];
 
 /* The WHOLE src tree at its own layout: the session graph reaches across src/** by relative path

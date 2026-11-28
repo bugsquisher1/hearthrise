@@ -48,7 +48,7 @@ const mod = (f) => import(pathToFileURL(join(ROOT, f)).href);
 const WD = await mod('src/data/work-day.js');
 const CORE = await mod('src/core/work-day.js');
 const { SKILLS_DEF } = await mod('src/data/skills.js');
-const { workDayOf } = await mod('src/session/bench-sections.js');
+const { workDayOf } = await mod('src/session/trade-sections.js');
 
 let seq = 0;
 const nextUid = () => `000000c1-0000-4000-8000-0000001059${String(++seq).padStart(2, '0')}`;

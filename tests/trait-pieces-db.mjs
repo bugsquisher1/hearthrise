@@ -28,7 +28,7 @@
 //        then lands and answers what it found.
 //
 // mutant-anchors: supabase/migrations/1071-trait-pieces.sql supabase/functions/hr-accrue/hunt-settle.js
-// ci-step: db-replay | Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
+// ci-step: db-replay-17 | Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
 // ci-run: node tools/gen-trait-pieces.mjs --check
 // ci-run: node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest
 // ci-run: node tests/trait-pieces-db.mjs

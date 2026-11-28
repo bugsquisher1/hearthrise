@@ -59,7 +59,6 @@ import { join } from 'node:path';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 import { computeAccrualInputParity } from './accrual-engine.mjs';
 import { engineSource } from './_accrual-engine.mjs';
-import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -102,8 +101,8 @@ const EXTRA = [
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
   /* Inner Flame replaced Prayer (2027-01-31): the slice's catalogue under today's names (A3d); see the file. */
   ['inner-flame-slice-shim', join(ROOT, 'tests', 'fixtures', 'inner-flame-slice-shim.sql')],
-  /* every gathering job carries a count since 1026-job-counts.sql: the slice READS the key (and `next`); see the file. */
-  ['job-counts-slice-shim', join(ROOT, 'tests', 'fixtures', 'job-counts-slice-shim.sql')],
+  /* (The job-counts slice shim retired with the one-town-work cut: no activity takes a `count` or a `next`, so the
+     slice's hr_apply never reads either key.) */
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -153,32 +152,24 @@ const MUTATIONS = {
     file: FN('set-activity.js'),
     why: 'the intent accepts a kind the accrual engine cannot pay',
     find: "export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);",
-    /* `farm` is a real `player_state.active_kind` value the engine has no
-       simulation for, so this plants exactly the failure the derivation
-       prevents. It used to plant `artisan`, which stopped being a mutation the
-       day artisan became payable — a mutation that produces identical text is
-       caught by the harness, but a mutation that produces DIFFERENT text and
-       tests nothing would not have been. */
-    repl: "export const SETTABLE_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisan', 'farm']);",
+    /* `gather` is a real `player_state.active_kind` value the engine has no
+       simulation for since the one-town-work cut (09-crafting.md 4.17), so this
+       plants exactly the failure the derivation prevents: the cut, reverted at the
+       intent while the engine stays cut. (It planted `farm` while gather paid.) */
+    repl: "export const SETTABLE_KINDS = Object.freeze(['idle', 'combat', 'artisan', 'gather']);",
   },
   /* b348, and it is the OPPOSITE failure to `widen_settable`. That one plants a
-     kind the engine cannot pay; this one takes away a kind it CAN — which is
-     what a careless revert of the gather work looks like, and it is silent:
-     gathering simply answers `unsupported_activity` again, which is a REFUSING
-     reason, so nothing errors and nobody's night is confiscated. It just stops
-     paying, for 23 of the 344 catalogue activities. A3b is the only thing that
-     notices. */
+     kind the engine cannot pay; this one takes away a kind it CAN — and it is
+     silent: the Hearth's fuel run simply answers `unsupported_activity`, which is
+     a REFUSING reason, so nothing errors and nobody's night is confiscated. It
+     just stops paying. A3c is what notices. (Re-aimed from gathering, which the
+     one-town-work cut made unpayable on purpose.) */
   narrow_payable: {
     file: FN('accrual-contract.js'),
-    why: 'gathering silently stops being payable again',
-    find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
+    why: 'the fuel run silently stops being payable',
+    find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'artisan']);",
     repl: "export const PAYABLE_KINDS = Object.freeze(['combat']);",
   },
-  /* b356's mirror of `no_gather_nodes`: the artisan index reaching the engine.
-     Drop it and every artisan pointer answers `unknown_recipe` — refusing, so
-     the window is deferred rather than confiscated, but 261 of the 344
-     catalogue activities silently stop paying and no unit test sees it, because
-     tests/artisan-accrual.mjs calls computeAccrual directly with its own index. */
   /* Security C3. The escape hatch itself, and its partition — two mutations,
      because they fail in OPPOSITE directions and only one of them is loud.
      Removing the hatch re-freezes every character on an unpriceable pointer;
@@ -196,21 +187,17 @@ const MUTATIONS = {
     find: '  return kind === \'idle\' && POINTER_SKIP_REASONS.indexOf(reason) !== -1;',
     repl: '  return kind === \'idle\';',
   },
+  /* The fuel index reaching the engine. Drop it and every fuel pointer answers
+     `unknown_recipe` — refusing, so the window is deferred rather than
+     confiscated, but the Hearth never burns again and no unit test sees it,
+     because tests/artisan-accrual.mjs calls computeAccrual directly with its own
+     index. (`no_gather_nodes`, the gather index's twin, retired with the nodes:
+     its anchor is gone and its subject is the cut's.) */
   no_artisan_recipes: {
     file: FN('set-activity.js'),
-    why: 'the collect is not given the artisan catalogue',
-    find: '    recipes: ARTISAN_RECIPES_ALL,',
+    why: 'the collect is not given the fuel index',
+    find: '    recipes: FUEL_RUNS,',
     repl: '    recipes: {},',
-  },
-  /* The gather index reaching the engine. Drop it and every gathering pointer
-     answers `unknown_node` — refusing, so the window is deferred rather than
-     confiscated, but the player never accrues from gathering again and no unit
-     test sees it, because accrual-engine.mjs calls computeAccrual directly. */
-  no_gather_nodes: {
-    file: FN('set-activity.js'),
-    why: 'the collect is not given the gather catalogue',
-    find: '    nodes: GATHER_NODES,',
-    repl: '    nodes: {},',
   },
   no_version_from_collect: {
     file: FN('set-activity.js'),
@@ -574,31 +561,23 @@ async function run(mutate) {
       ok(k === 'idle' || ac.PAYABLE_KINDS.includes(k),
         `A0: SETTABLE_KINDS contains '${k}', which computeAccrual cannot pay — a switch would confiscate it`);
     }
-    /* CONTROL: `activity_unsupported` must actually FIRE, or A0 proves only
-       that a list contains itself.
-
-       ⚠ THE CONTROL MOVED DOWN A LEVEL IN b356 AND HAD TO. It used to be "some
-         catalogue KIND is refused", which was true while the engine paid one
-         kind of three. All three are payable now, so that form goes vacuous and
-         reports it — correctly, and uselessly. What is still refused is an
-         unpayable RECIPE (cooking, until `noBurn` is server-owned), which is
-         where the granularity of the refusal actually lives now. Both arms are
-         driven from real data, and the ELSE arm is a real refusal too: a kind
-         `hr_activities` does not contain at all. */
-    const unpayableKinds = kinds.filter((k) => !sa.SETTABLE_KINDS.includes(k));
-    const unpayableRecipes = Object.keys(cat.ARTISAN_RECIPES_ALL)
-      .filter((id) => !Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_PAYABLE, id));
-    /* 2026-08-31: the world legitimately became fully payable — every catalogue
-       kind is settable and every artisan recipe pays — so the two "real"
-       unpayable lists are empty and this control fired for a week with nothing
-       running it (found by the ammo lane; the test was not wired into
-       run-smoke). Per this control's own original message, the refusal is now
-       driven with a SYNTHETIC kind when no real case exists: a kind
-       hr_activities does not contain is the ELSE arm's real refusal, so the
+    /* CONTROL: the refusal must actually FIRE, or A0 proves only that a list
+       contains itself. Since the one-town-work cut (09-crafting.md 4.17) both
+       real arms are live again: `gather` is a catalogue kind no engine pays
+       (activity_unsupported), and every artisan row that is not a `fuel_*` run
+       is a cut bench recipe (unknown_activity, on shape: the pointer can never
+       come to hold it). Both are driven from the slice's real hr_activities.
+       The synthetic arm stays for the day both lists are empty again, so the
        property ("declaring an unpayable activity refuses by name, never
-       silently accepts") stays proven on every run. The real-list loops below
-       still run whenever a future catalogue change re-creates a genuine
-       unpayable, so this cannot rot in the other direction. */
+       silently accepts") cannot go undriven in either direction. */
+    const unpayableKinds = kinds.filter((k) => !sa.SETTABLE_KINDS.includes(k));
+    const unpayableRecipes = (await db.query(
+      "select activity_id from public.hr_activities where kind = 'artisan' order by 1")).rows
+      .map((x) => x.activity_id)
+      .filter((id) => !Object.prototype.hasOwnProperty.call(cat.FUEL_RUNS, id));
+    ok(unpayableKinds.includes('gather'),
+      `A0: the slice catalogue's kinds [${kinds}] minus the settable [${sa.SETTABLE_KINDS}] do not name gather — `
+      + 'the cut kind is settable again, or the catalogue lost it and this arm is vacuous');
     if (unpayableKinds.length === 0 && unpayableRecipes.length === 0) {
       const r = await call({ intentId: uuid(), activity: { kind: 'zz_synthetic_unsupported_probe', id: 'oak' } });
       ok(r.status === 409 && r.body.error === 'activity_unsupported',
@@ -614,9 +593,9 @@ async function run(mutate) {
     if (unpayableRecipes.length) {
       const id = unpayableRecipes[0];
       const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id } });
-      ok(r.status === 409 && r.body.error === 'activity_unsupported',
-        `A0: declaring the unpayable recipe '${id}' returned ${r.status} ${JSON.stringify(r.body)} — `
-        + 'expected 409 activity_unsupported, refused on shape before any statement');
+      ok(r.status === 409 && r.body.error === 'unknown_activity',
+        `A0: declaring the cut bench recipe '${id}' returned ${r.status} ${JSON.stringify(r.body)} — `
+        + 'expected 409 unknown_activity, refused on shape before any statement');
     }
     /* AND A KIND THE CATALOGUE HAS NEVER HEARD OF. This arm cannot go vacuous
        whatever the payability model does, which is what makes it worth keeping
@@ -630,7 +609,7 @@ async function run(mutate) {
 
   // ── A1. NO CHARACTER ─────────────────────────────────────────────────────
   {
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(r.status === 409 && r.body.error === 'no_character',
       `A1: an empty slot returned ${r.status} ${JSON.stringify(r.body)}`);
   }
@@ -643,25 +622,32 @@ async function run(mutate) {
     ok(st.active_kind === 'idle' && st.active_id === null,
       `A1b: a fresh character is not idle (${st.active_kind}/${st.active_id})`);
     ok(st.active_since === null, 'A1b: a fresh character already has an active_since');
+    /* Inner Flame 50, server-side, so the switch targets below are five DIFFERENT fuel runs this hero may start
+       (the slice's req 1 / 15 / 35 / 40 / 46 rows: Bones, Big Bones, Dragon Bones, Bone Chips, Grave Dust) and the
+       top of the ladder (Void Chitin, req 99) is a real gate to be refused (A3c). */
+    const { xpForLevel } = await import('../src/core/xp.js');
+    await db.query(
+      `insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'inner_flame', $2)
+       on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [UID, xpForLevel(50)]);
   }
 
-  // ── A2. THE HAPPY PATH: idle → gather ────────────────────────────────────
+  // ── A2. THE HAPPY PATH: idle → a fuel run ────────────────────────────────
   let v2;
   {
     const before = await state(db, UID);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(r.status === 200 && r.body.ok === true, `A2: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     const st = await state(db, UID);
-    ok(st.active_kind === 'gather' && st.active_id === 'normal_tree',
+    ok(st.active_kind === 'artisan' && st.active_id === 'fuel_bones',
       `A2: the pointer is ${st.active_kind}/${st.active_id}`);
     ok(st.active_since !== null, 'A2: active_since was not stamped — the second watermark is dead');
     ok(Number(st.version) === Number(before.version) + 1,
       `A2: version ${before.version} → ${st.version}, expected exactly one bump`);
-    ok(Number(st.gold) === Number(before.gold), 'A2: an idle→gather switch moved gold');
+    ok(Number(st.gold) === Number(before.gold), 'A2: an idle→fuel switch moved gold');
     const rows = await ledger(db, UID);
     const mine = rows.filter((x) => String(x.intent).startsWith('set_activity'));
     ok(mine.length === 1, `A2: ${mine.length} set_activity ledger rows, expected 1`);
-    ok(mine[0].intent === 'set_activity:gather:normal_tree',
+    ok(mine[0].intent === 'set_activity:artisan:fuel_bones',
       `A2: journal.intent is '${mine[0].intent}' — it must name the TARGET, or one key reused for `
       + 'two targets is a silent no-op instead of intent_mismatch');
     ok(mine[0].kind === 'admin', `A2: the ledger kind is '${mine[0].kind}', expected admin (no value moved)`);
@@ -702,7 +688,7 @@ async function run(mutate) {
   // PROCEED: nothing is owed, nothing is paid, no accrue row is written, and
   // the window is closed. Refusing would freeze the character on a pointer no
   // build can price (Security C3's lockout). The collect-before-switch rule
-  // itself is A3b (gather) and A3c (artisan), the kinds a switch can owe.
+  // itself is A3c (the fuel run), the one town kind a switch can owe.
   {
     await db.query(
       `update public.player_state
@@ -713,12 +699,12 @@ async function run(mutate) {
     const beforeXp = await skillXp(db, UID, 'attack');
     const beforeLedger = (await ledger(db, UID)).length;
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(r.status === 200 && r.body.ok === true,
       `A3: a switch away from a session-less combat pointer was refused ${r.status} `
       + `${JSON.stringify(r.body).slice(0, 300)} — hunt_required must be SAFE, or the character is frozen`);
     const st = await state(db, UID);
-    ok(st.active_kind === 'gather' && st.active_id === 'copper_rock', `A3: the switch did not happen (${st.active_id})`);
+    ok(st.active_kind === 'artisan' && st.active_id === 'fuel_big_bones', `A3: the switch did not happen (${st.active_id})`);
     ok(Number(st.gold) === Number(before.gold) && (await skillXp(db, UID, 'attack')) === beforeXp,
       `A3: three hours on a session-less combat pointer PAID (gold ${before.gold} -> ${st.gold}) — `
       + 'a fight outside a hunt session is never priced');
@@ -729,147 +715,40 @@ async function run(mutate) {
       'A3: accrued_to did not advance — the dead window stays open behind the new pointer');
   }
 
-  /* ── A3b. THE OTHER PAYABLE KIND, END TO END (b348) ──────────────────────
-     A3b proves the collect-before-switch rule for gathering. Gathering is 23 of the
-     344 catalogue rows and, until b348, ALL of them answered
-     `unsupported_activity` — a REFUSING reason, so a switch was refused and the
-     window deferred rather than confiscated. Now it must actually PAY, and the
-     chain that has to hold is longer than the engine: the intent's derived
-     allowlist has to admit `gather`, request.js has to parse the kind, hr_apply
-     has to find the node in the generated hr_activities and re-check the SKILL
-     GATE against server XP, and the delta has to carry an item map, an XP map,
-     three stat rows and — because this chain now includes the b348 migration —
-     a `tool_carry` key that an hr_apply without it would answer with
-     `unknown_delta_key`, costing the whole night.
+  /* ── A3b. RETIRED WITH GATHERING (the one-town-work cut, 09-crafting.md 4.17) ──
+     A3b drove a gathering night end to end (logs, woodcutting XP, the tool carry
+     round trip, the Yew gate, an unknown node). Its subject is gone: gathering is
+     refused on shape (A0), the engine has no gather accruer, and no delta carries
+     `tool_carry`. Its two unique catches are re-aimed into A3c below, on the fuel
+     run: the SKILL GATE re-checked by the database against server XP, and an
+     unknown id refused BY NAME before any statement. */
 
-     None of that is provable from accrual-engine.mjs, which calls
-     computeAccrual directly and never touches a database. */
-  {
-    /* Woodcutting 15 is oak's requirement; 3,000 XP is level 16, so the gate is
-       SATISFIED rather than skipped — the gate itself is exercised below. */
-    await db.query(
-      `update public.player_skills set xp = 3000
-        where user_id = $1 and slot = 0 and skill_id = 'woodcutting'`, [UID]);
-    await db.query(
-      `update public.player_state
-          set active_kind = 'gather', active_id = 'normal_tree',
-              accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
-        where user_id = $1 and slot = 0`, [UID]);
-    const before = await state(db, UID);
-    const beforeXp = await skillXp(db, UID, 'woodcutting');
-    const beforeLedger = (await ledger(db, UID)).length;
-    ok(before.tool_carry !== undefined,
-      'A3b-CONTROL: player_state has no tool_carry column in this chain, so the carry half of this '
-      + 'test would be vacuous — 2026-08-15-tool-carry.sql is missing from EXTRA');
+  /* ── A3c. THE FUEL RUN, END TO END (b356, re-aimed by the one-town-work cut) ──
+     The artisan kind is the Great Hearth's fuel runs and nothing else. It is the
+     one payable town kind whose simulation SPENDS: every action burns a fuel, so
+     three things are only provable here, against a real hr_apply, and each one
+     costs the player their whole night if it is wrong:
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'oak_tree', count: 100000 } });
-    ok(r.status === 200 && r.body.ok === true,
-      `A3b: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
-    ok(r.body.collected,
-      'A3b: NO collection receipt — three hours of chopping were confiscated by the switch. This is '
-      + 'the exact failure the collect-before-switch rule exists to prevent, and widening '
-      + 'PAYABLE_KINDS without a simulation is how it would arrive.');
-
-    const inv = (await db.query(
-      'select item_id, qty from public.player_inventory where user_id=$1 and slot=0 order by item_id',
-      [UID])).rows;
-    const logs = Number(inv.find((x) => x.item_id === 'normal_log')?.qty ?? 0);
-    ok(logs > 0, `A3b: three hours of chopping produced ${logs} normal_log — the window paid nothing`);
-    const paidXp = (await skillXp(db, UID, 'woodcutting')) - beforeXp;
-    ok(paidXp > 0, `A3b: three hours of chopping paid ${paidXp} woodcutting XP`);
-    ok(r.body.collected.items && r.body.collected.items.normal_log === logs,
-      `A3b: the receipt says ${JSON.stringify(r.body.collected.items)} but ${logs} logs arrived`);
-
-    const st = await state(db, UID);
-    ok(st.active_kind === 'gather' && st.active_id === 'oak_tree',
-      `A3b: the switch did not happen (${st.active_kind}/${st.active_id})`);
-    ok(new Date(st.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
-      'A3b: accrued_to did not advance — the same window could be collected again');
-
-    const rows = (await ledger(db, UID)).slice(beforeLedger);
-    const accrue = rows.find((x) => x.intent === 'accrue');
-    ok(!!accrue, `A3b: no 'accrue' ledger row (${rows.map((x) => x.intent)})`);
-    ok(accrue && accrue.kind === 'gather',
-      `A3b: the collect was journalled as '${accrue && accrue.kind}', expected gather`);
-    ok(accrue && Number(accrue.qty_in) === logs,
-      `A3b: the ledger stamped qty_in=${accrue && accrue.qty_in} but ${logs} items arrived — the `
-      + 'daily budget would be charged the wrong amount');
-    ok(!!rows.find((x) => x.intent === 'set_activity:gather:oak_tree'),
-      'A3b: no set_activity ledger row for the gather declaration');
-
-    /* THE CARRY ROUND TRIP, through the real hr_apply. Without a tool the carry
-       stays empty, which is correct and is NOT the interesting case — so the
-       assertion is that the column is a legal, written-through object rather
-       than that it holds a particular number, and the number itself is pinned
-       by tests/accrual-engine.mjs where a tool can be given. What this proves
-       that no unit test can: hr_apply ACCEPTED the key. Before b348 it answers
-       `unknown_delta_key`, which is a 409 that costs the whole night. */
-    ok(st.tool_carry && typeof st.tool_carry === 'object' && !Array.isArray(st.tool_carry),
-      `A3b: player_state.tool_carry reads ${JSON.stringify(st.tool_carry)} after a gather collect`);
-
-    /* THE SKILL GATE, re-checked against SERVER XP. Woodcutting 16 cannot chop
-       Yew (req 60), and the refusal has to come from the DATABASE — a forged
-       local level must buy nothing, including the right to start a level-60
-       node. This is also the control that A3b's success above was a real gate
-       being satisfied and not an absent one. */
-    const locked = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'yew_tree', count: 100000 } });
-    ok(locked.body.ok !== true && locked.body.error === 'activity_locked',
-      `A3b GATE: a woodcutting-16 character was allowed to start Yew (req 60): `
-      + `${JSON.stringify(locked.body).slice(0, 200)}`);
-    const stillOak = await state(db, UID);
-    ok(stillOak.active_id === 'oak_tree',
-      `A3b GATE: the refused switch still moved the pointer to ${stillOak.active_id}`);
-
-    /* A node id that is not in the catalogue is refused BY NAME, one round trip
-       earlier than hr_apply would, and without spending a collect. */
-    const bogus = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_tree', count: 100000 } });
-    ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
-      `A3b: an unknown gathering node returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
-  }
-
-  /* ── A3c. THE THIRD PAYABLE KIND, END TO END (b356) ──────────────────────
-     Artisan is 290 of the 344 catalogue rows — 84% — and until b356 every one
-     of them answered `unsupported_activity`. It is the first payable kind whose
-     simulation SPENDS: every tick consumes an input, so the chain that has to
-     hold is longer again than gathering's. Three things are only provable here,
-     against a real hr_apply, and each one costs the player their whole night if
-     it is wrong:
-
-       · the SIGNED item map. An artisan delta debits inputs and credits an
-         output in the SAME `items` object. hr_apply re-reads player_inventory
-         under the row lock and refuses `have + delta < 0` as
+       · the SIGNED item map. A fuel delta debits the fuel. hr_apply re-reads
+         player_inventory under the row lock and refuses `have + delta < 0` as
          `insufficient_item`, which is NOT on index.ts's DEGRADABLE list.
-       · `journal.kind = 'craft'`. `player_ledger_kind_check` allows thirteen
-         kinds and `artisan` is not one of them; a journal that named the
-         activity's own kind would raise check_violation inside the protected
-         block and come back as `bad_delta`. No unit test can see that — the
-         constraint lives in SQL.
-       · `qty_in`. The daily budget is computed from the delta's GROSS positive
-         inflow, so the consumed inputs must not net it down.
+       · `journal.kind = 'craft'`. `player_ledger_kind_check` does not accept
+         `artisan`; a journal that named the activity's own kind would raise
+         check_violation inside the protected block and come back as `bad_delta`.
+         No unit test can see that — the constraint lives in SQL.
+       · `qty_in`. The daily budget is charged on the delta's GROSS positive
+         inflow, and a fuel night mints nothing, so the debit must not be stamped
+         as inflow (0, never the burnt count).
 
-     Bronze bars: `smelt_bronze` inputs are read from the catalogue (2 copper_ore since the 2026-09-09 ruling; Smithing 1), and
-     ~4.2s an action, so a three-hour window is bounded by the SUPPLY rather
-     than by the clock — which is the property the exhaustion arm asserts. */
+     Bones: 40 of them at 640 ms an action is under half a minute, so a
+     three-hour window is bounded by the SUPPLY rather than by the clock, which
+     is the property the exhaustion arm asserts. 40 coal ride along as the
+     control that an item the run does not burn is left untouched. */
   {
-    await db.query(
-      `update public.player_skills set xp = 1000
-        where user_id = $1 and slot = 0 and skill_id = 'smithing'`, [UID]);
-    /* Enough for ~30 bars and no more: the run must STOP on supplies inside the
-       three hours, which is what makes the debit observable as a floor rather
-       than as an arbitrary number. */
-    /* THE RECIPE IS READ, NOT RESTATED (b529): the designer moved coal out of
-       bronze (2026-09-09 ruling), and a hard-coded "2 ore + 1 coal" here went
-       red for the wrong reason. Seed exactly 30 bars' worth of every input the
-       CATALOGUE names, plus 40 coal as a control that an item the recipe does
-       not consume is left untouched by the debit. */
-    const bronzeEntry = cat.ARTISAN_RECIPES_ALL.smelt_bronze;
-    const bronzeRecipe = bronzeEntry && (bronzeEntry.recipe || bronzeEntry);
-    ok(!!bronzeRecipe, 'A3c: smelt_bronze is not in the edge catalogue');
-    const bronzeNeed = Object.assign({},
-      bronzeRecipe.inputs || (bronzeRecipe.input ? { [bronzeRecipe.input]: 1 } : {}),
-      bronzeRecipe.secondary || {});
-    ok(Object.keys(bronzeNeed).length > 0, 'A3c: smelt_bronze names no inputs — the clamp would be vacuous');
-    const seed = Object.assign({ coal: 40 }, Object.fromEntries(Object.entries(bronzeNeed).map(([id, n]) => [id, n * 30])));
+    const fuel = cat.FUEL_RUNS.fuel_bones;
+    ok(!!fuel && fuel.recipe.input === 'bones', `A3c: fuel_bones is not on the edge fuel index (${JSON.stringify(fuel)})`);
+    await db.query('delete from public.player_inventory where user_id=$1 and slot=0', [UID]);
+    const seed = { bones: 40, coal: 40 };
     for (const [id, q] of Object.entries(seed)) {
       await db.query(
         `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
@@ -877,41 +756,31 @@ async function run(mutate) {
     }
     await db.query(
       `update public.player_state
-          set active_kind = 'artisan', active_id = 'smelt_bronze',
+          set active_kind = 'artisan', active_id = 'fuel_bones',
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID]);
-    const beforeXp = await skillXp(db, UID, 'smithing');
+    const beforeXp = await skillXp(db, UID, 'inner_flame');
     const beforeLedger = (await ledger(db, UID)).length;
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(r.status === 200 && r.body.ok === true,
       `A3c: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     ok(r.body.collected,
-      'A3c: NO collection receipt — three hours of smelting were confiscated by the switch. Artisan is '
-      + '290 of the 344 catalogue rows; this is the deferral b356 closed.');
+      'A3c: NO collection receipt — three hours at the Hearth were confiscated by the switch. This is '
+      + 'the deferral b356 closed, on the one town kind left.');
 
     const invRows = (await db.query(
       'select item_id, qty from public.player_inventory where user_id=$1 and slot=0', [UID])).rows;
     const qty = (id) => Number(invRows.find((x) => x.item_id === id)?.qty ?? 0);
-    const bars = qty('bronze_bar');
-    ok(bars > 0, `A3c: three hours of smelting produced ${bars} bronze_bar — the window paid nothing`);
-    /* THE MATERIAL CLAMP, MEASURED AGAINST THE DATABASE. 60 ore and 40 coal buy
-       exactly 30 bars; the run must have stopped there rather than smelting for
-       three hours off an inventory it only READ. */
-    ok(bars === 30,
-      `A3c: the run produced ${bars} bars from ${JSON.stringify(seed)} with per-bar need ${JSON.stringify(bronzeNeed)}. `
-      + 'The supply caps it at 30 — anything more means the simulation is not spending the server inventory, and the '
-      + 'delta it proposed would be refused by hr_apply as insufficient_item (a 409, not a degrade, so '
-      + 'the whole night is lost).');
-    for (const [id, q] of Object.entries(seed)) {
-      const expect = q - 30 * (bronzeNeed[id] || 0);
-      ok(qty(id) === expect,
-        `A3c: after 30 bars the bag holds ${qty(id)} ${id} — expected ${expect} (seeded ${q}, per-bar ${bronzeNeed[id] || 0}). `
-        + (bronzeNeed[id] ? 'The inputs were not debited through the same signed item map the output rode in on.'
-                          : 'An item the recipe does not consume was touched by the debit.'));
-    }
-    ok((await skillXp(db, UID, 'smithing')) - beforeXp > 0,
-      'A3c: the smelting paid no smithing XP');
+    /* THE MATERIAL CLAMP, MEASURED AGAINST THE DATABASE. 40 bones buy exactly 40 actions; the run must have
+       stopped there rather than burning for three hours off a bag it only READ. */
+    ok(qty('bones') === 0,
+      `A3c: after a three-hour window on 40 bones the bag holds ${qty('bones')} — the run did not burn the supply `
+      + 'it could see (or burnt one the database refused)');
+    ok(qty('coal') === 40, `A3c: the run touched ${40 - qty('coal')} coal, an item it does not burn`);
+    ok(r.body.collected.items && r.body.collected.items.bones === -40,
+      `A3c: the receipt says ${JSON.stringify(r.body.collected.items)} but 40 bones left the bag`);
+    ok((await skillXp(db, UID, 'inner_flame')) - beforeXp > 0, 'A3c: the fuel run paid no Inner Flame XP');
 
     const rows = (await ledger(db, UID)).slice(beforeLedger);
     const accrue = rows.find((x) => x.intent === 'accrue');
@@ -920,68 +789,51 @@ async function run(mutate) {
       `A3c: the collect was journalled as '${accrue && accrue.kind}', expected 'craft'. `
       + 'player_ledger_kind_check does not accept `artisan`; naming the activity kind here raises '
       + 'check_violation inside hr_apply\'s protected block and the player loses the whole night.');
-    ok(accrue && Number(accrue.qty_in) === bars,
-      `A3c: the ledger stamped qty_in=${accrue && accrue.qty_in} but ${bars} items arrived — the consumed `
-      + 'inputs must not net down the GROSS inflow the daily budget is charged on');
+    ok(accrue && Number(accrue.qty_in) === 0,
+      `A3c: the ledger stamped qty_in=${accrue && accrue.qty_in} for a night that minted nothing — the burnt `
+      + 'fuel must not be charged to the daily budget as inflow');
+    ok(accrue && accrue.meta && accrue.meta.stopped === 'supplies' && accrue.meta.out_of === 'bones',
+      `A3c: the journal does not say the run ran out of bones: ${JSON.stringify(accrue && accrue.meta)}`);
 
-    /* THE RUN IS OVER, SO THE POINTER MOVED ON. The switch to `copper_rock` is
-       what proves the collect ran first; the pointer being `copper_rock` rather than a
-       smelting bench with an empty bag is what proves the two applies happened
-       in the right order. */
+    /* THE COLLECT RAN FIRST, THEN THE SWITCH. The pointer on Big Bones (rather than idle, where the run that ran
+       dry left it, or Bones) is what proves the two applies happened in that order. */
     const st = await state(db, UID);
-    ok(st.active_kind === 'gather' && st.active_id === 'copper_rock',
+    ok(st.active_kind === 'artisan' && st.active_id === 'fuel_big_bones',
       `A3c: the switch did not happen (${st.active_kind}/${st.active_id})`);
 
-    /* THE SKILL GATE, re-checked against SERVER XP — the artisan mirror of
-       A3b's Yew probe. `hr_activities` carries `req_skill`/`req_lv` for every
-       one of the 290 recipes, and a forged local level must buy nothing,
-       including the right to START a recipe the character cannot make. This is
-       also the control that the successful switch above satisfied a real gate
-       rather than an absent one. */
-    const topSmith = (await db.query(
+    /* THE SKILL GATE, re-checked against SERVER XP (re-aimed from A3b's Yew probe and the bench's smithing probe).
+       `hr_activities` carries `req_skill`/`req_lv` for every fuel row, and a forged local level must buy nothing,
+       including the right to START a fuel the hero cannot burn. This is also the control that every successful
+       switch above satisfied a real gate rather than an absent one. */
+    const top = (await db.query(
       `select activity_id, req_lv from public.hr_activities
-        where kind = 'artisan' and req_skill = 'smithing' and activity_id = any($1::text[])
+        where kind = 'artisan' and req_skill = 'inner_flame' and activity_id = any($1::text[])
         order by req_lv desc limit 1`,
-      /* Only recipes the edge still knows: this hand chain stops before the
-         demolition's catalogue regen, so hr_activities still lists deleted gear. */
-      [ARTISAN_RECIPES.smithing.map((x) => x.id)])).rows[0];
-    ok(!!topSmith && Number(topSmith.req_lv) > 20,
-      `A3c GATE: the catalogue's highest smithing recipe is ${JSON.stringify(topSmith)} — with the `
-      + 'probe at smithing 1,000 XP (level ~10) there is nothing here the gate can refuse');
-    if (topSmith) {
-      const locked = await call({ intentId: uuid(), activity: { kind: 'artisan', id: topSmith.activity_id } });
+      [Object.keys(cat.FUEL_RUNS)])).rows[0];
+    ok(!!top && Number(top.req_lv) > 50,
+      `A3c GATE: the catalogue's highest fuel row is ${JSON.stringify(top)} — with the hero at Inner Flame 50 there `
+      + 'is nothing here the gate can refuse');
+    if (top) {
+      const locked = await call({ intentId: uuid(), activity: { kind: 'artisan', id: top.activity_id } });
       ok(locked.body.ok !== true && locked.body.error === 'activity_locked',
-        `A3c GATE: a smithing-10 character was allowed to start '${topSmith.activity_id}' `
-        + `(req ${topSmith.req_lv}): ${JSON.stringify(locked.body).slice(0, 200)}`);
+        `A3c GATE: an Inner Flame 50 hero was allowed to start '${top.activity_id}' `
+        + `(req ${top.req_lv}): ${JSON.stringify(locked.body).slice(0, 200)}`);
+      const still = await state(db, UID);
+      ok(still.active_id === 'fuel_big_bones',
+        `A3c GATE: the refused switch still moved the pointer to ${still.active_id}`);
     }
 
-    /* A recipe that does not exist is refused BY NAME, before any statement. */
-    const bogus = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'not_a_recipe' } });
-    ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
-      `A3c: an unknown recipe returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
-
-    /* ── AND THE HELD-BACK BENCH. Cooking is settable-shaped and NOT payable
-       until `noBurn` is server-owned, so it must be refused as
-       `activity_unsupported` — the code that means "real, and not server-side
-       yet" — and the pointer must not move. If this ever starts succeeding
-       WITHOUT SERVER_OWNED_BONUS_KEYS gaining `noBurn`, the server is cooking
-       at the base 25% burn against a client whose Kitchen says 0%. */
-    const cook = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'cook_shrimp' } });
-    const artisanSim = await import('../src/core/artisan-sim.js');
-    if (artisanSim.benchPayable('cooking')) {
-      ok(cook.status === 200 && cook.body.ok === true,
-        `A3c: cooking is payable (\`noBurn\` is server-owned) but the intent refused it: `
-        + JSON.stringify(cook.body).slice(0, 200));
-    } else {
-      ok(cook.status === 409 && cook.body.error === 'activity_unsupported',
-        `A3c: an unpayable bench returned ${cook.status} ${JSON.stringify(cook.body).slice(0, 200)} — `
-        + 'expected 409 activity_unsupported, refused on SHAPE. If the pointer can hold it, the engine '
-        + 'refuses the COLLECT with `unpayable_bench`, which refuses the SWITCH, and the player is locked '
-        + 'on that bench until a deploy.');
-      const stillCopper = await state(db, UID);
-      ok(stillCopper.active_id === 'copper_rock',
-        `A3c: the refused cooking switch still moved the pointer to ${stillCopper.active_id}`);
+    /* An id that is not a fuel run is refused BY NAME, before any statement: an unknown one, and a cut bench row
+       the slice's catalogue still lists (the pointer must never come to hold one: the engine would refuse its
+       collect, which refuses the switch). */
+    for (const id of ['not_a_recipe', 'smelt_bronze', 'cook_shrimp']) {
+      const bogus = await call({ intentId: uuid(), activity: { kind: 'artisan', id } });
+      ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
+        `A3c: the artisan id '${id}' returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
     }
+    const stillBig = await state(db, UID);
+    ok(stillBig.active_id === 'fuel_big_bones',
+      `A3c: a refused bench declaration moved the pointer to ${stillBig.active_id}`);
   }
 
   /* ── A3d. FUELLING THE HEARTH WITH BONES PAYS INNER FLAME (Tyler live, v0.2.1: "can't bury bones";
@@ -1022,51 +874,39 @@ async function run(mutate) {
   }
 
   /* ── A3e. THE SUB-MINUTE RUN THAT ENDED ON SUPPLIES (b531) ──────────────
-     LIVE, MEASURED TWICE (QA account, 2026-09-09 16:36:13→16:36:49 and
-     16:40:14→16:40:51 UTC, b530). 28 iron bars, Smithing 25,
-     `set_activity:artisan:forge_iron_platebody` ACCEPTED and journalled — then
-     the client's local loop predicted the bag would run out and declared
-     `set_activity:idle` 37 s later. The collect answered `below_min_span` and
-     paid nothing; the switch then stamped `active_since = now()`, which clamps
-     every later grant to the new pointer's age, so the 37 s was not deferred,
-     it was DESTROYED. Zero platebodies, 28 bars still in the bag, and the
-     client had already painted seven of them (an `equip` on one came back
-     `insufficient_item`). Every craft or gather run whose inputs run out inside
-     a minute paid NOTHING.
+     LIVE, MEASURED TWICE (QA account, 2026-09-09, b530): a bench run whose
+     inputs ran out 37 s after it started was stopped by the client, the collect
+     answered `below_min_span` and paid nothing, and the switch then stamped
+     `active_since = now()`, which clamps every later grant to the new pointer's
+     age — so the 37 s was not deferred, it was DESTROYED. Every run whose
+     inputs ran out inside a minute paid NOTHING.
 
      ACCRUE_MIN_MS is a property of the ACCRUE verb — that verb leaves the
      pointer alone, so a span it declines is genuinely deferred. A
-     COLLECT-BEFORE-SWITCH has no next call. `finalWindow` is that distinction,
-     and this is the door that proves it end to end: a real hr_apply, a real
-     signed item map, a real ledger row, on a window of 37 seconds.
+     COLLECT-BEFORE-SWITCH has no next call. This is the door that proves it end
+     to end, on the one town run left (the fuel run, the one-town-work cut): a
+     real hr_apply, a real signed item map, a real ledger row, on a window of 37
+     seconds.
 
      BOTH ARMS, because "pay every short window" is a different rule from the
      one shipped: the second arm holds the DB cost where it was, so switch-spam
      still writes nothing. */
   {
-    const bronzeEntry = cat.ARTISAN_RECIPES_ALL.smelt_bronze;
-    const bronzeRecipe = bronzeEntry && (bronzeEntry.recipe || bronzeEntry);
-    const need = Object.assign({},
-      bronzeRecipe.inputs || (bronzeRecipe.input ? { [bronzeRecipe.input]: 1 } : {}),
-      bronzeRecipe.secondary || {});
-    /* FIVE BARS' WORTH AND NO MORE. The bench runs ~4.2 s an action, so a 37 s
-       window has time for ~8 — the run therefore ends on SUPPLIES, inside the
-       floor, which is exactly the live shape. Every other item is zeroed so the
+    /* FIVE BONES AND NOTHING ELSE. The Hearth burns one every 640 ms, so a 37 s window has time for ~57 — the run
+       therefore ends on SUPPLIES, inside the floor, which is exactly the live shape. Every other item is zeroed so the
        arm below can assert an empty bag honestly. */
     await db.query('delete from public.player_inventory where user_id=$1 and slot=0', [UID]);
-    for (const [id, n] of Object.entries(need)) {
-      await db.query(
-        `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
-         on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID, id, n * 5]);
-    }
+    await db.query(
+      `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 5)
+       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
     await db.query(
       `update public.player_state
-          set active_kind = 'artisan', active_id = 'smelt_bronze',
+          set active_kind = 'artisan', active_id = 'fuel_bones',
               accrued_to = now() - interval '37 seconds',
               active_since = now() - interval '37 seconds'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
-    const beforeXp = await skillXp(db, UID, 'smithing');
+    const beforeXp = await skillXp(db, UID, 'inner_flame');
     const beforeLedger = (await ledger(db, UID)).length;
 
     const r = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
@@ -1077,20 +917,14 @@ async function run(mutate) {
       + 'the live b530 defect: ACCRUE_MIN_MS applied to a collect-before-switch, which has no next '
       + 'call, so the span was destroyed rather than deferred.');
 
-    const invRows = (await db.query(
-      'select item_id, qty from public.player_inventory where user_id=$1 and slot=0', [UID])).rows;
-    const qty = (id) => Number(invRows.find((x) => x.item_id === id)?.qty ?? 0);
-    const bars = qty('bronze_bar');
-    ok(bars === 5,
-      `A3e: the 37 s run banked ${bars} bronze_bar, expected exactly 5 — the supply, not the clock, `
-      + 'is what ended it. 0 means the sub-minute window paid nothing (the shipped defect); more than '
-      + '5 means the simulation is not spending the server inventory.');
-    for (const [id, n] of Object.entries(need)) {
-      ok(qty(id) === 0,
-        `A3e: after 5 bars the bag holds ${qty(id)} ${id}, expected 0 — the inputs were not debited `
-        + 'through the same signed item map the output rode in on.');
-    }
-    ok((await skillXp(db, UID, 'smithing')) - beforeXp > 0, 'A3e: the sub-minute run paid no smithing XP');
+    const bones = Number((await db.query(
+      `select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'`, [UID])).rows[0]?.qty ?? 0);
+    ok(bones === 0,
+      `A3e: the 37 s run left ${bones} bones in the bag, expected 0 — 5 means the sub-minute window paid nothing (the `
+      + 'shipped defect); anything else means the run did not burn the supply it could see.');
+    ok(r.body.collected.items && r.body.collected.items.bones === -5,
+      `A3e: the receipt says ${JSON.stringify(r.body.collected.items)} but 5 bones left the bag`);
+    ok((await skillXp(db, UID, 'inner_flame')) - beforeXp > 0, 'A3e: the sub-minute run paid no Inner Flame XP');
 
     const rows = (await ledger(db, UID)).slice(beforeLedger);
     const accrue = rows.find((x) => x.intent === 'accrue');
@@ -1108,12 +942,12 @@ async function run(mutate) {
        taps in five seconds must not buy three applies, three version bumps and
        three zero-value `craft` rows. `deltaHasValue` is what replaces it, and
        without this arm "pay every short window" would pass A3e's first half
-       just as well as the rule that actually shipped. Same bench, same floor,
+       just as well as the rule that actually shipped. Same run, same floor,
        EMPTY bag — so the engine prices the span and proposes nothing. */
     await db.query('delete from public.player_inventory where user_id=$1 and slot=0', [UID]);
     await db.query(
       `update public.player_state
-          set active_kind = 'artisan', active_id = 'smelt_bronze',
+          set active_kind = 'artisan', active_id = 'fuel_bones',
               accrued_to = now() - interval '20 seconds',
               active_since = now() - interval '20 seconds'
         where user_id = $1 and slot = 0`, [UID]);
@@ -1151,16 +985,15 @@ async function run(mutate) {
     /* THE ROLLBACK, SIMULATED HONESTLY: the pointer holds an id THIS BUILD
        cannot price, which is precisely what a rename or a payload rollback
        produces. Written by direct SQL because the intent surface correctly
-       refuses to create it. 2026-08-31: `cook_shrimp` (the original fixture)
-       became payable when cooking completed, which left this section vacuous
-       and RED for a week with nothing running it. Per the control's own
-       message, the stuck id is now CHOSEN: the first real recipe this build
-       refuses, or — when the world is fully payable — a synthetic id absent
-       from the catalogue entirely, which is the RENAME arm of the same rollback
-       class. The real-recipe arm re-arms itself the moment a future build
-       carries an unpayable recipe again. */
-    const stuckId = Object.keys(cat.ARTISAN_RECIPES_ALL)
-      .find((id) => !Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_PAYABLE, id))
+       refuses to create it. The stuck id is CHOSEN: since the one-town-work cut
+       it is a real bench recipe the slice's catalogue still lists and the fuel
+       index does not (the pointer a hero held at the cut's deploy), or — when no
+       such row exists — a synthetic id absent from the catalogue entirely, which
+       is the RENAME arm of the same rollback class. */
+    const stuckId = (await db.query(
+      "select activity_id from public.hr_activities where kind = 'artisan' order by 1")).rows
+      .map((x) => x.activity_id)
+      .find((id) => !Object.prototype.hasOwnProperty.call(cat.FUEL_RUNS, id))
       || 'zz_renamed_recipe_probe';
     await db.query(
       `update public.player_state
@@ -1168,8 +1001,7 @@ async function run(mutate) {
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID, stuckId]);
 
-    const stuckIsUnpriceable = !Object.prototype.hasOwnProperty.call(
-      cat.ARTISAN_RECIPES_PAYABLE, stuckId);
+    const stuckIsUnpriceable = !Object.prototype.hasOwnProperty.call(cat.FUEL_RUNS, stuckId);
     ok(stuckIsUnpriceable,
       `A3d: chosen stuck id '${stuckId}' is payable in this build — the chooser above is broken, `
       + 'because a synthetic id can never be payable.');
@@ -1177,7 +1009,7 @@ async function run(mutate) {
     if (stuckIsUnpriceable) {
       /* (i) THE LOCKOUT IS REAL — anything that is NOT a stop still refuses.
          Without this the forfeit below could be "the pointer was never stuck". */
-      const sideways = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+      const sideways = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
       ok(sideways.status === 409 && sideways.body.error === 'uncollectable_window',
         `A3d(i): switching off an unpriceable pointer returned ${sideways.status} `
         + `${JSON.stringify(sideways.body).slice(0, 200)} — expected 409 uncollectable_window. If this `
@@ -1200,13 +1032,11 @@ async function run(mutate) {
       ok(Number(after.gold) === beforeGold,
         `A3d(ii): the forfeit MOVED GOLD (${beforeGold} -> ${after.gold}). It must move no value at `
         + 'all — a watermark and a journal row, nothing else.');
-      /* The expected reason follows the chosen arm: a REAL unpayable recipe is
-         the bench/rollback shape (`unpayable_bench`); the synthetic id is the
-         rename shape (`unknown_recipe`). Both are POINTER_SKIP_REASONS by
-         design — what this asserts is that the forfeit NAMES its reason, not
-         which arm the fixture happened to take. */
-      const expectReason = Object.prototype.hasOwnProperty.call(cat.ARTISAN_RECIPES_ALL, stuckId)
-        ? 'unpayable_bench' : 'unknown_recipe';
+      /* Both arms (a cut bench row, a renamed id) are one reason since the cut:
+         the engine knows only the fuel index, so either answers `unknown_recipe`,
+         a POINTER_SKIP_REASON by design. What this asserts is that the forfeit
+         NAMES its reason. (`unpayable_bench` left with the bench.) */
+      const expectReason = 'unknown_recipe';
       ok(stop.body.forfeited && stop.body.forfeited.reason === expectReason,
         `A3d(ii): the response reports forfeited=${JSON.stringify(stop.body.forfeited)} — expected `
         + `reason '${expectReason}' for stuck id '${stuckId}'. A stop that silently discarded three `
@@ -1239,7 +1069,7 @@ async function run(mutate) {
        function floors at 12h) and shares this list. */
     await db.query(
       `update public.player_state
-          set active_kind = 'gather', active_id = 'copper_rock',
+          set active_kind = 'artisan', active_id = 'fuel_big_bones',
               accrued_to = now() - interval '3 hours', active_since = null
         where user_id = $1 and slot = 0`, [UID]);
     const transient = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
@@ -1249,13 +1079,13 @@ async function run(mutate) {
       + 'restamps the watermark and the window becomes payable — so forfeiting it destroys time the '
       + 'player would otherwise have been paid for. Only POINTER reasons may forfeit.');
     const untouched = await state(db, UID);
-    ok(untouched.active_kind === 'gather' && untouched.active_id === 'copper_rock',
+    ok(untouched.active_kind === 'artisan' && untouched.active_id === 'fuel_big_bones',
       `A3d(iv): the refused stop moved the pointer to ${untouched.active_kind}/${untouched.active_id}`);
 
     /* Restore a sane pointer for the sections that follow. */
     await db.query(
       `update public.player_state
-          set active_kind = 'gather', active_id = 'copper_rock',
+          set active_kind = 'artisan', active_id = 'fuel_big_bones',
               accrued_to = now(), active_since = now()
         where user_id = $1 and slot = 0`, [UID]);
   }
@@ -1263,12 +1093,12 @@ async function run(mutate) {
   // ── A4. A REPLAYED INTENT APPLIES NOTHING ────────────────────────────────
   {
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
+    const first = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_dragon_bones' } });
     ok(first.body.ok === true, `A4: the first call failed: ${JSON.stringify(first.body).slice(0, 200)}`);
     const mid = await state(db, UID);
     const midLedger = (await ledger(db, UID)).length;
 
-    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
+    const again = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_dragon_bones' } });
     ok(again.body.ok === true, `A4: the replay was not ok:true: ${JSON.stringify(again.body).slice(0, 200)}`);
     ok(again.body.replayed === true, 'A4: the replay was not reported as a replay');
     const after = await state(db, UID);
@@ -1285,11 +1115,11 @@ async function run(mutate) {
   // answers replayed:true and silently leaves the player on the old monster.
   {
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
+    const first = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_bone_chips' } });
     ok(first.body.ok === true, `A5: the control call failed: ${JSON.stringify(first.body).slice(0, 200)}`);
     const mid = await state(db, UID);
 
-    const clash = await call({ intentId: key, activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
+    const clash = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(clash.body.ok === false && clash.body.error === 'intent_mismatch',
       `A5: reusing one key for a different target returned ${JSON.stringify(clash.body).slice(0, 200)} `
       + '— expected intent_mismatch. A silent replay here leaves the player fighting the wrong monster.');
@@ -1317,7 +1147,7 @@ async function run(mutate) {
     });
     const r = await sa.runSetActivity({
       exec: racingExec, user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
+      activity: { kind: 'artisan', id: 'fuel_bones' },
     });
     ok(bumped, 'A6-CONTROL: the injector never fired — no hr_apply statement was seen, so A6 proves nothing');
     ok(r.body.ok === false && r.body.error === 'version_conflict',
@@ -1331,10 +1161,15 @@ async function run(mutate) {
   // The collect's apply is forced to fail. The switch must be refused, the
   // watermark must not move, and the pointer must not change.
   {
+    /* Bones in the bag, so the two-hour window has value and the collect really applies (an empty fuel run proposes
+       nothing, and a collect with nothing to apply is not a collect this injection could refuse). */
+    await db.query(
+      `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 100000)
+       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
     await db.query(
       `update public.player_state
           set accrued_to = now() - interval '2 hours', active_since = now() - interval '2 hours',
-              active_kind = 'gather', active_id = 'normal_tree'
+              active_kind = 'artisan', active_id = 'fuel_bones'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
 
@@ -1350,7 +1185,7 @@ async function run(mutate) {
     });
     const r = await sa.runSetActivity({
       exec: brokenExec, user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
+      activity: { kind: 'artisan', id: 'fuel_big_bones' },
     });
     ok(sawCollect, 'A7-CONTROL: no collect apply was attempted, so the injection proves nothing');
     ok(r.body.ok === false && r.body.stage === 'collect' && r.body.error === 'daily_budget',
@@ -1364,7 +1199,7 @@ async function run(mutate) {
 
     // CONTROL: the identical call WITHOUT the injection succeeds, so A7 is not
     // measuring a call that was broken for some other reason.
-    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const good = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(good.body.ok === true, `A7-CONTROL: the uninjected call also failed: ${JSON.stringify(good.body).slice(0, 200)}`);
   }
 
@@ -1375,10 +1210,10 @@ async function run(mutate) {
     await db.query(
       `update public.player_state
           set accrued_to = now() - interval '4 hours', active_since = null,
-              active_kind = 'gather', active_id = 'normal_tree'
+              active_kind = 'artisan', active_id = 'fuel_bones'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(r.body.ok === false && r.body.error === 'uncollectable_window',
       `A8: returned ${JSON.stringify(r.body).slice(0, 250)} — expected uncollectable_window`);
     ok(r.body.detail && r.body.detail.reason === 'no_active_since',
@@ -1389,7 +1224,7 @@ async function run(mutate) {
     // Repair, and CONTROL that the same call then works.
     await db.query(
       'update public.player_state set active_since = accrued_to where user_id = $1 and slot = 0', [UID]);
-    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const good = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(good.body.ok === true, `A8-CONTROL: after repair the call still failed: ${JSON.stringify(good.body).slice(0, 200)}`);
   }
 
@@ -1409,7 +1244,7 @@ async function run(mutate) {
 
   // ── A10. THE CLIENT AUTHORS NOTHING ──────────────────────────────────────
   {
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_node', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'not_a_fuel' } });
     ok(r.body.ok === false && r.body.error === 'unknown_activity',
       `A10: a forged activity id returned ${JSON.stringify(r.body).slice(0, 200)}`);
 
@@ -1418,7 +1253,7 @@ async function run(mutate) {
     const n0 = Number((await db.query(
       'select count(*) as n from public.hr_rate_counters where user_id = $1', [UID2])).rows[0].n);
     const r2 = await sa.runSetActivity({
-      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
+      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'artisan', id: 'fuel_bones' },
     });
     ok(r2.status === 400 && r2.body.error === 'missing_intent_id',
       `A10: a keyless intent returned ${JSON.stringify(r2.body)}`);
@@ -1434,7 +1269,7 @@ async function run(mutate) {
     await db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
     let limited = 0; let allowed = 0;
     for (let i = 0; i < 40; i++) {
-      const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
+      const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
       if (r.status === 429) limited++; else allowed++;
     }
     ok(limited > 0, `A11: 40 calls in a minute produced ${limited} refusals — the gate is not applied`);
@@ -1483,11 +1318,11 @@ async function run(mutate) {
     // The legal values survive, so none of the above is "always null".
     const good = req.parseIntent({
       slot: 3, verb: 'set_activity', intentId: '11111111-2222-4333-8444-555555555555',
-      activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
+      activity: { kind: 'artisan', id: 'fuel_bones' },
     });
     ok(good.slot === 3 && good.verb === 'set_activity'
       && good.intentId === '11111111-2222-4333-8444-555555555555'
-      && good.activity.kind === 'gather' && good.activity.id === 'normal_tree',
+      && good.activity.kind === 'artisan' && good.activity.id === 'fuel_bones',
       `A12-CONTROL: a legitimate request was mangled: ${JSON.stringify(good)}`);
   }
 
@@ -1653,7 +1488,7 @@ async function run(mutate) {
     await clearGate();
     await db.query(
       `update public.player_state
-          set accrued_to = now(), active_since = now(), active_kind = 'gather', active_id = 'normal_tree'
+          set accrued_to = now(), active_since = now(), active_kind = 'artisan', active_id = 'fuel_bones'
         where user_id = $1 and slot = 0`, [UID]);
 
     // (a) THE REFUSAL. accrued_to = now() so the collect exits at below_min_span
@@ -1663,14 +1498,14 @@ async function run(mutate) {
     const fired = { hit: false };
     const r1 = await sa.runSetActivity({
       exec: conflictingExec(fired), user: UID, slot: 0, intentId: key,
-      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
+      activity: { kind: 'artisan', id: 'fuel_big_bones' },
     });
     ok(fired.hit, 'A15-CONTROL: the injector never fired — no hr_apply was seen, so A15 proves nothing');
     ok(r1.body.ok === false && r1.body.error === 'version_conflict' && r1.body.stage === 'switch',
       `A15-CONTROL: expected a version_conflict at the switch, got ${JSON.stringify(r1.body).slice(0, 200)}`);
 
     // (b) THE RETRY. Same key, correct version, nothing injected.
-    const r2 = await call({ intentId: key, activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const r2 = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(r2.body.ok === true,
       `A15: THE REJECTED KEY IS STILL POISONED — retrying it at the CORRECT version returned `
       + `${JSON.stringify(r2.body).slice(0, 200)}. A version conflict is a statement about the `
@@ -1679,7 +1514,7 @@ async function run(mutate) {
       + 'whose key is DERIVED — for up to 25 hours.');
     ok(r2.body.replayed !== true,
       'A15: the retry was answered as a REPLAY — the key was re-read, not released');
-    ok((await state(db, UID)).active_id === 'copper_rock', 'A15: the successful retry did not actually switch');
+    ok((await state(db, UID)).active_id === 'fuel_big_bones', 'A15: the successful retry did not actually switch');
 
     // (c) CONTROL — THE RELEASE IS NARROW. A rejection about the DELTA must
     //     still be sticky, or (b) only proves hr_apply stopped recording
@@ -1899,9 +1734,9 @@ async function run(mutate) {
     await db.query(
       `update public.player_state
           set accrued_to = now() - interval '4 hours', active_since = null,
-              active_kind = 'gather', active_id = 'normal_tree'
+              active_kind = 'artisan', active_id = 'fuel_bones'
         where user_id = $1 and slot = 0`, [UID]);
-    const c = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
+    const c = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_big_bones' } });
     ok(c.body.error === 'uncollectable_window' && c.body.stage === 'collect',
       `A18-CONTROL: expected a stage:collect refusal, got ${JSON.stringify(c.body).slice(0, 200)}`);
     ok(hasEnvelope(c.body),
@@ -1909,7 +1744,7 @@ async function run(mutate) {
       + 'pointer it moved optimistically to anything but its own guess');
     ok(c.body.ok === false,
       'A18: the envelope spread overwrote ok — a refusal that says ok:true is worse than no envelope');
-    ok(c.body.activity && c.body.activity.id === 'normal_tree',
+    ok(c.body.activity && c.body.activity.id === 'fuel_bones',
       `A18: the refusal reports activity ${JSON.stringify(c.body.activity)} — it must be the pointer `
       + 'the SERVER holds, which is what the client reconciles to');
     ok(Number.isFinite(Number(c.body.version)), 'A18: the refusal carries no version');
@@ -1924,7 +1759,7 @@ async function run(mutate) {
     const fired = { hit: false };
     const s = await sa.runSetActivity({
       exec: conflictingExec(fired), user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
+      activity: { kind: 'artisan', id: 'fuel_big_bones' },
     });
     ok(fired.hit && s.body.stage === 'switch' && s.body.error === 'version_conflict',
       `A18-CONTROL: expected a stage:switch version_conflict, got ${JSON.stringify(s.body).slice(0, 200)}`);
@@ -1938,14 +1773,14 @@ async function run(mutate) {
 
     // (3) THE DOCUMENTED EXCEPTIONS, and they are exceptions on purpose.
     const keyless = await sa.runSetActivity({
-      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
+      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'artisan', id: 'fuel_bones' },
     });
     ok(keyless.body.error === 'missing_intent_id' && !hasEnvelope(keyless.body),
       'A18: a SHAPE refusal carried an envelope — reading one is the database work the shape check '
       + 'exists to avoid, and it would let a malformed client spend a real player\'s rate budget');
     without.push('missing_intent_id');
     const noChar = await sa.runSetActivity({
-      exec, user: UID2, slot: 4, intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
+      exec, user: UID2, slot: 4, intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' },
     });
     ok(noChar.body.error === 'no_character' && !hasEnvelope(noChar.body),
       'A18: no_character carried an envelope — hr_state_of itself said there is no state');
@@ -1997,7 +1832,7 @@ async function run(mutate) {
     await db.query(
       `update public.player_state set accrued_to = now(), active_since = now()
         where user_id = $1 and slot = 0`, [UID]);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(r.body.ok === true || r.status === 429,
       `A19-CONTROL: the probe call failed for an unrelated reason: ${JSON.stringify(r.body).slice(0, 200)}`);
     const spent = (await db.query(
@@ -2076,49 +1911,54 @@ async function run(mutate) {
     // (a) `activity` is READ OUT OF state, not echoed from the request.
     await db.query(
       `update public.player_state
-          set accrued_to = now(), active_since = now(), active_kind = 'gather', active_id = 'normal_tree'
+          set accrued_to = now(), active_since = now(), active_kind = 'artisan', active_id = 'fuel_bones'
         where user_id = $1 and slot = 0`, [UID]);
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
-    ok(first.body.ok === true && first.body.activity && first.body.activity.id === 'essence_rock',
-      `A20-CONTROL: the first switch did not report essence_rock: ${JSON.stringify(first.body.activity)}`);
+    const first = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_dragon_bones' } });
+    ok(first.body.ok === true && first.body.activity && first.body.activity.id === 'fuel_dragon_bones',
+      `A20-CONTROL: the first switch did not report fuel_dragon_bones: ${JSON.stringify(first.body.activity)}`);
     // A concurrent writer moves the pointer. The harness plays that part, which
     // is a privilege the engine does not have and must not be given.
     await db.query(
-      "update public.player_state set active_id = 'shrimp_s' where user_id = $1 and slot = 0", [UID]);
-    const replay = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
+      "update public.player_state set active_id = 'fuel_bone_chips' where user_id = $1 and slot = 0", [UID]);
+    const replay = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_dragon_bones' } });
     ok(replay.body.replayed === true, 'A20-CONTROL: the second call was not a replay');
-    ok(replay.body.activity && replay.body.activity.id === 'shrimp_s',
+    ok(replay.body.activity && replay.body.activity.id === 'fuel_bone_chips',
       `A20: the response reported activity '${replay.body.activity && replay.body.activity.id}' — the `
       + `CLIENT's own declaration — while state says '${replay.body.state.active_id}'. Two fields in `
       + 'one body disagreeing, with the client-authored one on top. Read it out of state.');
 
     // (b) `collected` survives a REPLAYED SWITCH whose collect genuinely paid.
     //     Measured: 3,809 gold and 744 kills of applied payment reported as null.
-    //     The paying window is a two-hour CHOP (since lane C2 a fight is a hunt
-    //     session and a switch's collect never prices one): logs are the measure.
+    //     The paying window is a two-hour FUEL RUN (since lane C2 a fight is a hunt
+    //     session and a switch's collect never prices one, and since the
+    //     one-town-work cut the Hearth is the one town run): the bones it burnt are
+    //     the measure.
     await clearGate();
     await db.query(
+      `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 100000)
+       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
+    await db.query(
       `update public.player_state
-          set active_kind = 'gather', active_id = 'normal_tree',
+          set active_kind = 'artisan', active_id = 'fuel_bones',
               accrued_to = now() - interval '2 hours', active_since = now() - interval '2 hours'
         where user_id = $1 and slot = 0`, [UID]);
-    const logsOf = async () => Number((await db.query(
-      "select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'normal_log'",
+    const bonesOf = async () => Number((await db.query(
+      "select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'",
       [UID])).rows[0].n);
-    const logsBefore = await logsOf();
-    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
-    const logsAfter = await logsOf();
+    const bonesBefore = await bonesOf();
+    const again = await call({ intentId: key, activity: { kind: 'artisan', id: 'fuel_dragon_bones' } });
+    const burnt = bonesBefore - await bonesOf();
     ok(again.body.replayed === true,
       `A20-CONTROL: the switch was not a replay (${JSON.stringify(again.body).slice(0, 200)}) — the `
       + 'assertion below would then be about an ordinary success');
-    ok(logsAfter > logsBefore,
-      `A20-CONTROL: the collect paid ${logsAfter - logsBefore} logs for two hours, so "the receipt `
+    ok(burnt > 0,
+      `A20-CONTROL: the collect burnt ${burnt} bones in two hours, so "the receipt `
       + 'was dropped" would be indistinguishable from "there was nothing to receipt"');
     ok(again.body.collected && again.body.collected.items
-      && again.body.collected.items.normal_log === logsAfter - logsBefore,
+      && again.body.collected.items.bones === -burnt,
       `A20: a REPLAYED switch reported collected=${JSON.stringify(again.body.collected)} while `
-      + `${logsAfter - logsBefore} logs were genuinely applied by THIS invocation's collect. The test `
+      + `${burnt} bones were genuinely burnt by THIS invocation's collect. The test `
       + 'is "did this collect apply", never "was the switch a replay" — the two halves are separate '
       + 'applies precisely so that they can differ.');
   }

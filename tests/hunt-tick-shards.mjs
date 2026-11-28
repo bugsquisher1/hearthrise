@@ -32,7 +32,11 @@
 //   FANOUT   (2027-02-03-tick-capacity.sql) the bodies a fire queues are
 //            hr_tick_config.hunt_bodies_max, not a literal 16: at one hunt a body
 //            and two bodies a fire, two of three due hunts ride and one waits;
-//            the chain carries the file's dials (body 4, 32 bodies)
+//            the chain carries its dials (16 instances / 12 heroes a body, 54 bodies: 1077)
+//   DIALS    (1077-tick-dials.sql) at the chain's OWN dials (12 heroes a body, 54 bodies a fire) a body
+//            of four-hero parties is three fours: four due fours ride 12 + 4, each whole; at one body
+//            a fire the three most behind ride and the fourth waits unleased (the 54 x 12 ceiling, 163
+//            fours, is 1077's own self-check); the file's §3 bites are proved by --mutate
 //   BUDGET   a body past its time budget STARTS no settle: every selector is
 //            `deferred`, nothing is written
 //   WORLD  ★ a window whose world would encode past the bound is REFUSED by the
@@ -243,12 +247,13 @@ const ARMS = {
 
   /* FANOUT (2027-02-03-tick-capacity.sql): the bodies a fire may queue are hr_tick_config.hunt_bodies_max (was the
      literal 16 in hr_hunt_roster_sharded): at one hunt a body, two bodies a fire take two of three due hunts and the
-     third waits; three bodies take all three. The file's own dials ride the chain (body 4, 32 bodies). */
+     third waits; three bodies take all three. The chain's dials are 1077-tick-dials.sql's (16 instances / 12 heroes a body, 54 bodies). */
   FANOUT: async (db, M) => inTx(db, async () => {
     const problems = [];
     const cfg = (await q(db, 'select hunt_body_max, hunt_body_heroes, hunt_bodies_max from public.hr_tick_config where id'))[0];
-    /* 1004-tick-pack-heroes.sql: 16 instances and 16 heroes a body (was 4 instances), 32 bodies */
-    if (!cfg || cfg.hunt_body_max !== 16 || cfg.hunt_body_heroes !== 16 || cfg.hunt_bodies_max !== 32) problems.push(`the chain's dials are ${JSON.stringify(cfg)}, not 16 instances / 16 heroes a body, 32 bodies`);
+    /* 1004-tick-pack-heroes.sql: 16 instances a body (was 4); 1077-tick-dials.sql: 12 heroes a body (three fours, was 16) and
+       54 bodies a fire (was 32) */
+    if (!cfg || cfg.hunt_body_max !== 16 || cfg.hunt_body_heroes !== 12 || cfg.hunt_bodies_max !== 54) problems.push(`the chain's dials are ${JSON.stringify(cfg)}, not 16 instances / 12 heroes a body, 54 bodies`);
     const sids = await hunters(db, M, 3);
     await armCron(db);
     await db.query('update public.hr_tick_config set hunt_body_max = 1, hunt_bodies_max = 2 where id');
@@ -309,6 +314,46 @@ const ARMS = {
     if (one4.bodies.length !== 1 || took.length !== 4 || !first || !took.every((s) => first.sids.includes(s))) problems.push(`one body a fire of 4 heroes took ${took.length} session(s) in ${one4.bodies.length} bod(ies), not one most-behind party whole`);
     const leased = Number(await one(db, 'select count(*) from public.hunt_tick_lease where session_id = any ($1::uuid[]) and lease_until > now()', [all]));
     if (leased !== 4) problems.push(`the 4-hero fan-out leased ${leased} sessions, not the 4 it posted`);
+    return problems;
+  }),
+
+  /* DIALS (1077-tick-dials.sql, lane/tick-dials): AT THE CHAIN'S OWN DIALS a body of four-hero parties is THREE fours (a body of
+     four fours read p95 952-1,096 reference ms against the 800 ms engine budget; three read about 0.73 of it), and the fan-out is
+     cut in heroes: four due fours ride two bodies, 12 heroes and 4, each party whole; at one body a fire the fire takes the three
+     most behind and the fourth waits unleased. The chain's 54 bodies x 12 heroes (1,620 fours a settle window) is 1077's own
+     self-check (163 fours), too heavy to build here. */
+  DIALS: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const fx = await outageParties(db, M, 4, 4, OUTAGE_HUNT);
+    const all = fx.flatMap((p) => p.sids);
+    /* the fourth party the least behind: 200 s behind for the first three, 190 s for the fourth (all past the 90 s flush) */
+    for (const [k, p] of fx.entries()) {
+      const t = `date_trunc('second', now() - interval '${k === 3 ? 190 : 200} seconds')`;
+      await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = any ($1::uuid[])`, [p.sids]);
+      await db.query(`update public.hunt_instances i set settled_to = ${t}, next_swing_at = ${t} from public.hunt_sessions h where h.instance_id = i.id and h.id = any ($1::uuid[])`, [p.sids]);
+    }
+    await db.exec(SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
+    /* the cron's switch, the flush and the queue's URL only: every packing dial is the chain's */
+    await db.query(`update public.hr_tick_config set enabled = true, flush_seconds = 90, cadence_seconds = 10, fold_windows = 1, catchup_windows = 1,
+                      edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue' where id`);
+    const cfg = (await q(db, 'select hunt_body_heroes, hunt_bodies_max from public.hr_tick_config where id'))[0];
+    const shape = (f) => f.bodies.map((b) => b.hunts.map((h) => h.session_id).filter((s) => all.includes(s))).filter((b) => b.length);
+    const whole = (bodies, label) => {
+      for (const p of fx) if (new Set(bodies.map((b, i) => (p.sids.some((s) => b.includes(s)) ? i : -1)).filter((i) => i >= 0)).size > 1) problems.push(`${label}: a party rode more than one body`);
+    };
+    await db.query('savepoint dials');
+    const both = shape(await fire(db));
+    const sizes = both.map((b) => b.length).sort((a, b) => a - b);
+    if (sizes.join() !== '4,12') problems.push(`at the chain's ${cfg.hunt_body_heroes} heroes a body four due fours rode bodies of ${sizes.join(', ') || 'none'}, not 12 and 4 (three fours a body)`);
+    whole(both, 'at the chain\'s dials');
+    await db.query('rollback to savepoint dials');
+    await db.query('update public.hr_tick_config set hunt_bodies_max = 1 where id');
+    const one1 = shape(await fire(db));
+    const took = one1.flat();
+    if (one1.length !== 1 || took.length !== 12 || took.some((s) => fx[3].sids.includes(s))) problems.push(`one body a fire at the chain's heroes took ${took.length} session(s) in ${one1.length} bod(ies), not the three most behind fours`);
+    whole(one1, 'one body a fire');
+    const leased = Number(await one(db, 'select count(*) from public.hunt_tick_lease where session_id = any ($1::uuid[]) and lease_until > now()', [fx[3].sids]));
+    if (leased) problems.push(`the four past the fire's 12 heroes was leased (${leased} sessions)`);
     return problems;
   }),
 
@@ -412,10 +457,11 @@ const fakeClock = (per) => { let t = 0; return () => (t += per); };
    process (a loaded box measured a 2-min slice at 4 s of wall); the edge's own timer is performance.now, which only
    over-counts (a safe fuse). */
 const cpuClock = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
-/* The arms run the edge at the chain's dials: one body of up to 4 instances. */
+/* The arms run the edge on one body of up to 4 instances of up to 16 heroes: a FULL body is four four-hero parties, heavier than
+   the chain's own (12 heroes, three fours since 1077-tick-dials.sql), so OUTAGE's CPU bound is measured on the stress shape. */
 async function armSpan(db) {
   await armCron(db);
-  await db.query('update public.hr_tick_config set hunt_body_max = 4, hunt_bodies_max = 32 where id');
+  await db.query('update public.hr_tick_config set hunt_body_max = 4, hunt_body_heroes = 16, hunt_bodies_max = 32 where id');
 }
 
 /* THE OUTAGE FIXTURE: `n` parties of `size` on a REAL ground (the chain's catalogue, no fixture row), every
@@ -893,6 +939,11 @@ const DB_MUTANTS = [
     find: 'greatest((z.r - 1) / v_per, z.before / c_heroes) as b', replace: '(z.r - 1) / v_per as b' },
   { arm: 'PACK-HEROES', name: '[tick-pack] the fan-out ignores the heroes it takes', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: '       and i.cum <= c_heroes * c_bodies\n', replace: '' },
+  /* 1077-tick-dials.sql: at the chain's own dials a body of fours is three fours, and a fire stops at its heroes */
+  { arm: 'DIALS', name: '[tick-dials] the packer counts instances only (four fours ride one body)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
+    find: 'greatest((z.r - 1) / v_per, z.before / c_heroes) as b', replace: '(z.r - 1) / v_per as b' },
+  { arm: 'DIALS', name: '[tick-dials] the fan-out ignores the heroes it takes (one body a fire leases all four)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
+    find: '       and i.cum <= c_heroes * c_bodies\n', replace: '' },
   { arm: 'PACK-LEASE-SETTLE', name: 'a live lease is re-claimed by the next fire', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: 'and (l.session_id is null or l.lease_until < now()\n', replace: 'and (l.session_id is null or l.lease_until < now() or true\n' },
   { arm: 'RECLAIM', name: '[tick-span] a landed settle waits out its lease (the next slice every third fire)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
@@ -944,6 +995,24 @@ const CAP_MUTANTS = [
   { name: '[tick-capacity] the dials are left as they were', expect: '§5(a)',
     find: 'update public.hr_tick_config set hunt_body_max = 4, hunt_bodies_max = 32 where id;',
     replace: 'update public.hr_tick_config set hunt_body_max = 12 where id;' },
+];
+/* 1077-tick-dials.sql's §3 bites. Each mutant moves the dials or a line of the restated sampler; §3 reads behaviour (k0, s1) before
+   its md5 line (sp), and `expect` names the gate that must refuse. */
+const TD = '1077-tick-dials.sql';
+const TD_MUTANTS = [
+  { name: '[tick-dials] the dials are left as they were', expect: 'k0:',
+    find: 'update public.hr_tick_config set hunt_body_heroes = 12, hunt_bodies_max = 54 where id;', replace: 'select 1;' },
+  { name: '[tick-dials] the fan-out stays at 32 bodies', expect: 'k0:',
+    find: 'update public.hr_tick_config set hunt_body_heroes = 12, hunt_bodies_max = 54 where id;', replace: 'update public.hr_tick_config set hunt_body_heroes = 12 where id;' },
+  { name: '[tick-dials] the sampler keeps a body\'s instances as its heroes (the wall 8,640, not 6,480)', expect: 's1:',
+    find: '  select coalesce(t.cadence_seconds, 10), coalesce(t.flush_seconds, 90), least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)',
+    replace: '  select coalesce(t.cadence_seconds, 10), coalesce(t.flush_seconds, 90), coalesce(t.hunt_body_max, 1), coalesce(t.hunt_bodies_max, 1)' },
+  { name: '[tick-dials] the sampler still counts open instances as the wall\'s open', expect: 's1:',
+    find: '  select count(*)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst',
+    replace: '  select count(distinct s.instance_id)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst' },
+  { name: '[tick-dials] the sampler is not this file\'s image where s1 does not look (its old tick comment)', expect: 'sp:',
+    find: '  -- tick (1077-tick-dials.sql): the HEROES the roster can lease in one settle window (a body\'s heroes are the smaller dial: a lone-hunt body closes at hunt_body_max instances), and the heroes open.',
+    replace: '  -- tick: what the roster can lease in one settle window, and what is open.' },
 ];
 /* 2027-02-04-tick-span.sql's §5 bites: the roster body is pinned by md5 in §0 and §5(a), so a body mutant RE-PINS both
    (spanPatches) and the refusal must come from the behavioural gate named in `expect`. */
@@ -1058,7 +1127,14 @@ async function main() {
       if (refused && refused.includes(m.expect)) console.log(`✓ the §5 of ${SPAN_MIG} refuses (${m.expect}): ${m.name}`);
       else { console.error(`✗ ${SPAN_MIG} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
     }
-    const total = mine(MUTANTS).length + mine(DB_MUTANTS).length + sqlOf(SQL_MUTANTS).length + sqlOf(CAP_MUTANTS).length + sqlOf(SPAN_SQL_MUTANTS).length;
+    for (const m of sqlOf(TD_MUTANTS)) {
+      let refused = null;
+      try { await bootReplay({ patches: new Map([[TD, [[m.find, m.replace]]]]), upTo: LAST_PATCHED }); } catch (e) { refused = String(e.message); }
+      if (refused && refused.includes(m.expect)) console.log(`✓ the §3 of ${TD} refuses (${m.expect}): ${m.name}`);
+      else { console.error(`✗ ${TD} applied: ${m.name}${refused ? ' (' + refused.slice(0, 200) + ')' : ''}`); bad++; }
+    }
+    const total = mine(MUTANTS).length + mine(DB_MUTANTS).length + sqlOf(SQL_MUTANTS).length + sqlOf(CAP_MUTANTS).length + sqlOf(SPAN_SQL_MUTANTS).length
+      + sqlOf(TD_MUTANTS).length;
     const tag = OUTAGE_ONLY ? ' --outage' : '';
     console.log(bad ? `hunt-tick-shards --mutate${tag}: ${bad} mutant(s) survived` : `hunt-tick-shards --mutate${tag}: all ${total} mutants killed`);
     process.exit(bad ? 1 : 0);

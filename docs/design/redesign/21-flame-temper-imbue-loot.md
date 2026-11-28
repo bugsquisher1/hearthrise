@@ -401,6 +401,7 @@ Step 1 is above Muster's band (70 to 80 against 57 to 75), so a Muster company u
 
 - **At the kill.** A hero is at a kill when it stands in the instance alive at that kill, the same rule as the XP share (CODE: `src/core/hunt/xp-share.js`, heroes alive at the kill). A hero who left or died rolls nothing on it.
 - **The roll.** For each drop row, each hero at the kill rolls once at `ch / n`, n the heroes at the kill. Expected drops a kill are the row's, so rates authored "one in about N hunted hours for a hero" (`04` 11) hold in any party size.
+- **Amended (12-targets 8.11, 2026-11-27).** A hero rolls a kill it is alive at AND took part in (struck, healed or shielded in its pull; every living hero when none did). A guaranteed row is dealt, one unit a kill to one roller by turns, never rolled at 1 / n. The flame reads only the Trait roll, never a drop row. The rule is frozen per hunt instance.
 - **Rares.** The same roll. The roller adds per hero: depth (x1 to x3, `12-targets` 3.3), the hero's company flame (`luckPm`), then pity.
 - **Pity, per hero.** `pityStepPm` added to a hero's Rare chance after each kill it rolled and missed, reset on a hit, so the long-run rate is the stated one (`04` guard 5, `GEAR_STEPS.pity.rare`). Per hero, so a seat that never finds anything catches up and nobody's luck is shared.
 - **The Trait.** Rolled per hero from the ground's pool (`traitPool`), rank by depth and the hero's flame (D-4).

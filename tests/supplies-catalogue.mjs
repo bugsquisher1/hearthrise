@@ -391,8 +391,9 @@ function selftest() {
     ['B1', 'a shop heal cheaper per point than the cooked one', (d) => { withBasic(d, 'salted_shark', { price: 1 }); }],
     ['B1', 'a shop heal as big as the cooked one', (d) => { withBasic(d, 'salted_trout', { heals: 14 }); }],
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
-    /* BASIC_AMMO_PREMIUM is 1 since the spell-release balance (designer 2026-10-23): a store shot at its partner's book (4 g) holds, under it is red. */
-    ['B1', 'a shop arrow under the crafted arrow book value per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 3 }); }],
+    /* a store shot one gold under BASIC_AMMO_PREMIUM x its partner's book, read off the data (a fixed 3 g went hollow when lane/econ-levers set the
+       premium to 0.5, a floor of 2 g) */
+    ['B1', 'a shop arrow under the crafted arrow book value per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: Math.ceil(BASIC_AMMO_PREMIUM * partnerUnit(ITEMS.mithril_arrows, 'ammo')) - 1 }); }],
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
     ['B5', 'Iron Arrows with no store row again (live 10-23: the Ranger hunted on with no basic)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_iron_arrows'); }],
     ['B5', 'a food listed as needing no store row while one stands behind it', (d) => { d.noPartner = { ...d.noPartner, cooked_trout: 'a stale reason that is long enough' }; }],
@@ -406,9 +407,12 @@ function selftest() {
     ['B6', 'a rune listed as needing no store row beside its row', (d) => { d.noPartner = { ...d.noPartner, scored_ice_rune: 'a stale reason that is long enough' }; }],
     ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
     ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],
-    ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 50 g for 5: 1.25 g a point under the 2.3 g Salted Shrimp)', (d) => {
+    /* five for a gold under the Salted Shrimp's price a point, read off the data (a fixed 50 g went hollow when the store was priced in wage hours) */
+    ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, five a point cheaper than the Salted Shrimp)', (d) => {
+      const s = d.basics.find((b) => b.id === 'salted_shrimp');
+      const gold = Math.max(1, Math.floor((s.price / s.heals) * 5 * ITEMS.cooked_shrimp.heals) - 1);
       d.offers = [...d.offers, { id: 'seed.cooked_shrimp', table: 'seed',
-        cost: [{ kind: 'currency', id: 'gold', amount: 50 }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];
+        cost: [{ kind: 'currency', id: 'gold', amount: gold }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];
     }],
     ['B3', 'a big shop heal cheaper per point than a small one (Lobster 3.3 g vs Trout 4.0 g)', (d) => { withBasic(d, 'salted_lobster', { price: 60 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],

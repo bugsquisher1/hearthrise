@@ -676,6 +676,12 @@ export const ITEMS={
   /* bands 2 and 3's heads (lane/kit-bands-2-3, 09 4.14): forged from one Steel or one Mithril Bar, booked under it the same way */
   steel_arrowheads: {n:'Steel Arrowheads', icon:'🔺', v:100},
   mithril_arrowheads: {n:'Mithril Arrowheads', icon:'🔺', v:200},
+  /* band 4's rock and head (lane/kit-bands-4-5, 09 4.15): Rune Ore smelts to one Rune Bar, booked a tenth of it like Mithril Ore; the head
+     is forged from one Rune Bar and booked under it the same way */
+  rune_ore: {n:'Rune Ore', icon:'🔷', v:50},
+  rune_arrowheads: {n:'Rune Arrowheads', icon:'🔺', v:400},
+  /* band 5's head (09 4.15): forged from one Emberforged Bar, booked under it the same way */
+  ember_arrowheads: {n:'Emberforged Arrowheads', icon:'🔺', v:400},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -983,7 +989,7 @@ const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
   'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
-  'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads',
+  'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads', 'rune_ore', 'rune_arrowheads', 'ember_arrowheads',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

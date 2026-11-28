@@ -9,19 +9,21 @@
 //
 // mutant-anchors: src/core/trades.js src/data/trades.js src/data/job-faces.js
 //   (the mutants patch a temp copy of src/; no tracked file is patched)
-// ci-step: economy-selftests | Kit trades bands 0 to 3 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
+// ci-step: economy-selftests | Kit trades bands 0 to 5 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
 // ci-run: node tests/kit-recipes.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/kit-recipes.mjs --mutate
 //
 //   KR-ROWS    band 0 is the first day whole (09 4.11 row 1b, 4.13): the sample's five, batch 2 (the gather rows, the refine rows, the
 //              honing stone and the drink) and every rune family; band 1 (iron, 09 4.13) is the same kinds at iron and oak, the first bolt
-//              and the Temper kit, with no stone of its own; bands 2 and 3 (steel and mithril, 09 4.14) are band 1's kinds but the bolt;
-//              one row a kind, every v0.3.0 gathering and making trade with a job at each band; past band 3 only the Temper kit a band,
+//              and the Temper kit, with no stone of its own; bands 2 to 4 (steel, mithril and rune, 09 4.14, 4.15) are band 1's kinds but
+//              the bolt; band 5 (Emberforged, 09 4.15) is band 4's but the runes and the stone, whose ladders have no ember rung; one row a
+//              kind, every v0.3.0 gathering and making trade with a job at each band (Runecutting while a rune tier is left); past band 5
+//              only the Temper kit a band,
 //              to Dawnsteel (lane/tp-im-steps, 21 section 2.2); one good, one recipe; a row holds only its kind, band, derived
 //              id and a short label (no time, count, XP or price); validate() is clean
 //   KR-BATCH   a batch of 20 or fewer, each batch on its own (09 4.13): two batches of 15 pass, one of 21 is refused, and KIT_RECIPES is
 //              the batches end to end, so a band past 0 lands as its own batch
-//   KR-CLOSED  ONE TOWN WORK (09 4.11): every town input of every job at a whole band (0 to 3) is made by a job at that band or below
+//   KR-CLOSED  ONE TOWN WORK (09 4.11): every town input of every job at a whole band (0 to 5) is made by a job at that band or below
 //              (never only by the live bench, the store or the start kit), and every hunted input is its stream's face a monster on an open ground
 //              of that band drops, so the cut leaves no gap and a company hunting its band can make its band's goods
 //   KR-RUNG    a band's recipe opens at the band's rung (band b at rung b + 1, the last rung for every band past it, never before the
@@ -53,13 +55,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const HOUR = 3600000;
 /* the bands whose kit batches have landed whole (09 4.13): KR-ROWS holds their kinds, KR-CLOSED their chains */
-const WHOLE_BANDS = Object.freeze([0, 1, 2, 3]);
+const WHOLE_BANDS = Object.freeze([0, 1, 2, 3, 4, 5]);
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
-  const [T, D, CC, IT, SK, HG, MO, DG] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js'),
-    imp('src/data/hunt-grounds.js'), imp('src/data/monsters.js'), imp('src/data/danger.js')]);
-  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, bandDrops: bandDropsOf(HG, MO, DG), ...catalogueOf(T) };
+  const [T, D, CC, IT, SK, HG, MO, DG, RU] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js'),
+    imp('src/data/hunt-grounds.js'), imp('src/data/monsters.js'), imp('src/data/danger.js'), imp('src/data/runes.js')]);
+  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, runeTiers: RU.RUNE_TIERS.length, bandDrops: bandDropsOf(HG, MO, DG), ...catalogueOf(T) };
 }
 
 /* What the open grounds of each band drop: band -> Set(item ids). A ground's band is its gear Level over tierSteps (the server's
@@ -88,7 +90,7 @@ function catalogueOf(T) {
 const has = (m, id) => (m.get(id) || []).length > 0;
 
 const ARMS = {
-  'KR-ROWS'({ KR, cat, refused }) {
+  'KR-ROWS'({ KR, cat, refused, runeTiers }) {
     const out = [];
     if (refused) return ['KR-ROWS the catalogue refuses the rows: ' + refused];
     for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
@@ -98,24 +100,28 @@ const ARMS = {
     /* BAND 0 WHOLE (09 4.11 row 1b, 4.13): exactly the first day's kinds, one row each: the sample's five, then the gather rows (logs,
        shrimp, rune essence, the crop), the refine rows (bars, planks, blank runes), the honing stone, the drink and every rune family.
        BAND 1, IRON (09 4.13): the same kinds at iron and oak, the first bolt and the Temper kit, and no stone of its own (the rune's stone
-       has no metal). BANDS 2 AND 3, STEEL AND MITHRIL (09 4.14): band 1's kinds but the bolt (past iron a crossbow shoots its band's
-       arrows). Past band 3, only the Temper kits (bands 4 to 6) until their bands land */
+       has no metal). BANDS 2 TO 4, STEEL, MITHRIL AND RUNE (09 4.14, 4.15): band 1's kinds but the bolt (past iron a crossbow shoots its
+       band's arrows). BAND 5, EMBERFORGED (09 4.15): band 4's but the runes (the ladder ends at Graven) and the honing stone (the stones go
+       from Rune to Dawnsteel). Past band 5, only the Temper kit (band 6) until its band lands */
     const later3 = ['ore', 'arrowhead', 'arrow', 'meal', 'log', 'fish', 'grain', 'bar', 'shaft', 'honing_stone', 'drink', 'temper_kit', ...runes];
     const want = {
       0: ['ore', 'arrowhead', 'arrow', 'meal', 'log', 'fish', 'rune_stone', 'grain', 'bar', 'shaft', 'cut_stone', 'honing_stone', 'drink', ...runes],
       1: ['ore', 'arrowhead', 'arrow', 'bolt', 'meal', 'log', 'fish', 'grain', 'bar', 'shaft', 'honing_stone', 'drink', 'temper_kit', ...runes],
       2: later3,
       3: later3,
+      4: later3,
+      5: ['ore', 'arrowhead', 'arrow', 'meal', 'log', 'fish', 'grain', 'bar', 'shaft', 'drink', 'temper_kit'],
     };
     for (const b of WHOLE_BANDS) {
       const rows = all.filter((r) => r.band === b), kinds = rows.map((r) => r.kind);
       if (kinds.slice().sort().join() !== want[b].slice().sort().join()) out.push('KR-ROWS band ' + b + ' is ' + kinds.join(', ') + ', not its whole (' + want[b].join(', ') + ')');
-      for (const t of ['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', 'runecutting']) {
+      /* Runecutting has a job at every band a rune tier is left for (runes.js RUNE_TIERS: band b cuts tier b + 1) */
+      for (const t of ['mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'smithing', 'woodcrafting', ...(b < runeTiers ? ['runecutting'] : [])]) {
         if (!rows.some((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade === t)) out.push('KR-ROWS band ' + b + ' has no ' + t + ' row: the trade has no job at the band');
       }
     }
-    const later = all.filter((r) => r.band > 3);
-    if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '4,5,6') out.push('KR-ROWS past band 3 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at bands 4 to 6');
+    const later = all.filter((r) => r.band > 5);
+    if (later.some((r) => r.kind !== 'temper_kit') || later.map((r) => r.band).join() !== '6') out.push('KR-ROWS past band 5 is ' + later.map((r) => r.id).join(', ') + ', not the Temper kit at band 6');
     for (const r of all) {
       const extra = Object.keys(r).filter((k) => !['id', 'kind', 'band', 'name'].includes(k));
       if (extra.length) out.push('KR-ROWS ' + r.id + ' types ' + extra.join(', '));
@@ -203,7 +209,7 @@ const ARMS = {
     /* every band's chains close on jobs at that band or below (band 1's runes cut band 0's Blank Runes, 09 4.13): a band is whole only
        when every town input of every job at it is made by a job, never only by the bench, the store or the kit */
     const all = T.jobRecipes(cat).filter((r) => !r.imbue);
-    /* the bands whose batches have landed whole; bands 4 to 6 hold only their Temper kit until theirs land (its bar is a drop meanwhile) */
+    /* the bands whose batches have landed whole; band 6 holds only its Temper kit until its batch lands (its bar is a drop meanwhile) */
     for (const b of WHOLE_BANDS) {
       const jobs = all.filter((r) => r.band === b);
       const made = new Map(all.filter((r) => r.band <= b).map((r) => [r.face, r.id]));
@@ -222,7 +228,7 @@ const ARMS = {
       }
     }
     const ids = new Set(all.map((r) => r.id));
-    for (const id of ['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'arrow_b1', 'bolt_b1', 'rune_fire_b1', 'meal_b1', 'arrow_b2', 'rune_fire_b2', 'meal_b2', 'arrow_b3', 'rune_fire_b3', 'meal_b3']) if (!ids.has(id)) out.push(`KR-CLOSED ${id} is not a job`);
+    for (const id of ['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'arrow_b1', 'bolt_b1', 'rune_fire_b1', 'meal_b1', 'arrow_b2', 'rune_fire_b2', 'meal_b2', 'arrow_b3', 'rune_fire_b3', 'meal_b3', 'arrow_b4', 'rune_fire_b4', 'meal_b4', 'arrow_b5', 'meal_b5', 'drink_b5']) if (!ids.has(id)) out.push(`KR-CLOSED ${id} is not a job`);
     return out;
   },
   'KR-STORE'({ T, KR, cat, STORE_KIT }) {
@@ -286,14 +292,23 @@ const MUTANTS = [
   ['band 0 without its blank runes', 'KR-CLOSED', 'src/data/trades.js', "  kitRow('cut_stone', 0, 'Cut Blank Runes'),\n", ''],
   ['band 0 without its bars (the arrowhead and the whetstone have no metal)', 'KR-CLOSED', 'src/data/trades.js',
     "  kitRow('bar', 0, 'Smelt Bronze Bars'),\n", ''],
-  ['past band 3, a row that is no Temper kit (rune bars before band 4 is whole)', 'KR-ROWS', 'src/data/trades.js',
-    "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('bar', 4, 'Smelt Rune Bars'),\n"],
+  ['past band 5, a row that is no Temper kit (Dawnsteel Bars before band 6 is whole)', 'KR-ROWS', 'src/data/trades.js',
+    "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n", "  kitRow('temper_kit', 6, 'Mix Dawnsteel Tempering Salts'),\n  kitRow('bar', 6, 'Smelt Dawnsteel Bars'),\n"],
+  ['band 5 without its runewood planks (Emberhead Arrows have no shaft)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('shaft', 5, 'Saw Runewood Planks'),\n", ''],
+  ['band 5 without its emberstone (Emberforged Bars have no ore)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('ore', 5, 'Mine Emberstone Ore'),\n", ''],
+  ['band 5 cuts a rune past the last tier', 'KR-ROWS', 'src/data/trades.js',
+    "    kitRow('arrow', 5, 'Fletch Emberhead Arrows'),\n", "    kitRow('arrow', 5, 'Fletch Emberhead Arrows'),\n    kitRow('rune_fire', 5, 'Cut Ember Fire Runes'),\n"],
   ['band 2 without its coal (Steel Bars have no ore once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('ore', 2, 'Mine Coal'),\n", ''],
   ['band 2 carries a bolt (no steel bolt is an item)', 'KR-ROWS', 'src/data/trades.js',
     "    kitRow('arrow', 2, 'Fletch Steel Arrows'),\n", "    kitRow('arrow', 2, 'Fletch Steel Arrows'),\n    kitRow('bolt', 2, 'Fletch Steel Bolts'),\n"],
   ['band 3 without its planks (Mithril Arrows have no shaft)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('shaft', 3, 'Saw Maple Planks'),\n", ''],
   ['band 3 without its arrowheads', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('arrowhead', 3, 'Forge Mithril Arrowheads'),\n", ''],
-  ['band 3\'s runes bind with a Remains its grounds do not drop (Razor Claw, the Pyre Field\'s)', 'KR-CLOSED', 'src/data/job-faces.js', "'bones', 'grave_dust']", "'bones', 'razor_claw']"],
+  ['band 3\'s runes bind with a Remains its grounds do not drop (Razor Claw, the Pyre Field\'s)', 'KR-CLOSED', 'src/data/job-faces.js', "'bones', 'grave_dust', 'big_bones']", "'bones', 'razor_claw', 'big_bones']"],
+  ['band 4 without its rock (Rune Bars have no ore once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('ore', 4, 'Mine Rune Ore'),\n", ''],
+  ['band 4 without its yew planks (Rune Arrows have no shaft)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('shaft', 4, 'Saw Yew Planks'),\n", ''],
+  ['band 4 carries a bolt (no rune bolt is an item)', 'KR-ROWS', 'src/data/trades.js',
+    "    kitRow('arrow', 4, 'Fletch Rune Arrows'),\n", "    kitRow('arrow', 4, 'Fletch Rune Arrows'),\n    kitRow('bolt', 4, 'Fletch Rune Bolts'),\n"],
+  ['band 4\'s runes bind with a good only a band-5 ground drops (Troll Hide, Carter\'s Rest)', 'KR-CLOSED', 'src/data/job-faces.js', "'grave_dust', 'big_bones']", "'grave_dust', 'troll_hide']"],
   ['band 1 without its arrowheads (its arrows and bolts have no head once the bench is cut)', 'KR-CLOSED', 'src/data/trades.js',
     "    kitRow('arrowhead', 1, 'Forge Iron Arrowheads'),\n", ''],
   ['band 1 without its bars (the iron arrowhead, the whetstone and the Iron Temper kit have no metal)', 'KR-CLOSED', 'src/data/trades.js',

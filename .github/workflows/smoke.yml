@@ -1136,7 +1136,7 @@ jobs:
           node tests/imbue.mjs
           node tools/mutant-gate.mjs node tests/imbue.mjs --mutate
       # tests/kit-recipes.mjs
-      - name: Kit trades bands 0 to 3 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
+      - name: Kit trades bands 0 to 5 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
         if: ${{ !cancelled() }}
         run: |
           node tests/kit-recipes.mjs

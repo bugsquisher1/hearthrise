@@ -158,7 +158,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
   /* a tap: its pointerdown holds the scroll region it lands in (window-fit.js), as a finger does; a bare click() left the body to be re-trimmed under the answer */
   const press = (page, q) => page.evaluate((x) => { const b = document.querySelector(x); if (!b || b.disabled) return false; b.scrollIntoView({ block: 'nearest' }); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); return true; }, q);
   const answered = (page, q) => wait(page, (x) => { const m = document.querySelector(x); return m && m.textContent && !/…$/.test(m.textContent); }, q, 4000);
-  const JOB_START = '[data-hs-win="skills-trade"] .hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]';
+  const JOB_START = '[data-hs-win="skills-trade"] .hw-work-row[data-id="meal_b0"] [data-hs-act="work-go"]';
   const openJobs = async (page) => {
     await page.keyboard.press('g');
     await wait(page, (q) => document.querySelector(q + ':not([disabled])'), JOB_START, 4000);
@@ -354,7 +354,7 @@ async function checks(overrides, { stopAtFirst = false } = {}) {
       await press(page, JOB_START + ':not([disabled])');
       await answered(page, '.hw-trade > .hh-intent-msg');
       await sleep(50);
-      if (tag === '667x375') inViewRule(tag, 'a refused job Start', await readInView(page, 'skills-trade', '.hw-trade > .hh-intent-msg', '.hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]'));
+      if (tag === '667x375') inViewRule(tag, 'a refused job Start', await readInView(page, 'skills-trade', '.hw-trade > .hh-intent-msg', '.hw-work-row[data-id="meal_b0"] [data-hs-act="work-go"]'));
       if (SHOTS) await page.screenshot({ path: join(SHOTS, 'answer-start-' + tag + '.png') });
       await ctx.close();
     }

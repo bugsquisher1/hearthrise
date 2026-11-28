@@ -12,7 +12,7 @@
 //   node tests/alpha-windows-work.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-work.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/work.js src/shell/windows/work-jobs.js src/shell/windows/skills.js src/session/trade-sections.js src/session/hearth-sections.js src/shell/windows/shop.js src/shell/windows/item-tip.js src/styles/shell.css src/data/text/shop.js
+// mutant-anchors: src/shell/windows/work.js src/shell/windows/work-jobs.js src/shell/windows/skills.js src/session/trade-sections.js src/session/job-quotes.js src/session/tutorial-sections.js src/shell/launcher-coach.js src/session/hearth-sections.js src/shell/windows/shop.js src/shell/windows/item-tip.js src/styles/shell.css src/data/text/shop.js src/data/shell-windows.js
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun), pure ones planted into a temp copy of src (tickerMutant)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -32,8 +32,8 @@
 //         line and its Stop come from the server's next read and survive a reload; Stop is ONE hr_trade_job_end, early; a fuel run the
 //         server's pointer holds shows the hearth line with its Stop, ONE set_activity idle
 //   AW-60 the windows say what an item is for (the Shop's Sell all junk, the House's short material, a ground's materials, a stack no one buys)
-//   AW-17 the skills are two ledgers (the combat one inside the Character window, tests/character-window.mjs); the Work window at 922x423
-//         scrolls down, never across, with its job's Start and its trades in reach; a character that has never fought sees the pointer to Hunts
+//   AW-17 the skills are two ledgers (the combat one inside the Character window, tests/character-window.mjs); neither ledger scrolls at 922x423
+//         (the trades are the Work window's Skills tab); a character that has never fought sees the pointer to Hunts
 //   AW-73 ON A PHONE THE CARD'S CROSS IS DRAWN IN ITS BUTTON (door panel 2026-11-04): static, it lay over the words in the middle of every closable card
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
@@ -46,6 +46,10 @@ async function jobsRules(base) {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
   const TS = await imp('src/session/trade-sections.js');
+  const JQ = await imp('src/session/job-quotes.js');
+  const TU = await imp('src/session/tutorial-sections.js');
+  const BU = await imp('src/shell/windows/inventory/bury.js');
+  const LC = await imp('src/shell/launcher-coach.js');
   const SK = await imp('src/shell/windows/skills.js');
   const HS = await imp('src/session/hearth-sections.js');
   const TP = await imp('src/session/town-poll.js');
@@ -56,12 +60,30 @@ async function jobsRules(base) {
   const sec = tradeJobsFixture(now, { smithing: 5 });
   sec.recipes.push({ id: 'bar_b0', name: 'Smelt Bronze Bars', trade: 'smithing', face: 'bronze_bar', r_level: 1, inputs: { copper_ore: 1, tin_ore: 1 }, quote: { ok: false, error: 'short_inputs' } },
     { id: 'Bad Id', name: 'x', trade: 'smithing', face: 'bronze_bar', quote: { ok: true, count: 1, fee: 0 } }, { id: 'no_face', name: 'x', trade: 'smithing', quote: { ok: true, count: 1, fee: 0 } });
-  const s = TS.tradeJobsOf(at({ trade_jobs: sec }));
-  if (!s || s.recipes.map((r) => r.id).join() !== 'meal_b0,bar_b0' || s.trades.smithing.level !== 5) fails.push('AW-J1 tradeJobsOf reads ' + JSON.stringify(s && { ids: s.recipes.map((r) => r.id), trades: s.trades }));
-  const [open, shut] = s ? s.recipes : [];
+  const s = TS.tradeJobsOf(at({ trade_jobs: sec })), list = JQ.jobListOf(null, at({ trade_jobs: sec }));
+  if (!s || s.trades.smithing.level !== 5 || list.loading || list.rows.map((r) => r.id).join() !== 'meal_b0,bar_b0') fails.push('AW-J1 the Jobs list reads ' + JSON.stringify([s && s.trades, list]));
+  const [open, shut] = list.rows;
   if (!open || !open.quote.ok || open.quote.count !== 10 || open.quote.fee !== 0 || !Number.isFinite(open.quote.endsAt) || !shut || shut.quote.ok || shut.quote.error !== 'short_inputs')
     fails.push('AW-J1 the quotes read ' + JSON.stringify([open && open.quote, shut && shut.quote]));
+  /* ONE READER, WITH A LOADING STATE (09 4.17: the quotes leave the envelope): with no list sent it is loading and shows no row, the section's
+     Levels and job still read, and a row whose quote has not arrived has none (nothing here works one out) */
+  const bare = { trades: sec.trades, job: null, last: null, stock: {} };
+  const waiting = JQ.jobListOf(null, at({ trade_jobs: bare })), half = JQ.jobListOf(null, at({ trade_jobs: { ...bare, recipes: [{ ...sec.recipes[0], quote: undefined }] } }));
+  if (!waiting.loading || waiting.rows.length || !TS.tradeJobsOf(at({ trade_jobs: bare })) || half.loading || half.rows.length !== 1 || half.rows[0].quote !== null)
+    fails.push('AW-J1 with the quotes on their way the list reads ' + JSON.stringify([waiting, half]));
   if (TS.tradeJobsOf(at({})) !== null || TS.tradeJobsOf(at({ trade_jobs: null })) !== null) fails.push('AW-J1 a dark switch (no section) reads as a Jobs list');
+  /* the coach: the company's trade XP and best Level are the section's, unknown while it is dark; a card's ring.job is the row's Start */
+  const facts = (sections) => TU.tutorialFactsOf(at({ level: { level: 3, xp: 900, into: 0, need: 1 }, ...sections }));
+  const f1 = facts({ trade_jobs: sec }), f0 = facts({});
+  if (!f1 || !f1.tradeXp || f1.tradeXp.smithing !== 0 || f1.benchLevel !== 5 || !f0 || f0.tradeXp !== null || f0.benchLevel !== null) fails.push('AW-J1 the coach reads the trades as ' + JSON.stringify([f1 && f1.tradeXp, f1 && f1.benchLevel, f0 && f0.tradeXp]));
+  const ring = LC.ringPlan({ anchor: 'crafting', ring: { job: 'meal_b0' } }, { open: (id) => id === 'skills-trade', configuring: null });
+  if (!(ring[0] || '').includes('.hw-work-row[data-id="meal_b0"] [data-hs-act="work-go"]')) fails.push('AW-J1 ring.job rings ' + JSON.stringify(ring));
+  /* A COUNTED FUEL RUN ("Burn" is a run of one) says its own count, never the stock behind it (live v0.2.135: "2,529 Bones left"), and is
+     spent after it: the server's bench_run.left, which stays for the hearth */
+  const one = { state: { active_kind: 'artisan', active_id: 'fuel_bones', accrued_to: now }, inventory: { bones: 2529 }, bench_run: { left: 1 } };
+  if (!/· 1 to go$/.test(BU.buryLine(at(one)))) fails.push('AW-J1 one Bone fed reads ' + JSON.stringify(BU.buryLine(at(one))));
+  if (HS.fuelSpentAtMs(at(one)) !== Date.parse(now) + HS.fuelEachMs(HS.fuelRowOf('fuel_bones')) + 2000) fails.push('AW-J1 a counted run is spent at ' + HS.fuelSpentAtMs(at(one)));
+  if (!HS.fuelRunOver(at(one), Date.parse(now) + 60000)) fails.push('AW-J1 a counted run long done reads as burning on the roster');
   /* the work day: the server's cap and what is left, nothing worked out here */
   const day = TS.workDayOf(at({ work_day: { cap_ms: 36000000, today_ms: 7200000, left_ms: 28800000, premium: false } }));
   if (!day || day.capMs !== 36000000 || day.usedMs !== 7200000 || day.leftMs !== 28800000 || day.premium !== false || TS.workDayOf(at({})) !== null) fails.push('AW-J1 workDayOf reads ' + JSON.stringify(day));
@@ -174,7 +196,7 @@ async function checks(overrides, shots, opts) {
         if (name === 'hr-accrue' && b.verb === 'set_activity' && b.activity && b.activity.kind === 'idle') Object.assign(s.env.state, { active_kind: 'idle', active_id: null });
       };
       const say = (q) => page.evaluate((x) => { const el = document.querySelector(x); return el ? el.textContent : null; }, q);
-      const jobRow = () => page.evaluate((w) => { const li = document.querySelector(w + ' .hw-job[data-key="meal_b0"]'); const b = li && li.querySelector('[data-hs-act="tjob-start"]');
+      const jobRow = () => page.evaluate((w) => { const li = document.querySelector(w + ' .hw-job[data-id="meal_b0"]'); const b = li && li.querySelector('[data-hs-act="work-go"]');
         return li ? { name: li.querySelector('.hw-job-name').textContent, inputs: li.querySelector('.hw-job-inputs').textContent, quote: li.querySelector('.hw-job-quote').textContent, off: !!b && b.disabled } : null; }, W);
       const jobLine = () => page.evaluate((w) => { const l = document.querySelector(w + ' .hw-jobs-now'); return l ? { on: l.classList.contains('is-on'), text: l.querySelector('.hw-burying-q').textContent,
         collect: l.querySelector('[data-hs-act="tjob-collect"]').disabled, stop: l.querySelector('[data-hs-act="tjob-stop"]').disabled } : null; }, W);
@@ -182,20 +204,25 @@ async function checks(overrides, shots, opts) {
       else if (!(await openWin(page, 'g', 'skills-trade'))) fails.push('AW-22 G opened no Work window');
       else {
         await page.waitForTimeout(300);
+        /* AW-22T (UI audit 2026-11-18) the band's name stands on ONE line */
+        const titleLines = await page.evaluate((w) => { const h = document.querySelector(w + ' .hs-win-title'); return Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)); }, W);
+        if (titleLines !== 1) fails.push('AW-22T the Work band takes ' + titleLines + ' lines');
         /* the window: the work day, the Jobs list, the trades; no gathering node and no bench row anywhere */
         const day = await say(W + ' .hw-work-day');
         if (!/^Town work left today: 8 h of 10 h$/.test(day || '')) fails.push('AW-22 the work day reads ' + JSON.stringify(day));
-        const old = await page.evaluate((w) => document.querySelectorAll(w + ' .hw-work-row:not(.hw-job), ' + w + ' [data-hs-act="work-go"], ' + w + ' [data-hs-act="open-skill"]').length, W);
+        const old = await page.evaluate((w) => document.querySelectorAll(w + ' .hw-work-row:not(.hw-job), ' + w + ' [data-hs-act="work-go"][data-kind], ' + w + ' [data-hs-act="open-skill"]').length, W);
         if (old) fails.push('AW-22 the Work window still draws ' + old + ' gathering or bench control(s)');
+        await page.click(W + ' .hw-tab[data-tab="skills"]');
         const trades = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-trades .hw-skill')).map((li) => li.getAttribute('data-key') + ':' + li.querySelector('.hw-skill-lv').textContent), W);
         if (trades.length !== 9 || !trades.includes('cooking:3') || !trades.includes('smithing:5')) fails.push('AW-22 the trades read ' + JSON.stringify(trades));
+        await page.click(W + ' .hw-tab[data-tab="jobs"]');
         const row = await jobRow();
         if (!row || row.name !== 'Cook Shrimp' || row.inputs !== 'Uses 1 Raw Shrimp each' || !/^10 · \d+ h/.test(row.quote) || row.off) fails.push('AW-22 the job row reads ' + JSON.stringify(row));
-        const order = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-jobs-rows .hw-job')).map((li) => li.getAttribute('data-key') + (li.classList.contains('is-off') ? ':shut' : '')), W);
+        const order = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-jobs-rows .hw-job')).map((li) => li.getAttribute('data-id') + (li.classList.contains('is-off') ? ':shut' : '')), W);
         if (order.join() !== 'meal_b0,imbuement_fire_ward:shut') fails.push('AW-22 the Jobs list reads ' + JSON.stringify(order) + ', want what the hero can start first');
         if (shots) await shot(page, 'work-1440x900-jobs');
         /* Start: ONE hr_trade_job_start naming the server's quote, never a number of the page's own */
-        await page.click(W + ' .hw-job[data-key="meal_b0"] [data-hs-act="tjob-start"]');
+        await page.click(W + ' .hw-job[data-id="meal_b0"] [data-hs-act="work-go"]');
         await page.waitForTimeout(900);
         const go = sent(s, 'hr_trade_job_start');
         if (go.length !== 1 || go[0].body.p_recipe !== 'meal_b0' || go[0].body.p_count !== 10 || go[0].body.p_fee !== 0 || go[0].body.p_slot !== 0 || !go[0].body.p_idem)
@@ -278,13 +305,10 @@ async function checks(overrides, shots, opts) {
         for (const [key, id] of [['g', 'skills-trade']]) {
           if (!(await openWin(page, key, id))) { fails.push('AW-17 ' + id + ' did not open'); continue; }
           await page.waitForTimeout(300);
-          /* the Work window is a list now (the Jobs list grows with the company's recipes): it scrolls down, never across, and its job's
-             Start and its trades are reachable on the phone's sheet */
-          const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); const job = b.querySelector('.hw-job [data-hs-act="tjob-start"]');
-            if (job) job.scrollIntoView({ block: 'nearest' });
-            const r = job ? job.getBoundingClientRect() : null, br = b.getBoundingClientRect();
-            return { sw: b.scrollWidth, cw: b.clientWidth, n: b.querySelectorAll('.hw-trades .hw-skill').length, job: !!r && r.top >= br.top - 1 && r.bottom <= br.bottom + 1 }; }, id);
-          if (m.sw > m.cw + 1 || m.n < 4 || !m.job) fails.push('AW-17 ' + id + ' at 922x423 scrolls across (' + m.sw + ' > ' + m.cw + '), lists ' + m.n + ' trades, or hides its job (' + m.job + ')');
+          await page.click('[data-hs-win="skills-trade"] .hw-tab[data-tab="skills"]');
+          await page.waitForTimeout(150);
+          const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight, n: b.querySelectorAll('.hw-trades .hw-skill').length }; }, id);
+          if (m.sh > m.ch + 1 || m.n < 4) fails.push('AW-17 ' + id + ' at 922x423 scrolls (' + m.sh + ' > ' + m.ch + ') or lists ' + m.n + ' skills');
         }
       } else fails.push('AW-17 the phone did not mount');
       await ctx.close();
@@ -296,11 +320,12 @@ const MUTANTS = [
   ['AW-60 the Shop forgets the House', 'src/shell/windows/shop.js', 'const needs = upgradeNeeds(homeOf(st.cs), chestsOf(st.cs));', 'const needs = undefined;'],
   ['AW-60 the tooltip says nothing of a stack no one buys', 'src/shell/windows/item-tip.js', 'const sale = saleWords(id);', "const sale = '';"],
   ['AW-60n the Sell note runs on again (audit A14)', 'src/data/text/shop.js', "  spare_keeps: 'Sell spare gear: keeps worn, higher-tier and Rare pieces',", "  spare_keeps: 'Keeps worn, higher-tier and Rare pieces',"],
+  ['AW-22T the band reads a long name again', 'src/data/shell-windows.js', "key: 'g', glyph: 'uiPickaxe', width: 380,", "title: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380,"],
   ['AW-73 the phone card\'s cross lies on its words', 'src/styles/shell.css', '.hs-pointer:not(.is-min) > .hs-coach-close { position: relative; top: auto; right: auto;', '.hs-pointer:not(.is-min) > .hs-coach-close { position: static;'],
   /* AW-22 the Jobs list in the page */
   ['AW-22 Start sends a count of its own', 'src/shell/windows/work-jobs.js', 'startTradeJob(ctx.account, cs, r.id, r.quote.count, r.quote.fee)', 'startTradeJob(ctx.account, cs, r.id, r.quote.count + 1, r.quote.fee)'],
-  ['AW-22 a second Start while a job runs', 'src/shell/windows/work-jobs.js', "prop(li.querySelector('[data-hs-act=\"tjob-start\"]'), 'disabled', !(q && q.ok) || !!job || sc.pending);", "prop(li.querySelector('[data-hs-act=\"tjob-start\"]'), 'disabled', !(q && q.ok) || sc.pending);"],
-  ['AW-22 the shut jobs lead the list again', 'src/shell/windows/work-jobs.js', 'sort(([a, i], [b, j]) => open(b) - open(a) || a.rLevel - b.rLevel || i - j)', 'sort(([a, i], [b, j]) => i - j)'],
+  ['AW-22 a second Start while a job runs', 'src/shell/windows/work-jobs.js', "prop(li.querySelector('[data-hs-act=\"work-go\"]'), 'disabled', !(q && q.ok) || !!job || sc.pending);", "prop(li.querySelector('[data-hs-act=\"work-go\"]'), 'disabled', !(q && q.ok) || sc.pending);"],
+  ['AW-22 the shut jobs lead the list again', 'src/shell/windows/work-jobs.js', 'list.rows.slice().sort((a, b) => open(b) - open(a) || a.rLevel - b.rLevel);', 'list.rows.slice();'],
   ['AW-22 the running job has no line', 'src/shell/windows/work-jobs.js', "  cls(line, 'is-on', !!job);", "  cls(line, 'is-on', false);"],
   ['AW-22 Stop collects instead', 'src/shell/windows/work-jobs.js', "() => endTradeJob(ctx.account, cs, true)", "() => endTradeJob(ctx.account, cs, false)"],
   ['AW-22 the work day is not said', 'src/shell/windows/work.js', "  text(dayEl, !day ? '' : day.leftMs > 0", "  text(dayEl, true ? '' : day.leftMs > 0"],
@@ -309,8 +334,13 @@ const MUTANTS = [
   ['AW-22 the trades read this build\'s Levels', 'src/shell/windows/skills.js', "        text(li.querySelector('.hw-skill-lv'), String(r.level));\n        const p = tradeProgress(r);", "        text(li.querySelector('.hw-skill-lv'), '1');\n        const p = tradeProgress(r);"],
   ['a watched fuel run is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   /* AW-J1 pure: `jobs:` mutants are judged by jobsRules on a temp copy of src (tickerMutant) */
-  ['jobs: a recipe with no face is drawn', 'src/session/trade-sections.js', "    if (!isObj(r) || !id(r.id) || !id(r.face) || !id(r.trade)) continue;", "    if (!isObj(r) || !id(r.id) || !id(r.trade)) continue;"],
-  ['jobs: a refusal reads as a quote', 'src/session/trade-sections.js', '  if (q.ok === true) {', '  if (q.ok !== undefined) {'],
+  ['jobs: a recipe with no face is drawn', 'src/session/job-quotes.js', "    if (!isObj(r) || !id(r.id) || !id(r.face) || !id(r.trade)) continue;", "    if (!isObj(r) || !id(r.id) || !id(r.trade)) continue;"],
+  ['jobs: a refusal reads as a quote', 'src/session/job-quotes.js', '  if (q.ok === true) {', '  if (q.ok !== undefined) {'],
+  ['jobs: a list not sent reads as an empty one', 'src/session/job-quotes.js', '  if (!sent) return { loading: true, rows: [] };', '  if (!sent) return { loading: false, rows: [] };'],
+  ['jobs: a row with no quote yet is quoted here', 'src/session/job-quotes.js', '  if (!isObj(q)) return null;', '  if (!isObj(q)) return { ok: true, count: 1, fee: 0, endsAt: null };'],
+  ['jobs: a counted fuel run says the stock', 'src/session/hearth-sections.js', '  return isObj(b) && Number.isInteger(b.left) && b.left > 0 ? b.left : null;', '  return null;'],
+  ['jobs: the coach reads no trade XP', 'src/session/tutorial-sections.js', '    tradeXp: tradeXpOf(cs),\n', ''],
+  ['jobs: the coach rings no job', 'src/shell/launcher-coach.js', "typeof g.job !== 'string' ? [] : [inWin(", "true ? [] : [inWin("],
   ['jobs: the work day says what is used as left', 'src/session/trade-sections.js', 'leftMs: n(s.left_ms)', 'leftMs: n(s.today_ms)'],
   ['jobs: the unlock names the job the Level already opened', 'src/shell/windows/skills.js', '  const next = jobsOf(trade).filter((j) => j.R > level);', '  const next = jobsOf(trade).filter((j) => j.R >= level - 10);'],
   ['jobs: the trade bar is drawn outside the server\'s Level', 'src/shell/windows/skills.js', '  if (!Number.isSafeInteger(lo) || r.xp < lo || (hi !== null && r.xp >= hi)) return null;', '  if (!Number.isSafeInteger(lo)) return null;'],

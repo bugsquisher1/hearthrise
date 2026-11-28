@@ -261,6 +261,9 @@ export const REASONS = Object.freeze({
     { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },
     { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
   ],
+  'src/shell/windows/hallmark-pane.js': [
+    { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },
+  ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'Daily limit reached: ', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
     { cond: 'short > 0', words: "'Need ' + gold(short) + ' more'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },

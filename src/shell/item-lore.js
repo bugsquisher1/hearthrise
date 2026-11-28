@@ -137,6 +137,11 @@ export function sourcesOf(id, serverOffers) {
 
 const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_with' : 'item.gathered_with', { skill: skillName(s) })).join('. ');
 
+/** Where to get it in one line, for a row that says the hero is short (the Hallmark's gem); '' when the catalogue knows no way. */
+export function whereToGet(id) {
+  return wherePlaces(id).map((p) => p.words).join(' · ');
+}
+
 /** @typedef {{words: string, place: {kind: string, job?: string|null, trade?: string, item?: string, hunt?: string}|null}} ItemPlace  a line's words and the window it opens */
 
 /**

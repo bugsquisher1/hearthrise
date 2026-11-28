@@ -281,6 +281,10 @@ function contract(R, cs, body, tl) {
     'temperStepsOf yields ' + JSON.stringify(R.IS.temperStepsOf(cs)) + ' from ' + JSON.stringify(body.temper_steps));
   need('imbues', body.imbues === null && R.IS.imbuesOf(cs) === null,
     'imbuesOf yields ' + JSON.stringify(R.IS.imbuesOf(cs)) + ' from ' + JSON.stringify(body.imbues));
+  // the Hallmark step (2027-03-14-jewelry-hallmark.sql): the offers for the Fine pieces held (none here), the account's count and the day's limit
+  const hm = R.JW.hallmarkOf(cs);
+  need('hallmark', !!hm && Array.isArray(hm.offers) && hm.offers.length === 0 && hm.today === 0 && hm.perDay >= 1,
+    'hallmarkOf yields ' + JSON.stringify(hm) + ' from ' + JSON.stringify(body.hallmark));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -434,8 +438,8 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'time_blocks', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
+  'skill_inputs', 'setup_slots', 'titles', 'temper_steps', 'imbues', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'boss_halls',
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'hearth_fire', 'presence', 'company', 'hunt_setup', 'recruits', 'danger',
   'work_day', 'gold_estimate', 'watched', 'talents', 'pieces', 'hunt_settle', 'trade_jobs', 'flame']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
@@ -493,7 +497,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), FT: await import(u('src/session/farm-tend.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')), JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
@@ -651,6 +655,7 @@ const DB_MUTANTS = [
   /* lane/gold-per-hour: the Hunts window's gold line reads grounds (src/session/gold-estimate-sections.js goldEstimateOf) */
   ['gold_estimate', 'public.hr_gold_estimate_view(uuid,integer)', "jsonb_build_object('level', v_lv, 'grounds', v_out)", "jsonb_build_object('level', v_lv, 'ground', v_out)"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
+  ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
   ['features', 'public.hr_features_view(uuid,integer)', 'jsonb_agg(f.switch_id order by f.switch_id)', "jsonb_agg(jsonb_build_object('id', f.switch_id) order by f.switch_id)"],
   /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
   ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],

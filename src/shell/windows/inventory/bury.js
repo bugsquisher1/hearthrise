@@ -25,7 +25,7 @@ import { targetOf } from '../../goto.js';
 import { skillsOf, heldOf, nameOf } from '../../../session/item-sections.js';
 import { huntOf } from '../../../session/hunt-sections.js';
 import { townActivityWords } from '../../../session/party-sections.js';
-import { fuelRowOf, fuelRunOf } from '../../../session/hearth-sections.js';
+import { fuelRowOf, fuelRunOf, fuelLeftOf } from '../../../session/hearth-sections.js';
 import { burnNamedFuel } from '../../../session/hearth-intents.js';
 import { busyWords } from '../../training-words.js';
 
@@ -152,6 +152,9 @@ export function burnNamed(account, cs, id, send) {
  */
 export function buryLine(cs) {
   const e = buryingOf(cs);
+  /* a counted run ("Burn") says its own count, never the stock behind it (live v0.2.135: one Bone fed read "2,529 Bones left") */
+  const left = e ? fuelLeftOf(cs) : null;
+  if (e && left !== null) return buryingWord() + ' ' + itemName(e.input) + ' · ' + t('work.run_to_go', { n: whole(left) });
   if (e) return buryingWord() + ' ' + itemName(e.input) + ' · ' + t('work.now_left', { n: whole(buryQty(cs, e.input)) });
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);

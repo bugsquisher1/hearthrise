@@ -171,14 +171,18 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
      typed 3,000 went stale), each part summed here by hand, so a Suggested that falls back to the shared book is still red */
   const { ITEMS: JI } = await import(pathToFileURL(join(base, 'src/data/items.js')).href);
   const { JEWEL_SHOP_PRICE, JEWEL_TIERS } = await import(pathToFileURL(join(base, 'src/data/jewelry.js')).href);
-  const book = Number(JI.banded_signet.v), shop = JEWEL_SHOP_PRICE.banded_signet;
-  const tierRow = JEWEL_TIERS[JI.banded_signet_keen_follow.tier];
+  const plainId = Object.keys(JEWEL_SHOP_PRICE).find((k) => JI[k]), tier = Object.keys(JEWEL_TIERS).find((k) => JI[JEWEL_TIERS[k].gem]);
+  const book = Number(JI[plainId].v), shop = JEWEL_SHOP_PRICE[plainId];
+  const FINE = 'w11_fine', HALL = 'w11_hallmarked';
+  JI[FINE] = { n: 'Planted Fine', v: book, tier: Number(tier), jewelGrade: 'fine', jewelBase: plainId };
+  JI[HALL] = { n: 'Planted Hallmarked', v: book, tier: Number(tier), jewelGrade: 'hallmarked', jewelBase: plainId };
+  const tierRow = JEWEL_TIERS[tier];
   const hallmarked = shop + tierRow.hallmark.gold + Math.floor(Number(JI[tierRow.gem].v));
   const wide = { floor: 1, ceiling: 10 * hallmarked };
-  ok('W11', shop !== book && S.suggested('banded_signet_keen', wide) === shop, 'a Fine ring suggests ' + S.suggested('banded_signet_keen', wide) + ", not its plain piece's Shop price " + shop + ' (book ' + book + ')');
-  ok('W11', S.suggested('banded_signet_keen_follow', wide) === hallmarked, 'a Hallmarked ring suggests ' + S.suggested('banded_signet_keen_follow', wide) + ', not ' + shop + ' + ' + tierRow.hallmark.gold + " + the gem's book = " + hallmarked);
+  ok('W11', shop !== book && S.suggested(FINE, wide) === shop, 'a Fine ring suggests ' + S.suggested(FINE, wide) + ", not its plain piece's Shop price " + shop + ' (book ' + book + ')');
+  ok('W11', S.suggested(HALL, wide) === hallmarked, 'a Hallmarked ring suggests ' + S.suggested(HALL, wide) + ', not ' + shop + ' + ' + tierRow.hallmark.gold + " + the gem's book = " + hallmarked);
   const low = hallmarked - 100;
-  ok('W11', S.suggested('banded_signet', wide) === book && S.suggested('banded_signet_keen_follow', { floor: 1, ceiling: low }) === low, 'the plain ring keeps its book, and a ceiling still clamps');
+  ok('W11', S.suggested(plainId, wide) === book && S.suggested(HALL, { floor: 1, ceiling: low }) === low, 'the plain ring keeps its book, and a ceiling still clamps');
 
   /* W12 the Sell sheet's head stays on screen (screen 09 of the jewelry sample: a graded name cut at the top) */
   const css = readFileSync(join(base, 'src/styles/market.css'), 'utf8');

@@ -484,15 +484,11 @@ export function ringPlan(card, at) {
     case 'farm':
       return [inWin('farm', '.hw-seeds .hw-line[data-crop="' + g.crop + '"] [data-hs-act="sow"]:not([disabled])'),
         inWin('farm', '.hw-plot.is-empty [data-hs-act="plant"]')];
-    case 'crafting': {
+    case 'crafting':
       /* A JOB (09-crafting 4.17: the Work window's Jobs list is the town work): the card's job's Start while the server's quote opens it
-         (once it runs, nothing: the card moves on), else the job's row itself. `ring.job` names the job recipe (src/core/trades.js
-         jobRecipes); a card that still says `work` names it there too. */
-      const job = typeof g.job === 'string' ? g.job : typeof g.work === 'string' ? g.work : null;
-      if (!job) return [];
-      return [inWin('skills-trade', '.hw-job[data-key="' + job + '"] [data-hs-act="tjob-start"]:not([disabled])'),
-        inWin('skills-trade', '.hw-job[data-key="' + job + '"]')];
-    }
+         (once it runs, nothing: the card moves on), else its row, else the Jobs tab. `ring.job` names the job (src/data/trades.js). */
+      return typeof g.job !== 'string' ? [] : [inWin('skills-trade', '.hw-work-row[data-id="' + g.job + '"] [data-hs-act="work-go"]:not([disabled])'),
+        inWin('skills-trade', '.hw-work-row[data-id="' + g.job + '"]'), inWin('skills-trade', '.hw-tab[data-tab="jobs"][aria-selected="false"]')];
     case 'tally':
       /* Her window asks for the weight that suits on a first visit (tally.js suggestedWeight), so Take is rung while it can fire; off (the server has not said the role), the picker,
          or the Change press over her board that opens it while it is folded (the picker sits behind Change since the 11-11 ledger) */

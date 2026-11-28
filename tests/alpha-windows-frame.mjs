@@ -211,6 +211,7 @@ async function checks(overrides, shots, opts) {
         await pushEnvelope(page, s);
         for (const [key, id] of [['g', 'skills-trade']]) {
           await openWin(page, key, id);
+          await page.click('[data-hs-win="' + id + '"] .hw-tab[data-tab="skills"]');
           await page.waitForTimeout(300);
           const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight }; }, id);
           if (m.sh > m.ch + 1) fails.push('AW-17 ' + id + ' at 1440x900 scrolls (' + m.sh + ' > ' + m.ch + ')');

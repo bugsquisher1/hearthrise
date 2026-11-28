@@ -253,6 +253,7 @@ const ASKVIA_SITES = Object.freeze({
   /* lane/k1-job-slice (1073-k1-job-slice.sql): a kit-trade job's start and its end, one askVia each on the one rule */
   'src/session/trade-intents.js': { rule: 2 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
+  'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
   'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
   'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
   'src/session/preset-read.js': { read: 1 },

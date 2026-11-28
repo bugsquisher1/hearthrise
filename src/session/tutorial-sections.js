@@ -40,7 +40,7 @@ import { ITEMS } from '../data/items.js';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js';
 import { towerOf } from './tower-sections.js';
 import { recruitsOf } from './recruit-sections.js';
-import { SKILLS_DEF } from '../data/skills.js';
+import { tradeJobsOf } from './trade-sections.js';
 import { talentsOf } from './talent-sections.js';
 import { dangerOf, depthOf } from './danger-sections.js';
 import { huntReportOf } from './report-sections.js';
@@ -49,10 +49,11 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const qtyMap = (rows) => (Array.isArray(rows) ? Object.fromEntries(rows.map((r) => [r.id, r.qty])) : null);
-/* The bench skills are the catalogue's `artisan` rows, the list hr_market_eligible reads (hr_skills.cat): the best one's level as the
-   server sent it, or null when it sent none. */
-const BENCH = Object.keys(SKILLS_DEF).filter((id) => SKILLS_DEF[id].cat === 'artisan');
-const benchLevelOf = (sk) => { const lv = sk ? BENCH.filter((id) => sk[id]).map((id) => sk[id].level) : []; return lv.length ? Math.max(...lv) : null; };
+/* THE COMPANY'S TRADES (09-crafting 4.17: a hero's trade Levels are its company's), as the server's `trade_jobs.trades` states them: the best
+   Level and the XP by trade, each null while it has not said. */
+const tradesOf = (cs) => { const s = tradeJobsOf(cs); return s ? Object.entries(s.trades) : []; };
+const benchLevelOf = (cs) => { const lv = tradesOf(cs).map(([, r]) => r.level); return lv.length ? Math.max(...lv) : null; };
+const tradeXpOf = (cs) => { const rows = tradesOf(cs); return rows.length ? Object.fromEntries(rows.map(([id, r]) => [id, r.xp])) : null; };
 
 /* A slot as the coach reads it: the server's action, conditions and struck state ({ type, id, store, conditions,
    enabled, usable, count }), or null for an empty slot. */
@@ -174,7 +175,8 @@ export function tutorialFactsOf(cs, sh) {
   return {
     levelXp: lv.xp, charLevel: lv.level, self: Number.isInteger(cs && cs.slot) ? cs.slot : null, name: nameOf(cs),
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,
-    benchLevel: benchLevelOf(sk),
+    benchLevel: benchLevelOf(cs),
+    tradeXp: tradeXpOf(cs),
     skillXp: sk ? Object.fromEntries(Object.entries(sk).map(([k, r]) => [k, r.xp])) : null,
     huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,
     endReason: h && h.ended ? h.endReason : null,

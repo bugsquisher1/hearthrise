@@ -6,6 +6,7 @@
 // company flame lights (4.13 row 3). This file reads that pointer and nothing else:
 //   fuelRowOf(id)          a fuel row by its recipe id ({ id, item, need, ms, req, xp }), or null (no bench row is ever one)
 //   fuelRunOf(cs)          the fuel row the server says this hero is burning now, with no hunt open, or null
+//   fuelLeftOf(cs)         fuels left on a counted run (the server's `bench_run.left`), or null: it burns the stack
 //   fuelEachMs(row)        one fuel's time at the shared pace with no perk (a perk only makes it shorter)
 //   fuelSpentAtMs(cs)      the server-clock ms by which the run has certainly burned what the server's bag and Storage hold, or null
 //   fuelRunOver(r, nowMs)  has the run a roster read names already burned out? (a closed page's run is settled only when the hero opens)
@@ -42,8 +43,20 @@ export function fuelRunOf(cs) {
 /** One fuel's time in ms at the shared pace, no perk counted (perks only make it shorter, so a reader errs towards "still burning"). */
 export const fuelEachMs = (row) => actionIntervalMs(FLAME, row.ms || 3000, {});
 
-/* How many fuels the server's bag and Storage still cover for this row. */
-const coverOf = (cs, row) => Math.floor(((heldOf(cs) || {})[row.item] || 0) / row.need);
+/**
+ * Fuels left on a COUNTED run ("Burn" is a run of one), from the server's `bench_run.left`, which stays for the hearth until the company
+ * flame lights (09 4.17, the bridge); null for a run until the stack is gone.
+ */
+export function fuelLeftOf(cs) {
+  const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
+  return isObj(b) && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
+}
+
+/* How many fuels this run can still burn: what the server's bag and Storage cover, cut to its count. */
+function coverOf(cs, row) {
+  const held = Math.floor(((heldOf(cs) || {})[row.item] || 0) / row.need), left = fuelLeftOf(cs);
+  return left === null ? held : Math.min(left, held);
+}
 
 /**
  * The SERVER-clock ms by which the run the server holds has certainly burned what its bag and Storage hold, so the engine stops it on the

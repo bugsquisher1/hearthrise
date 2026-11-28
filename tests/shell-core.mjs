@@ -1598,18 +1598,20 @@ async function runTests(mods) {
       };
       const loops = (b) => (b.rest ? b.rest.loops.map((l) => l.go + ':' + l.label) : null);
       const all = card({});
-      eq([all.go, loops(all), all.rest && all.rest.head], ['again', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm'], ''],
+      /* the Work window's own name, as the data says it (the bench cut's data lane renames it) */
+      const WORK = 'work:' + SW.find((r) => r.id === 'skills-trade').label;
+      eq([all.go, loops(all), all.rest && all.rest.head], ['again', ['train:Training Yard', WORK, 'farm:Farm'], ''],
         'Level 12, solo, a field: the yard, gathering and crafting, the farm; the stamina end already said them, so no second line');
       ok(all.when.includes('While stamina refills: train at the yard, gather, craft or farm'), 'the end line names the same loops: ' + all.when);
       /* the yard only from the SERVER's Level and solo; the farm only with a field */
-      eq(loops(card({ lv: 7 })), ['work:Gathering and crafting', 'farm:Farm'], 'under the yard\'s Level: no yard');
-      eq(loops(card({ env: { training: null, farm_land: null } })), ['work:Gathering and crafting'], 'no yard rate, no field sent: neither (fail safe)');
+      eq(loops(card({ lv: 7 })), [WORK, 'farm:Farm'], 'under the yard\'s Level: no yard');
+      eq(loops(card({ env: { training: null, farm_land: null } })), [WORK], 'no yard rate, no field sent: neither (fail safe)');
       eq(loops(card({ env: { party: { id: '00000000-0000-4000-8000-000000000001', self_seat: 0, leader_seat: 0,
         members: [{ seat: 0, name: 'Wrenna', level: 12, weapon: 'sword' }, { seat: 1, name: 'Mira', level: 12, weapon: 'bow' }] } } })),
-      ['work:Gathering and crafting', 'farm:Farm'], 'in a party: no yard (training is solo)');
+      [WORK, 'farm:Farm'], 'in a party: no yard (training is solo)');
       /* another end with stamina short: the line of its own heads the presses */
       const hours = card({ reason: 'hours' });
-      eq([hours.rest && hours.rest.head, loops(hours)], ['No stamina needed', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm']], 'a time limit with stamina short');
+      eq([hours.rest && hours.rest.head, loops(hours)], ['No stamina needed', ['train:Training Yard', WORK, 'farm:Farm']], 'a time limit with stamina short');
       /* CONTROL: stamina enough for a real hunt (5 h of 12) offers nothing more */
       eq(card({ env: { stamina: { ms: 5 * H, max_ms: 12 * H, at: iso(T0 + 13 * H), hunting: false } } }).rest, null, 'stamina for a hunt: no loops row');
     });
@@ -1715,7 +1717,7 @@ const MUTANTS = [
   /* `also`: the narrow window with a long name the rule is for (v0.2.124's "Gathering and crafting", whose band says "Skills" since v0.2.138):
      with none in the tree the rule has nothing to hold, so the plant brings its case back with its defect */
   { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }',
-    also: [{ file: 'src/data/shell-windows.js', from: "label: 'Gathering and crafting', title: 'Skills',", to: "label: 'Gathering and crafting'," }] },
+    also: [{ file: 'src/data/shell-windows.js', from: "key: 'g', glyph: 'uiPickaxe', width: 380,", to: "title: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380," }] },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
   { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
   { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },

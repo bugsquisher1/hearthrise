@@ -331,7 +331,7 @@ async function checks(overrides, shots, opts) {
               await page.click('.hw-menu.is-on [data-hs-act="m-cook"]');
               await page.waitForTimeout(600);
               const at = await page.evaluate(() => ({ win: !!document.querySelector('[data-hs-win="skills-trade"] [data-hs-built]'),
-                row: !!document.querySelector('[data-hs-win="skills-trade"] .hw-job[data-key="meal_b0"]') }));
+                row: !!document.querySelector('[data-hs-win="skills-trade"] .hw-job[data-id="meal_b0"]') }));
               if (!at.win || !at.row) fails.push('AW-20 Cook did not open the Work window on its job: ' + JSON.stringify(at));
               if (sent(s, 'hr-accrue', 'set_activity').length !== 2) fails.push('AW-20 Cook sent a town intent: ' + JSON.stringify(sent(s, 'hr-accrue', 'set_activity').slice(2).map((c) => c.body)));
               if (shots) await shot(page, 'alpha-1440x900-cook-job');

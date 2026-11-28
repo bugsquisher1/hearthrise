@@ -33,7 +33,7 @@ const KEY = /^[a-z0-9][a-z0-9_.:-]*$/;
 export function targetOf(place) {
   if (!place) return null;
   /* a job (09-crafting 4.17: town work is the Work window's Jobs list): its row there, by its recipe id (windows/work-jobs.js) */
-  if (place.kind === 'job') return { win: 'skills-trade', tab: null, find: typeof place.job === 'string' && KEY.test(place.job) ? place.job : null };
+  if (place.kind === 'job') return { win: 'skills-trade', tab: 'jobs', find: typeof place.job === 'string' && KEY.test(place.job) ? place.job : null };
   if (place.kind === 'shop') return { win: 'shop', tab: 'buy', find: place.item };
   if (place.kind === 'temper' || place.kind === 'services') return { win: 'shop', tab: 'services', find: null };
   /* the bag's next rung is bought in Storage (its Expand) */

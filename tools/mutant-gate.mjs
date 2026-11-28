@@ -46,8 +46,8 @@
 // within its job, proves nothing new. Anything else still falls back to the merge base, as before: smoke.yml outside its jobs
 // (triggers, permissions, env: and its HR_RELEASE_PROOFS), this job's own settings (runs-on, timeout-minutes, env:, needs, if:),
 // a setup step (`uses:`), a kept step's other keys (if:, env:), the gate's own steps (any step that runs this file itself), and
-// the gate's code (GATE_OWN: this file and the four libraries that choose a run's proofs). Another job's settings send THAT job
-// back, not this one: a job's green proves its own steps on its own runner. Under plain-only the moved steps wait for the
+// an edit of this file (GATE_OWN; its libraries are judged by the range rules like any guard's). Another job's settings send THAT
+// job back, not this one: a job's green proves its own steps on its own runner. Under plain-only the moved steps wait for the
 // nightly like every other proof. A rehearsal of A..B is planned as a push whose green base is A. The nightly rules do not move:
 // a job the last sweep left red still runs in full, and the schedule is still the full sweep.
 //
@@ -283,8 +283,9 @@ function greenBase(env) {
 const workflowAt = (base, tip) => ({ base: gitOut(['show', `${base}:${WORKFLOW_PATH}`]), head: gitOut(['show', `${tip}:${WORKFLOW_PATH}`]) });
 
 // ── STEPS MOVED (Tyler 2026-11-29): smoke.yml step by step ──────────────────
-/* The gate's own code: a change to any of it means the earlier green was chosen under other rules, so it is no base. */
-export const GATE_OWN = Object.freeze(['tools/mutant-gate.mjs', 'tools/lib/guard-deps.mjs', 'tools/guard-anchors.mjs', 'tools/lib/mutant-scope.mjs', 'tools/lib/ci-history.mjs']);
+/* The gate's own file (the ruling's word): an edit of it is no step move, so the earlier green is no base. Its libraries are not
+   listed: each such edit would send every job back to the merge base, and the range rules already re-prove what loads them. */
+export const GATE_OWN = Object.freeze(['tools/mutant-gate.mjs']);
 const SELF = 'tools/mutant-gate.mjs';
 /* A command the gate cannot match word for word against its own argv (quotes, expansions, pipes): matched by its guard instead. */
 const SHELLY = /[$`'"\\|&;<>(){}*?~]/;
@@ -660,7 +661,8 @@ function explain(argv) {
   };
   /* --nightly-only: the plan a release gets under HR_RELEASE_PROOFS=nightly-only (its guard side only) */
   if (argv.includes('--nightly-only')) changed = releaseScope(changed, 'guard-side').changed;
-  const proofs = registeredProofs();
+  /* a range's own tip registers its proofs: its jobs are the ones whose bases are judged */
+  const proofs = registeredProofs(texts && tip !== 'HEAD' ? texts.head : undefined);
   const guards = [...new Set(proofs.map((p) => guardFileOf(p.cmd)))];
   const plan = { full: false, selected: Object.fromEntries(selectGuards(changed, { base, extraGuards: guards, regions, read })) };
   let n = 0;
@@ -671,9 +673,9 @@ function explain(argv) {
     if (d.run || argv.includes('--all')) console.log(`${d.run ? 'RUN ' : 'skip'}  ${p.job.padEnd(20)} ${unwrapGate(p.cmd)}   (${d.why})`);
   }
   const back = [...verdicts].filter(([, v]) => !v.keep);
-  for (const [job, v] of back) console.log(`a green base of job ${job} would not hold: ${v.why}`);
+  for (const [job, v] of back) console.log(`job ${job} would not keep a green base at ${String(base).slice(0, 9)}: ${v.why}`);
   console.log(`\n${changed.length} changed file(s) → ${n} of ${proofs.length} registered proof command(s) run`
-    + `${back.length ? `; ${back.length} job(s) fall back to the merge base, beyond this list` : ''}.`);
+    + `${back.length ? `; ${back.length} job(s) named above would measure from main's merge base instead` : ''}.`);
   return 0;
 }
 
@@ -922,7 +924,7 @@ function stepsMovedSelftest() {
     out.push([v(['src/a.js']).keep && !v(['src/a.js']).steps.length, 'a diff that leaves smoke.yml alone keeps the base, nothing re-proved']);
     out.push([only(v([WORKFLOW_PATH, 'src/a.js']), ['Probe C']), 'a diff with a step-only smoke.yml change keeps the base, its moved step re-proved']);
     out.push([!v([WORKFLOW_PATH, 'tools/mutant-gate.mjs']).keep && !v(['tools/mutant-gate.mjs']).keep, 'a change to tools/mutant-gate.mjs falls back, with or without smoke.yml']);
-    out.push([!v([WORKFLOW_PATH, 'tools/lib/ci-history.mjs']).keep && !v(['tools/lib/guard-deps.mjs']).keep, 'a change to the libraries that choose the proofs falls back']);
+    out.push([v(['tools/lib/ci-history.mjs']).keep && only(v([WORKFLOW_PATH, 'tools/lib/guard-deps.mjs']), ['Probe C']), 'another tools/ file, the gate\'s libraries too, keeps the base (the range rules judge it)']);
     /* the plan: only the moved step's command runs, in full; a command it cannot match word for word, by its guard */
     const plan = { full: false, selected: {}, reprove: impl.reprove(impl.delta(BASE, V.move, 'x').steps) };
     const c = impl.decide(gated('c'), plan); const a = impl.decide(gated('a'), plan);
@@ -959,7 +961,7 @@ function stepsMovedSelftest() {
       return moved ? { keep: false, why: `job ${moved[0]}'s own settings changed`, steps: [] } : r;
     } }],
     ['the gate\'s own code is ignored', { verdict: (o) => greenVerdict({ ...o, files: o.files.filter((f) => !GATE_OWN.includes(f)) }) }],
-    ['only tools/mutant-gate.mjs counts as the gate\'s code', { verdict: (o) => greenVerdict({ ...o, files: o.files.filter((f) => f === SELF || !GATE_OWN.includes(f)) }) }],
+    ['every tools/ edit sends the job back', { verdict: (o) => (o.files.some((f) => f.startsWith('tools/')) ? { keep: false, why: 'mutant', steps: [] } : greenVerdict(o)) }],
     ['a re-proved step runs only the mutants the diff touched', { decide: (cmd, p, g) => { const r = decide(cmd, p, g); return r.inFull ? { ...r, inFull: false } : r; } }],
     ['a moved step re-proves its whole job', { reprove: (s) => { const r = reproveOf(s); return s.length ? { ...r, guards: { ...r.guards, '*': 'mutant' } } : r; } }],
     ['a moved command is matched by its guard (every command of it re-runs)', { reprove: (s) => { const r = reproveOf(s); return { ...r, guards: { ...r.guards, ...Object.fromEntries(Object.entries(r.commands).map(([k, w]) => [guardFileOf(k), w])) } }; } }],

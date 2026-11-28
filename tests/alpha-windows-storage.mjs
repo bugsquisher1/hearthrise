@@ -321,12 +321,12 @@ async function checks(overrides, shots, opts) {
             await page.waitForTimeout(300);
             const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
             if (big === 'Burn all 2' && (low !== 'Big Bones: requires Inner Flame 15' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-19 Burn all above the level said ' + JSON.stringify(low));
-            /* AW-20 Cook: the raw fish's item menu offers Cook (its primary is Eat: it heals), a link to its job in the Work window; it sends
-               nothing and the bag stays the server's */
+            /* AW-20 Cook: the raw fish's item menu offers its Cooking job by name (its primary is Eat: it heals), a link to the job in the Work
+               window; it sends nothing and the bag stays the server's */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="shrimp"]', { button: 'right' });
             await page.waitForTimeout(250);
             const cp = await page.evaluate(() => { const b = document.querySelector('.hw-menu.is-on [data-hs-act="m-cook"]'); return b && !b.disabled ? b.textContent : null; });
-            if (cp !== 'Cook') fails.push('AW-20 the raw fish\'s menu offers ' + JSON.stringify(cp) + ', not Cook');
+            if (cp !== 'Cook Shrimp') fails.push('AW-20 the raw fish\'s menu offers ' + JSON.stringify(cp) + ', not Cook Shrimp');
             else {
               await page.click('.hw-menu.is-on [data-hs-act="m-cook"]');
               await page.waitForTimeout(600);

@@ -124,7 +124,7 @@ export function primaryOf(st, id) {
      outfit, the bundle is kept to sell or trade and Sell is its press */
   if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];
   /* a raw food a Cooking job takes: Cook opens that job in the Work window (bury.js; no bench since 09 4.17) */
-  if (cookOf(id)) return ['cook', 'Cook'];
+  if (cookOf(id)) return ['cook', cookOf(id).name];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', t('controls.sell')];
   return null;
 }

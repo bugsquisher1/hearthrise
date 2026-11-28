@@ -36,7 +36,7 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords, cookOf } from '../../bag-model.js';
 import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js';
 import { runIntent } from '../../intent-words.js';
 import { t } from '../../../render/player-text.js';
@@ -332,8 +332,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
   if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
   /* a raw food: Cook opens its Cooking job in the Work window (goCook, through the window manager's one door: goto.js) */
-  const ck = cookTarget(id);
-  if (ck) h += item('m-cook', 'Cook', true);
+  const ck = cookOf(id);
+  if (ck) h += item('m-cook', ck.name, true);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'Shop won\'t buy this';
   /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */

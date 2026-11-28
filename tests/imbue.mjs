@@ -36,6 +36,7 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { runPureGuard } from './_pure-guard.mjs';
+import { harnessFail } from './_mutant-verdict.mjs';
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
@@ -112,7 +113,7 @@ async function pure(base) {
   if (JSON.stringify(worn) !== want) out.push('IM-8 the worn set is ' + JSON.stringify(worn) + ': want each one to the read\'s settled_to plus its msLeft, and no msLeft carried on (a peer\'s frozen key)');
   /* ...and heroSetup (the settle's door, hunt-settle.js) hands exactly that set (loaded here alone: it reads the whole catalogue) */
   let SP = null;
-  try { SP = await imp('src/core/hunt-spawn.js'); } catch (e) { out.push('IM-8 the hero builder does not load: ' + String(e && e.message).slice(0, 120)); }
+  try { SP = await imp('src/core/hunt-spawn.js'); } catch (e) { out.push(harnessFail('IM-8 loading the hero builder', e)); }
   const hero = SP ? SP.heroSetup({ weaponType: 'sword', options: {}, bar: [], wornImbues: read, readAtMs: T0 }) : null;
   if (SP && JSON.stringify(hero && hero.wornImbues) !== want) out.push('IM-8 heroSetup hands the fight ' + JSON.stringify(hero && hero.wornImbues) + ', want ' + want);
   /* the engine re-reads its own set at every boundary (combat-sim.js syncUnit): the set heroSetup made must survive it whole */

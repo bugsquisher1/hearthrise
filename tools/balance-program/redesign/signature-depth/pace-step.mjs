@@ -29,7 +29,23 @@ const DIR = join(HERE, 'pace-step');
 /* THE PACE A HELD STEP BUYS (%): key -> [value | null, its se, the cell it was fit on (pace-step/run.sh ps-<cell>-*)]. Played on
    lane/pace-step-per-ground (the hunt engine of set/v0.2.144 d501d3754) */
 export const PACE_STEP = Object.freeze({
-  /* (filled from the reports; --check holds each to its report) */
+  /* (the tank four on Muster reads 0.407 (0.009): the four does not move it there) */
+  muster_barrows: [0.398, 0.007, 'muster-mixed'],
+  /* (a lone sword holds 367, far under the band's floor 520: paid at the floor, a held step costs 0.29% pace) */
+  'muster_barrows:1': [null, 0.023, 'muster-lone'],
+  hasks_ford: [0.397, 0.005, 'hask-mixed'],
+  the_slake: [0.415, 0.007, 'slake-mixed'],
+  'the_slake:1': [0.427, 0.007, 'slake-lone'],
+  /* (the sword four reads 0.634 (0.031) here: a sword four's back row is struck more, so a cut on every blow buys more speed too) */
+  pyre_field: [0.487, 0.020, 'pyre-mixed'],
+  krells_hold: [0.610, 0.036, 'krell-mixed'],
+  carters_rest: [1.056, 0.020, 'carters-mixed'],
+  ox_road: [0.346, 0.006, 'ox-mixed'],
+  /* (the crossbow four: the one four a Signature is read on here) */
+  wyvern_roost: [0.429, 0.004, 'roost-crossbow'],
+  catacomb_bone_wing: [0.453, 0.015, 'bone-mixed'],
+  /* (the axes four, the one a Signature is read on here; its held move is small against its spread, se 0.087) */
+  catacomb_flooded_wing: [0.874, 0.087, 'flood-axes'],
 });
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

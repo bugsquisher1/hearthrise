@@ -7,7 +7,7 @@
 //   node tests/time-offer-card.mjs --mutate   every planted defect (in a temp copy of src) must turn its arm red
 //
 // mutant-anchors: src/shell/time-offer-card.js src/shell/launcher-coach.js
-// ci-step: db-replay | Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
+// ci-step: db-replay-17 | Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
 // ci-run: node tests/time-offer-card.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate
 //

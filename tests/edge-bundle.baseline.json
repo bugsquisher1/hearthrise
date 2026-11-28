@@ -628,6 +628,11 @@
         "bytes": 3913022,
         "on": "2026-11-27",
         "why": "lane/designer-bd9: all 16 grounds' re-cut tops in src/data/danger.js, which the engine carries"
+      },
+      {
+        "bytes": 3913853,
+        "on": "2026-11-28",
+        "why": "kit-bands-2-3: 34 band 2-3 job recipes, their job faces and 2 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
       }
     ]
   }

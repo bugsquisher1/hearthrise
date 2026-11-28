@@ -31,7 +31,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /* `send` asks once under a fresh key (each verb names its own RPC, so the client's whole surface reads in one grep). Each verb is its
    own askVia site (tests/session-core.mjs REFUSE-ASKVIA drives every RPC of a `rule` site), and this is the one rule they share. */
-async function press(cs, send) {
+async function press(cs, verb, send) {
   let ans = await send();
   if (catchingUp(ans) && typeof cs.hello === 'function') {
     try { await cs.hello(); } catch (e) { /* the second ask's own answer says what the server holds */ }
@@ -40,7 +40,9 @@ async function press(cs, send) {
   const b = ans && isObj(ans.body) ? ans.body : {};
   if (!(ans && ans.ok && b.ok === true)) {
     await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
-    return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
+    /* the verb rides the refusal so its words are the Talents' own (src/data/refusal-words.js REFUSAL_VERB_WORDS: a town pick's
+       not_offered is not the shop's line) */
+    return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb };
   }
   /* the answer carries the hero as the press left it (1064 `envelope`, rule 11); a replayed receipt has none, so the hero is read */
   if (typeof cs.load === 'function') await cs.load(isObj(b.envelope) ? b.envelope : null);
@@ -50,31 +52,31 @@ async function press(cs, send) {
 /** "Spend as suggested": every point left on the server's suggested road for plan `plan`. */
 export function spendSuggested(account, cs, plan) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !PLANS.has(plan)) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, 'talent_suggested', () => press(cs, () => account.server.rpc('hr_talent_spend_suggested', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
+  return askVia(cs, 'talent_suggested', () => press(cs, 'talent_suggested', () => account.server.rpc('hr_talent_spend_suggested', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
 }
 
 /** The standing rule: "Spend as suggested" for plan `plan` as each Level comes, or null to turn it off. */
 export function setTalentAuto(account, cs, plan) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !(plan === null || PLANS.has(plan))) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, 'talent_auto', () => press(cs, () => account.server.rpc('hr_talent_auto_set', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
+  return askVia(cs, 'talent_auto', () => press(cs, 'talent_auto', () => account.server.rpc('hr_talent_auto_set', { p_slot: cs.slot, p_plan: plan, p_idem: newIdem() })));
 }
 
 /** One point on node `node` (with option `pick` at a crossroads, else null). */
 export function spendTalent(account, cs, node, pick) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !NODE.test(String(node))
     || !(pick === null || PICK.test(String(pick)))) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, 'talent_spend', () => press(cs, () => account.server.rpc('hr_talent_spend', { p_slot: cs.slot, p_node: node, p_pick: pick, p_idem: newIdem() })));
+  return askVia(cs, 'talent_spend', () => press(cs, 'talent_spend', () => account.server.rpc('hr_talent_spend', { p_slot: cs.slot, p_node: node, p_pick: pick, p_idem: newIdem() })));
 }
 
 /** A saved build for ground `hunt` ({ nodeId: value }, or null to delete it). The server checks every node against its catalogue. */
 export function saveBuild(account, cs, hunt, nodes) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !HUNT.test(String(hunt))
     || !(nodes === null || (isObj(nodes) && Object.keys(nodes).every((id) => NODE.test(id))))) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, 'talent_build', () => press(cs, () => account.server.rpc('hr_talent_build_save', { p_slot: cs.slot, p_hunt: hunt, p_nodes: nodes, p_idem: newIdem() })));
+  return askVia(cs, 'talent_build', () => press(cs, 'talent_build', () => account.server.rpc('hr_talent_build_save', { p_slot: cs.slot, p_hunt: hunt, p_nodes: nodes, p_idem: newIdem() })));
 }
 
 /** "Spend on plan": the server pays the saved build for ground `hunt` (the hero's planned hunt) as far as the points go, in one press. */
 export function spendPlan(account, cs, hunt) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !HUNT.test(String(hunt))) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, 'talent_plan', () => press(cs, () => account.server.rpc('hr_talent_spend_plan', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() })));
+  return askVia(cs, 'talent_plan', () => press(cs, 'talent_plan', () => account.server.rpc('hr_talent_spend_plan', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() })));
 }

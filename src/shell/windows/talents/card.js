@@ -14,9 +14,8 @@ import { ABILITIES } from '../../../data/abilities.js';
 import { optionsOf, spendProblem, borrowBand } from '../../../core/talents.js';
 import { rows, text, prop, cls, attr, element } from '../../../render/paint.js';
 import { whole, sepHtml } from '../../../render/format.js';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
 import { t } from '../../../render/player-text.js';
-import { planFor, patchPlanNone, patchPlanPick } from './road-plan.js';
+import { planFor, patchPlanNone, patchPlanPick, talentWords } from './road-plan.js';
 import { markOf } from './marks.js';
 
 /* the map's key (18 section 4): a stone's four states and the plan's mark, each drawn as a crossroads (the kind is the shape, the
@@ -66,7 +65,7 @@ const kindWords = (n) => {
   return k;
 };
 /* the server's words for a spend problem (src/data/refusal-words.js, the same the press's refusal reads) */
-const why = (code) => (!code ? '' : Object.prototype.hasOwnProperty.call(REFUSAL_WORDS, code) ? REFUSAL_WORDS[code] : t('talents.locked'));
+const why = talentWords;
 const row = (root, k, label, value, on = true) => {
   const el = root.querySelector('[data-row="' + k + '"]');
   attr(el, 'hidden', on ? null : '');

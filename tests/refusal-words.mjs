@@ -17,6 +17,9 @@
 //       need / have first) — and without a character, the need alone
 //   RW4 the refusal the session hands back names the item the server named
 //       (hr_apply's detail, one level down on an edge refusal; a malformed id never)
+//   RW5 a verb's own line wins over the code's (an equip mid-hunt); another verb keeps the code's
+//   RW6 a Talents town pick refused not_offered (hr_talent_spend) reads as the Talents' words, through the real
+//       press and on the card's own reader, while the shop's not_offered keeps the shop's line (lane/borrow-price-card)
 //
 //   node tests/refusal-words.mjs            run
 //   node tests/refusal-words.mjs --mutate   each planted defect must turn a claim red
@@ -64,7 +67,8 @@ export function clientCodes(root) {
 async function load(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   return { IW: await import(u('src/shell/intent-words.js')), RW: await import(u('src/data/refusal-words.js')), IL: await import(u('src/shell/item-lore.js')),
-    CS: await import(u('src/session/character-session.js')), XP: await import(u('src/core/xp.js')), ITEMS: (await import(u('src/data/items.js'))).ITEMS, root };
+    CS: await import(u('src/session/character-session.js')), TI: await import(u('src/session/talent-intents.js')),
+    RP: await import(u('src/shell/windows/talents/road-plan.js')), XP: await import(u('src/core/xp.js')), ITEMS: (await import(u('src/data/items.js'))).ITEMS, root };
 }
 
 /* A character as the session reads it: skills, and when `level` is given the Level the SERVER states (hr_state_of's `level`
@@ -139,6 +143,18 @@ const CLAIMS = {
     if (other !== M.RW.REFUSAL_WORDS.hunt_open) out.push('RW5 another verb\'s hunt_open reads ' + JSON.stringify(other));
     return out;
   },
+  RW6: async (M) => {
+    /* a border town's pick the server refuses not_offered (hr_talent_spend_problem): the press hands its verb on, so the line is the
+       Talents' own; the card's spend-problem line reads the same; the shop's not_offered (no verb) is still the shop's */
+    const out = [];
+    const account = { server: { rpc: async () => ({ ok: true, body: { ok: false, error: 'not_offered' } }) } };
+    const r = await M.TI.spendTalent(account, { slot: 0, status: 'open' }, 'border.shield_restoration.town', 'use_greater_mend');
+    const said = M.IW.refusalText(r), card = M.RP.talentWords('not_offered'), shop = M.IW.refusalText({ ok: false, error: 'not_offered' });
+    if (said !== 'Not offered here') out.push('RW6 a town pick refused not_offered reads ' + JSON.stringify(said) + ' (' + JSON.stringify(r) + ')');
+    if (card !== 'Not offered here') out.push('RW6 the Talents card says a not_offered pick as ' + JSON.stringify(card));
+    if (shop !== 'Shop doesn\'t sell that') out.push('RW6 the shop\'s not_offered reads ' + JSON.stringify(shop));
+    return out;
+  },
 };
 
 async function run(root) {
@@ -160,6 +176,9 @@ const MUTANTS = [
   ['RW3', 'a Level requirement reads as a skill', 'src/shell/item-lore.js', "  return level ? t(known ? 'item.need_level_have'", "  return false ? t(known ? 'item.need_level_have'"],
   ['RW5', 'an equip mid-hunt reads as the generic hunt line', 'src/shell/intent-words.js', '  return refusalWords(r && r.error, r && r.verb);', '  return refusalWords(r && r.error);'],
   ['RW5', 'the session drops the verb', 'src/session/refusal.js', "    verb: typeof b.verb === 'string' && /^[a-z_]{1,32}$/.test(b.verb) ? b.verb : null,\n", ''],
+  ['RW6', 'the Talents press drops its verb', 'src/session/talent-intents.js', "|| 'refused', verb };", "|| 'refused' };"],
+  ['RW6', 'the Talents card reads the code\'s line only', 'src/shell/windows/talents/road-plan.js', "refusalWords(code, 'talent_spend')", 'refusalWords(code)'],
+  ['RW6', 'the Talents words written over the shop\'s', 'src/data/refusal-words.js', "  not_offered: 'Shop doesn\\'t sell that',", "  not_offered: 'Not offered here',"],
   ['RW4', 'the session drops the item', 'src/session/refusal.js', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null, item,\n', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null,\n'],
 ];
 

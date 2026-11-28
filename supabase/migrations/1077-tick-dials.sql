@@ -27,13 +27,18 @@
 --      8 heroes (2 fours)    360      356     516     889    255                                     0 of 720
 --   The four-four row is the load test's (p50 761-807, p95 952-1,096, max 1,127-1,382). The calibration read 125 ms before and
 --   156 after (a shared PC: other lanes' tests ran beside it), so absolute reference ms carry about 12% either way; the pairing
---   holds the ratio, three fours 0.71 (p50), 0.73 (p95) and 0.83 (max) of four: on the load test's runners a body of three fours
---   reads p50 540-570, p95 690-800, max 935-1,150. So at 12 a body's p95 is under the 800 budget, by 1% to 13%, and what the
---   budget actually governs (does the body's last four start: the spend before it) is 38% under it at p95; the body's max is
---   under half the edge's 2 s. Two fours a body (8) has more room still but holds 8 x 64 = 512 heroes a fire at the CHECK's
---   ceiling (1,280 fours, today's): past 64 bodies is a CHECK, the roster's clamp, hr_hunt_lease_free and tick.js together,
---   and +100% invocations, not dials. The nightly (tools/beta-load.mjs --shape=lt, the chain's own dials) measures the three-four
---   body on the reference runner from this file on.
+--   holds the ratio, three fours 0.71 (p50), 0.73 (p95) and 0.83 (max) of four.
+-- ON THE REFERENCE RUNNER (GitHub pg17-lt, run 46100646685, this file on the chain: tools/beta-load.mjs --shape=lt, 758 fours on a
+--   runner x1.32 the reference, normalised): a body of three fours p50 626 / p95 901 / max 1,089 reference ms (0.82, 0.88, 0.88 of
+--   the four-four runs: the loaded bench narrows the pairing's 0.73), a four's settle 216 mean; 14 of 9,028 body selectors
+--   deferred (0.2%, line 20%); settle lag past the flush max 17.3 s (look-ahead 32); 0 of 31 fires at the 54-body cap (29 bodies a
+--   fire p95); per-hero cost inside the fixtures' band; per-player-cost --lit green.
+-- SO, READ PLAINLY: a three-four body's TOTAL p95 is still past 800 on the loaded reference bench (901; 708 on the replay). What
+--   the budget governs is whether a body's LAST four starts: that needs the spend before it under 800, and at three fours it is
+--   two fours' (replay p95 493), so at p95 a body defers only once the engine runs about 1.6x slower (at four fours, 1.06x). The body's
+--   max is 54% of the edge's 2 s. A body p95 under 800 on the bench is two fours (8 heroes), and 8 x 64 bodies (the CHECK's
+--   ceiling) holds 512 heroes a fire, 1,280 fours, today's: past 64 bodies is the CHECK, the roster's clamp, hr_hunt_lease_free
+--   and tick.js together, and +100% invocations (not dials; Reliability's next step if the nightly reads deferral climbing).
 --
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
 -- §1 hr_tick_config.hunt_body_heroes 16 -> 12 (CHECK 1..64 unchanged): a body of four-hero parties closes at THREE fours (12

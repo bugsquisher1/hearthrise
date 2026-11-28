@@ -152,7 +152,10 @@
 .rdw-opt-name b { display: block; font-size: var(--t-micro); color: var(--ink); }
 .rdw-opt-name small { display: block; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.25; }
 .rdw-opt-name small:empty { display: none; }
-.rdw-opt-at { color: var(--ink-3); }
+/* a lent move's band: the Level it opens at, then its price, the value bold (card.js; the price is the choice) */
+.rdw-opt-name .rdw-opt-at[hidden] { display: none; }
+.rdw-opt-at { color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.rdw-opt-price { font-weight: 700; color: var(--ink); }
 .rdw-route { margin-top: 10px; }
 .rdw-row { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.6; }
 .rdw-row b { color: var(--ink); text-align: right; font-variant-numeric: lining-nums tabular-nums; }

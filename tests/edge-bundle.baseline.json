@@ -658,6 +658,11 @@
         "bytes": 3997764,
         "on": "2026-11-28",
         "why": "p1-dealt-rows on the set with worn-imbues: payPersonal deals guarantees by turns (hunt-rewards.js, drops.js)"
+      },
+      {
+        "bytes": 3999907,
+        "on": "2026-11-28",
+        "why": "designer-imbue-calls: imbue-rules.js fire sizes, fireMax and validator; power-ledger.js consumable slice unramped (21 D-16/D-17)"
       }
     ]
   }

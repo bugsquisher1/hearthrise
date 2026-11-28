@@ -4,7 +4,8 @@ import { SUPPLY_GATES } from './core-model.js';
 import { GEAR_ITEMS, MATERIAL_TIERS } from './gear-tiers.js';
 import { WAVE3_ITEMS } from './wave3-uniques.js';
 import { SLOT_ITEMS } from './slot-ladders.js';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
+import { CROPS } from './gathering.js';
+import { KINDS, KIT_FACES } from './trades.js';
 import { LIB2_ITEMS } from './library2-items.js';
 import { STONECRAFT_ITEMS } from './stonecraft.js';
 import { CHAMPION_ITEMS } from './champions.js';
@@ -21,7 +22,6 @@ import { TRAINING_GEAR_ITEM_ROWS } from './training.js';
 import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js';
 import { FIST_LINE, FIST_ITEMS } from './fists.js';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js';
-import { PATTERN_ITEMS } from './patterns.js';
 import { scaleItemLevels, tierLevel, DANGER_GROUNDS, GEAR_STEPS } from './danger.js';
 import { withGearStats } from './gear-profiles.js';
 
@@ -64,8 +64,6 @@ export const ITEMS={
   ...SHIELD_ITEMS,
   /* The fist line's wraps, tiers 1 and 2 (src/data/fists.js): HIDDEN, in the catalogue only while its sample is live. New ids only. */
   ...(FIST_LINE.live ? FIST_ITEMS : {}),
-  /* The patterns (src/data/patterns.js): a Rare that teaches one hero a recipe. HIDDEN: empty while PATTERN_LINE.live is false. New ids only. */
-  ...PATTERN_ITEMS,
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
   /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */
@@ -80,33 +78,9 @@ export const ITEMS={
      ruling): tools stay as optional boosts; only the axe/pickaxe ladder keeps
      its smithing recipes. Rods, hammers, needles and knives have no source for
      now (catalogue-coherence AWAITING_ROSTER). */
-  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
-  iron_axe:{n:'Iron Axe',icon:'🪓',v:125,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
-  steel_axe:{n:'Steel Axe',icon:'🪓',v:370,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
-  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:600,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
-  rune_axe:{n:'Rune Axe',icon:'🪓',v:1800,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
-  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
-  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:125,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
-  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:370,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
-  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:600,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
-  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:1800,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
-  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
-  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
-  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
-  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
-  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
   /* Wave 3: ARTISAN tools — the counterpart to gathering tools, so tools improve
      crafting/smithing/cooking too (Tyler). Best owned auto-applies (tools.js);
      each grants speed + tier-derived XP + a double-craft chance. */
-  bronze_hammer:{n:'Bronze Hammer',icon:'🔨',v:70,type:'tool',toolSkill:'smithing',toolTier:1,toolSpeed:.05},
-  steel_hammer:{n:'Steel Hammer',icon:'🔨',v:950,type:'tool',toolSkill:'smithing',toolTier:3,toolSpeed:.15},
-  rune_hammer:{n:'Rune Hammer',icon:'🔨',v:9200,type:'tool',toolSkill:'smithing',toolTier:5,toolSpeed:.25},
-  bone_needle:{n:'Bone Needle',icon:'🪡',v:70,type:'tool',toolSkill:'crafting',toolTier:1,toolSpeed:.05},
-  steel_needle:{n:'Steel Needle',icon:'🪡',v:950,type:'tool',toolSkill:'crafting',toolTier:3,toolSpeed:.15},
-  rune_needle:{n:'Rune Needle',icon:'🪡',v:9200,type:'tool',toolSkill:'crafting',toolTier:5,toolSpeed:.25},
-  bronze_knife:{n:'Bronze Knife',icon:'🔪',v:70,type:'tool',toolSkill:'cooking',toolTier:1,toolSpeed:.05},
-  steel_knife:{n:'Steel Knife',icon:'🔪',v:950,type:'tool',toolSkill:'cooking',toolTier:3,toolSpeed:.15},
-  rune_knife:{n:'Rune Knife',icon:'🔪',v:9200,type:'tool',toolSkill:'cooking',toolTier:5,toolSpeed:.25},
   bones:{n:'Bones',icon:'🦴',v:1},big_bones:{n:'Big Bones',icon:'🦴',v:3},
   dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10},
   /* THE GREAT HEARTH'S FUELS (src/data/hearth.js; Tyler 2026-10-25). The family fuels are a boneless
@@ -290,9 +264,6 @@ export const ITEMS={
      recipe at all — every other crop feeds cooking, turnip was the lone dead end.
      Turnip Mash is the starter cook (Cooking 1), so a brand-new farmer/cook can
      actually cook their first harvest. */
-  turnip_mash: {
-    n:'Turnip Mash', icon:'🥣', v:14, heals:60, foodTier:1, foodClass:'healing',
-  },
   /* ── THE ROWS THE LOCAL SHOP SELLS (Designer ruling 2026-09-08; pack 9) ─
      Cooked Shrimp, Trout and Lobster are the only cooked food an NPC counter
      stocks (`SEED_SHOP`, src/legacy.js — the "Supplies" tab). Measured live on
@@ -331,7 +302,6 @@ export const ITEMS={
   },
 
   /* ── Recipe outputs: smithing (bars) ── */
-  copper_bar:  {n:'Copper Bar',  icon:'🟫', v:15},
   iron_bar:    {n:'Iron Bar',    icon:'⬛', v:30},
   gold_bar:    {n:'Gold Bar',    icon:'🟨', v:80},
   mithril_bar: {n:'Mithril Bar', icon:'🟦', v:250},
@@ -375,10 +345,6 @@ export const ITEMS={
      Mithril's tier band (it is what the tier drives — art, borders, drop
      routing) and is one rarity notch under it.
      ══════════════════════════════════════════════════════════════════ */
-  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:10},
-  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:15},
-  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:30},
-  verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:140},
   verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
     armourClass:'plate', rarity:'rare', tier:4,
     reqSkill:'level', reqLv:38},
@@ -425,9 +391,6 @@ export const ITEMS={
   runewood_plank: {n:'Runewood Plank', icon:'🪵', v:250},
   duskwood_plank: {n:'Duskwood Plank', icon:'🪵', v:250},
   /* Fishing gap-fillers (10 / 66) */
-  herring:         {n:'Raw Herring', icon:'🐟', v:14, heals:48},
-  cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:5, heals:72, foodTier:1, foodClass:'healing',
-    buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:70, heals:216},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:35, heals:456, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:5, durationMs:360000}},
@@ -445,19 +408,9 @@ export const ITEMS={
   pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:15, heals:96},
   cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:9, heals:192, foodTier:2, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
-  copper_crab:           {n:'Copper Crab', icon:'🦞', v:15, heals:108},
-  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:10, heals:216, foodTier:2, foodClass:'healing',
-    buff:{type:'all_xp', magnitude:2, durationMs:180000}},
-  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:20, heals:120},
-  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
-    buff:{type:'damage', magnitude:2, durationMs:240000}},
   goldgill:              {n:'Raw Goldgill', icon:'🐟', v:20, heals:132},
   cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
     buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
-  river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
-    buff:{type:'defense', magnitude:3, durationMs:300000}},
-  fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:408, foodClass:'buff',
-    buff:{type:'damage', magnitude:2, durationMs:600000}},
   /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone.
      ── "DEEP WATERS" HEAL CLIMB (game-designer ruling, content pack 8) ──────
      A higher fish is better food: Lobster 25 < Swordfish 32 < Frostfin 38
@@ -491,45 +444,13 @@ export const ITEMS={
   moonbloom:       {n:'Moonbloom', icon:'🌸', v:850, heals:240},
   moonbloom_seed:  {n:'Moonbloom Seed', icon:'🌱', v:280, seed:'moonbloom'},
   /* Late-game cooking — gives the new crops a real sink */
-  goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:312, foodTier:3, foodClass:'buff',
-    buff:{type:'gather_speed', magnitude:4, durationMs:360000}},
-  ember_tart:       {n:'Ember Tart', icon:'🥧', v:1300, heals:360, foodTier:4, foodClass:'buff',
-    buff:{type:'combat_xp', magnitude:4, durationMs:360000}},
-  moonbloom_elixir: {n:'Moonbloom Elixir', icon:'🍶', v:2600, heals:480, foodTier:5, foodClass:'buff',
-    buff:{type:'all_xp', magnitude:5, durationMs:480000}},
 
   /* Tool ladder, tiers 6-7 — the best owned tool auto-applies, so these are
      the final gather-speed upgrades (+30% / +35%). */
-  ember_axe:      {n:'Emberforged Axe', icon:'🪓', v:1400, type:'tool', toolSkill:'woodcutting', toolTier:6, toolSpeed:.30},
-  dawn_axe:       {n:'Dawnsteel Axe',   icon:'🪓', v:2700, type:'tool', toolSkill:'woodcutting', toolTier:7, toolSpeed:.35},
-  ember_pickaxe:  {n:'Emberforged Pickaxe', icon:'⛏️', v:1400, type:'tool', toolSkill:'mining', toolTier:6, toolSpeed:.30},
-  dawn_pickaxe:   {n:'Dawnsteel Pickaxe',   icon:'⛏️', v:2700, type:'tool', toolSkill:'mining', toolTier:7, toolSpeed:.35},
-  duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
-  dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 
   /* ── Cooked crops (farm → cooking) — extension hooks for upcoming
      pumpkin pie / carrot stew recipes. Defined with placeholder buffs
      so that even a partial cooking unlock has working buff foods. */
-  baked_potato: {
-    n:'Baked Potato', icon:'🥔', v:150, heals:240, foodTier:2, foodClass:'healing',
-    buff:{type:'gather_speed', magnitude:3, durationMs:240000},
-  },
-  pumpkin_pie: {
-    n:'Pumpkin Pie', icon:'🥧', v:420, heals:420, foodTier:3, foodClass:'buff',
-    buff:{type:'all_xp', magnitude:3, durationMs:300000},
-  },
-  carrot_stew: {
-    n:'Carrot Stew', icon:'🍲', v:200, heals:288, foodTier:2, foodClass:'buff',
-    buff:{type:'farm_yield', magnitude:1, durationMs:360000},
-  },
-  tomato_soup: {
-    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'buff',
-    buff:{type:'drop_rate', magnitude:2, durationMs:240000}, // b238: was dead monster_respawn
-  },
-  wheat_bread: {
-    n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodTier:1, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:1, durationMs:180000},
-  },
 
   /* ══════════════════════════════════════════════════════════════════
      b225 — BURNT FOOD, the open fire's failure state.
@@ -582,16 +503,8 @@ export const ITEMS={
   raw_wolf_meat:    {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
   raw_panther_meat: {n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
   raw_bear_meat:    {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},
-  cooked_wolf_meat:    {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:72,  foodClass:'healing', cookedFrom:'raw_wolf_meat'},
-  cooked_panther_meat: {n:'Cooked Panther Meat', icon:'🥩', v:22, heals:108,  foodClass:'healing', cookedFrom:'raw_panther_meat'},
-  cooked_bear_meat:    {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:156, foodClass:'healing', cookedFrom:'raw_bear_meat'},
   // Tier 2 buff foods
-  roasted_carrot:  {n:'Roasted Carrot', icon:'🥕', v:12,  heals:60,  foodClass:'buff', buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
-  roasted_pumpkin: {n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:264, foodClass:'buff', buff:{type:'farm_yield',   magnitude:1,  durationMs:600000}},
-  vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:288, foodClass:'buff', buff:{type:'all_xp',       magnitude:2,  durationMs:900000}},
   // Tier 3 buff foods
-  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:384, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
-  void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:25},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:125},
@@ -649,9 +562,6 @@ export const ITEMS={
      atlas glyph: nothing in reserve-art reads as a carved/cut masonry block
      (only raw ore-pile chunks and polished gems exist there) — a good glyph
      beats a wrong painting. */
-  timber_beam:  {n:'Timber Beam',  icon:'🪵', v:230,  tier:2, tag:'castle'},
-  iron_fitting: {n:'Iron Fitting', icon:'🔩', v:190,  tier:2, tag:'castle'},
-  field_ration: {n:'Field Ration', icon:'🥖', v:90,   tier:1, tag:'castle'},
   keystone:     {n:'Keystone',     icon:'🧱', v:3000, tier:5, tag:'castle'},
 
   /* TEMPERING'S MATERIAL (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"; src/data/temper.js). Bulk goods: the shop
@@ -956,17 +866,13 @@ export function isAutoEatable(item) {
    market becomes the best price for raws, because another player will pay
    more than 20% for something they actually need.
 
-   DERIVED, NOT HAND-TAGGED, for everything a gathering rung produces: the
-   `prod` field of every tree/rock/fishing-spot and the `prod` of every crop
-   IS the definition of "unprocessed". A future rung cannot be added without
-   its output being raw, which is exactly the class of omission that makes an
-   economy fix rot. Monster/boss materials are listed explicitly below
-   because nothing structural marks them.
+   DERIVED, NOT HAND-TAGGED, for everything a gathering job produces: the face of every gather-stage kind at every band (src/data/trades.js
+   KINDS and KIT_FACES: Mine, Chop, Catch, Pull, Mine Rune Essence) and the `prod` of every crop IS the definition of "unprocessed". A
+   future band's raw good cannot be added without being raw, which is exactly the class of omission that makes an economy fix rot.
+   Monster/boss materials are listed explicitly below because nothing structural marks them.
    ══════════════════════════════════════════════════════════════════════ */
 const RAW_GATHERED = [
-  ...TREES.map((t) => t.prod),
-  ...ROCKS.map((r) => r.prod),
-  ...FISH_SPOTS.map((f) => f.prod),
+  ...Object.keys(KINDS).filter((k) => KINDS[k].stage === 'gather').flatMap((k) => Object.values(KIT_FACES[k] || {})).filter(Boolean),
   ...Object.values(CROPS).map((c) => c.prod),
 ];
 
@@ -997,13 +903,11 @@ const RAW_DROPS = [
    hours played, gather plus refine about two thirds, the whole chain to a finished piece about four fifths, and never above
    hunting, because a resting hero skills for free (tests/craft-wages.mjs). */
 const BULK_GOODS = [
-  'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
+  'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
-  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
+  'rune_blank', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
   'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads', 'rune_ore', 'rune_arrowheads', 'ember_arrowheads',
   'dawn_arrowheads', 'cobalt_ore', 'cobalt_bar', 'cobalt_temper_salts', 'wolfram_ore', 'wolfram_bar', 'wolfram_temper_salts',
-  'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
-  'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];
 
 export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...BULK_GOODS])];

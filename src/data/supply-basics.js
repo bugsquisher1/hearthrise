@@ -48,8 +48,8 @@
 
 import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName, isRune, runeTierOf, craftLevel } from './runes.js';
 import { ITEMS } from './items.js';
-import { ARTISAN_RECIPES } from './recipes.js';
-import { DRINK_ITEMS, DRINK_RECIPES } from './drinks.js';
+import { DRINK_ITEMS } from './drinks.js';
+import { madeAtLevel } from './trades.js';
 import { storePrice, storeTerms, storePriceOf, storeAsk } from './store-kit.js';
 import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js';
 
@@ -65,14 +65,13 @@ export const BASIC_EFFECT_SHARE = 0.75;
 export const BASIC_AMMO_PREMIUM = 0.5;
 
 /* THE PRICE OF A ROW (store-kit.js storePrice), from its crafted partner: the Level it is made at (a cooked food's Cooking recipe, a drink's
-   press, an arrow's Ranged need, a rune's tier), its own heal or mana and its book. */
-const COOK_STEP = Object.freeze(Object.fromEntries(Object.values(ARTISAN_RECIPES.cooking || {}).map((r) => [r.output, r.req])));
-const DRINK_STEP = Object.freeze(Object.fromEntries(DRINK_RECIPES.map((r) => [r.output, r.req])));
+   press, an arrow's Ranged need, a rune's tier), its own heal or mana and its book. A meal's or a drink's is its Cooking job's Level (the
+   bench cut, 09-crafting 4.17: src/data/trades.js madeAtLevel, the job ladder's rung). */
 /* A row's storePrice input: `step` the Level its crafted partner is made at (the list price's step) and the step-free rest (store-kit.js
    storeTerms). A row's `price` is its LIST price, at its own step; a USE is priced at the buyer's store step (STORE_TERMS below). */
 const restoreInput = (partner, amount, key) => {
   const p = ITEMS[partner] || DRINK_ITEMS[partner];
-  const step = key === 'heals' ? COOK_STEP[partner] : DRINK_STEP[partner];
+  const step = madeAtLevel(partner);
   if (!p || !Number.isInteger(step)) throw new Error('supply-basics: ' + partner + ' has no made-at Level to price its store row');
   return { line: 'meal', step, amount, partnerAmount: Number(p[key]), book: Number(p.v) || 0 };
 };
@@ -119,7 +118,6 @@ export const BASIC_SUPPLIES = Object.freeze([
      with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
      partner's book value (1 g). */
   shot('plain_iron_arrows', 'Plain Iron Arrows', 'iron_arrows'),
-  shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows'),
   shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts'),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows'),
   shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows'),
@@ -161,11 +159,9 @@ const BY_SLOT = 'a food or drink slot names one item, then the next fires';
 const FREE_RUNG = 'the free tier-1 rung, ammoPerShot 0, never spent';
 const HONE = 'a whetstone raises melee\'s ceiling, never its swing';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
-  turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
-  cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
-  cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
+  cooked_pikeperch: BY_SLOT, cooked_goldgill: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
   bronze_arrows: FREE_RUNG,
-  coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
+  coarse_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, ember_whetstone: HONE, dawn_whetstone: HONE,
 }));
 
@@ -256,7 +252,6 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sellSupply('pumpkin_cider', 'drink', 'thin_pumpkin_cider'),
   sellSupply('goldenroot_tea', 'drink', 'thin_goldenroot_tea'),
   sellSupply('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial'),
-  sellSupply('barbed_arrows', 'ammo', 'plain_barbed_arrows'),
   sellSupply('iron_bolts', 'ammo', 'plain_iron_bolts'),
   sellSupply('steel_arrows', 'ammo', 'plain_steel_arrows'),
   sellSupply('mithril_arrows', 'ammo', 'plain_mithril_arrows'),
@@ -266,8 +261,6 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   /* every store rune's crafted partner, so the shop's bid for a crafted rune is capped at half the store's list like an arrow's
      (lane/econ-levers: the store's rune ladder is derived, and the cap keeps it above the bid, tests/craft-wages.mjs W-RUNE) */
   ...BASIC_SUPPLIES.filter((b) => b.kind === 'ammo' && /_rune$/.test(b.id)).map((b) => sellSupply(b.partner, 'ammo', b.id)),
-  good('bronze_axe', 'tool'),
-  good('bronze_pickaxe', 'tool'),
   /* The outfitter: the two armour pieces first (medium gloves for anyone, a heavy belt), then the rest. */
   good('leather_gloves', 'gear'),
   good('bronze_belt', 'gear'),

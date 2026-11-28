@@ -59,26 +59,18 @@ const M = 'mana';
 const B = 'buff';
 const A = 'ammo';
 export const SUPPLY_ROWS = Object.freeze([
-  // heal — healing food, cheapest first is decided by HEAL_ORDER below
-  [H, 'cooked_shrimp', true], [H, 'turnip_mash', true], [H, 'cooked_herring', true],
-  [H, 'cooked_wolf_meat', true], [H, 'cooked_trout', true], [H, 'cooked_panther_meat', true],
-  [H, 'cooked_pikeperch', true], [H, 'cooked_copper_crab', true], [H, 'wheat_bread', true],
-  [H, 'cooked_silverfin', true], [H, 'baked_potato', true], [H, 'cooked_goldgill', true],
-  [H, 'cooked_lobster', true], [H, 'cooked_bear_meat', true], [H, 'cooked_swordfish', true],
-  [H, 'river_chowder', true], [H, 'cooked_shark', true], [H, 'cooked_frostfin', true],
+  // heal — healing food, cheapest first is decided by HEAL_ORDER below (each band's one meal, the jobs' Cooking faces)
+  [H, 'cooked_shrimp', true], [H, 'cooked_trout', true], [H, 'cooked_pikeperch', true], [H, 'cooked_goldgill', true],
+  [H, 'cooked_lobster', true], [H, 'cooked_swordfish', true], [H, 'cooked_frostfin', true], [H, 'cooked_shark', true],
   [H, 'cooked_moonfish', true],
-  // buff — PARKED: feasts and draughts whose buff pays in a fight
-  [B, 'tomato_soup', false], [B, 'vegetable_stew', false], [B, 'bear_claw_pie', false],
-  [B, 'pumpkin_pie', false], [B, 'fishers_pie', false],
-  [B, 'ember_tart', false],
-  [B, 'moonbloom_elixir', false], [B, 'void_banquet', false],
-  // ammo — arrows (Crafting), runes (Runecrafting), whetstones (Stonemason)
-  [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'barbed_arrows', true], [A, 'iron_bolts', true],
+  /* buff: none since the bench cut (09-crafting 4.17): every feast left with it, and the draught line is Alchemy's, after v0.3.0 */
+  // ammo — arrows and bolts (Woodcrafting), runes (Runecutting), whetstones (Smithing)
+  [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'iron_bolts', true],
   [A, 'steel_arrows', true], [A, 'mithril_arrows', true], [A, 'rune_arrows', true],
   [A, 'emberhead_arrows', true], [A, 'dawnpoint_arrows', true],
   /* every rune of every family and tier (src/data/runes.js isRune: derived, never a hand list) */
   ...Object.keys(ITEMS).filter((id) => isRuneItem(ITEMS[id])).sort().map((id) => [A, id, true]),
-  [A, 'coarse_whetstone', false], [A, 'copper_whetstone', false], [A, 'iron_whetstone', false],
+  [A, 'coarse_whetstone', false], [A, 'iron_whetstone', false],
   [A, 'steel_whetstone', false], [A, 'mithril_whetstone', false], [A, 'rune_whetstone', false],
   [A, 'ember_whetstone', false], [A, 'dawn_whetstone', false],
   // mana — the six drinks (src/data/drinks.js). Not essential: with no mana a mage
@@ -182,7 +174,7 @@ const BASE_BAG_GUIDES = Object.freeze({
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'chalked_fire_rune', 600) }),
   ridge_camp: Object.freeze({ tier: 2,
     melee: melee('cooked_trout', 35),
-    ranged: ranged('cooked_trout', 40, 'barbed_arrows', 5100),
+    ranged: ranged('cooked_trout', 40, 'iron_arrows', 5100),
     magic: magic('cooked_trout', 80, 'carrot_juice', 40, 'chalked_fire_rune', 650) }),
   /* The Millrace Sewer (2026-10-18), MEASURED in the hunt core (tests/hunt-core/sewer.mjs
      --report, 3 seeds): a full party's Ranger fires about 700 bolts and its casters about
@@ -207,7 +199,7 @@ const BASE_BAG_GUIDES = Object.freeze({
      designer 2026-10-21, CONFLICTS item 2, six seeds on the real settle, PRIORITY_BOARD Decisions). */
   coppercap_warrens: Object.freeze({ tier: 3,
     melee: melee('cooked_lobster', 80),
-    ranged: ranged('cooked_lobster', 80, 'barbed_arrows', 5100),
+    ranged: ranged('cooked_lobster', 80, 'iron_arrows', 5100),
     magic: magic('cooked_lobster', 100, 'carrot_juice', 40, 'chalked_fire_rune', 650) }),
   /* Mosslight Glade (lane c-ground-16-31; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
      glade-solo-floor, six seeds): a solo Melee at the floor in the smiths' iron eats 150-250 g of store heals an

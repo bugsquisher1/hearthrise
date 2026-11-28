@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.456, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.365, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0729, band: 'uncommon' },
         { id: 'steel_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
         { id: 'steel_helm', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
-        { id: 'willow_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }],
+        { id: 'willow_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }, { id: 'warband_bulwark', everyHours: 1.077, ch: 0.00729, band: 'scarce' }],
       hp: 67, atk: 28, aim: 57, evasion: 19, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
@@ -211,7 +211,7 @@ export default definePack({
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE PACK'S TEST FACTS. bridge: the Ford's narrowest row (tests/hunt-core/forest-cave.mjs). dropRef: a lone tank at the floor
      in the full own-tier set. valueToday is that hour's measured value (10,285 g: coin 7,403, commons 951, gear 1,931), pinned once. */

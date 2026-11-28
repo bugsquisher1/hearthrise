@@ -24,11 +24,11 @@
 // itemization audit; it replaces his 10-23 "better shields made at Smithing, and some drops"). One rule from
 // tier 2 up (lane/d-drop-homes, designer 2026-11-18): each tier's plain shield is a Scarce drop, about hourly,
 // with ONE home, a weapon row like any other (src/data/loot-bands.js: one Scarce weapon a monster, the 5% row
-// ceiling). The named shields are Rares and reforges. The Ironbound, Coppercap and Mithril-Faced recipes are cut.
+// ceiling). The named shields are Rares (the bench and its reforges left with the bench cut, 09-crafting 4.17).
 //   tier 1  Bronze-Rimmed  the Shop's Gear tab, 140 g (supply-basics.js SUPPLY_SHOP_OFFERS; Tyler 10-23, the kit tier)
 //   tier 2  Ironbound      the Sewer's Drain Rats            Kingsgrate: the Rat King, a RARE 1.6% (named)
 //   tier 3  Coppercap      the Warrens' Chief's crew (the skulkers, foremen and Chief carry it, as they share the bodies)
-//                          Steelgrate: Smithing 30, reforged from a Kingsgrate (named). Cauldron Lid: the called Chief (named)
+//                          Steelgrate: a Rare of Chief Coppercap (named). Cauldron Lid: the called Chief (named)
 //   tier 4  Mithril-Faced  Hask's Ford's Bannerman (still a Rare on the Slake's Color Sergeant)
 //   tier 5  Runebound      the Pyre Field's Lurchers (still a Rare on the Muster Barrows' Pikeman)
 //   tier 6  Emberforged    Krell's Hold's Grave Guards (still a Rare on the Pyre Field's Provost)
@@ -38,13 +38,10 @@
 // (3, 5, 7, then 9, 11, 13), no attack penalty.
 // Tier 7 is Krell's Tollgate (guard 15, Tyler 2026-11-14) and the Muster's Bier Shield is the Runebound with one attribute
 // (both in the special-attribute plan, src/data/special-attributes.js): neither is a row here.
-// Book value (`v`): a reforged shield is worth no more than the book of what goes
-// in (the bench is never a gold faucet: tests/style-gear.mjs SG-4's rule), the
-// Shop's at the store's ask (store-kit.js storeAsk: storeCeiling x its book). Icons are placeholders until the Asset
-// Director's style-1 art lands (item-art.js).
+// Book value (`v`): the Shop's at the store's ask (store-kit.js storeAsk: storeCeiling x its book). Icons are placeholders until the
+// Asset Director's style-1 art lands (item-art.js).
 //
-// PURE ESM, data only. Spread into ITEMS (items.js) and ARTISAN_RECIPES.smithing
-// (recipes.js).
+// PURE ESM, data only. Spread into ITEMS (items.js).
 // ════════════════════════════════════════════════════════════════════════
 
 import { withGearStats } from './gear-profiles.js';
@@ -94,19 +91,13 @@ export const SHIELD_LADDER = Object.freeze(MATERIAL_TIERS.map((m, i) => {
   return id;
 }));
 
-/* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */
-const r = (id, name, inputs, output, xp, req, ms) => Object.freeze({ id, name, icon: '🛡️', inputs: Object.freeze(inputs), output, xp, req, ms });
-export const SHIELD_RECIPES = Object.freeze([
-  r('reforge_steelgrate', 'Reforge the Kingsgrate as Steelgrate', { kingsgrate: 1, steel_bar: 3 }, 'steelgrate', 320, 30, 4400),
-]);
-
 /* Each shield's flavour line (item-descriptions.js spreads them). */
 export const SHIELD_DESC = Object.freeze({
   bronze_rimmed_shield: 'A round wooden shield with a bronze rim. It\'s what the outfitter sells you for your first fights',
   ironbound_shield: 'Two iron bands across oak boards, heavy enough to turn a cellar rat\'s lunge',
   kingsgrate: 'The Rat King\'s drain grate, bent into a small shield. It blocks hits but slows your swing a little',
   coppercap_shield: 'A steel shield with a copper cap, made the way the Warrens goblins make them. It\'s Chief Coppercap\'s own design',
-  steelgrate: 'The Kingsgrate rebuilt on a steel frame. It blocks more and still slows your swing',
+  steelgrate: 'Chief Coppercap\'s copy of the Rat King\'s grate, built on a steel frame. It blocks more and still slows your swing',
   mithril_faced_shield: 'A maple shield with a sheet of mithril over the front. The Banded Company\'s sergeants carried these, and the river never rusted them',
   runebound_shield: 'A rune-metal shield the Banded Company gave its front rank. The pikemen in the barrows were buried holding theirs',
   ember_tower_shield: 'A tall Emberforged shield from Krell\'s forges. It covers you from chin to knee, and it\'s still black from the pyres',

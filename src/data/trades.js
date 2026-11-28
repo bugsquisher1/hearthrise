@@ -511,6 +511,19 @@ export const KIT_BATCHES = Object.freeze([
 ]);
 export const KIT_RECIPES = Object.freeze(KIT_BATCHES.flatMap((b) => b.rows));
 
+/** The trade Level a kit recipe opens at: its band's rung (band b at rung b + 1, never before its kind's own, at most the last), rung r
+    at Level 1 + (r - 1) x span. The data side of src/core/trades.js rungLevel(bandRung(kind, band)); tests/kit-recipes.mjs KR-LEVEL holds
+    the two equal on every row. */
+export const recipeLevel = (kind, band) => 1 + (Math.max(KINDS[kind].opens, Math.min(TRADE_LEVERS.rungs.count, Math.max(0, Math.floor(Number(band) || 0)) + 1)) - 1) * TRADE_LEVERS.rungs.span;
+
+/** THE LEVEL A GOOD IS MADE AT (the bench cut, 09-crafting 4.17): the lowest trade Level of a kit recipe whose face it is, or null for a
+    good no job makes. The store prices a meal or drink row from its crafted partner's (src/data/supply-basics.js). */
+export function madeAtLevel(id) {
+  let best = null;
+  for (const r of KIT_RECIPES) if (faceOf(r.kind, r.band) === id) { const lv = recipeLevel(r.kind, r.band); if (best === null || lv < best) best = lv; }
+  return best;
+}
+
 /* A BATCH OF 20 OR FEWER (CLAUDE.md section 10), each batch on its own. Band 0 holds at most one row a kind, only for a kind that ships
    and has a band 0 face, so the first band is the whole first day; every band past it lands as batches of its own. */
 const KIT_BATCH_MAX = 20;

@@ -27,8 +27,8 @@
 //   C6  the Local Shop sells STARTER gear only (no tier >= 2 equippable for gold
 //       — top-10 #2: the first upgrade a player wears is one they made), on the
 //       legacy equip table AND the outfitter's rows; the one exception is a plain
-//       crafted jewelry piece at its shop price (Tyler 2026-11-05, call 5; since K-3
-//       the store's one ceiling over its book, JEWEL_SHOP_PRICE: it never undercuts the crafter);
+//       jewelry piece at its shop price (Tyler 2026-11-05, call 5: plain pieces stay in the Shop; since K-3
+//       the store's one ceiling over its book, JEWEL_SHOP_PRICE: it never sells under its book);
 //   C7  the Collection Log's denominator is obtainableItemIds(), and that set is
 //       the whole catalogue;
 //   C8  armour climbs (2026-10-21: iron plate gave LESS max HP than bronze, its
@@ -78,8 +78,9 @@
 //       C14b no gold-ladder rung or ladder row (src/data/gold-ladders.js) names a cut unlock.
 //   C15 PROTECTED: a piece Tyler ruled can never leave the game stays, under its name, with its way in (Tyler 2026-11-18:
 //       "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"): its ITEMS row carries the ruled
-//       name, its recipe is on its bench making it under that name, its coach card still rings that recipe, and a player can
-//       reach it (reachableSources). One row now, room for more: a row leaves only on Tyler's word.
+//       name, its drop row is on its monster's table (the bench cut, 2026-11-28: gear drops and no bench reforges, so the Klub
+//       is a Gray Whelp's Scarce row), and a player can reach it (reachableSources). One row now, room for more: a row leaves only
+//       on Tyler's word.
 //   C16 A DROP NEVER TEACHES (designer 2026-11-19: a pattern is learned per hero through hr_recipe_learn; the hr-accrue "b352"
 //       arms that turned any item carrying `recipe` into an instant unlock for whoever got it were cut 2026-11-18, dead since
 //       the cookbook cut): C16a no ITEMS row carries `recipe` (a pattern says `teaches`); C16b no engine source the edge
@@ -109,7 +110,7 @@ import {
 } from '../src/data/catalogue-coherence.js';
 
 import { unclassifiedGrantIds } from '../src/data/item-authority.js';
-import { JEWEL_PIECES, JEWEL_SHOP_PRICE } from '../src/data/jewelry.js';
+import { JEWEL_SHOP_PRICE } from '../src/data/jewelry.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
@@ -129,8 +130,6 @@ let BODIES_PLANT = null;
 let DEBT_PLANT = null;
 /* C14b's gold-ladder rungs: the shipped (frozen) ones, or planted ones (mutate() only). */
 let LADDER_PLANT = null;
-/* C15's coach cards: the shipped (frozen) list, or a planted one (mutate() only). */
-let CARDS_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
@@ -220,22 +219,20 @@ export function dropTeachFails({ items = ITEMS, sources = engineSources() } = {}
 
 /* C15. PROTECTED PIECES (Tyler 2026-11-18, of Klappa's Klub, the tribute to Andy, who has done much of this game's real testing:
    "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"). Each row: the item id, the name it must carry,
-   the bench recipe that makes it (its skill), and the coach card that rings that recipe. A row leaves only on Tyler's word. */
+   and the monster whose table drops it (the bench cut, 2026-11-28, 09-crafting 4.13: its reforge left with the bench, and gear drops). A row
+   leaves only on Tyler's word. */
 export const PROTECTED = Object.freeze([
-  Object.freeze({ id: 'klappas_club', name: 'Klappa\'s Klub', skill: 'smithing', recipe: 'reforge_klappas_club', card: 'klappas_club',
+  Object.freeze({ id: 'klappas_club', name: 'Klappa\'s Klub', monster: 'gray_whelp',
     ruling: 'Tyler 2026-11-18: Klappa\'s Klub CANNOT be removed from the game' }),
 ]);
-export function protectedFails({ items = ITEMS, recipes = ARTISAN_RECIPES, cards = CARDS_PLANT || HUNT_TUTORIAL, reach = reachableSources() } = {}) {
+export function protectedFails({ items = ITEMS, monsters = MONSTERS, reach = reachableSources() } = {}) {
   const out = [];
   for (const p of PROTECTED) {
     const it = items[p.id];
     if (!it) { out.push(`C15 ${p.id} is gone from ITEMS (${p.ruling})`); continue; }
     if (it.n !== p.name) out.push(`C15 ${p.id} is named ${JSON.stringify(it.n)}, the ruling names it ${JSON.stringify(p.name)} (${p.ruling})`);
-    const r = (recipes[p.skill] || []).find((x) => x && x.id === p.recipe);
-    if (!r || r.output !== p.id) out.push(`C15 ${p.id}: its recipe ${p.recipe} is not on the ${p.skill} bench making it (${p.ruling})`);
-    else if (!String(r.name || '').includes(p.name)) out.push(`C15 ${p.id}: its recipe reads ${JSON.stringify(r.name)}, not the name ${JSON.stringify(p.name)}`);
-    const c = cards.find((x) => x && x.id === p.card);
-    if (!c || !c.ring || c.ring.work !== p.recipe || c.ring.skill !== p.skill) out.push(`C15 ${p.id}: its coach card ${p.card} is gone or rings another recipe (${p.ruling})`);
+    const m = monsters[p.monster];
+    if (!m || !(m.drops || []).some((d) => d && d.id === p.id)) out.push(`C15 ${p.id}: ${p.monster} no longer drops it (${p.ruling})`);
     if (!reach.has(p.id)) out.push(`C15 ${p.id}: no player can reach it (${p.ruling})`);
   }
   return out;
@@ -349,9 +346,9 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
     const gold = ((o.cost || []).find((c) => c && c.kind === 'currency' && c.id === 'gold') || {}).amount || 0;
     for (const g of o.grant || []) {
       const it = ITEMS[g.id] || {};
-      /* plain crafted jewelry at its shop price (src/data/jewelry.js JEWEL_SHOP_PRICE, the store's one ceiling over its book, K-3): the Shop
-         never undercuts the crafter */
-      if (o.table === 'supply' && JEWEL_PIECES[g.id] && gold === JEWEL_SHOP_PRICE[g.id] && gold > (Number(it.v) || 0)) continue;
+      /* a plain jewel at its shop price (src/data/jewelry.js JEWEL_SHOP_PRICE, the store's one ceiling over its book, K-3): the Shop
+         never sells it under its book */
+      if (o.table === 'supply' && Object.prototype.hasOwnProperty.call(JEWEL_SHOP_PRICE, g.id) && gold === JEWEL_SHOP_PRICE[g.id] && gold > (Number(it.v) || 0)) continue;
       if (EQUIP_TYPES[it.type] && Number(it.tier) >= 2) loud.push(`${o.id} (tier ${it.tier})`);
       if (EQUIP_TYPES[it.type] && Number(it.reqLv) > 1) loud.push(`${o.id} (req ${it.reqSkill} ${it.reqLv})`);
     }
@@ -421,7 +418,18 @@ export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_RO
       else if (without[fate].has(id)) out.push(`C11c ${id} is tagged ${fate} but another door reaches it (${without[fate].get(id)}): tag that door`);
     } else if (all.has(id)) out.push(`C11c ${id} is tagged ${fate} (no door) but a planned door reaches it (${all.get(id)}): tag that door`);
   }
-  const held = [...fateOf.values()].filter((f) => f !== 'staged').length;
+  /* A DERIVED fate (the bench cut's traitBase and jobFind) sits outside the ceiling only because its rows are computed: they must be
+     EXACTLY what its own door adds to the reachable set, so a hand-tagged row under it (or a doorless fate marked derived) is red. */
+  const derived = new Set();
+  for (const [fate, f] of Object.entries(UNREACHABLE_FATES)) {
+    if (!f.derived) continue;
+    if (fate === 'staged' || f.bucket !== 'a' || !f.open) { out.push(`C11d ${fate} is marked derived but is not a bucket (a) fate with a door of its own`); continue; }
+    const adds = [...reachableSources({ ...f.open }).keys()].filter((id) => !reach.has(id)).sort();
+    const rows = [...(unreachable[fate] || [])].sort();
+    if (adds.join() !== rows.join()) out.push(`C11d the derived fate ${fate} lists ${rows.length} row(s) but its door adds ${adds.length}: its rows must be exactly the door's (${rows.filter((id) => !adds.includes(id)).concat(adds.filter((id) => !rows.includes(id))).join(', ')})`);
+    else derived.add(fate);
+  }
+  const held = [...fateOf.values()].filter((f) => f !== 'staged' && !derived.has(f)).length;
   if (held > UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, over the ceiling ${UNREACHABLE_CEILING}: the list only shrinks — source the item instead`);
   if (held < UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, under the ceiling ${UNREACHABLE_CEILING}: lower UNREACHABLE_CEILING to ${held}`);
   return { fails: out, counts: { outOfReach: fateOf.size, reachable: reach.size } };
@@ -791,18 +799,11 @@ function mutate() {
     const was = ITEMS.klappas_club; ITEMS.klappas_club = { ...was, n: 'Klappa\'s Club' };
     return { restore: () => { ITEMS.klappas_club = was; } };
   });
-  run('Klappa\'s Klub: the recipe is cut', 'C15', () => {
-    const list = ARTISAN_RECIPES.smithing, at = list.findIndex((r) => r.id === 'reforge_klappas_club'), [row] = list.splice(at, 1);
-    return { restore: () => { list.splice(at, 0, row); } };
-  });
-  run('Klappa\'s Klub: the recipe renamed back', 'C15', () => {
-    const list = ARTISAN_RECIPES.smithing, at = list.findIndex((r) => r.id === 'reforge_klappas_club'), was = list[at];
-    list[at] = { ...was, name: 'Reforge Klappa\'s Club' };
-    return { restore: () => { list[at] = was; } };
-  });
-  run('Klappa\'s Klub: its coach card is gone', 'C15', () => {
-    CARDS_PLANT = HUNT_TUTORIAL.filter((c) => c.id !== 'klappas_club');
-    return { restore: () => { CARDS_PLANT = null; } };
+  /* (re-aimed by the bench cut: its recipe and coach card left with the bench, so the catch is its drop row) */
+  run('Klappa\'s Klub: the Gray Whelp\'s drop row is cut', 'C15', () => {
+    const m = MONSTERS.gray_whelp, was = m.drops;
+    m.drops = was.filter((d) => d.id !== 'klappas_club');
+    return { restore: () => { m.drops = was; } };
   });
 
   /* C16 — a drop never teaches (the hr-accrue b352 arms, cut 2026-11-18). */

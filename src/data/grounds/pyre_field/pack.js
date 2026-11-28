@@ -210,7 +210,7 @@ export default definePack({
      place of Fire Runes (the burned dead take 25% less fire and full frost). */
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (80) for 0.90-1.10 of the pace
      contract. Since one difficulty a lone hero fights a body's whole HP for its whole kill: at the old 1.18 the median of the quick

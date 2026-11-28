@@ -4,8 +4,8 @@
 // drinks come from Farming crops"; Game Designer, lane D)
 //
 // LIVE (lane S2, 2026-10-18): the hunt's mana engine drinks them (src/core/hunt/
-// consumables.js), so they are spread into ITEMS (items.js), their recipes into
-// Cooking (recipes.js), their rows into SUPPLY_ROWS (supplies.js) and their
+// consumables.js), so they are spread into ITEMS (items.js), made by the Cooking
+// jobs (trades.js KIT_RECIPES; the bench recipes left with the cut, 09 4.17), their rows into SUPPLY_ROWS (supplies.js) and their
 // flavour lines into ITEM_DESC; the shop sells them as supply.* offers.
 //
 // THE LADDER. One drink per hunt tier, each from one Farming crop, made three
@@ -30,15 +30,6 @@ export const DRINK_ITEMS = Object.freeze({
   goldenroot_tea: Object.freeze({ n: 'Goldenroot Tea', icon: '🍵', v: 86, mana: 528 }),
   emberfruit_cordial: Object.freeze({ n: 'Emberfruit Cordial', icon: '🍷', v: 160, mana: 648 }),
 });
-
-export const DRINK_RECIPES = Object.freeze([
-  { id: 'press_turnip_juice', name: 'Turnip Juice', icon: '🥤', inputs: { turnip: 1 }, output: 'turnip_juice', outputQty: 3, xp: 10, req: 1, ms: 1600 },
-  { id: 'press_carrot_juice', name: 'Carrot Juice', icon: '🥕', inputs: { carrot: 1 }, output: 'carrot_juice', outputQty: 3, xp: 28, req: 12, ms: 2000 },
-  { id: 'press_tomato_juice', name: 'Tomato Juice', icon: '🍅', inputs: { tomato: 1 }, output: 'tomato_juice', outputQty: 3, xp: 100, req: 30, ms: 3600 },
-  { id: 'brew_pumpkin_cider', name: 'Pumpkin Cider', icon: '🎃', inputs: { pumpkin: 1 }, output: 'pumpkin_cider', outputQty: 3, xp: 150, req: 45, ms: 4200 },
-  { id: 'steep_goldenroot_tea', name: 'Goldenroot Tea', icon: '🍵', inputs: { goldenroot: 1 }, output: 'goldenroot_tea', outputQty: 3, xp: 200, req: 60, ms: 5000 },
-  { id: 'steep_emberfruit_cordial', name: 'Emberfruit Cordial', icon: '🍷', inputs: { emberfruit: 1 }, output: 'emberfruit_cordial', outputQty: 3, xp: 260, req: 72, ms: 5400 },
-]);
 
 /* The flavour lines, ready for src/data/item-descriptions.js on merge. */
 export const DRINK_DESC = Object.freeze({

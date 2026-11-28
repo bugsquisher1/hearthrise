@@ -1,240 +1,26 @@
-// Gathering action tables + equipment slot config
+// src/data/gathering.js — THE FARM'S CROPS and the equipment slot config.
 //
-// ════════════════════════════════════════════════════════════════════════
-// b226 — THE PACING RETUNE (docs/design/pacing-overhaul.md §4.1, Appendix A)
-//
-// READ THIS BEFORE CHANGING AN `xp` NUMBER BELOW.
-//
-// `xp` here is the rung's BOOK VALUE. It is not what the player receives.
-// The live grant is  floor(book × PACE.xp × (1 + allXP…)) × presence,
-// applied at the ONE choke-point, addXp() in legacy.js. `PACE.xp` is the
-// single global pacing dial; changing the pace is a one-line edit there and
-// must never be done by rewriting this table.
-//
-// What DID change in this table is the CURVE CORRECTION — a permanent
-// per-skill balance statement, not a pacing dial:
-//   Woodcutting ×0.60 · Mining ×1.15 · Fishing ×1.05
-// Trees carried the highest xp-per-second at every rung, which made
-// woodcutting ~2× faster to 99 than mining or fishing (pacing-overhaul §1.2).
-// After the correction the three gathering 99s land within 5% of each other.
-// Book values are the balance; PACE.xp is the speed. Keep them separate.
-//
-// The renderers show the EFFECTIVE number (window.pacedXp) — a card never
-// prints a book value the player will not receive.
-// ════════════════════════════════════════════════════════════════════════
+// THE GATHERING NODES ARE CUT (lane/bench-cut-data, 2026-11-28; docs/design/redesign/09-crafting.md 4.17). Trees, rocks and fishing
+// spots were town work a hero stood at for a skill. Every raw good is a job now (src/data/trades.js KIT_RECIPES: Mine, Chop, Catch,
+// Pull), and the trade's Level is its company's. What stays here is the farm, the one town door that runs on no clock: a plot grows
+// on its own beside the Farming job (09 4.13 row 2: the plots cost seeds and no work hours, the job costs work hours and no seeds).
 
-export const TREES=[
-  {id:'normal_tree',name:'Normal Tree',icon:'🌳',req:1,xp:15,ms:3000,prod:'normal_log',qty:[1,1]},
-  {id:'oak_tree',name:'Oak Tree',icon:'🌳',req:15,xp:23,ms:4000,prod:'oak_log',qty:[1,1]},
-  /* ── "TIMBERLINE" (game-designer ruling) ──────────────────────────────────
-     Woodcutting was the one gathering skill with a new tree only every 15
-     levels (60→75 and 75→90 were the longest silences on any gather table).
-     Five stands close it: every req gap is now 7 or 8. Each yields an EXISTING
-     log, so there is no new item, recipe or art (the tile paints the product).
-     Inserted by `req`, not appended: the array order is the ladder the
-     strictly-faster and full-tier +6% guards read.
-     PACED guard series, floor(xp × PACE.xp) ÷ pacedActionMs(ms):
-       oak 1.2500 → hollow 1.4881 → willow 1.7045 → weeping 1.8382
-       → maple 2.0536 → grove 2.2866 → yew 2.5000 → elder 2.7778
-       → runewood 3.0435 → ancient 3.3299 → duskwood 3.7019
-     Every step clears +7.8%. Hollow Oak is the third rung, so it stays [1,1].
-     The server half is the hr_activities rows (the level gate); xp/ms/yield
-     ride the edge payload, which vendors this file. */
-  {id:'hollow_oak_tree',name:'Hollow Oak',icon:'🌳',req:22,xp:26,ms:4200,prod:'oak_log',qty:[1,1]},
-  {id:'willow_tree',name:'Willow',icon:'🌿',req:30,xp:41,ms:5500,prod:'willow_log',qty:[1,1]},
-  {id:'weeping_willow_tree',name:'Weeping Willow',icon:'🌿',req:38,xp:52,ms:6800,prod:'willow_log',qty:[1,2]},
-  {id:'maple_tree',name:'Maple Tree',icon:'🍁',req:45,xp:60,ms:7000,prod:'maple_log',qty:[1,2]},
-  {id:'maple_grove',name:'Maple Grove',icon:'🍁',req:52,xp:78,ms:8200,prod:'maple_log',qty:[2,2]},
-  {id:'yew_tree',name:'Yew Tree',icon:'🌲',req:60,xp:105,ms:10000,prod:'yew_log',qty:[1,1]},
-  {id:'elder_yew_tree',name:'Elder Yew',icon:'🌲',req:68,xp:124,ms:10800,prod:'yew_log',qty:[1,2]},
-  /* b215: woodcutting used to end at 60 — these carry it to the cap. */
-  {id:'runewood_tree',name:'Runewood',icon:'🌲',req:75,xp:144,ms:11500,prod:'runewood_log',qty:[1,1]},
-  {id:'ancient_runewood_tree',name:'Ancient Runewood',icon:'🌲',req:82,xp:168,ms:12200,prod:'runewood_log',qty:[1,2]},
-  {id:'duskwood_tree',name:'Duskwood',icon:'🌲',req:90,xp:198,ms:13000,prod:'duskwood_log',qty:[1,1]},
-];
-
-export const ROCKS=[
-  {id:'copper_rock',name:'Copper Rock',icon:'🟤',req:1,xp:21,ms:3000,prod:'copper_ore',qty:[1,1]},
-  /* Game Designer ruling: Runecrafting's essence is MINED like copper, not
-     conjured on the Runecrafting bench, so hired hands and the world tick work
-     it like any ore and it vendors at the raw 20% bid (1 g since the craft wage, designer 2026-11-01). */
-  {id:'essence_rock',name:'Rune Essence',icon:'🪨',req:1,xp:21,ms:3000,prod:'rune_essence',qty:[1,1]},
-  /* COAL AT ANY LEVEL (Tyler 2026-10-14, rulings-of-record: "first tiers, including
-     coal, are gatherable at the town edge at any level"; lane/c-work-fixes 2026-10-22).
-     It was Mining 30. A first-tier node is a SUPPLY, not an XP rung: its paced
-     XP a second sits just under Copper's (floor(38 x 0.39) / 8.8 s = 1.59 vs 1.67),
-     so a level-1 miner gains nothing by skipping the copper ladder and Iron (15)
-     stays the next XP step. ms is unchanged, so coal arrives exactly as fast as
-     before and the Rich Coal Seam (52) keeps its ~2.5x. Every coal SINK is still
-     Smithing 30+ (steel), so the self-supply rule in recipes.js holds.
-     (The Coal(10.36)-to-Dawnstone xp climb below now starts at Verdite.) */
-  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:1,xp:38,ms:5500,prod:'coal',qty:[1,1]},
-  {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
-  /* THE MIDDLE SEAM (Andy 2026-11-05: coal "has been a real slog and bottleneck for smithing"). Coal's first sink is Steel at Smithing 30, and half to two thirds of the
-     hours from Smithing 30 to 45 are coal; the Coal Rock pays the fewest pieces of any rock under Mining 45 and the next rung sat 12 hours of mining away. So a rung where
-     the sink opens: 1.33x the Coal Rock, halfway to the Rich Seam, its XP seated between Iron and Verdite. It sells raw for 1,088 g/h, under W-RAW (tests/craft-wages.mjs). */
-  {id:'coal_seam',name:'Coal Seam',icon:'⬛',req:30,xp:60,ms:6200,prod:'coal',qty:[1,2]},
-  /* b390 (game-design / gathering-plateau ruling): xp 75 → 79. The mid-to-high
-     mining band had gone FLAT — Gold(45)→Rich Coal(52)→Mithril(60) moved only
-     ~10.7→10.8→11.5 xp/sec, so +15 levels bought ~+8% training speed and an
-     unlock "did nothing". The book xp/sec is now an even ~+9% geometric climb
-     from Coal(10.36) to Dawnstone(14.83), the fixed endpoints (early-game feel
-     and cross-skill 99-parity are anchored to those two). Only the sagging
-     middle moved; ms/qty are untouched so the ore faucet and away caps don't
-     shift, and time-to-99 stays within 3% of woodcutting. */
-  /* ── "DEEP SEAM" (game-designer ruling, 2026-09-13) ───────────────────────
-     THE HOLE, MEASURED: the smith's ore supply did not change between Mining 15
-     (Iron) and Mining 60 (Mithril). Coal(30) is a reagent, Gold(45) makes
-     jewellery and Rich Coal(52) is more coal — so a player crossing Mining
-     36→56 mined nothing that became ARMOUR, and Smithing sat between Steel(35)
-     and Mithril(55) with no bar to make. Two rungs here are the new metal
-     (VERDITE: a green-black seam ore), one is its flux and one is the gem that
-     caps the band. The node ORDER in this array is the ladder the two standing
-     guards read, so these rows are inserted by `req`, not appended.
-     PACED, NOT EYEBALLED — the guards measure floor(xp × PACE.xp) ÷
-     pacedActionMs(ms), and floor() on a small paced xp makes that series differ
-     from the book one, so both are quoted:
-       GUARD (paced)  coal 2.5000 → 2.5202 → 2.5735 → gold 2.6786 → 2.7138
-                      → rich 2.7861 → 2.8736 → mithril 2.9688   (strictly up)
-       BOOK (xp ÷ ms) coal 10.36 → 10.48 → 10.59 → gold 11.29 → 11.18 …
-     — note the BOOK series is NOT monotone across the gold rung and the PACED
-     one is; the guard reads the paced series, which is the number the player
-     actually earns. Every new req gap is ≤ 6, so none of these owes the
-     full-tier ≥6% margin; what WAS a 15-level gap (30→45) is now three short
-     steps whose product is the same climb. */
-  {id:'verdite_seam',name:'Verdite Seam',icon:'🟢',req:36,xp:65,ms:6200,prod:'verdite_ore',qty:[1,1]},
-  {id:'fluxsalt_pocket',name:'Fluxsalt Pocket',icon:'🧂',req:40,xp:72,ms:6800,prod:'flux_salt',qty:[1,2]},
-  {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:79,ms:7000,prod:'gold_ore',qty:[1,1]},
-  /* The throughput rung, on the Rich Coal Seam's own pattern: a Verdite
-     platebody eats 5 bars = 10 ore, so the band needs a seam that pays 2-3 a
-     swing or the armour set is a week of single-ore swings. */
-  {id:'deep_verdite_seam',name:'Deep Verdite Seam',icon:'🟢',req:48,xp:85,ms:7600,prod:'verdite_ore',qty:[2,3]},
-  /* b245 (Tyler / pacing audit): the COAL CHOKEPOINT. coal_rock opens at Mining
-     30 and yields 1 at a flat rate, while every bar past copper eats 1–5 coal and
-     the top bars need 4–5 each — so late smithing was gated on level-30 coal
-     throughput. This richer seam (Mining 52) yields 2–3 coal a swing, ~2.5× the
-     supply, so a late smith isn't grinding low-tier coal. Its xp/sec sits between
-     Gold and Mithril so the "every rung strictly better" rule still holds.
-     b390: xp 90 → 97 to keep it seated between the retuned Gold and Mithril. */
-  {id:'rich_coal_rock',name:'Rich Coal Seam',icon:'⬛',req:52,xp:97,ms:8300,prod:'coal',qty:[2,3]},
-  /* Deep Seam's reward rung. One gem a swing, and the ONE thing the
-     Heartgarnet Maul needs — so the last mining rung before Mithril is the one
-     that finishes the set instead of another pile of stock. */
-  {id:'heartgarnet_geode',name:'Heartgarnet Geode',icon:'🔴',req:56,xp:103,ms:8700,prod:'heartgarnet',qty:[1,1]},
-  /* b226: ms 9000 → 8000. At 9s Mithril was a SLOWER xp/sec than Gold Rock
-     15 levels below it — unlocking the rung was a punishment. Every rung must
-     be strictly better than the one under it; the smoke suite now asserts it.
-     b390: xp 92 → 98 — Mithril was a near-lateral over Rich Coal (Tyler's
-     report: "+8 levels for +1 xp"). It is now a clear ~+8.5% step over Gold. */
-  {id:'mithril_rock',name:'Mithril Rock',icon:'🔵',req:60,xp:98,ms:8000,prod:'mithril_ore',qty:[1,1]},
-  /* "DEEP WATERS": a [1,2] vein between Mithril and Emberstone (series and
-     reasoning at the fishing block below). */
-  {id:'deep_mithril_vein',name:'Deep Mithril Vein',icon:'🔵',req:67,xp:118,ms:9300,prod:'mithril_ore',qty:[1,2]},
-  /* b215: mining used to end at 60 — these feed the Emberforged/Dawnsteel tiers.
-     b390: Emberstone xp 126 → 140 so the 60→75 tier is a real upgrade, not a
-     +4% lateral; Dawnstone (top endpoint) is left at 178 to hold 99-parity. */
-  {id:'emberstone_rock',name:'Emberstone Vein',icon:'🔶',req:75,xp:140,ms:10500,prod:'emberstone_ore',qty:[1,1]},
-  {id:'deep_ember_vein',name:'Deep Ember Vein',icon:'🔶',req:82,xp:157,ms:11200,prod:'emberstone_ore',qty:[1,2]},
-  {id:'dawnstone_rock',name:'Dawnstone Vein',icon:'🌟',req:90,xp:178,ms:12000,prod:'dawnstone_ore',qty:[1,1]},
-];
-
-export const FISH_SPOTS=[
-  {id:'shrimp_s',name:'Shrimp Spot',icon:'🦐',req:1,xp:11,ms:3500,prod:'shrimp',qty:[1,1]},
-  /* b215: herring closes the old 1→20 opening gap */
-  {id:'herring_s',name:'Herring Run',icon:'🐟',req:10,xp:21,ms:4200,prod:'herring',qty:[1,1]},
-  {id:'trout_s',name:'Trout Spot',icon:'🐟',req:20,xp:32,ms:5000,prod:'trout',qty:[1,1]},
-  /* "Reed & Tide" (game-designer ruling, 2026-09-13): Trout(20) → Lobster(40)
-     was the last TWENTY-LEVEL silence on the fishing ladder — one rung per
-     twenty levels, through the exact band where a player is learning the
-     fish→cook→eat→fight loop and has nothing new to catch. Four rungs at
-     24/28/32/36 make it a rung every four levels to 40.
-     The two ladder guards ("every gathering rung is strictly faster XP/sec",
-     "a full-tier gathering unlock is a CLEAR upgrade") are satisfied by
-     MEASUREMENT. ⚠ QUOTE THE FORMULA WITH THE NUMBERS: those guards measure
-     floor(xp × PACE.xp) ÷ pacedActionMs(ms), and the floor() on a small paced
-     xp makes that series differ from the raw book one, so an unlabelled
-     percentage reads as arithmetic that does not reproduce.
-       GUARD (paced)  trout→…→lobster  +8.0 / 11.1 / 12.1 / 11.8 / 10.8 %
-       BOOK (xp ÷ ms, no pace)         +10.0 / 10.8 / 10.5 /  9.6 / 11.2 %
-     Both climb strictly, which is all the first guard asks, and every req gap
-     here is 4 — so none of these is a full-tier unlock owing the second
-     guard's ≥6% margin, while the 20→40 jump that WAS one is now five short
-     steps whose product is the same climb. */
-  {id:'pikeperch_s',name:'Reed Pike Pool',icon:'🐟',req:24,xp:38,ms:5400,prod:'pikeperch',qty:[1,1]},
-  {id:'copper_crab_s',name:'Tidepool Crabs',icon:'🦞',req:28,xp:46,ms:5900,prod:'copper_crab',qty:[1,1]},
-  {id:'silverfin_s',name:'Silverfin Shoal',icon:'🐠',req:32,xp:56,ms:6500,prod:'silverfin',qty:[1,1]},
-  {id:'goldgill_s',name:'Goldgill Eddy',icon:'🐟',req:36,xp:68,ms:7200,prod:'goldgill',qty:[1,1]},
-  {id:'lobster_s',name:'Lobster Spot',icon:'🦞',req:40,xp:84,ms:8000,prod:'lobster',qty:[1,1]},
-  /* ── "DEEP WATERS" (game-designer ruling, content pack 8) ─────────────────
-     Fishing had nothing new from 41 to 54; mining nothing from 61 to 74 or 76
-     to 89. Four fish stands (47/61/71/83) and two ore veins (67/82) make every
-     req gap 5-8 from 40 to 90. Each yields an EXISTING raw item: no new item,
-     recipe or art. Inserted by `req`, not appended — the array order is the
-     ladder the strictly-faster and full-tier +6% guards read.
-     PACED guard series, floor(xp × PACE.xp) ÷ (floor(ms × 1.6) / 1000):
-       FISH  lobster 2.5000 → REEF 2.6389 → swordfish 2.8125 → DEEPS 3.0071
-             → frostfin 3.1522 → REACH 3.2787 → shark 3.3654 → SHELF 3.4926
-             → moonfish 3.6161
-       ORE   mithril 2.9688 → DEEP MITHRIL 3.0914 → emberstone 3.2143
-             → DEEP EMBER 3.4040 → dawnstone 3.5938
-     Fish stands stay [1,1] on purpose: cooked fish vend at full value, so more
-     fish per hour widens the fish→cook vendor faucet. Each stand is the XP
-     choice; the named spot below it is the food choice. The ore stands are
-     [1,2] (363 / 301 ore per hour vs 281 / 214); the one-ore bars are
-     smelt_mithril (1 ore + 3 coal) and smelt_ember (1 ore + 4 coal), so coal,
-     not ore, stays the binding constraint on bars.
-     The server half is the hr_activities rows (the level gate); xp/ms/yield
-     ride the edge payload, which vendors this file. */
-  {id:'lobster_reef_s',name:'Lobster Reef',icon:'🦞',req:47,xp:98,ms:9000,prod:'lobster',qty:[1,1]},
-  /* b215: swordfish fills the old 40→76 dead zone; moonfish carries it to 90.
-     b390 (gathering-plateau ruling): fishing had the same top-band plateau as
-     mining — Swordfish(55)→Frostfin(66)→Shark(76) sat flat at ~11.6/11.9/12.2
-     xp/sec (Frostfin→Shark was +2%). frostfin 137→150, shark 158→181 make the
-     climb even (~+11%/+11%/+7%), and moonfish 226→210 trims the +33% top spike
-     to a clean ~+8% so the whole ladder climbs. This keeps fishing's time-to-99
-     within 5% of woodcutting and aligns the three top tiers at ~15 xp/sec.
-     ms/qty untouched, so the cooking-fish faucet is unchanged. */
-  {id:'swordfish_s',name:'Swordfish Shoal',icon:'🐠',req:55,xp:117,ms:10000,prod:'swordfish',qty:[1,1]},
-  {id:'swordfish_deeps_s',name:'Swordfish Deeps',icon:'🐠',req:61,xp:133,ms:10600,prod:'swordfish',qty:[1,1]},
-  /* b215: frostfin closes the 55→76 gap */
-  {id:'frostfin_s',name:'Frostfin Shallows',icon:'❄️',req:66,xp:150,ms:11500,prod:'frostfin',qty:[1,1]},
-  {id:'frostfin_reach_s',name:'Frostfin Reach',icon:'❄️',req:71,xp:166,ms:12200,prod:'frostfin',qty:[1,1]},
-  {id:'shark_s',name:'Shark Spot',icon:'🦈',req:76,xp:181,ms:13000,prod:'shark',qty:[1,1]},
-  {id:'shark_shelf_s',name:'Shark Shelf',icon:'🦈',req:83,xp:195,ms:13600,prod:'shark',qty:[1,1]},
-  {id:'moonfish_s',name:'Moonlit Pool',icon:'🌙',req:90,xp:210,ms:14000,prod:'moonfish',qty:[1,1]},
-];
-
-/* b226 — FARMING IS EXEMPT FROM PACE.xp AND ITS CROP XP IS ×14.
-   (pacing-overhaul §8.3.) At the castle's 12 plots running Moonbloom the old
-   numbers put farming 99 at ~9.5 YEARS of continuous real-time growing — off
-   by a factor of ~40 in a game whose pitch is every skill to 99. Growth is
-   wall-clock (HearthriseFarm.growthHours), so PACE.actionMs cannot touch it
-   and PACE.xp would only deepen the hole; the fix has to be in the crop XP.
-   These are the FINAL grant values — addXp() applies no pace multiplier to
-   farming. Watering XP is derived (ceil(xp/4)) and scales with them.
-
-   W0 (game-designer ruling, 2026-10-10 coherence audit): ×3 AGAIN, every crop.
-   At ×14 a player who tends the farm two or three times a day reached 99 in
-   ~220–280 days even with a castle's 12 plots (measured on these rows, best
-   crop per level, one watering per visit) — longer than any Early Access
-   season, while every gathering skill reaches 99 in ~44 days of play. At ×42
-   the same player reaches 99 in ~75–95 days and 75 in ~2–3 weeks: a season's
-   chase that still runs at "set it before bed" pace, never faster than the
-   actively-played skills. Moonbloom's harvest at 12 plots stays far inside
-   hr_day_budget's 40M XP/day. The server reads hr_crops.xp (the W0 patch
-   migration moves the same nine numbers). */
+/* THE CROPS. A crop's `req` is the Farming Level its plot opens at, on the job ladder's rungs (09 4.17: the plots gate on the company's
+   Farming, 4.5's curve): a crop with a Farming job (`grain_b<band>`, its `band`) opens with that job, at trade Level 1 + 10 x band
+   (src/core/trades.js rungLevel(bandRung), TRADE_LEVERS.rungs span 10). Wheat and potato have no job (the job's crop order skips them,
+   09 4.14), so each sits on the rung of the job crop before it in the order, carrot's. tests/kit-recipes.mjs KR-CROPS holds both.
+   `xp` is the plot's own harvest XP (hr_crops.xp), the farm writer's until it credits the company's `crop_xp` (the server lane). */
 export const CROPS={
-  turnip:{name:'Turnip',icon:'🥕',hours:4,prod:'turnip',yield:[2,4],xp:336,req:1,seed:'turnip_seed'},
-  carrot:{name:'Carrot',icon:'🥕',hours:6,prod:'carrot',yield:[2,4],xp:504,req:10,seed:'carrot_seed'},
-  wheat:{name:'Wheat',icon:'🌾',hours:8,prod:'wheat',yield:[3,5],xp:756,req:20,seed:'wheat_seed'},
-  potato:{name:'Potato',icon:'🥔',hours:10,prod:'potato',yield:[2,4],xp:1050,req:30,seed:'potato_seed'},
-  tomato:{name:'Tomato',icon:'🍅',hours:8,prod:'tomato',yield:[2,3],xp:1470,req:40,seed:'tomato_seed',regrows:true},
-  pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:2520,req:50,seed:'pumpkin_seed'},
-  /* b215: farming used to end at 50. Longer grows, bigger XP — the late-game
-     crops are a deliberate "set it before bed" cadence. */
-  goldenroot:{name:'Goldenroot',icon:'🥕',hours:16,prod:'goldenroot',yield:[1,3],xp:3570,req:62,seed:'goldenroot_seed'},
-  emberfruit:{name:'Emberfruit',icon:'🔥',hours:18,prod:'emberfruit',yield:[1,2],xp:5040,req:75,seed:'emberfruit_seed',regrows:true},
-  moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:7140,req:88,seed:'moonbloom_seed'},
+  turnip:{name:'Turnip',icon:'🥕',hours:4,prod:'turnip',yield:[2,4],xp:336,band:0,req:1,seed:'turnip_seed'},
+  carrot:{name:'Carrot',icon:'🥕',hours:6,prod:'carrot',yield:[2,4],xp:504,band:1,req:11,seed:'carrot_seed'},
+  wheat:{name:'Wheat',icon:'🌾',hours:8,prod:'wheat',yield:[3,5],xp:756,band:1,req:11,seed:'wheat_seed'},
+  potato:{name:'Potato',icon:'🥔',hours:10,prod:'potato',yield:[2,4],xp:1050,band:1,req:11,seed:'potato_seed'},
+  tomato:{name:'Tomato',icon:'🍅',hours:8,prod:'tomato',yield:[2,3],xp:1470,band:2,req:21,seed:'tomato_seed',regrows:true},
+  pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:2520,band:3,req:31,seed:'pumpkin_seed'},
+  goldenroot:{name:'Goldenroot',icon:'🥕',hours:16,prod:'goldenroot',yield:[1,3],xp:3570,band:4,req:41,seed:'goldenroot_seed'},
+  emberfruit:{name:'Emberfruit',icon:'🔥',hours:18,prod:'emberfruit',yield:[1,2],xp:5040,band:5,req:51,seed:'emberfruit_seed',regrows:true},
+  /* band 6's crop (09 4.16 call 8): its Farming job lands with its drink */
+  moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:7140,band:6,req:61,seed:'moonbloom_seed'},
 };
 
 /* The worn slots. 'companion' was cut with its one item, the Fox Companion (Tyler, 2026-10-22). */

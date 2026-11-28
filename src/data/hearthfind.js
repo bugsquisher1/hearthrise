@@ -124,7 +124,7 @@ export const HEARTHFIND_HOURS_MAX = 400;
      have no roll site — data the catalogue advertises and the game can never
      produce (the b341 class). The generator FAILS on a row whose kind is not in
      this list. */
-export const HEARTHFIND_SOURCE_KINDS = Object.freeze(['monster', 'node']);
+export const HEARTHFIND_SOURCE_KINDS = Object.freeze(['monster']);
 
 /* The trophies, and the TITLE each one unlocks.
    Ids only for the item RECORDS — those live in src/data/items.js beside every
@@ -192,19 +192,9 @@ export const HEARTHFIND_TABLE = Object.freeze([
   Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 142 }),
   Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 170 }),
   Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 117 }),
-
-  // ── Woodcutting. Door / gate / cap.
-  Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),
-  Object.freeze({ kind: 'node', id: 'yew_tree',      item: 'worldroot_seed', hours: 250 }),
-  Object.freeze({ kind: 'node', id: 'duskwood_tree', item: 'worldroot_seed', hours: 180 }),
-
-  // ── Mining.
-  Object.freeze({ kind: 'node', id: 'copper_rock',    item: 'deepvein_lodestar', hours: 350 }),
-  Object.freeze({ kind: 'node', id: 'mithril_rock',   item: 'deepvein_lodestar', hours: 250 }),
-  Object.freeze({ kind: 'node', id: 'dawnstone_rock', item: 'deepvein_lodestar', hours: 180 }),
-
-  // ── Fishing.
-  Object.freeze({ kind: 'node', id: 'shrimp_s',   item: 'tidecallers_pearl', hours: 350 }),
-  Object.freeze({ kind: 'node', id: 'shark_s',    item: 'tidecallers_pearl', hours: 250 }),
-  Object.freeze({ kind: 'node', id: 'moonfish_s', item: 'tidecallers_pearl', hours: 180 }),
+  /* THE GATHERING TROPHIES WAIT FOR THE JOBS (the bench cut, lane/bench-cut-data 2026-11-28; the designer's call). The nine node rows
+     (three trees, three rocks, three fishing spots) left with the gathering nodes. The Worldroot Seed, the Deepvein Lodestar and the
+     Tidecaller's Pearl come back as a roll on a gathering job's set (Chop, Mine, Catch at the door, mastery and cap rungs), which is
+     the trade engine's to build: a 'job' kind here before an engine rolls it would be the b341 class. Until then they are held
+     (catalogue-coherence UNREACHABLE.jobFind) and the Wonderkeeper set waits with them. */
 ]);

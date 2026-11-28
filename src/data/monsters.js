@@ -68,8 +68,6 @@ import { applyClassProfiles } from './monster-classes.js';
 import { MONSTER_LEVEL_BY_TIER } from './core-model.js';
 import { GROUND_PACKS } from './grounds/index.js';
 import { foldRows } from './grounds/shape.js';
-import { PATTERN_DROPS } from './patterns.js';
-import { LOOT_BANDS } from './loot-bands.js';
 import { BOSS_CALLS } from './boss-calls.js';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
@@ -261,7 +259,7 @@ export const MONSTERS = {
   water_elemental: { name: 'Water Elemental', icon: '💧', tier: 2, cls: 'elemental', family: 'Elemental',
     elements: { ember: -15, frost: 50 },
     hp: 30, atk: 9, aim: 26, evasion: 13, def: 2, xp: 35, gp: [6, 16],
-    drops: [{ id: 'trout', ch: .5 }, { id: 'herring', ch: .35 }, { id: 'magic_essence', ch: .18 },
+    drops: [{ id: 'trout', ch: .5 }, { id: 'magic_essence', ch: .18 },
       { id: 'adept_belt', ch: .004, salvage: true }] },
   air_elemental: { name: 'Air Elemental', icon: '🌀', tier: 2, cls: 'elemental', family: 'Elemental',
     /* one override (weapon): arrows pass straight through it. */
@@ -319,7 +317,7 @@ export const MONSTERS = {
        your weapon choice is about HIS kit, not his species. */
     weaponWeak: 'hammer', weaponResist: ['magic'],
     hp: 57, atk: 20, aim: 31, evasion: 7, def: 9, xp: 112, gp: [19, 46],
-    drops: [{ id: 'iron_bar', ch: .35 }, { id: 'steel_bar', ch: .12 }, { id: 'iron_fitting', ch: .25 }, { id: 'bones', ch: .8 },
+    drops: [{ id: 'iron_bar', ch: .35 }, { id: 'steel_bar', ch: .12 }, { id: 'bones', ch: .8 },
       { id: 'maple_bow', ch: .0004, lucky: true }] },
   /* FOLD-15 — THE DIFFERENTIATION. zombie and ghoul shared Tier 3 Undead and
      were indistinguishable by role, so the pair is pushed to opposite corners of
@@ -355,7 +353,7 @@ export const MONSTERS = {
       { id: 'scholar_belt', ch: .0035, salvage: true }] },
   clay_golem: { name: 'Clay Golem', icon: '🏺', tier: 3, cls: 'construct', family: 'Construct',
     hp: 78, atk: 14, aim: 20, evasion: 7, def: 12, xp: 100, gp: [16, 40],
-    drops: [{ id: 'iron_ore', ch: .45 }, { id: 'iron_fitting', ch: .3 }, { id: 'coal', ch: .35 },
+    drops: [{ id: 'iron_ore', ch: .45 }, { id: 'coal', ch: .35 },
       { id: 'steel_boots', ch: .0028, salvage: true }] },
 
   /* ══ Tier 4 — elite monsters ══════════════════════════════════════════ */
@@ -418,7 +416,7 @@ export const MONSTERS = {
       { id: 'warlock_belt', ch: .003, salvage: true }] },
   barrow_knight: { name: 'Barrow Knight', icon: '⚔️', tier: 4, cls: 'undead', family: 'Undead',
     hp: 148, atk: 31, aim: 29, evasion: 10, def: 21, xp: 282, gp: [48, 104],
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'steel_bar', ch: .3 }, { id: 'iron_fitting', ch: .4 }, { id: 'ancient_fragment', ch: .06 },
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'steel_bar', ch: .3 }, { id: 'ancient_fragment', ch: .06 },
       { id: 'mithril_gauntlets', ch: .0028, salvage: true }] },
   drowned_dead: { name: 'Drowned Dead', icon: '🌊', tier: 4, cls: 'undead', family: 'Undead',
     /* one override (weapon): waterlogged — crushing does nothing here. */
@@ -457,7 +455,7 @@ export const MONSTERS = {
   watchknight: { name: 'Watchknight', icon: '🛡️', tier: 4, cls: 'construct', family: 'Construct',
     /* empty armour: kill it and you get the armour. */
     hp: 164, atk: 27, aim: 18, evasion: 10, def: 22, xp: 262, gp: [45, 98],
-    drops: [{ id: 'steel_bar', ch: .5 }, { id: 'iron_fitting', ch: .6 }, { id: 'steel_helm', ch: .02 }, { id: 'brute_plate', ch: .25 }] },
+    drops: [{ id: 'steel_bar', ch: .5 }, { id: 'steel_helm', ch: .02 }, { id: 'brute_plate', ch: .25 }] },
   void_mote: { name: 'Void Mote', icon: '🌑', tier: 4, cls: 'extradimensional', family: 'Extra Dimensional',
     /* hidden element — the bestiary reveals it at 25 kills (PROG-01). */
     elements: { ember: -15, frost: 25, poison: 25 },
@@ -531,7 +529,7 @@ export const MONSTERS = {
     drops: [{ id: 'wraith_veil', ch: .35 }, { id: 'grave_dust', ch: .8 }, { id: 'vamp_dust', ch: .2 }, { id: 'ancient_rune', ch: .06 }] },
   chained_demon: { name: 'Chained Demon', icon: '⛓️', tier: 5, cls: 'demon', family: 'Demon',
     hp: 240, atk: 61, aim: 83, evasion: 13, def: 32, xp: 602, gp: [122, 254],
-    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, { id: 'iron_fitting', ch: .5 },
+    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, 
       { id: 'yew_staff', ch: .0005, lucky: true }] },
   fury: { name: 'Fury', icon: '🦇', tier: 5, cls: 'demon', family: 'Demon',
     /* one override (weapon): blades glass over on the carapace. */
@@ -550,7 +548,7 @@ export const MONSTERS = {
     drops: [{ id: 'hell_ember', ch: .3 }, { id: 'emberstone_ore', ch: .5 }, { id: 'coal', ch: .9 }, { id: 'ember_bar', ch: .15 }] },
   gargoyle: { name: 'Gargoyle', icon: '🗿', tier: 5, cls: 'construct', family: 'Construct',
     hp: 254, atk: 50, aim: 48, evasion: 13, def: 40, xp: 542, gp: [108, 228],
-    drops: [{ id: 'iron_fitting', ch: .7 }, { id: 'mithril_ore', ch: .35 }, { id: 'keystone', ch: .05 }, { id: 'steel_bar', ch: .45 },
+    drops: [{ id: 'mithril_ore', ch: .35 }, { id: 'keystone', ch: .05 }, { id: 'steel_bar', ch: .45 },
       { id: 'rune_belt', ch: .0018, salvage: true }] },
   shadow_creeper: { name: 'Shadow Creeper', icon: '🕸️', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
     elements: { ember: 25, frost: -15, poison: 25 },
@@ -577,7 +575,7 @@ export const MONSTERS = {
       { id: 'chitinweave_cloak', ch: .0007, lucky: true }] },
   treant: { name: 'Treant', icon: '🌲', tier: 6, cls: 'plant', family: 'Plant', boss: true,
     hp: 512, atk: 78, aim: 115, evasion: 41, def: 60, xp: 1060, gp: [258, 528],
-    drops: [{ id: 'duskwood_log', ch: .6 }, { id: 'runewood_log', ch: .35 }, { id: 'timber_beam', ch: .3 }, { id: 'moonbloom', ch: .7 }, { id: 'yew_log', ch: 1 }] },
+    drops: [{ id: 'duskwood_log', ch: .6 }, { id: 'runewood_log', ch: .35 }, { id: 'moonbloom', ch: .7 }, { id: 'yew_log', ch: 1 }] },
   war_king: { name: 'War King', icon: '👑', tier: 6, cls: 'humanoid', family: 'Humanoid',
     hp: 420, atk: 88, aim: 226, evasion: 33, def: 58, xp: 1050, gp: [260, 520],
     drops: [{ id: 'captain_medal', ch: .35 }, { id: 'war_crown', ch: .08 }] },
@@ -639,7 +637,7 @@ export const MONSTERS = {
       { id: 'dawnlit_mantle', ch: .0008, lucky: true }] },
   iron_colossus: { name: 'Iron Colossus', icon: '⚙️', tier: 6, cls: 'construct', family: 'Construct', boss: true,
     hp: 518, atk: 80, aim: 127, evasion: 50, def: 62, xp: 1075, gp: [264, 544],
-    drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },
+    drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'death_steel', ch: .2 }] },
   void_parasite: { name: 'Void Parasite', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     elements: { ember: 25, frost: 25, poison: -15 },
     hp: 340, atk: 82, aim: 143, evasion: 14, def: 42, xp: 900, gp: [210, 420],
@@ -683,7 +681,7 @@ export const MONSTERS = {
   barrow_king: { name: 'The Barrow King', icon: '👑', tier: 4, cls: 'undead', family: 'Undead', champion: true,
     /* the barrow knights' liege, risen in his rusted crown. */
     hp: 205, atk: 52, aim: 90, evasion: 10, def: 26, xp: 520, gp: [95, 200],
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'steel_bar', ch: .5 }, { id: 'iron_fitting', ch: .5 }, { id: 'ancient_fragment', ch: .12 },
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'steel_bar', ch: .5 }, { id: 'ancient_fragment', ch: .12 },
       { id: 'barrowking_mantle', ch: .0043, champion: true }] },
   frost_jarl: { name: 'The Frost Jarl', icon: '🧊', tier: 5, cls: 'humanoid', family: 'Humanoid', champion: true,
     /* one override (element), the same as the giants he rules: Ember answers. */
@@ -751,7 +749,7 @@ export const MONSTERS = {
   gray_whelp: { name: 'Gray Wolf Pup', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     role: 'swarm',
     hp: 11, atk: 4, aim: 15, evasion: 7, def: 0, xp: 18, gp: [1, 4], formula: true, speed: 3800,
-    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0733, ch: 0.262, band: 'common' }, { id: 'bones', everyHours: 0.064, ch: 0.3, band: 'common' }, { id: 'whelp_milk_tooth', everyHours: 0.32, ch: 0.06, band: 'uncommon' },
+    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0733, ch: 0.262, band: 'common' }, { id: 'bones', everyHours: 0.064, ch: 0.3, band: 'common' }, { id: 'whelp_milk_tooth', everyHours: 0.32, ch: 0.06, band: 'uncommon' }, { id: 'klappas_club', everyHours: 1, ch: 0.0192, band: 'scarce' },
       { id: 'bronze_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }, { id: 'leather_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }, { id: 'apprentice_boots', everyHours: 2.327, ch: 0.00825, band: 'scarce' }] },
   /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
      Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
@@ -759,7 +757,7 @@ export const MONSTERS = {
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
     role: 'stalker',
     hp: 19, atk: 4, aim: 18, evasion: 10, def: 1, xp: 38, gp: [2, 6], formula: true, speed: 4200,
-    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'bones', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'gray_dewclaw', everyHours: 0.3765, ch: 0.06, band: 'uncommon' },
+    drops: [{ id: 'raw_wolf_meat', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'bones', everyHours: 0.0602, ch: 0.375, band: 'common' }, { id: 'gray_dewclaw', everyHours: 0.3765, ch: 0.06, band: 'uncommon' }, { id: 'graypelt_cloak', everyHours: 1, ch: 0.0226, band: 'scarce' },
       { id: 'bronze_helm', everyHours: 3.346, ch: 0.00675, band: 'scarce' }, { id: 'leather_helmet', everyHours: 3.346, ch: 0.00675, band: 'scarce' }, { id: 'apprentice_helmet', everyHours: 3.346, ch: 0.00675, band: 'scarce' },
       { id: 'leather_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }, { id: 'apprentice_belt', everyHours: 45.2, ch: 0.0005, band: 'rare' }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
@@ -830,7 +828,7 @@ export const MONSTERS = {
     role: 'caster',
     hp: 1206, atk: 30, aim: 34, evasion: 37, def: 17, xp: 6137, gp: [94, 282], formula: true, speed: 2800,
     spells: ['slag_toss', 'slag_rain'],
-    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.833, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.39, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.78, ch: 0.144, band: 'uncommon' },
+    drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', everyHours: 0.833, ch: 0.48, band: 'common' }, { id: 'goblin_totem', everyHours: 1.39, ch: 0.288, band: 'common' }, { id: 'coppercaps_tallow', everyHours: 2.78, ch: 0.144, band: 'uncommon' }, { id: 'steelgrate', everyHours: 25, ch: 0.016, band: 'rare' },
       { id: 'steel_platebody', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'boarhide_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'scholar_body', everyHours: 9.48, ch: 0.0422, band: 'scarce' },
       { id: 'coppercap_shield', everyHours: 9.48, ch: 0.0422, band: 'scarce' }, { id: 'war_crown', everyHours: 29.6, ch: 0.0135, band: 'rare' },
       { id: 'willow_wand', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_spellbook', everyHours: 36.4, ch: 0.011, band: 'rare' }, { id: 'willow_staff', everyHours: 36.4, ch: 0.011, band: 'rare' },
@@ -983,19 +981,6 @@ for (const c of Object.values(BOSS_CALLS)) {
   const field = MONSTERS[of], called = MONSTERS[monster];
   if (!field || !called) throw new Error('boss call ' + c.id + ': no ' + (field ? monster : of) + ' row');
   MONSTERS[monster] = { ...called, drops: [...field.drops.map(({ id, ch, band }) => ({ id, ch, band })), ...called.drops] };
-}
-
-/* THE PATTERNS (src/data/patterns.js): each live pattern's row joins its monsters' tables among their Rares, before the first row of a
-   later band (a key, a trophy), so the band order holds and no earlier row's draw moves. Nothing while the patterns are hidden. */
-for (const [id, rows] of Object.entries(PATTERN_DROPS)) {
-  if (!Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('patterns: no monster ' + id + ' to carry ' + rows.map((r) => r.id).join(', '));
-  const drops = MONSTERS[id].drops.slice();
-  for (const r of rows) {
-    const rank = LOOT_BANDS.indexOf(r.band);
-    const at = drops.findIndex((d) => LOOT_BANDS.indexOf(d.band) > rank);
-    drops.splice(at < 0 ? drops.length : at, 0, { ...r });
-  }
-  MONSTERS[id] = { ...MONSTERS[id], drops };
 }
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

@@ -211,7 +211,7 @@ export default definePack({
      the Slake (50) and the Pyre Field (70) die 0 times on Salted Shrimp in every way, so they name none. */
   bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_poison_rune', qty: 650 } } },
   /* THE PACK'S TEST FACTS (2026-11-10). dropRef: a lone tank at the floor in its full own-tier set (tests/hunt-core/drop-tables.mjs, the harness's
      tier-6 kit). valueToday is COMPUTED the Pyre Field's way, not a pre-conversion pin: the floor hour's expected coin (12,152 g) and commons

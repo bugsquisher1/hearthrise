@@ -228,7 +228,7 @@ export default definePack({
      not said to one. Reported, never tuned toward (no profit molds, Tyler 2026-11-13): the Hunts page says what the ground asks for. */
   bagGuide: { tier: 4, storeFloor: 'salted_lobster', storeFloorFrom: { 65: 'salted_trout' }, healerUnder: { level: 65, ways: ['melee', 'ranged'] },
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks two things of a party-built ground's Normal at the band middle (65): the
      four a head within 0.90-1.10 of the pace contract, and 1.15-1.25 of the median lone way. On the formula's rows the median lone way

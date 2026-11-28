@@ -108,25 +108,6 @@ const runeRow = (family, t) => ({ n: runeName(family, t.tier), icon: RUNE_GLYPH[
   tier: t.tier, rarity: AMMO_RARITY[t.tier - 1], reqSkill: 'magic', reqLv: versionLevel(t.tier), madeLv: t.level, ammoPerShot: 1, family, runeTier: t.tier });
 const RUNE_ROWS = Object.fromEntries(CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => [runeId(f, t.tier), runeRow(f, t)])));
 
-/* ONE BIND RECIPE A RUNE: the Blank Rune in, at the tier's Runecrafting level. A deeper mark takes more stone: a
-   higher tier spends more blanks and yields fewer runes a craft. Runes are made to be cast: the shop's bid is the least a stack
-   can be (RUNE_VALUE; tests/craft-wages.mjs: a rune sold to the shop never out-earns a smelted bar, tests/recipe-yield-guard.mjs: a
-   batch is no faucet past 5x). XP is book value (the old
-   ladder's rungs at the same levels: 12 at 1, 185 at 30, 500 at 45, 940 at 60). Sized under the clamp like every
-   rung here (the note above). */
-const BIND = Object.freeze([
-  { blanks: 6, qty: 45, xp: 12, ms: 3400 },
-  { blanks: 18, qty: 13, xp: 60, ms: 3500 },
-  { blanks: 20, qty: 12, xp: 185, ms: 3600 },
-  { blanks: 28, qty: 10, xp: 500, ms: 3800 },
-  { blanks: 36, qty: 8, xp: 940, ms: 4000 },
-]);
-const bindRecipe = (family, t) => {
-  const b = BIND[t.tier - 1];
-  return { id: 'bind_' + runeId(family, t.tier) + 's', name: 'Bind ' + runeName(family, t.tier) + 's', icon: RUNE_GLYPH[family],
-    inputs: { rune_blank: b.blanks }, output: runeId(family, t.tier), outputQty: b.qty, xp: b.xp, req: t.level, ms: b.ms };
-};
-const BIND_RECIPES = CRAFTED_RUNE_FAMILIES.flatMap((f) => RUNE_TIERS.map((t) => bindRecipe(f, t)));
 
 /* ══════════════════════════════════════════════════════════════════════════
    ITEMS
@@ -180,7 +161,6 @@ export const STONECRAFT_ITEMS = {
      Steel 3, Mithril 4, Rune 5, Emberforged 6, Dawnsteel 7), so a band's stone opens with its arrow and a company makes the stone its
      melee hero can use. The ladder used to keep the Copper Whetstone's rung, which put each metal's stone a rung, and a band of gates,
      above its arrow. Copper keeps rung 2 beside Iron until the bench cut removes it (09 4.12: a second good of one kind at one band) */
-  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[1], madeLv: AMMO_MADE_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[1], madeLv: AMMO_MADE_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[2], madeLv: AMMO_MADE_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
   mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[3], madeLv: AMMO_MADE_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
@@ -192,32 +172,4 @@ export const STONECRAFT_ITEMS = {
   ember_whetstone:   { n: 'Emberforged Whetstone', icon: '🪨', v: 30, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[5], madeLv: AMMO_MADE_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
   dawn_whetstone:   { n: 'Dawnsteel Whetstone',icon: '🪨', v: 40, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[6], madeLv: AMMO_MADE_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
-};
-
-/* ══════════════════════════════════════════════════════════════════════════
-   RECIPES
-
-   XP is BOOK VALUE. The player receives `book x PACE.xp (0.39)` at the one
-   choke-point, and the tiles print the effective number — never the book one.
-   Calibrated so both skills land in the 25-35 hour band that Smithing (27.8 h)
-   and Crafting (25.5 h) already occupy: anything slower would be a second
-   Cooking (155 h), anything faster would be free. An artisan skill's real cost
-   is its INPUT CHAIN, not its XP treadmill, which is exactly why three artisan
-   skills add progression depth without adding a second grind.
-   ══════════════════════════════════════════════════════════════════════════ */
-export const STONECRAFT_RECIPES = {
-  runecrafting: [
-    /* W0 RUNECRAFTING RULING (2026-10-09): the first rung makes a SPENT rune
-       (every family's Chalked rune, at 1); the skill mines its own essence (a
-       bench row paid to Mining, the quarry pattern: a level-1 ROCKS node would
-       break the one-node-per-level bench gate) and cuts its own blanks. */
-    { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
-    { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },
-    /* THE BIND LADDER (lane b-spell-content, Tyler 2026-10-23): one bind a rune, family x tier (BIND_RECIPES
-       above), the Blank Rune in, a new tier every 15 levels from 1 to 60. Runecrafting above 60 waits on later
-       content (Tyler 10-23: more tiers and spells later). */
-    ...BIND_RECIPES,
-    /* (The Fine and Deep Blank Runes and their cuts left with the family x tier runes, 2026-10-23: every tier is
-       bound from the one Blank Rune, the designer's d3-tiers.) */
-  ],
 };

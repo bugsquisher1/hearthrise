@@ -199,7 +199,7 @@ export default definePack({
      300, Ranged 32.65 = 70. */
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_lobster', qty: 300 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 70 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 70 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* PARTY LEVEL XP (the Hold's method, as Carter's Rest: quick grade, 1 seed x 1 h, the Morrow's three packs open on the ladder, lane/d-catacombs
      2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so

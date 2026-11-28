@@ -57,14 +57,8 @@ export const HONOR_BOARDS = Object.freeze([
   skill('magic', 'Fighting'),
   skill('defense', 'Fighting'),
   skill('inner_flame', 'Fighting'),
-  skill('woodcutting', 'Gathering'),
-  skill('mining', 'Gathering'),
-  skill('fishing', 'Gathering'),
-  skill('farming', 'Gathering'),
-  skill('cooking', 'Crafting'),
-  skill('crafting', 'Crafting'),
-  skill('smithing', 'Crafting'),
-  skill('runecrafting', 'Crafting'),
+  /* (the gathering and crafting boards left with their skills, the bench cut 2026-11-28: a trade's Level is its company's, so a trade
+     board ranks companies, the server's hr_lb_skills restatement) */
   Object.freeze({ id: 'gold_given', group: 'Town', label: 'Gold Given', reads: 'gold', glyph: 'uiCoinStack',
     why: 'Gold given to Havora this UTC month, resets on the 1st',
     empty: 'No gifts this month yet',

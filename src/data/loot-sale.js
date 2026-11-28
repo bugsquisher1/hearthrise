@@ -20,9 +20,8 @@
 import { HUNT_GROUNDS, HALL_GROUNDS } from './hunt-grounds.js';
 import { MONSTERS } from './monsters.js';
 import { GROUND_GP_FIT } from './balance-sheet.js';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
-import { ARTISAN_RECIPES } from './recipes.js';
-import { recipeOutcomes } from './jewelry.js';
+import { CROPS } from './gathering.js';
+import { jobFaces } from './trades.js';
 import { GEAR_LADDERS } from './gear-tiers.js';
 
 /** The monsters a ground places: its pockets' packs, spawns and a hall's adds. */
@@ -31,12 +30,12 @@ const placed = (g) => (g.pockets || []).flatMap((p) => [...(p.pack || []), ...(p
 /** A ground's dial, permille (a keyed hall reads its pack's). */
 const dialPmOf = (gid, g) => Math.round(1000 * (GROUND_GP_FIT[g.hall || gid] || 1));
 
-/** Every id a gathering node, a crop or a bench row produces: their sale is a skill's pay too, so no dial reaches it. */
-export function producedIds(recipes = ARTISAN_RECIPES) {
+/** Every id a job or a crop produces (src/data/trades.js jobFaces; the bench and the gathering nodes left with the cut, 09-crafting 4.17):
+    their sale is a trade's pay too, so no dial reaches it. */
+export function producedIds(jobs = jobFaces()) {
   const s = new Set();
-  for (const n of [].concat(TREES || [], ROCKS || [], FISH_SPOTS || [])) if (n && n.prod) s.add(n.prod);
+  for (const j of jobs || []) if (j && j.output) s.add(j.output);
   for (const c of Object.values(CROPS || {})) if (c && c.prod) s.add(c.prod);
-  for (const rows of Object.values(recipes || {})) for (const r of rows || []) for (const id of recipeOutcomes(r)) s.add(id);
   return s;
 }
 

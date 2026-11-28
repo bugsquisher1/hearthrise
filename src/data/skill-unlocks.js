@@ -19,7 +19,7 @@
 
 import { SKILLS_DEF } from './skills.js';
 import { ARTISAN_RECIPES } from './recipes.js';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
+import { CROPS } from './gathering.js';
 import { ITEMS } from './items.js';
 import { DRINK_ITEMS } from './drinks.js';
 import { LEVEL_REQ } from './gear-tiers.js';
@@ -41,7 +41,6 @@ function unlocks() {
      making Blank Runes since level 1, panel 2026-11-01). */
   const firstAt = (skill, out) => Math.min(...(ARTISAN_RECIPES[skill] || []).filter((x) => x && x.output === out).map((x) => x.req));
   for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name, r.output ? itemUse(r.output) : '');
-  for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) add(skill, n.req, n.name, nodeUse(skill));
   for (const c of Object.values(CROPS)) if (c) add('farming', c.req || c.lv, c.prod ? nameOf(c.prod) : c.name, nodeUse('farming'));
   /* (a call-only piece, src/data/boss-calls.js CALL_ITEMS, is a 1% chase off a called boss's win, never the next step up) */
   const reach = new Map([...reachableSources()].filter(([, door]) => !/_called$/.test(door)));

@@ -7,7 +7,11 @@
 //          the Great Hearth in Havora's square, src/data/hearth.js)
 //          (src/core/xp.js skill curve). There is no Hitpoints, Attack or
 //          Strength skill.
-// gather / artisan   capped at 99 (src/core/xp.js XP_TABLE).
+//
+// THE TRADES ARE NOT SKILLS (the bench cut, lane/bench-cut-data 2026-11-28; docs/design/redesign/09-crafting.md 4.17).
+// Mining, Woodcutting, Fishing, Farming, Cooking, Smithing, Crafting and Runecrafting left this list:
+// a trade's Level is its company's (src/data/trades.js TRADES, the server's company_trade_xp), capped at
+// 99, and every trade starts at Level 1 the day the cut lights. A hero's skills are the five above.
 //
 // LEVEL IS NOT A SKILL: it comes from kills only and lives in
 // player_state.level_xp (src/core/xp.js charLevelFromXp), so no skill list,
@@ -28,14 +32,6 @@ export const SKILLS_DEF = {
   magic: { name: 'Magic', icon: '🔮', cat: 'combat' },
   defense: { name: 'Defense', icon: '🛡️', cat: 'combat' },
   inner_flame: { name: 'Inner Flame', cat: 'combat' },   // no emoji: its glyph is a hearth (skill-guide.js), never a flame bolt
-  woodcutting: { name: 'Woodcutting', icon: '🪓', cat: 'gather' },
-  mining: { name: 'Mining', icon: '⛏️', cat: 'gather' },
-  fishing: { name: 'Fishing', icon: '🎣', cat: 'gather' },
-  farming: { name: 'Farming', icon: '🌾', cat: 'gather' },
-  cooking: { name: 'Cooking', icon: '🍳', cat: 'artisan' },
-  crafting: { name: 'Crafting', icon: '🔨', cat: 'artisan' },
-  smithing: { name: 'Smithing', icon: '🔩', cat: 'artisan' },
-  runecrafting: { name: 'Runecrafting', icon: '🔮', cat: 'artisan' },
 };
 
 /* The uncapped skills: every `combat` row. A death costs each of them the same

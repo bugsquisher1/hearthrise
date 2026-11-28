@@ -124,11 +124,11 @@ export const SHOP_OFFERS = [
      rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
      THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
   /* PRICED IN HOURS OF WAGE (homestead-tiers.js): list prices 2,500,000 / 600,000 / 150,000 / 25,000 / 400. */
-  propertyOffer('castle', { ember_bar: 20, gatekeepers_chain: 10, iron_fitting: 30, runewood_plank: 60, timber_beam: 30 }),
+  propertyOffer('castle', { ember_bar: 20, gatekeepers_chain: 10, iron_bar: 120, oak_plank: 150, runewood_plank: 60 }),
   propertyOffer('farmstead', { cooked_shrimp: 10, copper_ore: 25, oak_log: 40, wolf_pelt: 4 }),
   propertyOffer('homestead', { copper_ore: 20, normal_log: 30 }),
-  propertyOffer('keep', { bear_pelt: 5, big_bones: 20, iron_fitting: 12, maple_plank: 50, steel_bar: 35, timber_beam: 12 }),
-  propertyOffer('manor', { iron_fitting: 6, iron_ore: 40, silk_thread: 8, timber_beam: 6, willow_plank: 35 }),
+  propertyOffer('keep', { bear_pelt: 5, big_bones: 20, iron_bar: 48, maple_plank: 50, oak_plank: 60, steel_bar: 35 }),
+  propertyOffer('manor', { iron_bar: 24, iron_ore: 40, oak_plank: 30, silk_thread: 8, willow_plank: 35 }),
   /* Every room rung, from its one home (homestead-tiers.js ROOM_RUNGS), in id order. */
   ...ROOM_OFFERS,
   bundleOffer('bronze_arrows', 50),

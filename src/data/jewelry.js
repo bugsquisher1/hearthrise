@@ -138,37 +138,13 @@ export const JEWEL_SWITCH = 'jewel_guarantees';
     about 11 hours of hunting). hr_hallmark reads its generated copy. */
 export const HALLMARK_DAY_LIMIT = 10;
 
-/* ── THE PIECES THE SAMPLE CRAFTS (itemization plan §4 "Samples for the first build"). A row: its plain item (slot-ladders.js), the
-   `skill` whose bench makes it, its job, its gem job once it rolls, and `next`, the piece of the tier above it reforges into. A rolled
-   job's `inputs` are raised 15% because it pays no bench tax (decision 5: 12 -> 14 Bars); a rolled job's XP is its bars' own XP x 1.5
-   (the Banded Signet's 14 x 20 x 1.5 = 420), a gem job's the tier's gem job (200 at T2) x the bar's XP step. A plain job (the necklace
-   and cloak until their hooks land) pays the bench tax like any job. Plan's chain and clasp parts are left to the belt phase's buckles:
-   the bar itself carries the Smithing half. ── */
-export const JEWEL_PIECES = Object.freeze({
-  banded_signet: Object.freeze({
-    skill: 'smithing', next: 'seam_jasper_band',
-    recipe: Object.freeze({ id: 'craft_banded_signet', name: 'Make Banded Signet', icon: '💍', inputs: Object.freeze({ bronze_bar: 14 }), xp: 420, req: 15, ms: 4000 }),
-    gem: Object.freeze({ id: 'set_banded_signet', name: 'Set a Road Carnelian in a Banded Signet', icon: '💍', xp: 200, req: 15, ms: 3000 }),
-  }),
-  seam_jasper_band: Object.freeze({
-    skill: 'smithing',
-    recipe: Object.freeze({ id: 'craft_seam_jasper_band', name: 'Make Seam Jasper Band', icon: '💍', inputs: Object.freeze({ steel_bar: 14 }), xp: 1470, req: 30, ms: 4400 }),
-    gem: Object.freeze({ id: 'set_seam_jasper_band', name: 'Set a Seam Jasper in a Seam Jasper Band', icon: '💍', xp: 700, req: 30, ms: 3400 }),
-  }),
-  fang_studs: Object.freeze({
-    skill: 'smithing',
-    recipe: Object.freeze({ id: 'craft_fang_studs', name: 'Make Fang Studs', icon: '💎', inputs: Object.freeze({ bronze_bar: 7, small_fang: 7 }), xp: 240, req: 15, ms: 3600 }),
-    gem: Object.freeze({ id: 'set_fang_studs', name: 'Set a Road Carnelian in Fang Studs', icon: '💎', xp: 200, req: 15, ms: 3000 }),
-  }),
-  wolfbone_torc: Object.freeze({
-    skill: 'smithing',
-    recipe: Object.freeze({ id: 'craft_wolfbone_torc', name: 'Make Wolfbone Necklace', icon: '📿', inputs: Object.freeze({ bronze_bar: 6, small_fang: 8, silk_thread: 4 }), xp: 300, req: 15, ms: 3600 }),
-  }),
-  warband_bulwark: Object.freeze({
-    skill: 'crafting',
-    recipe: Object.freeze({ id: 'stitch_warband_bulwark', name: 'Stitch Warband Bulwark', icon: '🦸', inputs: Object.freeze({ bear_pelt: 8, steel_bar: 4 }), xp: 640, req: 30, ms: 4000 }),
-  }),
-});
+/* ── THE PIECES A BENCH CRAFTS: NONE (the bench cut, lane/bench-cut-data, 2026-11-28; 09-crafting.md 4.13 and 4.17). The jewelry bench is
+   gone with every bench. Its 15 perk grades (the Banded Signet's, the Fang Studs' and the Seam Jasper Band's) left ITEMS with their Hallmark
+   and reforge offers, the plain pieces stay in the Shop (JEWEL_SHOP_PRICE), and the Warband Bulwark is a drop of Hask's Ford's pikemen. A
+   crafted piece comes back as Artificing's Trait craft (after v0.3.0), one Trait piece a row, never an item id for each combination. The
+   tables below derive empty from this one; the engine and window halves that read them (the roll, the Hallmark pane) retire with their
+   lanes. ── */
+export const JEWEL_PIECES = Object.freeze({});
 
 /** The skills a crafted piece's bench can be (a guard reads it: a piece names one of these). */
 export const JEWEL_SKILLS = Object.freeze(['smithing', 'crafting']);
@@ -233,64 +209,6 @@ export const JEWELRY_ITEMS = Object.freeze(Object.assign({}, ...Object.keys(JEWE
 export function gradeRows(plain, grade) {
   return Object.keys(JEWELRY_ITEMS).filter((id) => JEWELRY_ITEMS[id].jewelBase === plain && JEWELRY_ITEMS[id].jewelGrade === grade);
 }
-
-/* ── THE JOBS, as recipe rows on each piece's own bench (src/data/recipes.js joins them by skill). `output` is the PIECE the
-   job works on, its plain id, so a job keeps one product for the bench's tax, icon and category; `roll` is how the grade is
-   picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. A piece
-   with no perk the engine plays has one plain job: no roll, no gem job. ── */
-function jobsOfPiece(plain, p) {
-  const tier = plainOf(plain).tier;
-  if (!JEWEL_SKILLS.includes(p.skill)) throw new Error('jewelry.js: ' + plain + "'s bench " + p.skill + ' is not one of ' + JEWEL_SKILLS.join(', '));
-  if (!perksFor(plain).length) return [Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain }))];
-  if (!p.gem) throw new Error('jewelry.js: ' + plain + ' rolls perks and has no gem job');
-  const fine = gradeRows(plain, 'fine'), hall = gradeRows(plain, 'hallmarked');
-  return [
-    Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain, roll: 'base',
-      outcomes: Object.freeze([plain].concat(fine, hall)) })),
-    Object.freeze(Object.assign({}, p.gem, { inputs: { [plain]: 1, [JEWEL_TIERS[tier].gem]: 1 }, output: plain, roll: 'gem',
-      outcomes: Object.freeze(fine.concat(hall)) })),
-  ];
-}
-
-/* THE GUARANTEE JOBS of one piece (JEWEL_GUARANTEES), on the piece's own bench: each perk gem alone, each grade item alone, and each
-   perk gem with each grade item, set in the plain piece IN PLACE of its tier's gem. Behind JEWEL_SWITCH. Its XP, time and level are
-   the piece's gem job's, and its name says the piece as the gem job does ("in a Banded Signet", "in Fang Studs"). PROVISIONAL. */
-function guaranteeJobs(plain, p) {
-  const mine = Object.entries(JEWEL_GUARANTEES).filter(([, g]) => g.pieces.includes(plain));
-  if (!mine.length) return [];
-  const rolls = perksFor(plain);
-  const bad = (why) => { throw new Error('jewelry.js: ' + mine.map(([id]) => id).join(', ') + ' on ' + plain + ': ' + why); };
-  /* a guarantee needs a piece that rolls two perks (a Hallmarked outcome draws a second), and its gem job to set in place of */
-  if (rolls.length < 2 || !p.gem) bad('the piece ships plain or rolls fewer than two perks, so nothing is left to guarantee');
-  for (const [, g] of mine) {
-    if (!!g.perk === !!g.grade || (g.grade && g.grade !== 'hallmarked')) bad('a guarantee fixes one perk or the Hallmarked grade, never both or another');
-    if (g.perk && !rolls.includes(g.perk)) bad(g.perk + ' is not a perk the piece rolls (a named piece is a later phase\'s)');
-  }
-  const into = p.gem.name.slice(p.gem.name.lastIndexOf(' in ') + 4);
-  const perkGems = mine.filter(([, g]) => g.perk), seals = mine.filter(([, g]) => g.grade);
-  const sets = perkGems.map((x) => [x]).concat(seals.map((x) => [x]), perkGems.flatMap((x) => seals.map((y) => [x, y])));
-  return sets.map((set) => {
-    const withPerk = set.find(([, g]) => g.perk);
-    const perk = withPerk ? withPerk[1].perk : null;
-    const seal = set.some(([, g]) => g.grade);
-    const rest = rolls.filter((k) => k !== perk);
-    const outcomes = (seal ? [] : [jewelId(plain, [perk])])
-      .concat(perk ? rest.map((k) => jewelId(plain, [perk, k])) : pairsOf(rest).map((pair) => jewelId(plain, pair)));
-    return Object.freeze({
-      id: 'set_' + set.map(([id]) => id).join('_') + '_' + plain,
-      name: 'Set ' + set.map(([, g]) => g.words).join(' and ') + ' in ' + into,
-      icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,
-      inputs: Object.freeze(Object.assign({ [plain]: 1 }, ...set.map(([id]) => ({ [id]: 1 })))),
-      output: plain, roll: seal ? 'seal' : 'gem', ...(perk ? { perk } : {}), switch: JEWEL_SWITCH,
-      outcomes: Object.freeze(outcomes),
-    });
-  });
-}
-
-/** Each bench's crafted-piece jobs, by skill: { smithing: [...], crafting: [...] }, the guarantee jobs (a row with `switch`) included:
-    src/data/recipes.js keeps those out of ARTISAN_RECIPES and joins them only in ARTISAN_RECIPES_EVERY. */
-export const JEWELRY_RECIPES_BY_SKILL = Object.freeze(Object.fromEntries(JEWEL_SKILLS.map((skill) => [skill,
-  Object.freeze(Object.entries(JEWEL_PIECES).filter(([, p]) => p.skill === skill).flatMap(([plain, p]) => jobsOfPiece(plain, p).concat(guaranteeJobs(plain, p))))])));
 
 /** The perks a job's roll may still draw (its guarantee left out), in the order the bench names them. */
 export function jobRolls(r) {

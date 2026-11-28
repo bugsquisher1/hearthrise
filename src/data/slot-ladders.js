@@ -46,14 +46,14 @@ import { withGearStats } from './gear-profiles.js';
 import { STEP_MATERIALS, materialWord, stepOf, onTier } from './gear-tiers.js';
 import { SUPPLY_GATES } from './core-model.js';
 
-/* THE MADE PIECES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and book multiplier
-   (the shipped rungs' vmul), the bench that makes it and the top input that bench works (the shipped ladder's top bar or plank: the
-   Dawnsteel Bar and the Duskwood Plank, both made today). The part is the tier row's (`parts`). */
+/* THE TRAIT CRAFT'S BASES OF A TIER WITH HOMES (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): the line its word comes from, its label and
+   book multiplier (the shipped rungs' vmul). No bench makes them since the cut (09-crafting.md 4.13): they are held sourceless for
+   Artificing's Trait craft (catalogue-coherence UNREACHABLE_FATES traitBase). */
 const STEP_JEWELS = Object.freeze([
-  Object.freeze({ key: 'ring', label: 'Ring', line: 'metal', slot: 'ring', type: 'jewelry', icon: '💍', vmul: 200, skill: 'smithing', input: 'dawn_bar' }),
-  Object.freeze({ key: 'earrings', label: 'Earrings', line: 'metal', slot: 'earrings', type: 'jewelry', icon: '💎', vmul: 100, skill: 'smithing', input: 'dawn_bar' }),
-  Object.freeze({ key: 'necklace', label: 'Necklace', line: 'metal', slot: 'necklace', type: 'jewelry', icon: '📿', vmul: 200, skill: 'smithing', input: 'dawn_bar' }),
-  Object.freeze({ key: 'cloak', label: 'Cloak', line: 'cloth', slot: 'cape', type: 'armor', icon: '🦸', vmul: 240, skill: 'crafting', input: 'duskwood_plank' }),
+  Object.freeze({ key: 'ring', label: 'Ring', line: 'metal', slot: 'ring', type: 'jewelry', icon: '💍', vmul: 200 }),
+  Object.freeze({ key: 'earrings', label: 'Earrings', line: 'metal', slot: 'earrings', type: 'jewelry', icon: '💎', vmul: 100 }),
+  Object.freeze({ key: 'necklace', label: 'Necklace', line: 'metal', slot: 'necklace', type: 'jewelry', icon: '📿', vmul: 200 }),
+  Object.freeze({ key: 'cloak', label: 'Cloak', line: 'cloth', slot: 'cape', type: 'armor', icon: '🦸', vmul: 240 }),
 ]);
 /* A step cloak's Steady armor (an attribute the cloak line carries, not a base stat: gear-profiles.js) steps as armor steps (balance ruling
    section 9: each tier's best cape lets through 95 to 97% of what the tier below does; tests/hunt-core/temper.mjs a-cape-steps-like-armor):
@@ -62,19 +62,6 @@ const STEP_JEWELS = Object.freeze([
 const STEP_CAPE_TOP = Object.freeze({ tier: 7, steadyPm: 255 });
 const STEP_CAPE_KEEP_PM = 960;
 const stepCapeSteadyPm = (tier) => 1000 - Math.round((1000 - STEP_CAPE_TOP.steadyPm) * (STEP_CAPE_KEEP_PM / 1000) ** (tier - STEP_CAPE_TOP.tier));
-/* What a made step piece takes, its XP and its time: STARTING VALUES on the shipped top's shape (the Dawnsteel tools at Smithing 92: 2 bars and
-   4,200 XP), a part a piece more than a bar */
-const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });
-/** The recipe of each made step piece, by bench (recipes.js reads them, each once its part is an item in the catalogue's view: a home in a
-    staged pack is out of the served catalogue, tools/pack/whole.mjs). The bench's level is the tier's (gear-tiers.js MATERIAL_TIERS smith and
-    craft: the Level it is worn from). */
-export const STEP_MADE = Object.freeze(Object.fromEntries(['smithing', 'crafting'].map((skill) => [skill, Object.freeze(STEP_MATERIALS.flatMap((m) =>
-  STEP_JEWELS.filter((j) => j.skill === skill).map((j) => {
-    const [wid, word] = materialWord(m, j.line), id = wid + '_' + j.key, part = m.parts[j.slot];
-    return Object.freeze({ id: (skill === 'crafting' ? 'stitch_' : 'craft_') + id, name: (skill === 'crafting' ? 'Stitch ' : 'Make ') + word + ' ' + j.label,
-      icon: j.icon, inputs: Object.freeze({ [j.input]: STEP_MAKE.input, [part]: STEP_MAKE.part }), output: id, xp: STEP_MAKE.xp,
-      req: skill === 'crafting' ? m.craft : m.smith, ms: STEP_MAKE.ms });
-  })))])));
 
 /* Book values follow the audit's §5.4 recommendation: `v` derives from the
    material tier's own economic curve rather than a hand-guessed number.
@@ -106,7 +93,6 @@ export const SLOT_ITEMS = withGearStats({
      hunt's bag (src/core/hunt/abilities.js) and wears a hone per swing
      (src/core/member.js), watched or not.  */
   bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[0], madeLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
-  barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[1], madeLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
   steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[2], madeLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },
   mithril_arrows:   { n: 'Mithril Arrows',     icon: '🏹', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: 'epic',      reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[3], madeLv: 45,               rangeStrB: 8,  critB: 0.01,  ammoPerShot: 1 },
   rune_arrows:      { n: 'Rune Arrows',        icon: '🏹', v: 6,  type: 'ammo', slot: 'ammo', tier: 5, rarity: 'legendary', reqSkill: 'ranged', reqLv: SUPPLY_GATES.ranged[4], madeLv: 60,               rangeStrB: 11, critB: 0.015, ammoPerShot: 1 },
@@ -157,15 +143,13 @@ export const SLOT_ITEMS = withGearStats({
   /* THE FIRST-HOUR RUNG (designer 2026-10-28, lane/b-first-hour): the gear between the practice kit and Level 15.
      A fresh hero's Thicket stretch (Level 5 to 15, about 19 h on the 10-25 curve) had nothing new to wear past its
      tier-1 armor, and What next read "Level 12: Grayjaw's Ruff", a 15 h Rare. One cape every way to fight wears
-     (no style's accuracy or damage pays for it), MADE in Crafting from the Thicket's own Wolf Pelts (about 31 an hour
-     at the floor, tests/hunt-core/forest-cave.mjs --play): the hunt feeds the bench. Between the Shop's Traveler Cape
-     (Level 1, defense 1) and Grayjaw's Ruff (Level 12, defense 3 and crit). Book 150 sells for 75 (tier 1 at 0.5,
-     loot-bands.js) against six pelts' 210: stitching is never a gold faucet (style-gear.js's economy rule). */
+     (no style's accuracy or damage pays for it). A Scarce drop of the Thicket's Gray Wolves since the bench cut (09-crafting 4.13:
+     gear drops). Between the Shop's Traveler Cape (Level 1, defense 1) and Grayjaw's Ruff (Level 12, defense 3 and crit). */
   graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, steadyPm: 30 },
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, steadyPm: 30 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 22, steadyPm: 70 },
-  /* THE TIER 3 CLOAK, CRAFTED (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18; src/data/jewelry.js JEWEL_PIECES): Crafting 30 stitches
-     it from the Glade's Bear Pelts over Smithing's steel. Was a wave-3 unique with no source; re-cut to the cape ladder (worn from tier 3's Level
+  /* THE TIER 3 CLOAK (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18): a Scarce drop of Hask's Ford's Banded Pikemen since
+     the bench cut (09-crafting 4.13). Was a wave-3 unique with no source; re-cut to the cape ladder (worn from tier 3's Level
      30, book priced like its rungs, armourClass cape so it never counts toward a plate set) and its plain stats help every way to fight (the
      plan's rule): the ladder's cut between the Houndskin's 70 and the Trollhide's 150, and a point of damage for each style. Ships plain until
      the cloak's perks (Slip, Stride) are hooked. */
@@ -202,9 +186,8 @@ export const SLOT_ITEMS = withGearStats({
   dawnforged_signet: { n: 'Dawnforged Signet', icon: '💍', v: priced(200, 7), type: 'jewelry', slot: 'ring', tier: 7, rarity: 'mythic',     reqSkill: 'level', reqLv: 84 },
 
   /* ══ EVERY TIER WITH HOMES (lane/gear-phase-b; src/data/gear-tiers.js STEP_MATERIALS): one ring, one pair of earrings, one necklace and one cloak
-     a step tier, worn from its Level, their stats the one formula's at the tier's item Level. MADE, never dropped (09-crafting: a crafter
-     makes the slot families a Trait rides on): the metal pieces at Smithing, the cloak at Crafting, each from the top bar or plank and a part
-     one of its home ground's bodies drops (drop-hours.js DROP_HOURS.made: a made piece's ground is its part's). STEP_MADE below. ══ */
+     a step tier, worn from its Level, their stats the one formula's at the tier's item Level. Never dropped: they are the Trait craft's bases
+     (09-crafting.md 4.13), held sourceless until Artificing's Trait craft ships after v0.3.0. ══ */
   ...Object.fromEntries(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => {
     const [wid, word] = materialWord(m, j.line);
     return [wid + '_' + j.key, { n: word + ' ' + j.label, icon: j.icon, v: Math.max(1, Math.round((j.vmul * m.value) / 5) * 5), type: j.type,
@@ -213,72 +196,12 @@ export const SLOT_ITEMS = withGearStats({
   }))),
 });
 
-/* ══════════════════════════════════════════════════════════════════════════
-   RECIPES
-
-   ── FLETCHING INTERFACE — READ BEFORE TOUCHING THE `fletch_*` ROWS ────────
-   The seven `fletch_*` recipes below are authored under CRAFTING because that
-   is the skill that exists today, and because an item with no source fails the
-   b243 reachability guard. They are the Fletching agent's to relocate: every id
-   is prefixed `fletch_` so one grep finds all of them.
-
-   What Fletching must satisfy, derived by executing the real combat engine
-   (bow swing interval 2112 ms, 1 arrow per swing):
-
-     • BURN RATE is flat across tiers: **~1,705 arrows per hour**, **13,636 per
-       8-hour absence**, **20,455 per 12-hour absence** (12 h is the base
-       `offlineCapHours` for every account; more with earned perks).
-     • PROVISIONING BUDGET: making a full night's arrows must cost the player
-       under five minutes of Fletching, or ranged becomes the punished style.
-       At ~3.5 s an action that means a batch of **at least 500** (41 actions
-       for a 12-hour night). The batches below are 500, and 1000 at tier 7.
-     • INPUT BUDGET: total input value per arrow must land at **10-20% of the
-       gross (gold + expected drop value) that arrow earns**. Executed, that is
-       ~0.25 g/arrow at tier 2 rising to ~1.5-2.5 g/arrow at tier 7.
-     • ANTI-FAUCET: `batch x arrow.v` must stay within ~2x the input value or
-       fletching becomes a gold printer that beats combat. Every row below sits
-       at 1.2-1.9x, against a house median of 2.14x. For contrast, the existing
-       `craft_iron_arrows` sits at **16.7x** — see the handoff.
-
-   The jewellery and cape recipes that used to follow were deleted with
-   crafted gear (demolition, 2026-10-14); their items stay until the roster.
-   ══════════════════════════════════════════════════════════════════════════ */
-export const SLOT_RECIPES = {
-  crafting: [
-    /* ── fletching interface (see the block above) ── */
-    /* b374 — BATCH CUT 500→50 (Tyler, said twice: "500 bronze arrows seems like
-       way too much for 1 craft"). The 500 figure was a real burn-rate calc, but
-       it made one 5-second craft supply ~18 minutes of ranged, which reads absurd
-       and — the engineering cost — put every fletch row OVER c_max_item_delta on a
-       15-hour offline auto-craft, so all seven lived on the AMMO_CLAMP_BASELINE
-       amnesty (a standing exception the consumable-economy doc flagged for removal).
-       At ×50 a full 15h offline fletch moves ~527k of one arrow, under the 600k
-       (60%) honest-play line, so the amnesty is DELETED with this change (see
-       tests/accrual-engine.mjs). xp-per-action is UNCHANGED, so Fletching's
-       time-to-99 is untouched — only the arrows-per-action moved. Consequence,
-       stated: arrow throughput per craft drops 10×, so a ranged main fletches
-       more often to stay stocked. That is correct for the ammo-HUNGRY style
-       (ammoPerShot 1.0, against the whetstone's 0.02 charge) and it makes ammo a
-       real recurring craft rather than a five-second lifetime supply. Batches are
-       uniform 50 across the ladder (dawnpoint drops its ×2). */
-    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze Arrows ×50',    icon: '🏹', inputs: { bronze_bar: 6, normal_plank: 4 },                 output: 'bronze_arrows',    outputQty: 50,  xp: 90,  req: 5,  ms: 3200 },
-    { id: 'fletch_barbed_arrows',    name: 'Fletch Barbed Arrows ×50',    icon: '🏹', inputs: { iron_bar: 3, oak_plank: 3 },                      output: 'barbed_arrows',    outputQty: 50,  xp: 150, req: 18, ms: 3400 },
-    { id: 'fletch_steel_arrows',     name: 'Fletch Steel Arrows ×50',     icon: '🏹', inputs: { steel_bar: 2, willow_plank: 2 },                  output: 'steel_arrows',     outputQty: 50,  xp: 230, req: 33, ms: 3600 },
-    { id: 'fletch_mithril_arrows',   name: 'Fletch Mithril Arrows ×50',   icon: '🏹', inputs: { mithril_bar: 2, maple_plank: 2 },                 output: 'mithril_arrows',   outputQty: 50,  xp: 330, req: 48, ms: 3800 },
-    { id: 'fletch_rune_arrows',      name: 'Fletch Rune Arrows ×50',      icon: '🏹', inputs: { rune_bar: 1, yew_plank: 1 },                      output: 'rune_arrows',      outputQty: 50,  xp: 450, req: 63, ms: 4000 },
-    { id: 'fletch_emberhead_arrows', name: 'Fletch Emberhead Arrows ×50', icon: '🏹', inputs: { ember_bar: 1, silk_thread: 16 },                  output: 'emberhead_arrows', outputQty: 50,  xp: 600, req: 78, ms: 4200 },
-    { id: 'fletch_dawnpoint_arrows', name: 'Fletch Dawnpoint Arrows ×50', icon: '🏹', inputs: { dawn_bar: 1, duskwood_plank: 1 },                 output: 'dawnpoint_arrows', outputQty: 50, xp: 820, req: 91, ms: 4400 },
-    /* The first-hour rung (graypelt_cloak above): Crafting 1, so a hero who never crafted can stitch it the day it reaches Level 8. */
-    { id: 'stitch_graypelt_cloak', name: 'Stitch Graypelt Cloak', icon: '🦸', inputs: { wolf_pelt: 6 }, output: 'graypelt_cloak', xp: 30, req: 1, ms: 3200 },
-    /* THE GLADE'S RUNG (designer 2026-11-04, played: nothing new to wear by Level from 15 to 28, and What next named one cape at 0.099% a kill). A cape every way to fight wears, at Level 22, made from what the Glade
-       drops: a Bear Pelt only comes with a party or deeper on the Danger scale, so the rung asks for the one step up Levels 10 to 30 turn on, and Crafting 1, as the Graypelt does: at the bench's real XP, Crafting 5 was 35 more cloaks with no decision in them. Twelve pelts' 420 and the Bear's 260 of book stand over the cloak's 310: never a gold faucet. */
-    { id: 'stitch_houndskin_cloak', name: 'Stitch Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 12, bear_pelt: 1 }, output: 'houndskin_cloak', xp: 60, req: 1, ms: 3400 },
-  ],
-};
+/** THE TRAIT CRAFT'S BASES (09-crafting.md 4.13 and 4.16): every step tier's ring, earrings, necklace and cloak, by id. No bench makes
+    them and no ground drops them, so they are held sourceless for Artificing's Trait craft (catalogue-coherence's `traitBase` fate). */
+export const STEP_TRAIT_BASES = Object.freeze(STEP_MATERIALS.flatMap((m) => STEP_JEWELS.map((j) => materialWord(m, j.line)[0] + '_' + j.key)));
 
 export const SLOT_DESC = {
   bronze_arrows: 'Plain arrows with blunt bronze heads. They\'re free, and you never run out of them',
-  barbed_arrows: 'Iron arrowheads filed with a hook on the back, so they tear on the way out',
   steel_arrows: 'Arrows with needle-sharp steel points. They fly straight even at long range',
   mithril_arrows: 'Arrows with light mithril heads. They fly so fast you can barely see them, and they don\'t bend on armor',
   rune_arrows: 'Arrows with rune-carved points. They hit a lot harder than you\'d expect from something so light',

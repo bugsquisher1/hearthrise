@@ -21,8 +21,8 @@
 //
 // ── THE PARTITION ───────────────────────────────────────────────────────────
 //   OWNABLE  (serverOwnedItem === true): what the engine settles —
-//              combat drops (MONSTERS[*].drops) ∪ gather products (TREES/ROCKS/
-//              FISH_SPOTS[*].prod) ∪ payable artisan outputs (ARTISAN_RECIPES
+//              combat drops (MONSTERS[*].drops) ∪ job goods (src/data/trades.js
+//              jobFaces: the server's trade settle makes them) ∪ payable artisan outputs (ARTISAN_RECIPES
 //              MINUS cooking) — with the EXCLUDED set removed (see precedence).
 //   EXCLUDED (serverOwnedItem === false): what a LIVE, un-modeled path writes —
 //              cooking outputs (ARTISAN_RECIPES.cooking) ∪ crop products
@@ -46,9 +46,9 @@
 // PURE ESM. No DOM required to import, so this loads and answers in Node.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
+import { CROPS } from './gathering.js';
+import { jobFaces } from './trades.js';
 import { ARTISAN_RECIPES } from './recipes.js';
-import { recipeOutcomes } from './jewelry.js';
 import { MONSTERS } from './monsters.js';
 import { BASE_DROP_IDS } from './base-drops.js';
 import { ITEMS } from './items.js';
@@ -102,12 +102,11 @@ export const ARTISAN_SETTLEMENT = Object.freeze({
 
 function addAll(dst, src) { for (const x of src) if (x) dst.add(x); return dst; }
 
-/** Every id produced by a tree/rock/fishing-spot `prod`. */
+/** Every good a job makes (src/data/trades.js jobFaces): the gathering nodes left with the bench cut (09-crafting 4.17), and the server's
+    trade settle (hr_trade_job_start) makes every raw and made good, so each is server-modelled. */
 export function gatherProductIds() {
   const s = new Set();
-  for (const node of [].concat(TREES || [], ROCKS || [], FISH_SPOTS || [])) {
-    if (node && node.prod) s.add(node.prod);
-  }
+  for (const j of jobFaces()) if (j.output) s.add(j.output);
   return s;
 }
 
@@ -311,11 +310,11 @@ export function combatDropIds() {
   return s;
 }
 
-/** The output ids of one artisan lane, every grade a rolled job can make included (jewelry.js recipeOutcomes). Rows with `output:null` (Inner Flame's fuels) add none. */
+/** The output ids of one artisan lane. Rows with `output:null` (Inner Flame's fuels, the one lane left) add none. */
 export function artisanOutputIds(skill) {
   const s = new Set();
   const rows = (ARTISAN_RECIPES || {})[skill];
-  if (Array.isArray(rows)) for (const r of rows) for (const id of recipeOutcomes(r)) s.add(id);
+  if (Array.isArray(rows)) for (const r of rows) if (r && r.output) s.add(r.output);
   return s;
 }
 

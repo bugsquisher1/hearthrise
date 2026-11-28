@@ -31,7 +31,7 @@
 
 import { ITEMS } from './items.js';
 import { ARTISAN_RECIPES } from './recipes.js';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js';
+import { CROPS } from './gathering.js';
 import { SKILLS_DEF } from './skills.js';
 import { SHOP_OFFERS } from './shops.js';
 import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js';
@@ -45,18 +45,24 @@ import { TEMPER_KITS } from './temper.js';
 import { imbuePartUses } from './imbue-rules.js';
 /* THE TRADE DOOR (lane/k1-job-slice, 2026-11-26): a job recipe's face is made by its trade (hr_trade_job_start), its inputs spent by it */
 import { jobFaces, IMBUE_JOBS } from './trades.js';
-import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from './jewelry.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js';
 import { BOSS_CALLS } from './boss-calls.js';
 import { HUNT_INDEX } from './hunts.js';
 import { TRAINING_GEAR_ITEMS } from './training.js';
 import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js';
 import { STEP_MATERIALS } from './gear-tiers.js';
-import { STEP_MADE } from './slot-ladders.js';
+import { STEP_TRAIT_BASES } from './slot-ladders.js';
 import { basePiecesOf } from './base-drops.js';
 import {
-  gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
+  cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js';
+
+/* THE TRAIT CRAFT'S DOOR (09-crafting.md 4.13, the bench cut): Artificing's Trait craft, after v0.3.0, sets a Trait on each of these bases.
+   A door on paper like a staged ground's drop: itemSources names it, reachableSources opens it only with the planned door (C11). */
+export const TRAIT_CRAFT_DOOR = 'the Trait craft (after v0.3.0)';
+/* THE GATHERING TROPHIES' DOOR (the bench cut): a Hearthfind trophy no HEARTHFIND_TABLE row pays waits for a gathering job's roll. */
+const JOB_FIND_TROPHIES = Object.freeze(HEARTHFIND_ITEMS.filter((id) => !HEARTHFIND_TABLE.some((t) => t.item === id)));
+const JOB_FIND_DOOR = "a gathering job's find";
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -84,17 +90,14 @@ export const CODED_USES = Object.freeze({
    window.__DROP_SINK_EXEMPT; this is now its only home. */
 export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_totem', 'burnt_food',
   /* DEMOLITION (2026-10-14): crafted gear, its recipes and the dungeon chests
-     were deleted, and these lost every consumer they had. They still drop
-     (or, for the two bars and heartgarnet, are still made or mined),
+     were deleted, and these lost every consumer they had. They still drop,
      so until the new roster gives them a job they are sold, nothing more.
      rat_tail is also the coach's sell-loot step (coach.js COACH_LOOT).
-     Heartgarnet's Mining node is a dead end awaiting a designer ruling.
      Shrink this list as the roster lands. */
   'bat_wing', 'rune_frag', 'ruby', 'rat_tail', 'night_fang', 'dark_sigil',
   'venom_sac', 'spider_eye', 'brute_plate', 'dire_fang', 'alpha_fang', 'plague_ichor',
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
-  'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
-  'heartgarnet',
+  'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar',
   /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its old altar offering (Tyler's
      deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
   'crown_shard',
@@ -126,6 +129,12 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
   /* Unmarked Catacombs (lane/d-catacombs), the same promise, and the Vault Leech's own Common, Junk that only sells */
   'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
+  /* THE BENCH CUT (lane/bench-cut-data, 2026-11-28; 09-crafting 4.17): drops whose one use was a bench recipe. They sell until a job or
+     a line spends them: the beast meats and the bear's claw are the camp pot's (09 3.2: Cooking, from beast meat and grain), Slime Gel and
+     the Small Fang were the Timber Beam's and the Klub's reforge, the two gems the jewel grades', Gold Ore the Gold Bar's, and the
+     keystone's fragment and spellstone and the void core the late recipes'. Shrink as those land. */
+  'slime_gel', 'small_fang', 'road_carnelian', 'seam_jasper', 'gold_ore', 'bear_claw',
+  'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat', 'ancient_fragment', 'cracked_spellstone', 'void_core',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -139,22 +148,17 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    CUT 2026-11-23 (the designer, lane/named-pieces, docs/design/redesign/28-named-pieces.md (d)): 21 of the rows named there left ITEMS,
    hr_items and this list together (the named pieces whose only mark was a stat bump). */
 export const AWAITING_ROSTER = Object.freeze([
-  'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
-  'bone_needle',
-  'bronze_hammer', 'bronze_knife',
+  /* (the rods, hammers, needles and knives left ITEMS with every gathering and bench tool, the bench cut 2026-11-28) */
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'dawnforged_signet',
-  'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
+  'demoncaller_staff', 'dragon_gem_earrings',
   'heartgarnet_maul', 'dragon_relic',
-  'duskwood_rod', 'elderscale_heart',
+  'elderscale_heart',
   'lexarch_seal',
-  'maple_rod',
   'riftmaw_husk',
-  'rune_hammer', 'rune_knife', 'rune_needle', 'runewood_rod',
   'slagheart_core',
-  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
-  'steel_needle',
+  'spellstone_ring', 'spidereye_studs',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
   'verdite_platelegs', 'void_essence',
@@ -162,8 +166,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'warboss_standard', 'warden_seal',
   'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants',
-  'willow_rod', 'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
-  'yew_rod',
+  'woolen_cloak', 'wyrm_gilding', 'wyrmgilt_mantle',
   /* The Hearth Token (the IAP bond) and the three boss-forged body pieces left ITEMS with the old dungeons, the
      gem rows and the bond (2026-11-20, plan L10). */
 ]);
@@ -185,6 +188,9 @@ export const AWAITING_ROSTER = Object.freeze([
 export const UNREACHABLE_FATES = Object.freeze({
   staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (the Barrow March opened 2026-11-14, and a later staged pack files its rows here)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
+  /* A DERIVED fate (`derived`): its rows are computed, never typed, and are EXACTLY what its door adds (C11d reads them outside the ceiling) */
+  traitBase:  Object.freeze({ bucket: 'a', derived: true, door: "Artificing's Trait craft ships (after v0.3.0) and sets a Trait on the base (09-crafting.md 4.13)", open: Object.freeze({ traitCraft: true }) }),
+  jobFind:    Object.freeze({ bucket: 'a', derived: true, door: "a gathering job's set rolls it (the Hearthfind's job roll, the trade engine's to build; src/data/hearthfind.js)", open: Object.freeze({ jobFind: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
   cut:        Object.freeze({ bucket: 'c', door: 'none: dead weight, listed for a cut (Tyler approves)' }),
@@ -216,12 +222,19 @@ export const UNREACHABLE = Object.freeze({
        Shroud and Watchman's Sword, Keeper Dunn's Leg Plates and Mallet */
     'burnt_crag_leg_plates', 'limewashed_plate', 'paupers_shroud', 'watchmans_sword', 'keepers_leg_plates', 'dunns_mallet',
     /* A TIER WHOSE HOMES ARE ALL STAGED (lane/gear-phase-b; gear-tiers.js STEP_MATERIALS): every piece of it no open ground's body drops (a
-       home's base row or a made piece from a home's part) waits for a home to open. DERIVED, so a piece leaves the list the build its home
-       opens or an open ground starts dropping it; a named piece of the tier (a chest's twin, a lucky find) has its own door */
+       home's base row) waits for a home to open. DERIVED, so a piece leaves the list the build its home opens or an open ground starts
+       dropping it; a named piece of the tier (a chest's twin, a lucky find) has its own door. Its ring, earrings, necklace and cloak are
+       the Trait craft's (`traitBase` below) */
     ...STEP_MATERIALS.filter((m) => !m.homes.some((g) => Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)))
-      .flatMap((m) => [...basePiecesOf(m), ...Object.values(STEP_MADE).flat().map((r) => r.output).filter((id) => ITEMS[id] && ITEMS[id].step === m.step)])
+      .flatMap((m) => basePiecesOf(m))
       .filter((id) => ITEMS[id] && !OPEN_BODY_DROPS.has(id)),
   ]),
+  /* THE TRAIT CRAFT'S BASES (09-crafting.md 4.13 and 4.16, the bench cut): every step tier's ring, earrings, necklace and cloak (bands 5 to
+     8), held for Artificing's Trait craft after v0.3.0. DERIVED from slot-ladders.js STEP_TRAIT_BASES, never a hand list, so like `staged`
+     it sits outside the ceiling, and C11c proves the door reaches these and nothing else */
+  traitBase: Object.freeze([...STEP_TRAIT_BASES]),
+  /* THE GATHERING TROPHIES (the bench cut: their node rows left with the nodes): every Hearthfind trophy no table row pays. DERIVED */
+  jobFind: Object.freeze([...JOB_FIND_TROPHIES]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
@@ -239,9 +252,7 @@ export const UNREACHABLE = Object.freeze({
     'ruby_signet', 'dawnlit_mantle', 'dawnbound_amulet', 'rubyfire_studs',
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
-    'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
-    /* the Void Banquet waits on its void core and dragon bones (the cookbook feasts were cut 2026-11-18) */
-    'void_banquet',
+    'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat',
     'emberheart',
   ]),
   /* Vendor trash of creatures with no home in the plan: no recipe, room or quest reads them. */
@@ -268,11 +279,13 @@ export const UNREACHABLE = Object.freeze({
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
 /* 55 -> 51 (lane/named-pieces, 2026-11-23): nine named pieces cut from `later` and `cut`, and four sourceless pieces took four of their lucky rows (55 -> 51; the Chitinweave Cloak stays, a cape rung) (28-named-pieces.md). */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-export const UNREACHABLE_CEILING = 51;
+/* 51 -> 49 (lane/bench-cut-data, 2026-11-28): the Cooked Panther Meat and the Void Banquet left ITEMS with the bench. The Trait craft's
+   bases (`traitBase`) and the three gathering trophies (`jobFind`) are DERIVED fates, outside the ceiling like `staged`. */
+export const UNREACHABLE_CEILING = 49;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:
- * { grounds: every ground including staged ones, premium: true }. The Shop is its LISTED rows (SHOP_LISTED_OFFER_IDS).
+ * { grounds: every ground including staged ones, premium: true, traitCraft: true, jobFind: true }. The Shop is its LISTED rows (SHOP_LISTED_OFFER_IDS).
  */
 export function reachableSources(opts = {}) {
   /* (an open pack's keyed hall pays like its ground: boss-halls.js) */
@@ -292,7 +305,6 @@ export function reachableSources(opts = {}) {
   for (const o of SHOP_OFFERS) if (o && SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g && g.kind === 'item') put(g.id, 'shop ' + o.id);
   for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');
   for (const id of Object.values(START_EQUIPMENT)) put(id, 'start kit');
-  for (const id of gatherProductIds()) put(id, 'gathered');
   /* the Arms Master sells the gold rows of the training items (hr_training_gear_buy); the bound rows are the Crowns store's */
   for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) put(g.id, 'the Arms Master');
   /* the Burning Tower: a landing's Keeper mints its key (2027-04-27-tower-chest.sql hr_tower_key_mint), the Hearth Chest pays the Cinders */
@@ -307,26 +319,17 @@ export function reachableSources(opts = {}) {
   for (const o of CHEST_OUTFITS) put(o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
-  for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
+  for (const t of HEARTHFIND_TABLE) if (met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
+  if (opts.jobFind) for (const id of JOB_FIND_TROPHIES) put(id, JOB_FIND_DOOR);
+  /* the Trait craft's bases, only with its planned door open (C11: UNREACHABLE.traitBase) */
+  if (opts.traitCraft) for (const id of STEP_TRAIT_BASES) put(id, TRAIT_CRAFT_DOOR);
   for (let grew = true; grew;) {
     grew = false;
     for (const k of Object.keys(CROPS)) if (m.has(CROPS[k].seed)) grew = put(CROPS[k].prod, 'harvested') || grew;
-    for (const skill of Object.keys(ARTISAN_RECIPES)) {
-      for (const r of ARTISAN_RECIPES[skill] || []) {
-        const outs = recipeOutcomes(r).filter((id) => !m.has(id));
-        if (!outs.length) continue;
-        const need = Object.keys(recipeInputs(r)).concat(r.gated ? [r.gated] : []);
-        if (need.every((id) => m.has(id))) for (const id of outs) grew = put(id, 'made by ' + skill) || grew;
-      }
-    }
-    /* a job recipe (src/data/trades.js jobFaces; hr_trade_job_start): its face is made by its trade once every input is reachable */
+    /* a job recipe (src/data/trades.js jobFaces; hr_trade_job_start): its face is made by its trade once every input is reachable. The
+       hearth's fuel runs (recipes.js, the one artisan row left) make no item */
     for (const j of jobFaces()) {
       if (j.output && !m.has(j.output) && j.inputs.every((id) => id && m.has(id))) grew = put(j.output, 'made by ' + j.trade) || grew;
-    }
-    /* a step tier's made piece (slot-ladders.js STEP_MADE): its job joins the bench the day its part is served (recipes.js), so it is a door
-       wherever its inputs are reachable, the staged home's part included when the planned door opens it */
-    for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) {
-      if (!m.has(r.output) && Object.keys(r.inputs).every((id) => m.has(id))) grew = put(r.output, 'made by ' + skill) || grew;
     }
   }
   return m;
@@ -339,6 +342,8 @@ export function plannedDoors(except) {
     if (!f.open || fate === except) continue;
     if (f.open.grounds) out.grounds = f.open.grounds;
     if (f.open.premium) out.premium = true;
+    if (f.open.traitCraft) out.traitCraft = true;
+    if (f.open.jobFind) out.jobFind = true;
   }
   return out;
 }
@@ -367,12 +372,11 @@ export function recipeInputs(r) {
 /** id -> [source labels]. */
 export function itemSources() {
   const m = new Map();
-  addSet(m, gatherProductIds(), 'gathered');
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  /* a step tier's made piece whose job waits for its home's pack (recipes.js servedMade): the bench is its door all the same */
-  for (const [skill, list] of Object.entries(STEP_MADE)) for (const r of list) push(m, r.output, 'made by ' + skill);
+  /* the Trait craft's bases (slot-ladders.js STEP_TRAIT_BASES): a door on paper until Artificing's Trait craft ships (UNREACHABLE.traitBase) */
+  addSet(m, STEP_TRAIT_BASES, TRAIT_CRAFT_DOOR);
   /* a job recipe's face (src/data/trades.js jobFaces): made by its trade (hr_trade_job_start, the job slice) */
   for (const j of jobFaces()) push(m, j.output, 'made by ' + j.trade);
   /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
@@ -424,17 +428,12 @@ export function itemUses() {
   /* a job recipe's inputs (src/data/trades.js jobFaces): spent by its trade's job; a made imbuement goes onto a worn piece (hr_imbue_apply) */
   for (const j of jobFaces()) for (const id of j.inputs) push(m, id, j.trade + ' job input');
   for (const j of IMBUE_JOBS) push(m, j.face, 'imbued onto a worn piece');
-  /* the Hallmark step (src/data/jewelry.js, hr_hallmark): a Fine piece and its tier's gem make the Hallmarked row */
-  for (const o of HALLMARK_OFFERS) { push(m, o.from, 'Hallmarked at the jeweler'); push(m, o.gem, 'pays for a Hallmark'); }
-  /* the jewel reforge (hr_jewel_reforge): a Hallmarked piece, the next tier's bars and gem make that tier's Hallmarked row */
-  for (const o of REFORGE_OFFERS) { push(m, o.from, 'reforged at the jeweler'); push(m, o.gem, 'pays for a reforge'); push(m, o.metal, 'pays for a reforge'); }
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');
   for (const id of Object.keys(ITEMS)) {
     const it = ITEMS[id] || {};
     if (EQUIP_TYPES[it.type] || it.slot) push(m, id, 'worn');
-    if (it.type === 'tool' && it.toolSkill && SKILLS_DEF[it.toolSkill]) push(m, id, it.toolSkill + ' tool');
     if (Number(it.heals) > 0 || it.buff) push(m, id, 'eaten');
     if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
@@ -480,10 +479,7 @@ export function skillConsumers() {
       if (u.length) push(m, skill, id + ' -> ' + u[0]);
     }
   };
-  productsUsed(TREES.map((n) => n.prod), 'woodcutting');
-  productsUsed(ROCKS.map((n) => n.prod), 'mining');
-  productsUsed(FISH_SPOTS.map((n) => n.prod), 'fishing');
-  productsUsed(Object.keys(CROPS).map((k) => CROPS[k].prod), 'farming');
+  /* (the gathering and bench skills left SKILLS_DEF with the cut: a trade's consumers are its jobs' goods, tests/kit-recipes.mjs KR-SOURCE) */
   for (const skill of Object.keys(ARTISAN_RECIPES)) {
     productsUsed([...artisanOutputIds(skill)], skill);
   }

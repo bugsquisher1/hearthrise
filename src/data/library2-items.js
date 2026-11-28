@@ -294,7 +294,6 @@ export const LIB2_DESC = {
        when that indicator lands. */
 
   coarse_whetstone: 'A rough stone from a field. It\'ll sharpen anything, just not very well',
-  copper_whetstone: 'A whetstone bound in copper. It\'s the first one worth keeping in your bag',
   iron_whetstone: 'An iron-backed whetstone with a groove worn down its center',
   steel_whetstone: 'A fine-grained whetstone for steel blades. It leaves an edge sharp enough to shave with',
   mithril_whetstone: 'A pale whetstone that barely wears the blade down but makes it a lot sharper',

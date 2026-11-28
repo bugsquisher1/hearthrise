@@ -43,7 +43,8 @@
 //     done       a fact kind (FACTS), or { kind: 'any', of: [...] }
 //
 // FACTS (src/session/tutorial-sections.js tutorialFactsOf; a field the server has not sent is null or absent):
-//   levelXp, charLevel, skillLevel, benchLevel (the best bench skill's level), skillXp { skill: xp }, huntId (the open hunt), visited (Set of hunts the
+//   levelXp, charLevel, skillLevel, benchLevel (the company's best trade Level), skillXp { skill: xp }, tradeXp { trade: xp } (the company's
+//   trade XP, the server's trade_jobs.trades: Cooking, Farming and the rest are trades since the bench cut), huntId (the open hunt), visited (Set of hunts the
 //   server has seen this hero in), unitKinds, inParty, partied (a party personal best on any ground), self (slot),
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
@@ -75,7 +76,8 @@ import { PARTY } from './party.js';
 import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js';
 import { nextUnlock } from './skill-unlocks.js';
 import { SKILLS_DEF } from './skills.js';
-import { CROPS, TREES, ROCKS, FISH_SPOTS } from './gathering.js';
+import { CROPS } from './gathering.js';
+import { KIT_RECIPES, TRADES, faceOf } from './trades.js';
 import { tallyTask } from './tally-tasks.js';
 import { ITEMS } from './items.js';
 import { BASIC_INDEX } from './supply-basics.js';
@@ -87,7 +89,6 @@ import { ABILITIES, abilitySkill, partyOnly } from './abilities.js';
 import { skillLevelFromXp } from '../core/xp.js';
 import { CONSUMABLES } from './consumables.js';
 import { RUNE_FAMILIES } from './runes.js';
-import { ARTISAN_RECIPES } from './recipes.js';
 import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js';
 import { HEARTH_FUELS } from './hearth.js';
@@ -107,7 +108,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   hunt_topbar: anchor('Leave hunt (HUNT_SCREEN_SPEC §1.4 hunt-topbar.js)'),
   action_bar: anchor('the bar slot the card names (src/shell/widgets/action-bar.js), then Configure action\'s Save, shown in town too', 'configure-action'),
   farm: anchor('the Farm (src/shell/windows/farm.js), its icon, an empty plot\'s Plant, then ring.crop\'s Plant', 'farm', true),
-  crafting: anchor('Gathering and crafting (src/shell/windows/work.js), its icon, ring.skill, then ring.work\'s Start', 'skills-trade', true),
+  /* the Work window's Jobs list (the bench cut, 09-crafting 4.17): ring.job is a kit recipe id (src/data/trades.js KIT_RECIPES), ring.count the sets */
+  crafting: anchor('Work (src/shell/windows/work.js), its icon, its Jobs list, then ring.job\'s Start', 'skills-trade', true),
   tally: anchor('Tamsin\'s tally (src/shell/windows/tally.js), her icon, the armor weight, then ring.task\'s Take', 'tally', true),
   inventory: anchor('the bag (src/shell/windows/inventory), its icon, then the control the card names', 'inventory', true),
   shop: anchor('the Shop (src/shell/windows/shop.js), its icon, the Sell tab, then Sell all junk', 'shop', true),
@@ -200,11 +202,8 @@ const DAY_ONE_LEVEL = 7;
 const FUEL_CARD_AT = 10;
 /* The everyday fuels a hero at Inner Flame 1 can burn (hearth.js HEARTH_FUELS: Bones and the family fuels). */
 const FIRST_FUELS = Object.freeze(HEARTH_FUELS.filter((x) => x.req <= 1).map((x) => x.item));
-/* The first-hour rung and the pelts its stitch takes (slot-ladders.js), read from the rows, never restated. */
-const CLOAK = ITEMS.graypelt_cloak;
-const CLOAK_PELTS = ((ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak') || { inputs: {} }).inputs.wolf_pelt;
-/* The club hero's first bench job (style-gear.js, Tyler 2026-11-03), read from its row. */
-const CLUB_REFORGE = (ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
+/* A job's kit recipe row by its face (src/data/trades.js KIT_RECIPES): the lowest band's, the one a new hero works first. */
+const jobFor = (item) => KIT_RECIPES.filter((r) => faceOf(r.kind, r.band) === item).sort((a, b) => a.band - b.band)[0] || null;
 /* Eat on time: Configure action's − and + move an HP condition in 5% steps (configure-action.js nudge), and the card
    never asks a hero to eat below the designer's 50%. */
 const PCT_STEP = 5, EAT_FLOOR_PCT = 50;
@@ -452,10 +451,11 @@ export const HUNT_TUTORIAL = Object.freeze([
     'inventory', { kind: 'any', asks: true, of: [READ, { kind: 'loot_rule' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow: 'Press This hunt, then set one item to Sell',
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
+  /* THE KIT'S SHRIMP ARE A JOB (the bench cut, 09-crafting 4.17): Cook Shrimp in the Work window's Jobs list, one raw shrimp a set */
   step('cook_catch', 'Cook your catch',
-    'Gathering and crafting → Cooking → Cook Shrimp',
-    'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
-      inWindow: 'Press Cooking, then Start on Cook Shrimp' }),
+    'Work → Jobs → Cook Shrimp',
+    'crafting', orGotIt({ kind: 'trade_xp', trade: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { job: 'meal_b0' },
+      inWindow: 'Press Jobs, then Start on Cook Shrimp' }),
   /* A PARTY GOES BELOW BEFORE THE WOLVES (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer opens at the Thicket's floor and a four there earns
      about 1.6x the same heroes alone in the Thicket, so a hero in a party at 5 meets this card where a hero alone meets Tamsin's wolves (a party card is never on a
      solo hero's way). Hunting the Sewer is past the Thicket on the road, so the wolves' cards behind it pass by. */
@@ -481,24 +481,16 @@ export const HUNT_TUTORIAL = Object.freeze([
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),
   /* ── F. Day one: each waits for the chain, then starts on its own fact ── */
   step('harvest_juice', 'Turnips are ready',
-    'Harvest on the Farm, then cook Turnip Juice',
+    'Harvest on the Farm, then press Turnip Juice',
     'farm', { kind: 'juice_made' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'turnips' }] }),
   step('juice_slot', 'Drink your own juice',
     'Put Turnip Juice in a slot before store juice',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
-  /* KLAPPA'S KLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
-     is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. The bench spends the bag's
-     club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag (SAY). */
-  step('klappas_club', 'Klappa\'s Klub',
-    t('coach.club_make', { recipe: CLUB_REFORGE ? CLUB_REFORGE.name : 'Reforge Klappa\'s Klub' }),
-    'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
-      when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
-      hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
+  /* (KLAPPA'S KLUB DROPS since the bench cut: a Gray Whelp's Scarce row in the Thicket, worn by the Equip upgrades card like any drop) */
   /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
      speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
-     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Klub, one card at a time: the club has a job in it and a Level on it, and the gold
-     keeps. */
+     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. */
   step('purse_goal', 'Spend your gold',
     t('coach.purse_goal'),
     'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
@@ -509,14 +501,9 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Gather logs and ore for your first house',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }] }),
   step('own_runes', 'Make your own runes',
-    'Mine Rune Essence, then bind runes in Runecrafting',
+    'Work → Jobs → Mine Rune Essence, then cut Blank Runes and your runes',
     'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'rune_unowned' }] }),
-  /* The first-hour rung (slot-ladders.js graypelt_cloak): at its Level with the pelts in the bag, the card rings the
-     recipe. Finished by any Crafting XP (a fresh hero has none: the cloak is most heroes' first craft). */
-  step('stitch_cloak', 'Stitch a cloak',
-    'Gathering and crafting → Crafting → Stitch Graypelt Cloak',
-    'crafting', { kind: 'skill_xp', skill: 'crafting' }, { reactive: true, dayOne: true, ring: { skill: 'crafting', work: 'stitch_graypelt_cloak' },
-      when: [IN_TOWN, { kind: 'level_at', at: CLOAK.reqLv }, { kind: 'carries', item: 'wolf_pelt', n: CLOAK_PELTS }] }),
+  /* (the Graypelt Cloak drops since the bench cut: a Gray Wolf's Scarce row in the Thicket, worn by the Equip upgrades card) */
   step('bless_paid', 'Blessings cost gold now',
     'Shop → Services → Bless',
     'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'can_die' }, { kind: 'at_free' }, { kind: 'unblessed' }],
@@ -647,6 +634,8 @@ const past = (h, hunt) => { const a = HUNT_INDEX[h].band, b = HUNT_INDEX[hunt].b
 const reached = (facts, hunt, onlyPast) => been(facts).some((h) => (!onlyPast && h === hunt) || past(h, hunt));
 /* A skill's XP as the server said it (a skill it did not list is 0), or null when it sent no skills. */
 const xpIn = (facts, skill) => (facts.skillXp ? Number(facts.skillXp[skill]) || 0 : null);
+/* A trade's XP, the company's, as the server said it (trade_jobs.trades), or null when it sent none. */
+const tradeXpIn = (facts, trade) => (facts.tradeXp ? Number(facts.tradeXp[trade]) || 0 : null);
 const known = (v, fn) => (v === null || v === undefined ? null : fn(v));
 /* Tamsin's tasks this hero holds or was paid for in the last day (the server's `tally` section), or null when the facts carry no rows. */
 const tallyTasks = (f) => (f.tally && f.tally.tasks ? [...Object.keys(f.tally.tasks), ...(f.tally.paidTasks || [])].filter((id) => tallyTask(id)) : null);
@@ -693,13 +682,14 @@ const FACTS = Object.freeze({
      is not a wall), or it has farmed past one harvest's XP (it knows the field; sticky, so a later bare plot never walls
      the chain). Land not sent: as before. */
   planted: (p, f) => {
-    const crop = CROPS[p.crop], xp = xpIn(f, 'farming');
+    const crop = CROPS[p.crop], xp = tradeXpIn(f, 'farming');
     if (f.land && Number.isInteger(f.land.empty) && crop) {
       return f.land.empty === 0 || (xp !== null && xp >= crop.xp) || !f.bag || !(f.bag[crop.seed] > 0);
     }
     return (xp === null && f.landPlanted == null) || xp > 0 || f.landPlanted === true;
   },
   skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),
+  trade_xp: (p, f) => known(tradeXpIn(f, p.trade), (xp) => xp > 0),
   turnips: (p, f) => (f.land == null && f.bag == null ? null : !!(f.land && f.land.ready && f.land.ready.turnip > 0) || !!(f.bag && f.bag.turnip > 0)),
   juice_made: (p, f) => (f.bag == null ? null : f.bag.turnip_juice > 0 || FACTS.drink_slot({ item: 'turnip_juice' }, f) === true),
   home_unowned: (p, f) => known(f.home, (h) => !h.owned && !!h.next),
@@ -747,8 +737,6 @@ const FACTS = Object.freeze({
   loot_sold: (p, f) => known(f.sellable, (n) => n === 0),
   loot_rule: (p, f) => known(f.lootRules, (r) => Object.values(r).some((v) => v === 'sell' || v === 'deposit')),
   weapon_changed: (p, f) => known(f.weapon, (w) => w !== START_EQUIPMENT.weapon),
-  /* this weapon in hand, or hands empty with it or what it is made into in the bag (taken off to reforge: the bench spends the bag's) */
-  club_hand: (p, f) => (f.weapon === undefined || !f.carried ? null : f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))),
   wields: (p, f) => (f.weapon === undefined ? null : f.weapon === p.item),
   /* worn armor or a shield, the pieces Defense trains in (core/vitals.js wearsArmour over the server's worn set) */
   armoured: (p, f) => known(f.armoured, (a) => a === true),
@@ -805,9 +793,9 @@ const FACTS = Object.freeze({
   /* a press the shell recorded (Got it), or a reactive card on screen long enough to read */
   read: (p, f, c) => (f.read instanceof Set ? f.read.has(c.id) : null),
 });
-const PARAMS = Object.freeze({ card_read: ['card'], tally_counted: ['task'], tally_idle: ['task'], tally_paid_for: ['task'], in_hunt: ['hunt'], lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
+const PARAMS = Object.freeze({ card_read: ['card'], tally_counted: ['task'], tally_idle: ['task'], tally_paid_for: ['task'], in_hunt: ['hunt'], lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'], trade_xp: ['trade'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
-  carries: ['item'], club_hand: ['item', 'made'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
+  carries: ['item'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
 /* One fact as true / false / null; `any` is true once one is, null when none is and one is unknown. */
 function judge(d, f, c) {
@@ -840,10 +828,10 @@ export function validate(rows = HUNT_TUTORIAL) {
     if (d.kind === 'kills' && d.atLeast !== 1) bad('kills: the server only tells the first kill (Level XP > 0), so atLeast must be 1');
     if (d.kind === 'ended' && !END_ORDER.includes(d.reason)) bad('end reason ' + d.reason + ' is not in END_ORDER');
     if (d.kind === 'skill_xp' && !SKILLS_DEF[d.skill]) bad('skill ' + d.skill + ' is not a skill');
+    if (d.kind === 'trade_xp' && !Object.prototype.hasOwnProperty.call(TRADES, d.trade)) bad('trade ' + d.trade + ' is not a trade');
     if (['tally_taken', 'tally_counted', 'tally_idle', 'tally_paid_for'].includes(d.kind) && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
     if (d.kind === 'tally_paid' && d.task !== undefined && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
-    if (['drink_slot', 'carries', 'club_hand', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
-    if (d.kind === 'club_hand' && !ITEMS[d.made]) bad('club_hand made ' + d.made + ' is not an item');
+    if (['drink_slot', 'carries', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
     if (d.kind === 'card_read' && !rows.some((x) => x.id === d.card)) bad('card_read card ' + d.card + ' is not a card');
     if (d.kind === 'pull') {
       const gr = HUNT_GROUNDS[d.ground];
@@ -862,7 +850,8 @@ export function validate(rows = HUNT_TUTORIAL) {
     const g = r.ring || {};
     if (g.item && !ITEMS[g.item]) bad('ring item ' + g.item + ' is not an item');
     if (g.crop && !CROPS[g.crop]) bad('ring crop ' + g.crop + ' is not a crop');
-    if (g.skill && !SKILLS_DEF[g.skill]) bad('ring skill ' + g.skill + ' is not a skill');
+    if (g.skill || g.work) bad('ring skill and work are the cut bench\'s: ring a job (ring.job, a src/data/trades.js KIT_RECIPES id)');
+    if (g.job && !KIT_RECIPES.some((k) => k.id === g.job)) bad('ring job ' + g.job + ' is not a kit recipe');
     if (g.task && !tallyTask(g.task)) bad('ring task ' + g.task + ' is not one of Tamsin\'s tasks');
     checkFact(bad, r.done, 'done');
     for (const w of r.when || []) checkFact(bad, w, 'when');
@@ -1069,22 +1058,16 @@ const SAY = Object.freeze({
     return { text: t('coach.fuel_hearth', { fuel: name(top[0]) }), textIn: t('coach.fuel_hearth_in', { fuel: name(top[0]) }), fuel: top[0] };
   },
   harvest_juice: (f) => {
-    const juice = (ARTISAN_RECIPES.cooking || []).find((r) => r.output === 'turnip_juice');
+    const juice = jobFor('turnip_juice');
     if (!juice) return null;
-    /* Harvested, the way is the bench: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
+    /* Harvested, the way is the job: the ring stayed on the Farm, whose window then showed "Cook your turnips" over a field with nothing left to press (door panel 2026-11-04). */
     const ready = f.land && f.land.ready && f.land.ready.turnip > 0;
-    return ready ? { text: t('coach.harvest_ready') } : { text: t('coach.harvest_cook', { recipe: juice.name }), anchor: 'crafting', ring: { skill: 'cooking', work: juice.id } };
+    return ready ? { text: t('coach.harvest_ready') } : { text: t('coach.harvest_cook', { recipe: juice.name }), anchor: 'crafting', ring: { job: juice.id } };
   },
   juice_slot: (f) => {
     if (!(f.carried && f.carried.turnip_juice > 0)) return null;
     const st = slotOf(f, (s) => isStore(s) && BASIC_INDEX[s.id].kind === 'mana' && below(s, 'self_mana_pct') !== null);
     return st < 0 ? { text: t('coach.juice_slot', { item: name('turnip_juice') }) } : { text: t('coach.juice_slot_before', { item: name('turnip_juice'), slot: slotWords([st]) }), barSlot: st };
-  },
-  /* The bench spends the bag's club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag. */
-  klappas_club: (f) => {
-    if (!CLUB_REFORGE || !name('klappas_club')) return null;
-    return f.carried && f.carried.klappas_club > 0 ? { text: t('coach.club_equip', { club: name('klappas_club') }), anchor: 'inventory' }
-      : { text: t('coach.club_make', { recipe: CLUB_REFORGE.name }) };
   },
   /* the hero and the House; unstated with no offer */
   purse_goal: (f) => {
@@ -1097,25 +1080,14 @@ const SAY = Object.freeze({
     /* the first material still short, with its count; all in the bag: the House's Buy */
     const need = deed.items.map((x) => ({ ...x, have: (f.bag && f.bag[x.id]) || 0 })).find((x) => x.have < x.qty);
     if (!need) return { text: t('coach.home_buy', { deed: deed.name }) };
-    /* A GATHERED MATERIAL IS A JOB WITH A COUNT (plan L08): the card rings its node's Start in Gathering and crafting with the count
-       still short set on the row (windows/work.js reads ring.count), and the job ends there with the hero waiting in town. */
-    const node = gatherNodeFor(need.id);
+    /* A MADE MATERIAL IS A JOB WITH A COUNT (plan L08; the bench cut): the card rings the job that makes it in the Work window's Jobs
+       list with the count still short set on the row (windows/work.js reads ring.count), and the job ends there with the hero waiting in town. */
+    const job = jobFor(need.id);
     const n = need.qty - need.have;
-    if (node) return { text: t('coach.home_job', { verb: node.verb, n, item: name(need.id) }), anchor: 'crafting', ring: { skill: node.skill, work: node.id, count: n } };
+    if (job) return { text: t('coach.home_job', { verb: job.name.split(' ')[0], n, item: name(need.id) }), anchor: 'crafting', ring: { job: job.id, count: n } };
     return { text: t('coach.home_gather', { item: name(need.id), have: need.have, qty: need.qty }) };
   },
 });
-
-/* The lowest gathering node that yields `item` ({ id, skill, verb }), or null: the one a new hero can work first. */
-/** @type {ReadonlyArray<[string, ReadonlyArray<{ id: string, prod: string, req?: number }>, string]>} */
-const GATHER_ROWS = Object.freeze([['woodcutting', TREES, 'Chop'], ['mining', ROCKS, 'Mine'], ['fishing', FISH_SPOTS, 'Catch']]);
-function gatherNodeFor(item) {
-  let best = null;
-  for (const [skill, rows, verb] of GATHER_ROWS) {
-    for (const r of rows) if (r.prod === item && (!best || (r.req || 1) < best.req)) best = { id: r.id, skill, verb, req: r.req || 1 };
-  }
-  return best;
-}
 
 /* The card as stated from the facts ({ text, barSlot?, store?, other? }), or null when it cannot be stated truly. */
 function stated(card, facts) {
@@ -1275,21 +1247,6 @@ function firstNamed(list) {
 /* The ground's advice row as the Hunts list reads it. */
 const adviceRow = (hunt) => ({ hunt, band: HUNT_INDEX[hunt].band, groupFit: partyGround(hunt) ? 'party' : (Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt) || {}).groupFit });
 
-/* { piece, skill } for the gear piece worn at Level `lv` named `first` when a bench makes it and the role wears it ("Houndskin Cloak, made in
-   Crafting": a made piece no line said how to get was a goal with no way, lane/b-first-hour), or null. */
-function madeWords(lv, first, role) {
-  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
-    for (const r of list || []) {
-      const it = r.output ? ITEMS[r.output] : null;
-      if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || it.n !== first || (role && !wornByRole(r.output, role))) continue;
-      const ins = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}));
-      if (!ins.length || !SKILLS_DEF[skill] || ins.some(([id]) => !name(id))) continue;
-      return { piece: it.n, skill: SKILLS_DEF[skill].name, req: r.req || 1 };
-    }
-  }
-  return null;
-}
-
 /**
  * WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17, about 41k: eight sentences, the Farm first, the third hero not named at all; blind 20-hour panel: "What next is a five-sentence paragraph"):
  * every goal that holds, in order of what is worth doing first, the first of them the card's words and the rest behind its More. The order: what is wrong now (no armor), a hero already paid for, a
@@ -1375,13 +1332,9 @@ export function nextGoal(facts) {
   const gear = nextUnlock(LEVEL_REQ, facts.charLevel, role ? (id) => wornByRole(id, role) : null);
   const gat = /^Next at level (\d+): /.exec(gear);
   if (gat) {
-    /* A piece that line names and a bench makes: where and from what (the Graypelt Cloak, lane/b-first-hour: a made
-       piece no line said how to get was a goal with no way). The first such piece only. */
+    /* (gear drops: no bench makes a piece since the cut, so the line never says "made in") */
     const named = firstNamed(gear.slice(gat[0].length));
-    const made = madeWords(Number(gat[1]), named.first, role);
-    /* a bench rung above 1 says its level (lane/b-core-loop-20h, played: a Level 12 tank read the shield's recipe with Smithing 1 and no word that the bench wants 15) */
-    const madeKey = made ? (made.req > 1 ? 'coach.goal_gear_made_at' : 'coach.goal_gear_made') : 'coach.goal_gear';
-    lines.push(t(madeKey, { level: gat[1], gear: made ? named.first : named.words, ...(made ? { skill: made.skill } : {}), ...(made && made.req > 1 ? { req: made.req } : {}) }));
+    lines.push(t('coach.goal_gear', { level: gat[1], gear: named.words }));
     ids.push('gear', gat[1]);
   }
   /* The ground ahead that nothing above has named and this hero has not walked. */

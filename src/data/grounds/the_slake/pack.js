@@ -206,7 +206,7 @@ export default definePack({
      hour, drop-tables). */
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'iron_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE PACK'S TEST FACTS. dropRef: a lone tank at the floor in the full own-tier set. valueToday is that hour's measured value
      (12,160 g: coin 8,679, commons 943, gear 2,539), pinned once. It was 8,813 before one difficulty paid a lone hero the whole kill. */

@@ -10,7 +10,8 @@
 // from smoke.yml and each suite's own MUTANTS literal:
 //
 //   PMS-1  every mutant of a sharded suite runs in exactly one --mutate shard, all cut one way, no shard empty
-//   PMS-2  every suite that deals with tests/_mutant-shard.mjs has a measured row below (so PMS-1 and PMS-5 read it)
+//   PMS-2  every suite that deals with tests/_mutant-shard.mjs has a measured row below (so PMS-1 and PMS-5 read it), and
+//          each row's suite deals its own MUTANTS literal with mutantShard (the list and the rule this check counts)
 //   PMS-3  this check itself runs exactly once
 //   PMS-4  a job that holds a shard runs only that suite (its plain run and its shards), so its booking is its whole time
 //   PMS-5  a job that holds a shard is booked at most 75% of its timeout-minutes
@@ -96,13 +97,18 @@ function commandsOf(jobs, suites) {
  * The verdict on parsed jobs: { problems: [{ rule, message }], rows }. Pure. `names` maps a guard to its mutant names,
  * `pick` is the dealing rule and `dealt` the suites that deal with the helper (each planted wrong below).
  */
-function planOf(jobs, { suites = SUITES, names, pick = shardOf, dealt }) {
+function planOf(jobs, { suites = SUITES, names, pick = shardOf, dealt, sources }) {
   const problems = [];
   const fail = (rule, message) => problems.push({ rule, message });
   const cmds = commandsOf(jobs, suites);
   const where = (c) => `${c.sh ? `${c.sh.k}/${c.sh.n}` : 'unsharded'} in ${c.job}`;
 
   for (const g of dealt) if (!suites.some((x) => x.guard === g)) fail('PMS-2', `${g} deals its mutants with tests/${HELPER} but has no measured row in ${SELF} SUITES: add one from a full run's log`);
+  /* The suite deals the very literal this check reads, with the very rule: `mutantShard('<guard>', MUTANTS)`. */
+  for (const su of suites) {
+    const at = new RegExp(`\\bmutantShard\\(\\s*'${su.guard.replace(/[.]/g, '\\.')}'\\s*,\\s*MUTANTS\\s*[,)]`);
+    if (!at.test(sources.get(su.guard) || '')) fail('PMS-2', `${su.guard} does not deal its MUTANTS with mutantShard('${su.guard}', MUTANTS) (tests/${HELPER}): its shards may not be the ones this check counts`);
+  }
 
   for (const su of suites) {
     const all = names.get(su.guard);
@@ -142,7 +148,7 @@ function planOf(jobs, { suites = SUITES, names, pick = shardOf, dealt }) {
     }
     const booked = s / 60;
     const share = Number.isFinite(j.timeoutMinutes) ? booked / j.timeoutMinutes : Infinity;
-    rows.push({ job: j.name, holds: ours.map((c) => `${c.guard.replace(/^tests\/|\.mjs$/g, '')} ${c.kind === 'plain' ? 'plain' : `${c.sh.k}/${c.sh.n}`}`).join(' + '), booked, timeout: j.timeoutMinutes, share });
+    rows.push({ job: j.name, holds: ours.map((c) => `${c.guard.replace(/^tests\/|\.mjs$/g, '')} ${c.kind === 'plain' ? 'plain' : c.sh ? `${c.sh.k}/${c.sh.n}` : 'all'}`).join(' + '), booked, timeout: j.timeoutMinutes, share });
     if (!(share <= BUDGET_SHARE)) {
       fail('PMS-5', `${j.name} is booked ${booked.toFixed(1)} min of timeout-minutes ${j.timeoutMinutes}, over ${BUDGET_SHARE * 100}%: add a shard `
         + '(the K/N in the suite\'s ci-step headers, a job for the new one, then node tests/ci-shape.mjs --write)');
@@ -155,13 +161,16 @@ let bad = 0;
 const ok = (label, cond) => { console.log(`  ${cond ? 'ok   ' : 'FAIL '} ${label}`); if (!cond) bad++; };
 
 console.log('\nPAGE MUTANT SHARDS (smoke.yml)\n');
-let jobs; const names = new Map(); let dealt;
+let jobs; const names = new Map(); const sources = new Map(); let dealt;
 try {
   jobs = parseWorkflow(readFileSync(WORKFLOW, 'utf8'));
-  for (const su of SUITES) names.set(su.guard, mutantNames(su.guard));
+  for (const su of SUITES) {
+    sources.set(su.guard, readFileSync(join(ROOT, su.guard), 'utf8'));
+    names.set(su.guard, mutantNames(su.guard, sources.get(su.guard)));
+  }
   dealt = dealers();
 } catch (e) { console.error(`  HARNESS: ${e.message}`); process.exit(2); }
-const real = planOf(jobs, { names, dealt });
+const real = planOf(jobs, { names, dealt, sources });
 for (const r of real.rows) {
   console.log(`  ..    ${r.job.padEnd(12)} ${r.holds.padEnd(44)} ${r.booked.toFixed(1).padStart(5)} of ${r.timeout} min (${Math.round(r.share * 100)}%)`);
 }
@@ -179,7 +188,7 @@ const copy = () => JSON.parse(JSON.stringify(jobs));
 const runsOf = (js, guard, kind) => commandsOf(js, SUITES).filter((c) => c.guard === guard && c.kind === kind);
 const stepOf = (js, cmd) => js.flatMap((j) => j.steps).find((s) => s.run.includes(cmd));
 const drop = (js, cmd) => { const s = stepOf(js, cmd); s.run = s.run.filter((x) => x !== cmd); return js; };
-const judge = (js, o = {}) => planOf(js, { names, dealt, ...o });
+const judge = (js, o = {}) => planOf(js, { names, dealt, sources, ...o });
 const planted = [];
 for (const { guard } of SUITES) {
   const g = guard.replace(/^tests\//, '');
@@ -196,11 +205,14 @@ for (const { guard } of SUITES) {
     [`${g}: another guard in a shard's job`, 'PMS-4', () => {
       const js = copy(); stepOf(js, runsOf(js, guard, 'mutate')[0].cmd).run.push('node tests/zz-planted.mjs'); return judge(js);
     }],
+    [`${g}: the suite deals its shards some other way`, 'PMS-2', () => {
+      const s = new Map(sources); s.set(guard, sources.get(guard).replace(/\bmutantShard\(/g, 'ownShard(')); return judge(copy(), { sources: s });
+    }],
     [`${g}: a shard's job given a 10-minute timeout`, 'PMS-5', () => {
       const js = copy(); js.find((j) => j.name === runsOf(js, guard, 'mutate')[0].job).timeoutMinutes = 10; return judge(js);
     }],
     [`${g}: the mutant list grown to three times its length`, 'PMS-5', () => {
-      const n = new Map(names); n.set(guard, [0, 1, 2].flatMap((i) => names.get(guard).map((x) => `${x} #${i}`))); return planOf(copy(), { names: n, dealt });
+      const n = new Map(names); n.set(guard, [0, 1, 2].flatMap((i) => names.get(guard).map((x) => `${x} #${i}`))); return judge(copy(), { names: n });
     }],
   );
 }

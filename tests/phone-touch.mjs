@@ -11,6 +11,15 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
+// TWO SHARDS (lane/ci-inpage-shard, 2026-11-28). In in-page-40 the plain run took 5.8 min, then --mutate a 5.8 min clean control
+// and 156 mutants in 20.2 (each on its own pages, BLOCKS_OF): 34.7 of the job's 45 on run 46132371081. Half the mutants stay
+// beside the plain run, about 25 min; the other half have a job of their own, about 19 min, x2 = 39.
+// ci-step: in-page-40 | Phone touch, the rules and mutants shard 1 of 2 (play.html)
+// ci-run: node tests/phone-touch.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=1/2
+// ci-step: in-page-57 | Phone touch, mutants shard 2 of 2 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=2/2
+//
 // mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher-coach.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: huntsWholeRows bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules

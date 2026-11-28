@@ -10,6 +10,15 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
+// TWO SHARDS (lane/ci-inpage-shard, 2026-11-28). --mutate was 47 mutants at 47-62 s each (one 117 s), 40.5 min in one command,
+// and in-page-25 ran 50.8 of its 55 min on run 46138211972. Each shard has a job of its own: about 25 min, x2 = 51.
+// ci-step: in-page-25 | Character window (play.html)
+// ci-run: node tests/character-window.mjs
+// ci-step: in-page-55 | Character window, mutants shard 1 of 2 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/character-window.mjs --mutate --shard=1/2
+// ci-step: in-page-56 | Character window, mutants shard 2 of 2 (play.html)
+// ci-run: node tools/mutant-gate.mjs node tests/character-window.mjs --mutate --shard=2/2
+//
 // mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/outfit-looks.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);

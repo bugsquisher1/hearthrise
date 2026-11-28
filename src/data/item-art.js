@@ -378,4 +378,8 @@ export const FACTION_ART = Object.freeze(['first_flame', 'last_ember',
    CHEST_OUTFITS, lane/c-sweeps-coat-drop). */
 export const ITEM_ART_AHEAD = Object.freeze([
   'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin',
-  'pike_ferrule', 'rake_tine', 'warrant_seal', 'kennel_tag']);
+  'pike_ferrule', 'rake_tine', 'warrant_seal', 'kennel_tag',
+  /* the in-band Signatures (src/data/signatures.js; the id is the piece's item id), drawn by tools/world-art/signature-icons.mjs
+     (Art Director 2026-11-28) before S1's ITEMS rows land */
+  'bannermans_pavise', 'lock_keepers_chain', 'greened_bracers', 'slake_waders', 'stokers_ring', 'the_cold_candle',
+  'riverstone_earrings', 'the_cellar_key']);

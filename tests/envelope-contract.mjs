@@ -185,20 +185,11 @@ function contract(R, cs, body, tl) {
   // where a town skill's inputs come from (2027-01-24-skills-from-storage.sql): the bag, then the account's Storage
   need('skill_inputs', R.IS.drawsOnStorage(cs) === true && typeof R.IS.heldOf(cs) === 'object',
     'drawsOnStorage reads ' + JSON.stringify(body.skill_inputs) + ' (want {from: ["bag", "storage"]})');
-  // the work bench tax (2027-02-19-bench-tax.sql): what a public bench takes, the words before Start
-  // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
-  need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
-    'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
-  // the hero's work day and the company's trades (1059-company-trades.sql): the Work window's two lines
-  const wd = R.BT.workDayOf(cs);
-  need('work_day', !!wd && isNum(wd.capMs) && wd.capMs > 0 && isNum(wd.leftMs) && wd.leftMs <= wd.capMs && wd.trades.includes('mining'),
+  // (the bench tax, the bench run and the learned recipes have no client reader since the bench cut, 09-crafting 4.17, lane/bench-cut-client)
+  // the hero's work day (1059-company-trades.sql): the Work window's line
+  const wd = R.TJ.workDayOf(cs);
+  need('work_day', !!wd && isNum(wd.capMs) && wd.capMs > 0 && isNum(wd.leftMs) && wd.leftMs <= wd.capMs,
     'workDayOf yields ' + JSON.stringify(wd) + ' from ' + JSON.stringify(body.work_day).slice(0, 200));
-  // the recipes this hero has learned from a pattern (2026-09-14-recipe-learn.sql hr_recipes_of; src/data/patterns.js): the gated bench reads
-  // it, so a hero that read none is an EMPTY object (closed), never a missing key (null, read as closed too, but no longer the server's word)
-  const learned = R.BT.learnedRecipesOf(cs);
-  need('unlocked_recipes', !!learned && !!body.unlocked_recipes && typeof body.unlocked_recipes === 'object' && !Array.isArray(body.unlocked_recipes)
-    && JSON.stringify(learned) === JSON.stringify(body.unlocked_recipes),
-    'learnedRecipesOf reads ' + JSON.stringify(learned) + ' from ' + JSON.stringify(body.unlocked_recipes));
   // combat training (2027-04-16-combat-training.sql): the yard's four quotes at the server's fee and the house dummy's ladder; a hunter has no run
   const tr = R.TR.trainingOf(cs);
   need('training', !!tr && tr.skills.length === 4 && tr.maxHours > 0 && tr.run === null && tr.quotes.length === 4
@@ -290,10 +281,6 @@ function contract(R, cs, body, tl) {
     'temperStepsOf yields ' + JSON.stringify(R.IS.temperStepsOf(cs)) + ' from ' + JSON.stringify(body.temper_steps));
   need('imbues', body.imbues === null && R.IS.imbuesOf(cs) === null,
     'imbuesOf yields ' + JSON.stringify(R.IS.imbuesOf(cs)) + ' from ' + JSON.stringify(body.imbues));
-  // the Hallmark step (2027-03-14-jewelry-hallmark.sql): the offers for the Fine pieces held (none here), the account's count and the day's limit
-  const hm = R.JW.hallmarkOf(cs);
-  need('hallmark', !!hm && Array.isArray(hm.offers) && hm.offers.length === 0 && hm.today === 0 && hm.perDay >= 1,
-    'hallmarkOf yields ' + JSON.stringify(hm) + ' from ' + JSON.stringify(body.hallmark));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -335,11 +322,12 @@ function contract(R, cs, body, tl) {
     'huntBlockOf yields ' + JSON.stringify(tb) + ' from ' + JSON.stringify(body.time_blocks));
   /* The Game Master's section (2027-03-13-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
   need('gm', 'gm' in body && body.gm === null && R.CS.gmOf(cs) === false, 'gmOf yields ' + JSON.stringify(R.CS.gmOf(cs)) + ' from ' + JSON.stringify(body.gm));
-  /* The server switches on for this account (2027-03-21-feature-switches.sql): a list of ids, read by featureOn (the bench's dark jobs,
-     src/session/jewelry-sections.js jobShown). The chain as applied holds jewel_guarantees off, so no hero reads it on. */
+  /* The server switches on for this account (2027-03-21-feature-switches.sql): a list of ids, read by featuresOf (an item's uses behind a
+     switch, item-lore.js usesOf). The chain as applied holds jewel_guarantees off, so no hero reads it on. */
   const sw = body.features;
-  need('features', Array.isArray(sw) && sw.length > 0 && sw.every((x) => typeof x === 'string' && R.CS.featureOn(cs, x)) && !R.CS.featureOn(cs, 'jewel_guarantees'),
-    'featureOn reads ' + JSON.stringify((Array.isArray(sw) ? sw : []).map((x) => [x, R.CS.featureOn(cs, x)])) + ' from ' + JSON.stringify(sw));
+  const on = R.CS.featuresOf(cs);
+  need('features', Array.isArray(sw) && sw.length > 0 && sw.every((x) => typeof x === 'string' && on.includes(x)) && !on.includes('jewel_guarantees'),
+    'featuresOf reads ' + JSON.stringify(on) + ' from ' + JSON.stringify(sw));
   /* the Characters window's Rename (2026-12-04-hero-rename.sql): what a new name costs this hero now */
   const rn = R.IS.renameOf(cs);
   need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
@@ -505,8 +493,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), FT: await import(u('src/session/farm-tend.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')),
-    JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')), CO: await import(u('src/session/company-sections.js')), DG: await import(u('src/session/danger-sections.js')),
@@ -659,14 +646,11 @@ const DB_MUTANTS = [
   ['tally', 'public.hr_tally_section(uuid,integer)', "'per_day', cfg.paid_per_day,", "'perday', cfg.paid_per_day,"],
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
-  ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   /* lane/r12-company-trades: the Work window's work-day line reads cap_ms and left_ms (src/session/bench-sections.js workDayOf) */
   ['work_day', 'public.hr_work_day_view(uuid,integer)', "'left_ms', greatest(0, v_cap - v_t),", "'left', greatest(0, v_cap - v_t),"],
   /* lane/gold-per-hour: the Hunts window's gold line reads grounds (src/session/gold-estimate-sections.js goldEstimateOf) */
   ['gold_estimate', 'public.hr_gold_estimate_view(uuid,integer)', "jsonb_build_object('level', v_lv, 'grounds', v_out)", "jsonb_build_object('level', v_lv, 'ground', v_out)"],
   /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
-  ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
-  ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
   ['features', 'public.hr_features_view(uuid,integer)', 'jsonb_agg(f.switch_id order by f.switch_id)', "jsonb_agg(jsonb_build_object('id', f.switch_id) order by f.switch_id)"],
   /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
   ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],

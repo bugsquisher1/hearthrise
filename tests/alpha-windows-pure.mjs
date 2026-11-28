@@ -11,7 +11,7 @@
 //   node tests/alpha-windows-pure.mjs --mutate --shard=K/N   the Kth of N shards, balanced by measured seconds (CI splits them)
 //   node tests/alpha-windows-pure.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //
-// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/bag-model.js src/session/edge-intents.js src/shell/hunt-list.js src/shell/launcher-coach.js src/shell/upgrade-plan.js src/core/upgrade-pick.js src/shell/widgets/upgrade-line.js src/shell/town-work.js src/shell/hunt-ground-facts.js src/shell/hunt-go.js src/shell/alerts.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
+// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/bag-model.js src/session/edge-intents.js src/shell/hunt-list.js src/shell/launcher-coach.js src/shell/upgrade-plan.js src/core/upgrade-pick.js src/shell/widgets/upgrade-line.js src/session/hearth-sections.js src/shell/hunt-ground-facts.js src/shell/hunt-go.js src/shell/alerts.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tickerMutant, pureMutant)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -63,10 +63,12 @@ async function pure() {
   if (edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x')) fails.push('AW-0 edgeBody let a price field through');
   if (edgeBody(0, 'grant_gold', { qty: 1 }, 'x')) fails.push('AW-0 edgeBody built an unknown verb');
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');
-  /* AW-19: a gathering or crafting pointer the server holds gets the Stop line (every kind: party-ui PI-TOWN). */
+  /* AW-19: a fuel run the server holds gets the Stop line (every kind: party-ui PI-TOWN); since the bench cut (09-crafting 4.17) a gathering
+     pointer is no town work and gets none */
   const { buryLine } = await imp('src/shell/windows/inventory/bury.js');
-  if (buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) }) !== 'Mining the Copper Rock')
-    fails.push('AW-19 a gathering pointer gets no Stop line, so it would run unseen');
+  if (!/^Fueling the Great Hearth with Bones · 12 left$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: 'fuel_bones' } : k === 'inventory' ? { bones: 12 } : null) })))
+    fails.push('AW-19 a fuel run gets no Stop line, so it would run unseen');
+  if (buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) }) !== '') fails.push('AW-19 a gathering pointer reads as town work after the bench cut');
   if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
   /* BONES FEED THE GREAT HEARTH (ruling 2026-10-14; Brannoc 10-22: the tooltip said "Sell it at the shop" and Sell all
      loot sold them; Tyler 2026-10-25: Inner Flame replaces Prayer): an item a recipe spends without making anything is kept
@@ -95,20 +97,20 @@ async function pure() {
   if (!bones.some((l) => /^Great Hearth: trains Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   const knot = usesOf('den_knot');
   if (!knot.some((l) => /^Great Hearth: Inner Flame XP burst, fire burns deep amber for Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
-  /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
+  /* AW-20: what cooks is read off the job rows (no id list; 09-crafting 4.17: a job cooks it, no bench): the bag's Cook is a link to the
+     job's row in the Work window, and the raw food's tooltip names the job's trade and Level. */
   const { cookOf } = await imp('src/shell/bag-model.js');
-  const { buryRecipeOf, buryBlock, buryLabel } = await imp('src/shell/windows/inventory/bury.js');
-  const cooks = ['raw_wolf_meat', 'shrimp', 'turnip', 'wheat', 'cooked_wolf_meat', 'bones'].map((id) => (cookOf(id) ? cookOf(id).recipe.id : null));
-  if (cooks.join() !== 'cook_wolf_meat,cook_shrimp,cook_turnip,cook_wheat_bread,,') fails.push('AW-20 cookOf reads ' + cooks.join());
-  if (lootToSell([{ id: 'raw_wolf_meat', qty: 4 }, { id: 'rat_tail', qty: 1 }]).join() !== 'rat_tail') fails.push('AW-20 Sell all loot would sell the raw meat');
-  const meat = usesOf('raw_wolf_meat');
-  /* Cook Wolf Meat opens at Cooking 1 (designer 2026-11-11, lane/d-small-calls), so the level refusal is probed on Raw Panther Meat (Cooking 25). */
-  if (!meat.includes('Cookable (requires Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
-  const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
-  const wolf = buryRecipeOf('raw_wolf_meat'), panther = buryRecipeOf('raw_panther_meat');
-  const words = [buryBlock(cs(1, { raw_panther_meat: 3 }), panther), buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
-    buryBlock(cs(5, { raw_wolf_meat: 3 }, { active_kind: 'artisan', active_id: 'cook_shrimp' }), wolf), buryLabel(wolf, 3)];
-  if (words.join('|') !== 'Requires Cooking 25, now 1||Need 3 Wheat, have 2|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
+  const { cookTarget, buryRecipeOf, buryBlock, buryLabel } = await imp('src/shell/windows/inventory/bury.js');
+  const cooks = ['shrimp', 'trout', 'turnip', 'cooked_shrimp', 'bones'].map((id) => (cookOf(id) ? cookOf(id).id : null));
+  if (cooks.join() !== 'meal_b0,meal_b1,,,') fails.push('AW-20 cookOf reads ' + cooks.join());
+  const toJob = cookTarget('shrimp');
+  if (!toJob || toJob.win !== 'skills-trade' || toJob.find !== 'meal_b0' || cookTarget('bones') !== null) fails.push('AW-20 the bag\'s Cook goes to ' + JSON.stringify([toJob, cookTarget('bones')]));
+  if (!usesOf('shrimp').includes('Cookable (requires Cooking 1)') || !usesOf('trout').includes('Cookable (requires Cooking 11)')) fails.push('AW-20 the raw fish tooltips read ' + JSON.stringify([usesOf('shrimp'), usesOf('trout')]));
+  /* the Hearth refuses in words, from the server's level and bag */
+  const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { inner_flame: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
+  const bonesE = buryRecipeOf('bones');
+  const words = [buryBlock(cs(1, { bones: 3 }), bonesE), buryBlock(cs(1, { bones: 3 }, { active_kind: 'artisan', active_id: 'fuel_bones' }), bonesE), buryLabel(bonesE, 3), buryLabel(bonesE, 1)];
+  if (words.join('|') !== '|Already fueling the Great Hearth with Bones. Stop it first.|Burn all 3|Burn') fails.push('AW-20 the Hearth says ' + JSON.stringify(words));
   /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
   const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
@@ -135,31 +137,13 @@ async function pure() {
   if (Object.keys(under.ops).length) fails.push('AW-21 a Level-' + (IRON_LV - 1) + ' hero (Defense 99) would put on ' + ops(under));
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null, null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server Level Equip upgrades would put on ' + ops(blind));
-  /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
-     then the next two; a row refuses in words from the server's level and bag. */
-  if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock', count: 20, next: 'wait' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
-  /* ...and every job has an end (1026-job-counts.sql): a gathering node with no count, a THEN with no count, or no such THEN, is refused here
-     (a THEN of hunt too, since FB-10's re-cut of 1026: no job's end starts a hunt). */
-  for (const a of [{ kind: 'gather', id: 'copper_rock' }, { kind: 'artisan', id: 'smelt_bronze', next: 'wait' }, { kind: 'gather', id: 'copper_rock', count: 20, next: 'constructor' },
-    { kind: 'gather', id: 'copper_rock', count: 20, next: 'hunt' }]) {
+  /* AW-22: town work (09-crafting 4.17: a job, or a fuel run into the Great Hearth). The client may declare a fuel run by its row, with a
+     count or none; never a gathering node, a bench recipe, a fight or a THEN. */
+  if (!edgeBody(0, 'set_activity', { activity: { kind: 'artisan', id: 'fuel_bones', count: 1 } }, 'x') || !edgeBody(0, 'set_activity', { activity: { kind: 'artisan', id: 'fuel_bones' } }, 'x')) fails.push('AW-22 edgeBody refused a fuel run');
+  for (const a of [{ kind: 'gather', id: 'copper_rock', count: 20 }, { kind: 'artisan', id: 'smelt_bronze' }, { kind: 'artisan', id: 'fuel_bones', count: 2, next: 'wait' },
+    { kind: 'artisan', id: 'fuel_bones', count: 0 }]) {
     if (edgeBody(0, 'set_activity', { activity: a }, 'x')) fails.push('AW-22 edgeBody let through ' + JSON.stringify(a));
   }
-  const { rowsFor } = await imp('src/shell/windows/work.js');
-  const { workBlock, workRow, runsOf } = await imp('src/shell/town-work.js');
-  const smith = rowsFor('smithing', 1, { copper_ore: 10 }).map((w) => w.id);
-  if (smith.slice(-2).join() !== 'forge_bronze_axe,forge_bronze_pickaxe' || !smith.includes('smelt_bronze') || !smith.includes('reforge_klappas_club') || smith.length !== 6) fails.push('AW-22 Smithing 1 shows ' + smith.join());
-  const wcs = (lv, inv) => ({ read: (k) => (k === 'skills' ? { smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : null) });
-  const bronze = workRow('artisan', 'smelt_bronze');
-  const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),
-    workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
-    workBlock(wcs(1, {}), bronze, false)];
-  if (said.join('|') !== 'Needs 2 Copper Ore, have 1. Gathered with Mining.|Not while hunting|Requires Smithing 3, now 1||5|No Copper Ore in bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
-  /* A gathering row on a full bag says so (audit 2026-11-13: the node paid nothing, forever, with no word): the product needs a new
-     stack and the server's cap has none. Holding the product, or one free stack, it starts. */
-  const gcs = (inv, cap) => ({ read: (k) => (k === 'skills' ? { mining: { xp: 0, level: 1 } } : k === 'inventory' ? inv : k === 'state' ? { bank_cap: cap } : null) });
-  const copper = workRow('gather', 'copper_rock');
-  const gathered = [workBlock(gcs({ tin_ore: 1 }, 1), copper, false), workBlock(gcs({ copper_ore: 1 }, 1), copper, false), workBlock(gcs({ tin_ore: 1 }, 2), copper, false)];
-  if (gathered.join('|') !== 'Bag full, no room for Copper Ore||') fails.push('AW-22 a gathering row on a full bag says ' + JSON.stringify(gathered));
   /* each window family runs its own pure rules (tests/_alpha-windows.mjs) */
   return fails.concat(await planRules(ROOT), await itemTruthRules(ROOT));
 }
@@ -197,12 +181,12 @@ async function planRules(base) {
     const at = (huntId) => ({ read: (k) => ({ hunt: { session_id: 's-1', hunt_id: huntId, ended: false, session: {}, hero: {}, pose: { units: [] } },
       state: { active_kind: 'combat' }, inventory: { bones: 3 }, bag_rules: { locked: [], loot: { bones: 'sell' } } })[k] });
     const said = (cs) => [gearLockWhy(cs), gearLockWhy(cs, 'upgrades'), wearBlock(cs, 'iron_sword'), dispatchBlock(cs), useBlock(cs, { chest: {} }, { heldAll: 1, ready: true }),
-      buryBlock(cs, { skill: 'prayer' })];
+      buryBlock(cs, { skill: 'inner_flame' })];
     const yard = said(at('training_yard_melee')), hunt = said(at('wickstead'));
     const busy = 'Not available while training';
     if (JSON.stringify(yard) !== JSON.stringify(['Stop training to change gear', 'Stop training to equip', 'Stop training to change gear', busy, busy, busy])
       || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to equip', 'Leave the hunt to change gear', 'Dispatch loot works in town',
-        'Not available while hunting', 'Not while hunting']))
+        'Not available while hunting', 'Great Hearth is in town']))
       fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
     /* Storage's note, its press's answer and the bag's Deposit (storage-model.js storeAwayWords): "Storage is in town" read as if the hero had left town */
     const { storeAwayWords } = await imp('src/shell/storage-model.js');
@@ -395,16 +379,6 @@ async function planRules(base) {
       if (old) old.fn();
       if (sc.msg !== 'Sold 5.') fails.push('AW-27 an old answer took the newer one with it: ' + JSON.stringify(sc.msg));
     } finally { globalThis.setTimeout = real; }
-  }
-  /* AW-20 A DRINK IS MADE, NOT COOKED (QA 2026-11-04: "Cooking Turnip: 0 cooked so far" over Turnip Juice); a dish still names what goes on the fire */
-  {
-    const { nowParts, doWords, workRow } = await imp('src/shell/town-work.js');
-    const { lineText } = await imp('src/shell/town-ticker.js');
-    const benchLine = (id, inv) => lineText(nowParts({ read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: id } : k === 'inventory' ? inv : null) }));
-    const juice = benchLine('press_turnip_juice', { turnip: 4 });
-    if (!/^Making Turnip Juice/.test(juice) || /Cooking|cooked/.test(juice) || doWords(workRow('artisan', 'press_turnip_juice')) !== 'make Turnip Juice') fails.push('AW-20 pressing juice reads ' + JSON.stringify(juice));
-    const dish = benchLine('cook_shrimp', { shrimp: 4 });
-    if (!/^Cooking Raw Shrimp/.test(dish)) fails.push('AW-20 a dish reads ' + JSON.stringify(dish));
   }
   /* AW-27 BEFORE YOU GO SAYS THE BLESSINGS (board 11-04: nothing said them before the risk), every number the server's */
   const blessed = (held, price) => say(sess({ blessings: { permille: [0, 250, 500, 750][held.length], free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price, held: held.includes(tier) })) } }));
@@ -960,9 +934,9 @@ async function itemTruthRules(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
   const { ITEMS } = await imp('src/data/items.js');
   const { DRINK_ITEMS } = await imp('src/data/drinks.js');
-  const { usesOf, sourcesOf, kindWords, saleWords, toolEffect, whereToGet } = await imp('src/shell/item-lore.js');
+  const { usesOf, sourcesOf, kindWords, saleWords, toolEffect, wherePlaces } = await imp('src/shell/item-lore.js');
+  const whereToGet = (id) => wherePlaces(id).map((x) => x.words).join(' · ');
   const { kindOf, lootToSell, lootSale, lootKept, upgradeNeeds, isStartKit } = await imp('src/shell/bag-model.js');
-  const { toolLine, toolLossWords, workBlock, workRow, BENCH_INDEX } = await imp('src/shell/town-work.js');
   const { notListableWords, keptWords } = await imp('src/shell/market-words.js');
   const { beforeLines } = await imp('src/shell/hunt-go.js');
   const { nextUnlock } = await imp('src/data/skill-unlocks.js');
@@ -1020,29 +994,12 @@ async function itemTruthRules(base) {
   const keyBag = keys.map((id) => ({ id, qty: 1 })).concat([{ id: 'rat_tail', qty: 5 }]);
   const keySale = lootSale(keyBag, { locked: new Set() }, { bids: new Map(keyBag.map((r) => [r.id, 400])) }, null).lines.map((l) => l.item);
   if (keys.some((id) => kindOf(id) === 'junk') || keySale.some((id) => keys.includes(id)) || !keySale.includes('rat_tail')) fails.push('AW-60 Sell all junk sells a key: ' + JSON.stringify({ keySale, kinds: keys.map((id) => [id, kindOf(id)]) }));
-  /* TOOLS: the row, where it counts, and moving one away. */
-  const hero = (inv, bank, offers) => { const e = { inventory: inv, skills, shop: { offers: offers || [], bids: {} }, bank: bank || {} }; return { read: (k) => e[k], account: { read: (k) => e[k] } }; };
-  const both = hero({ iron_axe: 1, bronze_axe: 1 });
-  if (!/^Tool: Iron Axe\nWoodcutting 10% faster/.test(toolLine(both, 'woodcutting'))) fails.push('AW-60 the Woodcutting tool line reads ' + toolLine(both, 'woodcutting'));
-  if (toolLine(both, 'runecrafting') !== '') fails.push('AW-60 Runecrafting has no tool and says ' + toolLine(both, 'runecrafting'));
-  if (toolLine(both, 'fishing') !== '') fails.push('AW-60 no rod has a source yet, and Fishing says ' + toolLine(both, 'fishing'));
-  if (!/^Iron Axe in Storage, not counted$/.test(toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 an axe in Storage reads ' + toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'));
-  if (!/^Tool: Bronze Axe\n[\s\S]*\nIron Axe in Storage, not counted$/.test(toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 a better axe in Storage reads ' + toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'));
-  const bare = toolLine(hero({}, {}, [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]), 'woodcutting');
-  if (!/^Tool: none\nBronze Axe: Shop\nWoodcutting 5% faster/.test(bare)) fails.push('AW-60 a hero with no axe reads ' + bare);
-  if (toolLossWords(both, 'iron_axe', 1) !== 'Woodcutting slower without it, Bronze Axe takes over') fails.push('AW-60 storing the best axe says ' + toolLossWords(both, 'iron_axe', 1));
-  if (toolLossWords(both, 'bronze_axe', 1) !== '') fails.push('AW-60 storing the axe that was not counting says ' + toolLossWords(both, 'bronze_axe', 1));
-  if (toolLossWords(hero({ iron_axe: 2 }), 'iron_axe', 1) !== '') fails.push('AW-60 storing one of two axes says the rate changed');
-  if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting slower without it') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
-  if (toolLossWords(both, 'rat_tail', 1) !== '') fails.push('AW-60 storing a rat tail warns about tools');
-  /* A SHORT INPUT SAYS WHERE IT COMES FROM, where the shortage is read. */
-  /* (a bench row whose one input the Cellar drops: the silk-only sewing went with the armor recipes, lane/d-drop-homes 2026-11-18, so the Hearth's Lamp Jelly) */
-  const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe; return i.input === 'lamp_jelly' && !i.inputs; }));
-  const short = workBlock({ read: (k) => (k === 'skills' ? { [wc.skill]: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
-  if (!/^No Lamp Jelly in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a bench row short of Lamp Jelly reads ' + short);
+  /* (TOOLS, the gathering tools' line and what moving one away does, retired with the gathering tools: 09-crafting 4.17) */
+  /* A SHORTAGE SAYS WHERE IT COMES FROM: a job's trade and the Level that opens it (09 4.17: every made and gathered good is a job's) */
   if (whereToGet('copper_ore') !== 'Gathered with Mining') fails.push('AW-60 a level 1 node\'s source sends a hero to its goblins too: ' + whereToGet('copper_ore'));
-  if (whereToGet('normal_plank') !== 'Made with Crafting') fails.push('AW-60 a level 1 recipe\'s source reads ' + whereToGet('normal_plank'));
-  if (!/^Made with Crafting \d+$/.test(whereToGet('timber_beam'))) fails.push('AW-60 the Timber Beam\'s source reads ' + whereToGet('timber_beam'));
+  if (whereToGet('normal_plank') !== 'Made with Woodcrafting') fails.push('AW-60 a level 1 job\'s source reads ' + whereToGet('normal_plank'));
+  if (!/^Made with Smithing \d+ · Dropped by /.test(whereToGet('iron_bar'))) fails.push('AW-60 the Iron Bar\'s source reads ' + whereToGet('iron_bar'));
+  if (!wherePlaces('iron_bar').some((x) => x.place && x.place.kind === 'job' && x.place.job === 'bar_b1')) fails.push('AW-60 the Iron Bar\'s source links ' + JSON.stringify(wherePlaces('iron_bar')));
   if (!/Farming \d+ · Dropped by .* at Mill Cellar/.test(whereToGet('wheat'))) fails.push('AW-60 Wheat\'s source reads ' + whereToGet('wheat'));
   /* THE WEIGHHOUSE SAYS WHY, by the server's reason. */
   if (!/starting kit/.test(notListableWords('start_kit')) || !/own use only/.test(notListableWords('no_value')) || !/own use only/.test(notListableWords('no_shop_price'))) fails.push('AW-60 the Weighhouse says ' + notListableWords('start_kit') + ' / ' + notListableWords('no_value'));
@@ -1100,18 +1057,15 @@ async function panelLeftovers(base) {
   if (how(party(true, false, 'mill_cellar'), 'mill_cellar') !== 'party') fails.push('AW-61 the leader\'s Hunt again: ' + how(party(true, false, 'mill_cellar'), 'mill_cellar'));
   if (how(party(false, true, 'mill_cellar'), 'mill_cellar') !== 'enter') fails.push('AW-61 a member going back in: ' + how(party(false, true, 'mill_cellar'), 'mill_cellar'));
   if (!/^off:Party hunting elsewhere/.test(how(party(true, true, 'wickstead'), 'mill_cellar'))) fails.push('AW-61 Hunt again elsewhere with the party out: ' + how(party(true, true, 'wickstead'), 'mill_cellar'));
-  /* THE ROSTER LINE: a bench job past its end is not "working on". */
+  /* THE ROSTER LINE: a fuel run past its end is not "fueling". */
   const { heroOf } = await imp('src/session/account-session.js');
-  const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
-  const recipe = Object.values(ARTISAN_RECIPES).flat().find((r) => r.output === 'normal_plank');
-  const input = Object.keys(recipe.inputs || { [recipe.input]: 1 })[0] || recipe.input;
-  const body = (left, ageMs) => ({ ok: true, name: 'Tess', now: '2026-11-01T12:00:00.000Z', inventory: { [input]: left },
-    state: { level_xp: 0, gold: 1, gold_v: 1, active_kind: 'artisan', active_id: recipe.id, accrued_to: new Date(Date.parse('2026-11-01T12:00:00.000Z') - ageMs).toISOString() } });
-  if (!/working on/.test(heroOf(body(1000, 60000)).doing || '')) fails.push('AW-61 a job with logs left reads ' + heroOf(body(1000, 60000)).doing);
-  if (heroOf(body(392, 3600000)).doing !== null) fails.push('AW-61 a job past its end still reads ' + heroOf(body(392, 3600000)).doing);
-  if (heroOf(body(0, 0)).doing !== null) fails.push('AW-61 a job with nothing left reads ' + heroOf(body(0, 0)).doing);
-  const gathering = { ok: true, now: '2026-11-01T12:00:00.000Z', state: { level_xp: 0, active_kind: 'gather', active_id: recipe.id, accrued_to: '2026-11-01T01:00:00.000Z' } };
-  if (!heroOf(gathering).doing) fails.push('AW-61 gathering never stops, and reads idle');
+  const body = (left, ageMs) => ({ ok: true, name: 'Tess', now: '2026-11-01T12:00:00.000Z', inventory: { bones: left },
+    state: { level_xp: 0, gold: 1, gold_v: 1, active_kind: 'artisan', active_id: 'fuel_bones', accrued_to: new Date(Date.parse('2026-11-01T12:00:00.000Z') - ageMs).toISOString() } });
+  if (!/fueling the Great Hearth/.test(heroOf(body(1000, 60000)).doing || '')) fails.push('AW-61 a run with bones left reads ' + heroOf(body(1000, 60000)).doing);
+  if (heroOf(body(392, 3600000)).doing !== null) fails.push('AW-61 a run past its end still reads ' + heroOf(body(392, 3600000)).doing);
+  if (heroOf(body(0, 0)).doing !== null) fails.push('AW-61 a run with nothing left reads ' + heroOf(body(0, 0)).doing);
+  const training = { ok: true, now: '2026-11-01T12:00:00.000Z', state: { level_xp: 0, active_kind: 'training', active_id: 'yard', accrued_to: '2026-11-01T01:00:00.000Z' } };
+  if (!heroOf(training).doing) fails.push('AW-61 a training session reads idle');
   /* A PRIVATE MESSAGE, A FRIEND REQUEST: a toast, once; the message's words stay in the chat. */
   const { createAlertCenter } = await imp('src/shell/alerts.js');
   const { mountSocialWatch } = await imp('src/shell/social-watch.js');
@@ -1192,17 +1146,7 @@ async function panelLeftovers(base) {
   const { rareSaleWords } = await imp('src/shell/item-lore.js');
   if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'Sells rare finds: 3 Alpha Fang' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
   /* (the hero-slot offer left with the purchase, FB-5 2026-11-21: all four slots are free; the line over the roster is tests/client-boot-pure.mjs B-11's) */
-  const { jobReplacedWords } = await imp('src/shell/town-work.js');
-  const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
-  const tree = { active_kind: 'gather', active_id: 'normal_tree', active_since: '2026-11-01T00:00:00Z' };
-  const wrow = (await imp('src/shell/town-work.js')).workRow;
-  const craft = wrow('artisan', Object.keys((await imp('src/shell/town-work.js')).BENCH_INDEX)[0]);
-  if (jobReplacedWords(worker(tree, null), craft) !== 'Stopped chopping the Normal Tree') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
-  if (jobReplacedWords(worker(tree, null), wrow('gather', 'normal_tree')) !== '') fails.push('AW-62 pressing the running job says it stopped');
-  if (jobReplacedWords(worker({ active_kind: 'idle' }, null), craft) !== '') fails.push('AW-62 an idle hero stopped something');
-  const { startWork } = await imp('src/shell/town-work.js');
-  const pressed = await startWork(worker(tree, null), craft, (fn, busy, done) => done({ ok: true }), null);
-  if (pressed !== 'Stopped chopping the Normal Tree') fails.push('AW-62 the press over chopping answers ' + JSON.stringify(pressed));
+  /* (a craft over a gathering job's "Stopped chopping" line retired with the bench: 09-crafting 4.17, one town work, the Jobs list) */
   return fails;
 }
 
@@ -1219,12 +1163,6 @@ const MUTANTS = [
   ['item truth: Sell all loot ignores the House', 'src/shell/bag-model.js', ' && !(needs && needs.has(r.id))', ''],
   ['item truth: a gated room counts as a next step', 'src/shell/bag-model.js', 'if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);', 'if (r.next) step(r.next);'],
   ['item truth: Sell all junk sweeps a Material', 'src/shell/bag-model.js', "return (items || []).filter((r) => kindOf(r.id) === 'junk' && ", "return (items || []).filter((r) => kindOf(r.id) !== 'gear' && "],
-  ['item truth: a storage move of the counting tool is silent', 'src/shell/town-work.js', "if (!before || before.id !== id) return '';", "return '';"],
-  ['item truth: storing one of two warns', 'src/shell/town-work.js', "  if (left > 0) return '';\n", ''],
-  ['item truth: no tool line', 'src/shell/town-work.js', "  const inBag = pick(skill, invOf(cs));\n", "  if (skill) return '';\n  const inBag = pick(skill, invOf(cs));\n"],
-  ['item truth: the tool line offers a rod no one can get', 'src/shell/town-work.js', "ITEMS[id].toolSkill === skill && whereToGet(id));", "ITEMS[id].toolSkill === skill);"],
-  ['item truth: an axe in Storage goes unsaid', 'src/shell/town-work.js', "  if (better) return better;\n", ''],
-  ['item truth: a recipe\'s shortage names no source', 'src/shell/town-work.js', "(where ? ' ' + where + '.' : '')", "''"],
   ['item truth: an easy source lists the drop too', 'src/shell/item-lore.js', 'const drop = !easy && r.drops.length ?', 'const drop = r.drops.length ?'],
   ['item truth: a hard source hides the drop', 'src/shell/item-lore.js', 'const drop = !easy && r.drops.length ?', 'const drop = false ?'],
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
@@ -1235,11 +1173,8 @@ const MUTANTS = [
   ['item truth: panel: a card stood whole goes back to a line on the next paint (post-140 C12)', 'src/shell/launcher-coach.js', "  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }\n", ''],
   ['item truth: panel: More runs into the words (post-140 C12)', 'src/shell/launcher-coach.js', "    + (line ? ' <button type=\"button\" class=\"hs-coach-more\"", "    + (line ? '<button type=\"button\" class=\"hs-coach-more\""],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
-  ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
+  ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
-  ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],
-  ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'Stopped ' + what : '';", "  return '';"],
-  ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher-coach.js', "(line ? ' is-line' : '')", "''"],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Bag full", "  return false ? 'Bag full"],
   ['item truth: panel: a request already answered still toasts (AW-61)', 'src/shell/social-watch.js', "(a.kind === 'friend' && !asked.has(a.id)) || ", ''],
@@ -1253,8 +1188,8 @@ const MUTANTS = [
   ['item truth: panel: a member starts a hunt', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } : { how: null, why: t('summary.again_leader') };", "return party.isLeader ? { how: 'party', why: '' } : { how: 'enter', why: '' };"],
   ['item truth: panel: a member cannot go back in', 'src/hunt-view/summary-model.js', "return party.hunt === hunt ? { how: 'enter', why: '' } :", "return false ? { how: 'enter', why: '' } :"],
   ['item truth: panel: the leader enters alone', 'src/hunt-view/summary-model.js', "return party.isLeader ? { how: 'party', why: '' } :", "return party.isLeader ? { how: 'enter', why: '' } :"],
-  ['item truth: panel: a finished job reads working', 'src/session/account-session.js', "return a.kind === 'busy' && !benchJobOver(read, Date.parse(body.now)) ? a.text : null;", "return a.kind === 'busy' ? a.text : null;"],
-  ['item truth: panel: gathering reads as a finished job', 'src/session/bench-sections.js', "st.active_kind === 'artisan' && Object.prototype", "Object.prototype"],
+  ['item truth: panel: a finished job reads working', 'src/session/account-session.js', "return a.kind === 'busy' && !fuelRunOver(read, Date.parse(body.now)) ? a.text : null;", "return a.kind === 'busy' ? a.text : null;"],
+  ['item truth: panel: a run is over at once', 'src/session/hearth-sections.js', '  return nowMs - since >= coverOf(r, row) * fuelEachMs(row);', '  return true;'],
   ['item truth: panel: a whisper toasts for every line', 'src/shell/social-watch.js', "if (last && !up.some((a) => a.kind === 'whisper' && a.peer === c.id)) {", 'if (last) {'],
   ['item truth: panel: a whisper with no news toasts', 'src/shell/social-watch.js', 'const last = c.unread > 0 ?', 'const last = true ?'],
   ['item truth: panel: a friend request stays silent', 'src/shell/social-watch.js', "alerts.say(cs, { id: 'friend:' + p.id,", "if (0) alerts.say(cs, { id: 'friend:' + p.id,"],

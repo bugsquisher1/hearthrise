@@ -1912,7 +1912,7 @@ const mutants = [
   { name: 'the interrupt moment is never queued', case: 'interrupt-shield', edits: [[AB, "  if (ended > 0) queueOn(inst, u, 'interrupt', { t, ability: row.id, n: ended });\n", '']] },
   { name: 'the Maul shields 6%', case: 'interrupt-shield', edits: [[SG, "{ on: 'interrupt', of: 'stagger', do: 'shield', pm: 100 }", "{ on: 'interrupt', of: 'stagger', do: 'shield', pm: 60 }"]] },
   { name: 'a reaction\'s monster is never aimed at', case: 'guard-parry', edits: [[AB, '      if (cx && cx.guard && fresh.includes(cx.guard)) return cx.guard;\n', '']] },
-  { name: 'a reaction\'s strike takes another monster', case: 'guard-parry', edits: [[AB, '    if (!pick || pick.why || (foe && pick.target !== foe)) continue;', '    if (!pick || pick.why) continue;']] },
+  { name: 'a reaction\'s strike takes another monster', case: 'guard-parry', edits: [[AB, "    if (foe && !('target' in pick && pick.target === foe)) continue;\n", '']] },
   { name: 'a cast reaction names no monster', case: 'guard-parry', edits: [[RX, "{ target: ctx.t || null, foe: monsterOf(ctx), free: row.free === true }", "{ target: ctx.t || null, free: row.free === true }"]] },
   { name: 'within is never read', case: 'guard-parry', edits: [[RX, '  if (row.within !== undefined && !(ctx.t && cheb(u, ctx.t) <= row.within)) return;\n', '']] },
   { name: 'the Breeches guard 2 tiles', case: 'guard-parry', edits: [[SG, "{ on: 'windup', within: 1, do: 'cast', move: 'parry' }", "{ on: 'windup', within: 2, do: 'cast', move: 'parry' }"]] },

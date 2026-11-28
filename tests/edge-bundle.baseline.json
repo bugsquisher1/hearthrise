@@ -723,6 +723,11 @@
         "bytes": 4085237,
         "on": "2026-11-28",
         "why": "lane/signatures-batch-5 after its readings: Thrower's Ring raised to twice as strong and Night Carter's Boots sized on Pyre Field in signatures.js (data, +178 B with the row's comment)"
+      },
+      {
+        "bytes": 4085354,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-5: castNow's reaction-monster check split onto its own line for the type ratchet (abilities.js, +117 B, a comment and a narrowing)"
       }
     ]
   }

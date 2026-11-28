@@ -459,7 +459,9 @@ export function castNow(inst, sc, u, move, o) {
     if (t && row.target === 'party' && !(t === u || dist2(t, u) <= row.radius * row.radius)) continue;
     const foe = o && o.foe && row.target === 'enemy' ? o.foe : null;
     const pick = tryCast(inst, u, h, row, r.slot, t && row.target === 'ally' ? { ally: t } : foe ? { guard: foe } : null, sc, { free: !!(o && o.free) });
-    if (!pick || pick.why || (foe && pick.target !== foe)) continue;
+    if (!pick || pick.why) continue;
+    /* (a reaction's monster or nothing: never another monster in its place) */
+    if (foe && !('target' in pick && pick.target === foe)) continue;
     return fire(inst, u, pick, sc);
   }
   return false;

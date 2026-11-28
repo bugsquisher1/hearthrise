@@ -6,7 +6,7 @@
 // A blow that would kill a hero (damage.js landHit: its HP taken to 0) is SAVED when a living hero of its side, itself included, wears a
 // Signature with `save` whose clock is ready ('~r:<id>' on the wearer's cooldowns, `save.clockMs` long, persisted with them so a settle
 // cut across it keeps it; the first such wearer by id): the hero is left at 1 HP, the blow's `dmg` event names the wearer (`saved`), and
-// on the Danger scale, in a fight, the pull breaks off at once (pull-cycle.js fallBackNow: the fall back a hero under its stance's line
+// on the Danger scale, in a fight, the pull breaks off at once (fallBackNow below, pull-cycle.js breakOff: the fall back a hero under its stance's line
 // makes, which Bold never makes on its own: "Bold only can die", CLAUDE.md section 6). The step falls as a fall back's does (danger.js
 // pullEnds reads the hero's 1 HP as the pull's low, never a death: noteHurt holds a living hero over 0). Off the scale there is no fall
 // back: the hero stands at 1 HP. A viewed and a closed hunt play the same blow at the same sub-step, so both save the same hero.
@@ -17,6 +17,8 @@
 
 import { SIGNATURES } from '../../data/signatures.js';
 import { isHero, isAlly } from './sides.js';
+import { breakOff, PHASE } from './pull-cycle.js';
+import { dangerOn } from './danger.js';
 
 const NONE = Object.freeze([]);
 const own = (o, k) => !!o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
@@ -49,4 +51,11 @@ export function saveFall(inst, sc, t, r) {
     return w;
   }
   return null;
+}
+
+/** A FALL BACK A SAVE STARTS (damage.js landHit, after the saved blow): on the Danger scale, in a fight, the pull breaks off now
+    (pull-cycle.js breakOff), as a hero under its stance's line breaks it, on any stance (Bold too, which never breaks off on its own).
+    Nothing off the scale or outside a fight. Here, not in pull-cycle.js, so it loads on need. */
+export function fallBackNow(inst, sc) {
+  if (dangerOn(inst.world) && inst.world.phase === PHASE.FIGHT) breakOff(inst, sc);
 }

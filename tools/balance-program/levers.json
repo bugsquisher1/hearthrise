@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "d5de43e442a06b89",
+ "authored": "cfe07268bfe8b44f",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 757,
-  "typed": 17582,
+  "bindings": 758,
+  "typed": 17617,
   "files": 263,
   "lever": 324,
-  "notLever": 433,
+  "notLever": 434,
   "unclaimed": 0
  },
  "problems": [],
@@ -1259,7 +1259,7 @@
      "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -2608,7 +2608,7 @@
      "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3310,9 +3310,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3414,9 +3414,15 @@
      "line": 183,
      "text": "kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 187,
+     "text": "steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
+     "binding": "STATUSES"
     }
    ],
-   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16), each for durationMs",
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16; Steeped +300 on the next Greater Mend, Kindled's key, 15 #20, lane/signatures-batch-3), each for durationMs",
    "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
    "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
    "outcomes": [
@@ -3482,9 +3488,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3616,9 +3622,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3693,9 +3699,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/silent-triggers.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -4558,9 +4564,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6244,7 +6250,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6630,7 +6636,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9757,7 +9763,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9827,7 +9833,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9941,7 +9947,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10060,7 +10066,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10416,7 +10422,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11509,7 +11515,7 @@
    "category": "equipment",
    "name": "Signatures: each named piece's one rule, as reaction rows",
    "sites": [],
-   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw), a status (its reach r, a fixed tick pm of the moment's damage), a free cast again, a burst (pm of the fallen's health within r) or a reflect (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb, pull) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw, on the moment's hero, the wearer or the party), a status (its reach r, a fixed tick pm of the moment's damage, or the moment's monsters), a heal (pm of a hero's max health, or of the moment's amount), mana (pm), a free cast again, a burst (pm of the fallen's health within r), a carried overkill (pm, capped at capPm, within r) or a reflect, once every `every` moments (src/core/hunt/signature-rules.js, reactions.js); or no reaction: a rune saved every `saves.every` casts (abilities.js fire), a stack cap raised by `stackPlus.n` (status.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
    "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
    "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
    "outcomes": [
@@ -11561,7 +11567,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut; lane/signatures-sample, lane/signatures-batch-2)",
+    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut, its count of moments `every`; a rune it saves every `saves.every` casts; a stack cap raised by `stackPlus.n`; lane/signatures-sample, lane/signatures-batch-2, lane/signatures-batch-3)",
     "homes": [
      "src/data/signatures.js#SIGNATURES"
     ]
@@ -11901,36 +11907,36 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 36,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 37,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 38,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 39,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 38,
+     "line": 40,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
    ],
-   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
+   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax), the consumable slice (imbuements, draught, camp pot: consumableStepsMax, 21 D-16) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
    "range": "rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5",
    "touches": "how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early",
    "outcomes": [
@@ -12063,13 +12069,13 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 71,
+     "line": 72,
      "text": "pointSharePm: 333,",
      "binding": "TALENT_RULES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 77,
+     "line": 78,
      "text": "healInCapPm: 300,",
      "binding": "TALENT_RULES"
     }
@@ -12139,25 +12145,31 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 85,
+     "line": 89,
      "text": "Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 89,
+     "line": 90,
+     "text": "Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),",
+     "binding": "BORROW_BANDS"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 94,
      "text": "export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });",
      "binding": "BORROW_OPEN"
     },
     {
      "file": "src/data/talents.js",
-     "line": 106,
+     "line": 118,
      "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
    ],
    "definition": "a borrowed move's penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)",
-   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values, lane/roads-v0-remeasure)",
+   "range": "bands 4 / 10 / 20 / 50 held steps at 0 / -30 / -50 / -80% (border) and -30 / -50 / none / none (Havora), 17 section 3 and 19 L6 (the fourth band, lane/designer-greater-mend); BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, and the borrowed heals under the heal rule (lane/e5-borrowing, Mend's clock): circle_of_renewal 2, greater_mend 40.3, in the fourth band so lent at -80% from Level 120 at a border town (lane/roads-borrow-values, lane/roads-v0-remeasure)",
    "touches": "which hybrid builds exist at which Level, and how much a borrowed move adds",
    "outcomes": [
     "dps",
@@ -12210,7 +12222,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (18-roads-review-measured.md sections 3 and 7, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs)"
+   "evidence": "MEASURED (18-roads-review-measured.md sections 3, 7 and 7c, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs, roads/e5/sum.mjs)"
   },
   {
    "id": "roads.nodes",
@@ -12219,85 +12231,85 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 196,
+     "line": 211,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 258,
+     "line": 273,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 317,
+     "line": 332,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 600,
+     "line": 615,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 595,
+     "line": 610,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 331,
+     "line": 346,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 383,
+     "line": 398,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 424,
+     "line": 439,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 467,
+     "line": 482,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 532,
+     "line": 547,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 621,
+     "line": 636,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 358,
+     "line": 373,
      "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 397,
+     "line": 412,
      "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 441,
+     "line": 456,
      "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     }
@@ -12370,7 +12382,7 @@
    "sites": [
     {
      "file": "src/core/hunt/talent-rows.js",
-     "line": 48,
+     "line": 63,
      "text": "export const NEAR_FALL_PM = 150;",
      "binding": "NEAR_FALL_PM"
     }
@@ -12613,24 +12625,24 @@
    "sites": [
     {
      "file": "src/data/imbue-rules.js",
-     "line": 43,
+     "line": 49,
      "text": "hours: 20,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 48,
+     "line": 56,
      "text": "feeHoursPm: 400,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 65,
+     "line": 77,
      "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'ember', sharePm: 50 },",
      "binding": "IMBUE_RULES"
     }
    ],
-   "definition": "three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp",
+   "definition": "three a hero (Edge, Ward, Leech), each rated imbueSteps averaged on its best cell in the consumable slice, whole at every Level (21 D-16); a conditional row fires at its measured fire steps (2 over the share its condition touches, at most fireMax, D-17) and takes its rated room; a leech heals leech.pm of the HP its blows take, a conversion resolves sharePm of a blow at the target element (D-18); plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp (owed: at the imbuement band, no ramp, D-19)",
    "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
    "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
    "outcomes": [
@@ -12677,9 +12689,10 @@
     "mentions": [
      "tests/imbue.mjs",
      "tests/tp-im-server.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/worn-imbues-db.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12689,7 +12702,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "STATED (21 section 3.2; the shares behind each size ASSUMED until I1)"
+   "evidence": "MEASURED (21 section 11: the shares behind Brute Edge 5 and Fire Ward 11 and Life Leech 20 pm on v1-climb base cells; the set read on Muster with the candidates im-muster-*)"
   },
   {
    "id": "carry.price",
@@ -13848,7 +13861,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13879,13 +13892,13 @@
     },
     {
      "file": "supabase/functions/hr-accrue/catalogue.js",
-     "line": 307,
+     "line": 308,
      "text": "export const VENDOR_RAW_RATE = 0.20;",
      "binding": "VENDOR_RAW_RATE"
     },
     {
      "file": "supabase/functions/hr-accrue/catalogue.js",
-     "line": 324,
+     "line": 325,
      "text": "export const SHOP_BUYBACK_RATE = 0.5;",
      "binding": "SHOP_BUYBACK_RATE"
     }
@@ -14881,9 +14894,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14951,9 +14965,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15007,9 +15022,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15055,9 +15071,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15105,9 +15122,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15160,9 +15178,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15208,9 +15227,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17035,6 +17055,10 @@
    "why": "a memo bound (2048 grants kept): a cache size, no outcome reads it"
   },
   {
+   "at": "src/core/hunt/talent-rows.js#lentModsOf",
+   "why": "a memo bound (256 borrow lists kept a grant): a cache size, no outcome reads it (lane/e5-borrowing)"
+  },
+  {
    "at": "src/data/talents.js#road",
    "why": "a road's rank stones numbered 1 to 5 (17 section 2's shape): ids, no value"
   },
@@ -17862,10 +17886,12 @@
     "belowPm",
     "capMs",
     "clockMs",
+    "every",
     "ms",
     "n",
     "pm",
-    "pw"
+    "pw",
+    "r"
    ],
    "bindings": 1
   },
@@ -18761,7 +18787,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 41,
+   "typed": 43,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {
@@ -19645,7 +19671,7 @@
     "havoraPm",
     "upTo"
    ],
-   "typed": 7,
+   "typed": 9,
    "bindings": 1
   },
   "src/data/talents.js#BORROW_OPEN": {
@@ -19660,7 +19686,6 @@
   "src/data/talents.js#BORROW_VALUES": {
    "pin": "count",
    "keys": [
-    "circle_of_renewal",
     "fireball",
     "flame_strike",
     "gash",
@@ -19673,7 +19698,7 @@
     "stagger",
     "turning_cut"
    ],
-   "typed": 12,
+   "typed": 11,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {
@@ -19902,22 +19927,24 @@
    "pin": "count",
    "keys": [
     "feeHoursPm",
+    "fireMax",
     "hours",
     "lifeRungPm",
     "parts",
     "remains",
     "workPm"
    ],
-   "typed": 6,
+   "typed": 7,
    "bindings": 1
   },
   "src/data/imbue-rules.js#IMBUE_RULES": {
    "pin": "count",
    "keys": [
+    "fire",
     "pm",
     "sharePm"
    ],
-   "typed": 3,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/gear-steps.js#CARRY": {

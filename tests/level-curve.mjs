@@ -27,9 +27,9 @@
 //   C7  T-02 RE-AIMED (12-targets 2.6): on every scale ground (src/data/danger.js DANGER_GROUNDS), a Steady mixed four
 //       (hammer, bow, mage, healer; MID kits) started at its held depth (the game's own start: refStep - startMargin)
 //       earns the hours table's Level XP a head an hour, +-20%, at the ground's reference Level and 10 Levels over it.
-//       The real engine (tools/balance-program/redesign/held-four.mjs: 3 seeds x 2 h a cell, about 15 s). Ground rows
-//       not on the scale are not judged. A scale ground with no reference Level in REF_LEVEL below is red: name the
-//       Level its refStep was measured at.
+//       The real engine (tools/balance-program/redesign/held-four.mjs: 3 seeds x 2 h a cell, 9-17 s a seed; 32 cells, 7.6-12.2 min
+//       on a 4-core runner). Ground rows not on the scale are not judged. A scale ground with no reference Level in REF_LEVEL below
+//       is red: name the Level its refStep was measured at.
 //   C8  THE HOURS FORMULA KEEPS ITS DESIGN (lane/formula-overhaul, 2026-11-22; src/data/core-model.js LEVEL_HOURS, 27-formula-overhaul.md P-1):
 //       the hours a Level takes is a formula, so a lever move is judged on what it promises the player, on the 10 h hunting day:
 //         a  the first day: Level 10 within 10 hunted hours
@@ -46,15 +46,33 @@
 //
 //   node tests/level-curve.mjs            run
 //   node tests/level-curve.mjs --selftest each planted defect must turn its claim red
+//   ... --shard=K/N                       C7 on every Nth cell from the Kth (cellsOf order), so N shards play every cell once;
+//                                         every other claim, and every planted defect, is judged whole in each shard
+//   ... --keep-world                      the run, and its measured cells written for the --selftest after it (worldFile)
+//   ... --selftest --reuse-world          the planted defects on those cells, not a second measure of the same cells
 //
-// A STEP OF ITS OWN (it plays the engine for C7). T-02 has an exit now: C7 is green on the shipped scale.
-// ci-step: db-replay-8 | Level hours - the Level curve, and a Steady four at its held depth earns the hours table (T-02 re-aimed)
-// ci-run: node tests/level-curve.mjs
-// ci-run: node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+// THREE SHARDS, ONE MEASURE EACH (lane/ci-db-replay-8, 2026-11-28). The step ran in db-replay-8 and measured C7 three times: the run,
+// --selftest's shipped world (the run's exact cells again) and its engine defect (every cell from step 0), 7.1-12.2 min each. While
+// C7 was red the step stopped after the first (6.8-12.3 min); once it went green (fe4d7ee2a) the step took 22.3-29.6 min and the job
+// 52-62 of its 62 (46075588494 and 46097542921 cancelled inside --selftest). The engine did not slow (the measure is 1.58-1.66x the
+// same job's Core model step on all four green-era runs). Now the run hands its cells to the --selftest after it (--keep-world,
+// --reuse-world: the same checkout, seconds apart, keyed by every byte a cell plays), the cells are cut three ways, one shard a
+// light job, and the cells play on a worker a core. A shard is a third of the run plus a third of the engine defect.
+// ci-step: economy-selftests-2 | Level hours, shard 1 of 3 - the Level curve, and a Steady four at its held depth earns the hours table (T-02 re-aimed)
+// ci-run: node tests/level-curve.mjs --shard=1/3 --keep-world
+// ci-run: node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest --shard=1/3 --reuse-world
+// ci-step: economy-selftests-3 | Level hours, shard 2 of 3 - the Level curve, and a Steady four at its held depth earns the hours table (T-02 re-aimed)
+// ci-run: node tests/level-curve.mjs --shard=2/3 --keep-world
+// ci-run: node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest --shard=2/3 --reuse-world
+// ci-step: db-replay-4 | Level hours, shard 3 of 3 - the Level curve, and a Steady four at its held depth earns the hours table (T-02 re-aimed)
+// ci-run: node tests/level-curve.mjs --shard=3/3 --keep-world
+// ci-run: node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest --shard=3/3 --reuse-world
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cpus, tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { isMain } from './_is-main.mjs';
 import * as XP from '../src/core/xp.js';
 import { LEVEL_CURVE, LEVEL_PACE, LEVEL_HOURS, levelHoursOf } from '../src/data/core-model.js';
@@ -82,6 +100,59 @@ const overLevelOf = (g, L0) => {
   return Math.max(L0, Math.min(L0 + C7_OVER, top));
 };
 const MIXED = ['hammer', 'bow', 'mage', 'healer'];
+/* one worker a core (tests/lineup-v4.mjs): the parent only waits on them, and held-four.mjs's default leaves a core of a 4-core runner idle */
+const WORKERS = Math.max(1, Math.min(8, cpus().length));
+
+/** C7's cells, in one fixed order: each of `grounds` with a reference Level, at it and C7_OVER over it (a ground with none has no cell; C7
+    names it red). A shard { k, n } takes every nth from the kth, so the n shards hold every cell once. */
+export function cellsOf(grounds, shard = null) {
+  const all = [];
+  for (const g of grounds) {
+    const L0 = refLevelOf(g);
+    if (!Number.isInteger(L0)) continue;
+    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) all.push({ ground: g, L });
+  }
+  return shard ? all.filter((_, i) => i % shard.n === shard.k - 1) : all;
+}
+
+/** --shard=K/N as { k, n }, or null with none. Malformed, or a shard that would hold no cell: exit 2 (a harness fault, never a verdict). */
+export function shardOf(argv) {
+  const sh = argv.find((a) => a.startsWith('--shard'));
+  if (!sh) return null;
+  const m = /^--shard=(\d+)\/(\d+)$/.exec(sh);
+  const s = m && { k: +m[1], n: +m[2] };
+  if (!s || s.k < 1 || s.k > s.n) { console.error(`level-curve: HARNESS: bad ${sh} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
+  if (!cellsOf(Object.keys(DANGER_GROUNDS), s).length) { console.error(`level-curve: HARNESS: ${sh} holds no C7 cell (${cellsOf(Object.keys(DANGER_GROUNDS)).length} cells in all)`); process.exit(2); }
+  return s;
+}
+
+/* THE RUN HANDS ITS CELLS TO THE --selftest AFTER IT (tests/lineup-v4.mjs --keep-world). Both measure the same cells on the same checkout,
+   seconds apart, so --reuse-world reads the run's measure, and only when its key matches: the cells, C7's seeds and hours, and every byte
+   under the code and data a cell plays (KEY_PATHS, sim output dirs aside), so an edit between the two is a fresh measure. */
+const KEY_PATHS = ['src', 'supabase/functions', 'tools', 'tests/hunt-core', 'tests/level-curve.mjs'];
+export function worldKey(cells) {
+  const h = createHash('sha256').update(JSON.stringify({ cells, C7_SEEDS, C7_HOURS, MIXED }));
+  const walk = (rel) => {
+    const st = statSync(join(ROOT, rel), { throwIfNoEntry: false });
+    if (st && st.isFile()) { h.update(rel + '\0'); h.update(readFileSync(join(ROOT, rel))); }
+    else if (st && st.isDirectory()) for (const e of readdirSync(join(ROOT, rel)).sort()) if (!/^(?:out|node_modules)$|^\./.test(e)) walk(rel + '/' + e);
+  };
+  for (const p of KEY_PATHS) walk(p);
+  return h.digest('hex');
+}
+export const worldFile = (shard) => join(tmpdir(), `hr-level-curve-world-${shard ? `${shard.k}of${shard.n}` : 'whole'}.json`);
+function keepWorld(shard, cells, held) {
+  const f = worldFile(shard), tmp = `${f}.${process.pid}`;
+  writeFileSync(tmp, JSON.stringify({ key: worldKey(cells), held }));
+  renameSync(tmp, f);
+}
+/** The run's measured cells, or null: no file, another key (cells, code or data), or not a measure. */
+function keptHeld(shard, cells) {
+  try {
+    const k = JSON.parse(readFileSync(worldFile(shard), 'utf8'));
+    return k && typeof k.held === 'object' && k.held && k.key === worldKey(cells) ? k.held : null;
+  } catch { return null; }
+}
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -133,15 +204,13 @@ function judge(w) {
       }
     }
   }
-  /* C7: every scale ground, judged from the held start (12-targets 2.6) */
-  for (const g of w.scaleGrounds) {
-    const L0 = refLevelOf(g);
-    if (!Number.isInteger(L0)) { out.push(`C7: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL): name the Level its refStep was measured at`); continue; }
-    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) {
-      const m = w.held && w.held[g] && w.held[g][L];
-      if (!m || !Number.isFinite(m.ratio)) { out.push(`C7: ${g} at Level ${L} was not measured`); continue; }
-      if (!(Math.abs(m.ratio - 1) <= C7_BAND)) out.push(`C7: a Steady four at its held depth on ${g}, Level ${L}, earns ${m.ratio.toFixed(2)}x the hours table (${Math.round(m.xpHeadH)} of ${Math.round(m.table)} Level XP a head an hour; band ${1 - C7_BAND}-${1 + C7_BAND})`);
-    }
+  /* C7: every scale ground names its reference Level; every cell of this run (all of them, or its shard's: cellsOf, read from the scale
+     grounds here, never from what was measured), judged from the held start (12-targets 2.6) */
+  for (const g of w.scaleGrounds) if (!Number.isInteger(refLevelOf(g))) out.push(`C7: scale ground ${g} has no reference Level (tests/level-curve.mjs REF_LEVEL): name the Level its refStep was measured at`);
+  for (const { ground: g, L } of cellsOf(w.scaleGrounds, w.shard)) {
+    const m = w.held && w.held[g] && w.held[g][L];
+    if (!m || !Number.isFinite(m.ratio)) { out.push(`C7: ${g} at Level ${L} was not measured`); continue; }
+    if (!(Math.abs(m.ratio - 1) <= C7_BAND)) out.push(`C7: a Steady four at its held depth on ${g}, Level ${L}, earns ${m.ratio.toFixed(2)}x the hours table (${Math.round(m.xpHeadH)} of ${Math.round(m.table)} Level XP a head an hour; band ${1 - C7_BAND}-${1 + C7_BAND})`);
   }
   /* C8: the hours formula's promises (w.hours: the engine's hours a Level, src/core/hunt/danger.js hoursForLevel) */
   {
@@ -158,18 +227,16 @@ function judge(w) {
   return { out, R };
 }
 
-/** C7's measurement: every scale ground at its reference Level and C7_OVER over it, from the held start unless `start` names one. */
-async function measureHeld({ start } = {}) {
-  const cells = [];
-  for (const g of Object.keys(DANGER_GROUNDS)) {
-    const L0 = refLevelOf(g);
-    if (!Number.isInteger(L0)) continue;
+/** C7's measurement: each of `cells` (cellsOf: every scale ground at its reference Level and C7_OVER over it, or a shard's), from the held
+    start unless `start` names one. */
+async function measureHeld({ start, cells: picked }) {
+  const cells = picked.map(({ ground: g, L }) => {
     /* A GROUND INSIDE ONE GEAR TIER (29-tuning-pass.md 7.5, lane/scale-grounds-2): its companies wear its own tier, as its band was cut; at the
        Thicket's top Level the Lab's MID kit is iron (item Level 20 since the Glade stamps it), a company that has outgrown the ground */
     const own = insideOneTier(g) ? { maxIl: DANGER_GROUNDS[g].gearLevel + GEAR_STEPS.tierSteps - 1 } : {};
-    for (const L of [...new Set([L0, overLevelOf(g, L0)])]) cells.push({ id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, holdLevel: true, ...own, ...(Number.isInteger(start) ? { start } : {}) });
-  }
-  const res = await playCells(ROOT, cells);
+    return { id: `${g}:${L}`, ground: g, L, styles: MIXED, risk: 'steady', hours: C7_HOURS, seeds: C7_SEEDS, holdLevel: true, ...own, ...(Number.isInteger(start) ? { start } : {}) };
+  });
+  const res = await playCells(ROOT, cells, { workers: WORKERS });
   const held = {};
   for (const c of cells) {
     const table = await tableRate(ROOT, c.L);
@@ -193,10 +260,12 @@ async function careerProbe() {
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
 }
 
-async function world() {
+/** The judged world. `shard`: C7 on that shard's cells. `held`: a measure already taken of exactly those cells (the run's, keptHeld). */
+async function world({ shard = null, held = null } = {}) {
   const D = await loadPaceData(ROOT);
+  const scaleGrounds = Object.keys(DANGER_GROUNDS);
   return { xpFor: XP.charXpForLevel, rows: XP.levelCurveRows(), curve: JSON.parse(JSON.stringify(LEVEL_CURVE)), snap: SNAP, career: await careerProbe(),
-    fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D, scaleGrounds: Object.keys(DANGER_GROUNDS), held: await measureHeld(),
+    fingerprint: paceFingerprint(D, SNAP.ceiling), pace: LEVEL_PACE, D, scaleGrounds, shard, held: held || await measureHeld({ cells: cellsOf(scaleGrounds, shard) }),
     hours: (await import('../src/core/hunt/danger.js')).hoursForLevel, levelHours: LEVEL_HOURS };
 }
 /* a new ground on the data: a copy of the Glade under a new id, at `band` (a ground pack's shape, src/data/grounds) */
@@ -230,7 +299,7 @@ const MUTANTS = [
   /* C7 planted on the measurement (the engine's own mutant, the opening climb counted, runs in main below) */
   ['C7', 'a kill pays double at depth', { held: (w) => scaleHeld(w, 2) }],
   ['C7', 'a kill pays a quarter short at depth', { held: (w) => scaleHeld(w, 0.75) }],
-  ['C7', 'a scale ground never measured', { held: (w) => ({ ...w.held, [w.scaleGrounds[0]]: undefined }) }],
+  ['C7', 'a scale ground never measured', { held: (w) => ({ ...w.held, [cellsOf(w.scaleGrounds, w.shard)[0].ground]: undefined }) }],
   ['C7', 'a second scale ground opens with no reference Level', { scaleGrounds: (w) => [...w.scaleGrounds, 'probe_ground'] }],
   /* C8 planted on the hours function (a lever move the design would not make) */
   ['C8', 'the first Levels as slow as Level 50', { hours: () => () => levelHoursOf(50) }],
@@ -241,11 +310,24 @@ const MUTANTS = [
   ['C9', 'a career that throws (a field the tier rows took with them)', { career: () => ({ ok: false, why: 'ReferenceError: tier is not defined' }) }],
 ];
 
-async function main() {
-  const w = await world();
-  if (process.argv.includes('--selftest')) {
+async function main(argv) {
+  const shard = shardOf(argv), selftest = argv.includes('--selftest'), cells = cellsOf(Object.keys(DANGER_GROUNDS), shard);
+  const tag = shard ? ` (shard ${shard.k}/${shard.n}: ${cells.length} of ${cellsOf(Object.keys(DANGER_GROUNDS)).length} C7 cells)` : '';
+  const kept = selftest && argv.includes('--reuse-world') ? keptHeld(shard, cells) : null;
+  if (selftest && argv.includes('--reuse-world')) console.log(kept ? `level-curve --selftest${tag}: the run's measured cells (${worldFile(shard)})` : `level-curve --selftest${tag}: no matching run's cells, measuring`);
+  const w = await world({ shard, held: kept });
+  if (!selftest && argv.includes('--keep-world')) keepWorld(shard, cells, w.held);
+  if (selftest) {
     if (judge(w).out.length) { console.error('level-curve --selftest: the shipped curve already fails:\n  ' + judge(w).out.join('\n  ')); process.exit(1); }
     let miss = 0;
+    /* CONTROL: the shards hold every C7 cell once (the cut cellsOf makes, at this run's N): a cell no shard holds is never judged */
+    if (shard) {
+      const key = (c) => `${c.ground}:${c.L}`, all = cellsOf(w.scaleGrounds).map(key);
+      const parts = Array.from({ length: shard.n }, (_, i) => cellsOf(w.scaleGrounds, { k: i + 1, n: shard.n }).map(key)).flat();
+      const once = parts.length === all.length && new Set(parts).size === all.length && all.every((x) => parts.includes(x));
+      console.log(`  ${once ? 'ok  ' : 'MISS'} control: the ${shard.n} shards hold each of the ${all.length} C7 cells once`);
+      if (!once) miss++;
+    }
     /* CONTROL: a bracket past the ceiling re-fitted by one bend is no reason to re-measure (C1 stays quiet) */
     {
       const c = JSON.parse(JSON.stringify(w.curve));
@@ -260,10 +342,10 @@ async function main() {
       console.log(`  ${quiet ? 'ok  ' : 'MISS'} control: a new ground from Level ${w.snap.ceiling} up needs no re-measure`);
       if (!quiet) miss++;
     }
-    /* C7 ON THE ENGINE: the same four started at step 0 (the opening climb counted, as V2's 0.72x was read) must read short */
+    /* C7 ON THE ENGINE: the same four started at step 0 (the opening climb counted, as V2's 0.72x was read) must read short, on this run's cells */
     {
-      const red = judge({ ...w, held: await measureHeld({ start: 0 }) }).out.filter((s) => s.startsWith('C7'));
-      console.log(`  ${red.length ? 'ok  ' : 'MISS'} C7 the four starts at step 0, not at its held depth (the real engine)`);
+      const red = judge({ ...w, held: await measureHeld({ start: 0, cells }) }).out.filter((s) => s.startsWith('C7'));
+      console.log(`  ${red.length ? 'ok  ' : 'MISS'} C7 the four starts at step 0, not at its held depth (the real engine${shard ? `: ${red.length} of ${cells.length} cells read short` : ''})`);
       if (!red.length) miss++;
     }
     for (const [claim, name, over] of MUTANTS) {
@@ -274,14 +356,14 @@ async function main() {
       console.log(`  ${red.length ? 'ok  ' : 'MISS'} ${claim} ${name}`);
       if (!red.length) miss++;
     }
-    console.log(miss ? `level-curve --selftest: ${miss} defect(s) not caught` : `level-curve --selftest: all ${MUTANTS.length + 1} defects caught`);
+    console.log(miss ? `level-curve --selftest${tag}: ${miss} defect(s) not caught` : `level-curve --selftest${tag}: all ${MUTANTS.length + 1} defects caught`);
     process.exit(miss ? 1 : 0);
   }
   const { out } = judge(w);
   for (const x of out) console.error('✗ ' + x);
   const line = Object.entries(w.held).flatMap(([g, byL]) => Object.entries(byL).map(([L, m]) => `${g} L${L} ${m.ratio.toFixed(2)}x`)).join(', ');
-  console.log(out.length ? `level-curve: ${out.length} claim(s) red` : `level-curve: green (C7: ${line} the hours table, a Steady four at its held depth)`);
+  console.log(out.length ? `level-curve${tag}: ${out.length} claim(s) red` : `level-curve${tag}: green (C7: ${line} the hours table, a Steady four at its held depth)`);
   process.exit(out.length ? 1 : 0);
 }
 
-if (isMain(import.meta.url)) main();
+if (isMain(import.meta.url)) main(process.argv.slice(2));

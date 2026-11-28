@@ -155,7 +155,7 @@ export const FORMULA_IO = Object.freeze({
   'E23': f([SHEET, 'src/data/balance-sheet.js#GROUND_GP_FIT'], ['+mon.level', '+mon.hp'], ['kill.coin']),
   'E24': f(['src/core/pacing.js#goldFindMult,applyGoldFind'], [['+coin.share', 'the seat\'s share arrives as the argument'], '+perk.goldFind'], ['hero.coin'], { as: { applyGoldFind: 'hero.coin', goldFindMult: 'perk.goldFind', goldFind: 'perk.goldFind' } }),
   'E25': f(['src/core/party-split.js#splitEven'], [['+kill.coin', 'the kill\'s coin arrives as the argument'], ['-party.size', 'it is split among the seats']], ['coin.share']),
-  'E26': f(['supabase/functions/hr-accrue/catalogue.js#vendorPriceOf'], ['+item.book', ['+sale.rate', 'the gear rate and the income dial arrive on the item row'], ['+shop.cheapest', 'a bid is never over half the cheapest shop price']], ['sale.price']),
+  'E26': f(['supabase/functions/hr-accrue/catalogue.js#vendorPriceOf,bookSaleOf,jobCapped'], ['+item.book', ['+sale.rate', 'the gear rate and the income dial arrive on the item row'], ['+shop.cheapest', 'a bid is never over half the cheapest shop price']], ['sale.price']),
   'E27': f(['src/data/loot-bands.js#VENDOR_GEAR_RATES,gearSaleRate'], [], ['sale.rate']),
   'E28': f(['src/data/loot-sale.js#saleFitPm'], [], ['sale.rate']),
   'E29': f(['src/core/shop-buyback.js#cheapestShopUnitPrice'], [['+shop.price', 'the offers arrive as the argument']], ['shop.cheapest']),

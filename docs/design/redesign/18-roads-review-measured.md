@@ -207,6 +207,28 @@ Of CONFLICTS 2026-11-23's eight town sides that buy nothing, four are the map (e
 
 Beside them, two rules change a V0 but not whether a move casts: a borrowed ally heal or ward reaches as its native move (Greater Mend and Protective Ward 7 tiles; the engine gives the holder's range, `cast-targets.js reachOf`, a melee hero's 1 tile), and no borrowed heal shares Mend's clock (V4, 19's heal rule). Nothing here is built; `src/core/hunt/*` is the borrow-engine lane's.
 
+### 7c. The borrow engine and the heal rule, measured (2026-11-27, lane/e5-borrowing, systems)
+
+**What the engine plays now** (`src/core/hunt/talent-rows.js` lend, one rule set for a build's borrow and a borrow handed whole; `src/data/talents.js BORROW_RULES`): the native weapon's blow (as before), **a borrowed heal on Mend's clock** (one 6 s cooldown, casting either starts it: the lent row stands in for a Mend, `abilities.js clockOf`), **Magic at Mend's rate** (250), **an ally heal or ward at its native reach** (the healer's 7 tiles, in the target rule and in the slot's "lowest ally"), **no native unlock** (the borrow's opening Level is its gate: Shelter casts on a healer), and **a borrowed Challenge from any seat** (a seat that is no tank takes only what is on a hero that is no tank, its hold at its price). Still not played: a borrowed shot's own arrows (Raking Shot off an axe), and which skill a borrowed spell's rune version reads (the ruling 7b names).
+
+**How it was measured.** Signature-depth's cell (`tools/balance-program/redesign/roads/e5/run.sh`, read by `sum.mjs`): v1-climb's `base` cell, Muster Barrows, Level 60, MID kits, Steady, 8 h, paced from hour 4, 12 seeds paired on the same dice, the engine's own borrow (`v1-climb --borrowed`) with the native played slot's conditions, ahead of Mend. Two scales: the held step's paired delta, and pace steps (the held pace's delta over 0.43% a step, `signature-depth/sum.mjs PACE_STEP_PCT`). The value is the larger. Played from `d42bd6295`; the later commits change only the taunt path, which no cell here casts.
+
+| Borrow | Plain four's held | Held delta (se) | Pace steps (se) | Value | Casts / h | Borrower's Mend / h (plain, borrowed) | Store / hero-h | Deaths |
+|---|---|---|---|---|---|---|---|---|
+| Greater Mend, the hammer beside a healer (M: 19 V4's cell) | 606.0 | +7.5 (3.2) | +7.1 (2.9) | **7.5** | 350 | 39, 0 | +2.4% | 0 / 0 |
+| Greater Mend, the sword in a four with no healer (N: 17's V0 cell) | 447.2 | +40.3 (2.6) | +29.0 (2.6) | **40.3** | 464 | 18, 0 | +17.5% | 0 / 0 |
+| Greater Mend, the same, at −30% | 447.2 | +31.5 (1.8) | +22.5 (1.4) | 31.5 | 460 | 18, 0 | +17.3% | 0 / 0 |
+| Greater Mend, the same, at −50% | 447.2 | +18.0 (1.9) | +7.6 (2.7) | 18.0 | 458 | 18, 0 | +16.1% | 0 / 0 |
+| Circle of Renewal, the sword with no healer (N) | 447.2 | +2.0 (2.3) | +1.8 (1.5) | **2.0** | 214 | 18, 5 | +6.4% | 0 / 0 |
+| Greater Mend, the sword with no healer, at −75% (lane/designer-greater-mend) | 447.2 | +7.0 (2.4) | +0.4 (1.8) | 7.0 | 450 | 18, 0 | +13.6% | 0 / 0 |
+| **Greater Mend, the sword with no healer, at −80% (the fourth band)** | 447.2 | +6.0 (1.6) | −1.4 (1.1) | **6.0** | 448 | 18, 0 | +13.9% | 0 / 0 |
+| Greater Mend, the hammer beside a healer, at −80% | 606.0 | −9.3 (2.0) | −8.5 (1.9) | 0 | 335 | 39, 0 | +3.6% | 0 / 0 |
+
+- **The heal rule works on cast count, as intended.** The sword's Greater Mend fell from 1,421 casts an hour (section 7, no rule) to 464, and its value from +97.4 to +40.3. Beside a healer it is +7.5 (it was +49.9 on the hammer before the rule, section 1). Under the rule the value now moves with power: 70% power reads 31.5 and half power 18.0 of 40.3.
+- **19 V4 passes on its own cell** (the hammer beside a healer, 10 steps or less): 7.5 ± 3.2.
+- **17's band does not.** Its V0 is "what the move adds to a four that lacks it", a four with no healer, and that reads 40.3: past the last band, so Greater Mend stays unoffered (`BORROW_VALUES` 40.3, the catalogue unchanged). That is the ledger's own fallback (20 "Known risks"). At −50% it is still 18, so no band of today's table lands it at 10 or less. The designer's call, with the measured menu in CONFLICTS 2026-11-27 (E5). **RULED (lane/designer-greater-mend, `19` "Decision: the borrowed heal in a four with no healer"):** a fourth band, V0 20 to 50 at −80% at a border, never at Havora. Greater Mend reads 6.0 ± 1.6 there and opens at 120; `1064` regenerated STAGED, its two town rows open at 120.
+- **Circle of Renewal falls into the free band** on Mend's clock (2.0, was 7.1): free at a border and −30% at Havora, opening at 30 and 20 (was 80 and 60). `1064` regenerated STAGED, two option rows.
+
 ## Files
 
 `tools/balance-program/redesign/roads/`: `make-lend.mjs` (writes `roads-lend.json`, the candidate, and `roads-lend-rules.json`, the same with 17's borrow rules the engine lacks), `check-lend.mjs` (proves both plant), `roads-run.mjs` (the cells: plans q1, q2, q3, q3f, time, v0, v0rules), `summarize.mjs` → `summary.txt`, `v0.mjs` → `v0-values.txt` (section 7), and each plan's `.json` (per seed) and `.txt`.

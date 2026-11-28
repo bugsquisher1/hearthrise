@@ -66,6 +66,7 @@ import { reachOf, allyOrder, allyTargets, partyOf, onlyOne, tuneAfflict } from '
 import { levelOf } from '../xp.js';
 import { ammoPerShot } from '../ammo.js';
 import { ITEMS } from '../../data/items.js';
+import { SIGNATURES } from '../../data/signatures.js';
 import { isRune } from '../../data/supplies.js';
 import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
 import { place, covers } from './shapes.js';
@@ -122,8 +123,8 @@ function targetFor(inst, hero, h, row, sc, cx) {
   const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
-    /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank. */
-    case 'taunt': return challengeable(inst, hero).length ? hero : null;
+    /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank (a borrowed one, from any seat). */
+    case 'taunt': return challengeable(inst, hero, row).length ? hero : null;
     /* THE MARK (23-spell-audit.md section 4): the hero's own target while it is unmarked, so the party's blows land on it; else the
        healthiest in reach (a pull just begun), never one already marked */
     case 'mark': {
@@ -534,7 +535,7 @@ function effect(inst, u, row, t, sc, v) {
   const fx = row.fx || null;
   const cast = (v && v.cast) || { inst, fx, spent: 0, near: false };
   switch (row.target) {
-    case 'taunt': challengeFrom(inst, sc, u); break;
+    case 'taunt': challengeFrom(inst, sc, u, row); break;
     case 'mark':
       /* The marked target takes bonusPct more damage from every blow until markUntil (damage.landHit). */
       t.markPm = row.bonusPct * 10; t.markUntil = sc.atMs + row.durMs;
@@ -599,11 +600,28 @@ function effect(inst, u, row, t, sc, v) {
   }
 }
 
+/* THE RUNE SAVE ON THIS CAST for a hero wearing a Signature with `saves` ({ family, every }): { key, count, drop } (drop: this cast's rune
+   line is left unpaid), or null (no such Signature, or a cast of no rune of its family). The count is the cast's place in its run of `every` */
+function runeSaveOf(u, pick) {
+  const s = Object.prototype.hasOwnProperty.call(SIGNATURES, u.signature) ? SIGNATURES[u.signature] : null;
+  const rune = pick && pick.row && pick.row.rune ? ITEMS[pick.row.rune] : null;
+  /* (a rune spell's first line is its rune, own or bought: suppliesFor) */
+  if (!s || !s.saves || !rune || rune.family !== s.saves.family || !pick.lines.length) return null;
+  const key = '~n:' + s.id, count = (readyAt(u.cds, key) + 1) % s.saves.every;
+  return { key, count, drop: count === 0 };
+}
+
 /** Fire `pick` (from firstUsable): pay, set the clocks, apply. False when a supply could not be paid.
     A pick with no `mana` / `version` / `pm` (a caller handing the row itself) casts version I at the row's numbers. */
 export function fire(inst, u, pick, sc) {
   const h = inst.heroes[u.id];
+  /* A RUNE A WORN SIGNATURE SAVES (src/data/signatures.js `saves`, lane/signatures-batch-3; 15 #25 The Cold Candle): its rune line is
+     left unpaid (nothing bought, nothing taken from the bag) on every `every`-th cast of a spell of its family, the count kept once the
+     cast is paid. A hero with none pays as before */
+  const save = typeof u.signature === 'string' ? runeSaveOf(u, pick) : null;
+  if (save && save.drop) pick = Object.assign({}, pick, { lines: pick.lines.slice(1), saved: pick.lines[0].id });
   for (const l of pick.lines) if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
+  if (save) u.cds = Object.assign({}, u.cds || {}, { [save.key]: save.count });
   const row = pick.row;
   const version = Number.isInteger(pick.version) ? pick.version : 1;
   /* A NEXT CAST RAISED (statuses.js castPm, Kindled: a Signature's boon) lands its share on this cast's output, as a version's step, and is
@@ -659,7 +677,7 @@ export function fire(inst, u, pick, sc) {
   }
   const mana = spent - back;
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
-    ...(rune ? { supply: rune, version, power: pm } : {}),
+    ...(rune ? { supply: rune, version, power: pm } : pick.saved ? { saved: pick.saved, version, power: pm } : {}),
     ...(refund + wardBack > 0 ? { refund: refund + wardBack } : {}),
     ...(back > 0 ? { back } : {}),
     ...(took ? { took } : {}),

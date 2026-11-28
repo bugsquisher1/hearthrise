@@ -43,6 +43,7 @@ import { towerOf, towerPull, towerCleared } from './tower.js';
 import { healTaken } from './heal-cut.js';
 import { dangerOn, pullBegins, pullEnds, readyToPull, respawnMsOf, breaksOff, packDown, packWhole } from './danger.js';
 import { SIDE, sideOf, isHero, isMonster } from './sides.js';
+import { queueOn, reactorsOf } from './react-queue.js';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -244,6 +245,10 @@ function startPull(inst, sc, k, p) {
   clearGoal(k);
   inst.world.phase = PHASE.FIGHT;
   sc.emit(makeEvent('pull', sc.atMs, { pocket: p }));
+  /* A PULL BEGINS (a reaction's `pull` moment, lane/signatures-batch-3: Night Carter's Boots), its pack the moment's monsters. Queued
+     only, for the heroes whose rows read it (react-queue.js), so a hunt with none queues nothing */
+  const rs = reactorsOf(inst);
+  if (rs.length) { const list = packMonsters(inst, p); for (const h of rs) queueOn(inst, h, 'pull', { list, n: list.length }); }
 }
 
 /**

@@ -4,6 +4,8 @@
 //
 //   node tools/balance-program/redesign/signature-depth/sum.mjs            the sample (run.sh)
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 2  batch 2 (batch2.sh): the size bar and the spread bar a row
+//   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 3  batch 3 (batch3.sh, lane/signatures-batch-3): the same bars, the
+//                                                                           coin pieces' coin a hero-hour, the shapes tried
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -129,13 +131,71 @@ const zip = (a, b, f) => { const d = []; a.forEach((x, i) => { const y = b[i]; i
 const heldOf = (p, s) => stats(zip(p.held.perSeed, s.held.perSeed, (x, y) => y - x));
 /* (payX.perSeed drops a seed with no pay window, so a list shorter than the seeds read cannot be paired by place: none is read; a seed
    whose four earned nothing from the held start, the unsettled tank four on Krell's Hold, reads nothing) */
+/* (lane/signatures-batch-3) a report that carries each seed's pace to 5 places (v1-climb payX.exact) is read on it, both arms or neither:
+   perSeed's hundredths move a paired delta in quanta of about 2.6 pace steps */
+const paysOf = (p, s) => (p.payX.exact && s.payX.exact ? [p.payX.exact, s.payX.exact] : [p.payX.perSeed, s.payX.perSeed]);
 const paceOf = (p, s) => (p.payX.perSeed.length !== p.seedsRead || s.payX.perSeed.length !== s.seedsRead ? null
-  : stats(zip(p.payX.perSeed, s.payX.perSeed, (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
+  : stats(zip(...paysOf(p, s), (x, y) => (x > 0 && y > 0 ? ((y / x - 1) * 100) / PACE_STEP_PCT : null))));
 const show = (d, n) => (d ? sgn(d.m) + ' (' + d.se.toFixed(1) + (n ? ', ' + d.n : '') + ')' : 'no hold');
 /* the size bar on a reading in pace steps (15 "Decision: the scale a Signature is sized on") */
 const sizeOf = (d) => (!d ? 'owed' : d.m > HI ? (d.se > SE_MAX ? 'over, se ' + d.se.toFixed(1) + ': more seeds' : 'OVER (cut its number)')
   : d.m < LO ? (d.m + d.se < LO ? 'UNDER (raise or reshape)' : d.se > SE_MAX ? 'under, se ' + d.se.toFixed(1) + ': more seeds' : 'UNDER (raise or reshape)')
   : d.se > SE_MAX ? 'in band, se ' + d.se.toFixed(1) + ': more seeds' : 'in band');
+
+/* BATCH 3 (lane/signatures-batch-3, batch3.sh): [name, [best ground, plain, worn], [second ground, plain, worn] | null], each against its
+   plain four played again on this tree (the b3 plains). COIN: the coin pieces' rule moves the supply bill, so a row prints the store bill
+   a hero-hour (gold.storePerHeroH) and the kit's charge (runes) and drink lines beside its pace; means over the seeds (v1-climb keeps no
+   per-seed coin), never the size bar (15 "Decision: the scale a Signature is sized on": coin is the market's) */
+const ROWS3 = [
+  ['#1 Bannerman\'s Pavise (tank)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-pavise'], null],
+  ['#19 Lock-Keeper\'s Chain (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-chain'], ['The Slake', 'b3-slake-mixed', 'b3-slake-chain']],
+  ['#20 Greened Bracers (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-bracers'], ['The Slake, its home', 'b3-slake-mixed', 'b3-slake-bracers']],
+  ['#22 Slake Waders (a lone sword)', ['The Slake, its home', 'b3-slake-lone', 'b3-slake-waders'], ['Muster Barrows', 'b3-muster-lone', 'b3-muster-waders']],
+  ['#24 Stoker\'s Ring (mage)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-stoker'], ['Pyre Field, its home', 'b3-pyre-mixed', 'b3-pyre-stoker']],
+  ['#26 Thrower\'s Ring (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-thrower'], ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b3-carters-thrower']],
+  ['#28 Vault Leech Ring (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-leech'], ['Pyre Field', 'b3-pyre-mixed', 'b3-pyre-leech']],
+  ['#29 Fledgling Claw (axes)', ['Muster Barrows', 'b3-muster-axes', 'b3-muster-claw'], null],
+  ['#31 The Cellar Key (healer)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-key'], ['Carter\'s Rest, its home', 'b3-carters-mixed', 'b3-carters-key']],
+  ['#38 Drowned Signet (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-signet'], ['Hask\'s Ford', 'b3-hask-mixed', 'b3-hask-signet']],
+  ['#42 Night Carter\'s Boots (tank)', ['Muster Barrows', 'b3-muster-tank', 'b3-muster-boots'], null],
+  ['#43 Bull\'s Tooth (ranger)', ['Muster Barrows', 'b3-muster-mixed', 'b3-muster-tooth'], ['Wyvern Roost, its home', 'b3-roost-crossbow', 'b3-roost-tooth']],
+  /* (the coin pieces at 4 seeds, against the plain four's own 4-seed reports: coin is a mean over seeds, never paired, so both arms read
+     the same 4 seeds) */
+  ['#25 The Cold Candle (mage, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-mixed4', 'b3-muster-candle'], null],
+  ['#27 Riverstone Earrings (healer, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-mixed4', 'b3-muster-riverstone'], null],
+  ['#33 Teamster\'s Mitts (tank, coin, 4 seeds)', ['Muster Barrows', 'b3-muster-tank4', 'b3-muster-mitts'], null],
+];
+/* THE SHAPES TRIED on a batch-3 row that missed (a temporary id on a scratch copy, b3v-*): [label, plain, worn] */
+const VARIANTS3 = [
+  ['#1 Bannerman\'s Pavise, a Challenge: the monsters it taunts Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-pavise-weak'],
+  ['#42 Night Carter\'s Boots, a pull: its pack Weakened (-8%, 8 s) (Muster)', 'b3-muster-tank', 'b3v-muster-boots-weak'],
+  ['#31 The Cellar Key, every fifth death: a shield of 3% of max health on each hero of the party (Muster)', 'b3-muster-mixed', 'b3v-muster-key-shield'],
+  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health (Muster; the new shell breaks too, so it never stops)', 'b3-muster-mixed', 'b3v-muster-thrower-shield'],
+  ['#26 Thrower\'s Ring, a shell you cast breaks: its hero gets a shield of 6% of max health, once every 30 s a hero (Muster)', 'b3-muster-mixed', 'b3v-muster-thrower-shield30'],
+];
+if (BATCH === '3') {
+  const coin = (p, s) => { const d = (f) => Math.round(f(s) - f(p)); return 'store ' + sgn(d((c) => c.gold.storePerHeroH.mean)).replace('.0', '') + ', runes ' + sgn(d((c) => c.kit.charge)).replace('.0', '') + ', drink ' + sgn(d((c) => c.kit.drink)).replace('.0', ''); };
+  console.log('| Signature | Best cell | Plain held | Held delta (se, seeds) | Pace steps (se) | Kills/h | Coin a hero-hour (worn - plain) | Second ground | Its pace steps (se) | Size bar (10 +- 3 pace steps, se <= 3) | Spread bar (second <= half the best) |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const [name, best, other] of ROWS3) {
+    const read = (x) => { if (!x) return { g: '(none read)', owed: true, none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
+    const B = read(best), O = read(other);
+    /* (a coin piece is the market's, never the size bar's; a row under its size reads no second ground) */
+    const isCoin = / coin/.test(name), under = !B.owed && !!B.q && B.q.m < LO;
+    const size = B.owed ? 'owed' : isCoin ? 'a coin piece (the market\'s, no bar)' : sizeOf(B.q);
+    const spread = B.owed || !B.q ? 'owed' : isCoin ? 'n/a' : under ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read' : O.q.m <= B.q.m / 2 ? 'holds'
+      : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+    const second = O.none ? '' : O.owed ? (under || isCoin ? 'not read' : 'owed') : show(O.q);
+    console.log('| ' + [name, B.g, B.owed ? 'owed' : B.p.held.mean.toFixed(1), B.owed ? 'owed' : show(B.h, true), B.owed ? 'owed' : show(B.q),
+      B.owed ? '' : pct(B.s.killsPerH, B.p.killsPerH), B.owed ? '' : coin(B.p, B.s), O.g, second, size, spread].join(' | ') + ' |');
+  }
+  if (VARIANTS3.length) console.log('\n| Shape tried | Held delta (se, seeds) | Pace steps (se) | Size bar | Kills/h |\n|---|---|---|---|---|');
+  for (const [name, a, b] of VARIANTS3) {
+    const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+    console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : p && s ? 'no pay window' : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+  }
+  process.exit(0);
+}
 
 if (BATCH !== '2') {
   console.log('| Signature | Ground | Plain held | Held delta (se) | Pace steps (se) | Size bar | Level XP/h | Coin/h | Kills/h | Deaths |');

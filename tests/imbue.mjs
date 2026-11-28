@@ -13,7 +13,7 @@
 // ci-run: node tests/imbue.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/imbue.mjs --mutate
 //
-// mutant-anchors: src/core/imbue.js src/data/imbue-rules.js src/core/power-ledger.js
+// mutant-anchors: src/core/imbue.js src/data/imbue-rules.js src/core/power-ledger.js src/core/hunt-spawn.js src/data/power-ledger.js
 // mutant-writes-tree: no — every mutant is planted into a temp copy of src (tests/_pure-guard.mjs planted)
 //
 //   IM-1  THE ROWS: the sample of five, Edge on the weapon, Ward on the body, Leech on the helmet; every part from an open ground other than
@@ -25,11 +25,18 @@
 //   IM-5  THE WORN SET: one a kind (the first stays), an unknown id, a spent one and a band no whole number dropped
 //   IM-6  THE STEPS: 2 at or under the band, the contest curve past it, none past wearAhead under it
 //   IM-7  THE SLICE (D-1, D-11): three worn at Level 200 fill the consumable cap of 6 between them, so a damage meal adds nothing on any
-//         blow; one fires only on its channel and its condition; the cap ramps (Level 60: 1.8); a forged fourth row is clamped at the cap
+//         blow; one fires only on its channel and its condition; the cap and the rows are whole at every Level (21 D-16, lane/designer-
+//         imbue-calls: a Level 60 Edge reads 2 of a cap of 6, not 0.6 of 1.8); a forged fourth row is clamped at the cap; a conditional
+//         row carries its fire size, a whole number from 2 to fireMax (D-17), and a rule row none
+//   IM-8  THE RUN-OUT (1077-worn-imbues.sql, lane/worn-imbues): heroSetup turns the server's msLeft into the instant it runs out (the read's
+//         settled_to plus msLeft) and carries no msLeft on; the engine's re-read at every boundary keeps that set whole (before this lane
+//         it dropped every imbuement heroSetup handed it: no msLeft survived); imbuesAt stands one to the millisecond before its instant
+//         and drops it at that instant; a Lab hero with no read instant lasts the span
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { runPureGuard } from './_pure-guard.mjs';
+import { harnessFail } from './_mutant-verdict.mjs';
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
@@ -52,6 +59,10 @@ async function pure(base) {
   plant({ when: null }, 'flat number');
   plant({ when: { metric: 'hit_element', eq: 'fire' } }, 'matches nothing');
   plant({ when: { metric: 'target_role', eq: 'giant' } }, 'matches nothing');
+  /* D-17: a conditional row fires at its measured size, whole, from its rated 2 to fireMax; a rule row has none */
+  plant({ fire: null }, 'fires at'); plant({ fire: 1 }, 'fires at'); plant({ fire: 21 }, 'fires at'); plant({ fire: 4.5 }, 'fires at');
+  if (!D.validateImbues({ ...D.IMBUE_RULES, fire_edge: { ...D.IMBUE_RULES.fire_edge, fire: 3 } }).some((p) => p.includes('no fire size'))) out.push('IM-1 a rule row with a fire size was not refused');
+  if (D.IMBUE_RULES.brute_edge.fire !== 5 || D.IMBUE_RULES.fire_ward.fire !== 11 || D.IMBUE_RULES.life_leech.leech.pm !== 20) out.push('IM-1 the measured sizes moved (21 section 11): Brute Edge ' + D.IMBUE_RULES.brute_edge.fire + ', Fire Ward ' + D.IMBUE_RULES.fire_ward.fire + ', Life Leech ' + D.IMBUE_RULES.life_leech.leech.pm);
   plant({ best: { ground: 'pyre_field', seat: 'melee' } }, 'own best ground');
   plant({ part: 'coal_tongs' }, 'does not open');
   /* an imbuement never stacks with a Trait of its key: no imbuement key is a Trait's (held here, since the Traits are hidden data) */
@@ -91,9 +102,29 @@ async function pure(base) {
   if (!near(PL.clampLedger(C.imbueRows(two, 'offense', plain, 200).concat([food('offense', 6)]), 200).offense, 4)) out.push('IM-7 one waiting Edge does not leave a meal 4 of the 6');
   const at60 = C.wornImbuesOf([{ id: 'brute_edge', band: 60, msLeft: 5 }, { id: 'fire_ward', band: 60, msLeft: 5 }, { id: 'mana_leech', band: 60, msLeft: 5 }]);
   const off60 = PL.clampLedger(C.imbueRows(at60, 'offense', knight, 60).concat([food('offense', 6)]), 60).offense;
-  if (!near(off60, 0.6) || !near(PL.sliceCap('consumable', 60), 1.8)) out.push('IM-7 at Level 60 the Edge with a meal reads ' + off60 + ' and the cap ' + PL.sliceCap('consumable', 60) + ', want 0.6 and 1.8 (ramp)');
+  if (!near(off60, 2) || !near(PL.sliceCap('consumable', 60), 6) || !near(PL.sliceCap('consumable', 10), 6)) out.push('IM-7 at Level 60 the Edge with a meal reads ' + off60 + ' and the cap ' + PL.sliceCap('consumable', 60) + ', want 2 and 6: the slice is whole at every Level (21 D-16)');
   const forged = ['a', 'b', 'c', 'd'].map((k) => ({ slice: 'consumable', raises: 'offense', steps: 2, key: 'edge_' + k }));
   if (!near(PL.clampLedger(forged, 200).offense, 6)) out.push('IM-7 four forged imbuement rows read ' + PL.clampLedger(forged, 200).offense + ', past the cap of 6');
+  /* IM-8: the run-out instant, through the settle's own door (heroSetup, then syncUnit's re-read at every boundary) */
+  const T0 = 1764000000000;
+  const read = [{ id: 'brute_edge', band: 70, msLeft: 5000 }, { id: 'fire_ward', band: 45, msLeft: 90000 }];
+  const want = JSON.stringify([{ id: 'brute_edge', band: 70, kind: 'edge', untilMs: T0 + 5000 }, { id: 'fire_ward', band: 45, kind: 'ward', untilMs: T0 + 90000 }]);
+  const worn = C.wornImbuesOf(read, T0);
+  if (JSON.stringify(worn) !== want) out.push('IM-8 the worn set is ' + JSON.stringify(worn) + ': want each one to the read\'s settled_to plus its msLeft, and no msLeft carried on (a peer\'s frozen key)');
+  /* ...and heroSetup (the settle's door, hunt-settle.js) hands exactly that set (loaded here alone: it reads the whole catalogue) */
+  let SP = null;
+  try { SP = await imp('src/core/hunt-spawn.js'); } catch (e) { out.push(harnessFail('IM-8 loading the hero builder', e)); }
+  const hero = SP ? SP.heroSetup({ weaponType: 'sword', options: {}, bar: [], wornImbues: read, readAtMs: T0 }) : null;
+  if (SP && JSON.stringify(hero && hero.wornImbues) !== want) out.push('IM-8 heroSetup hands the fight ' + JSON.stringify(hero && hero.wornImbues) + ', want ' + want);
+  /* the engine re-reads its own set at every boundary (combat-sim.js syncUnit): the set heroSetup made must survive it whole */
+  if (JSON.stringify(C.wornImbuesOf(worn)) !== JSON.stringify(worn)) out.push('IM-8 the set heroSetup made does not survive the engine\'s re-read: ' + JSON.stringify(C.wornImbuesOf(worn)));
+  const idsOf = (s) => (s ? s.map((w) => w.id).join() : 'none');
+  if (idsOf(C.imbuesAt(worn, T0)) !== 'brute_edge,fire_ward' || idsOf(C.imbuesAt(worn, T0 + 4999)) !== 'brute_edge,fire_ward') out.push('IM-8 an imbuement with time left does not stand: ' + idsOf(C.imbuesAt(worn, T0 + 4999)));
+  if (idsOf(C.imbuesAt(worn, T0 + 5000)) !== 'fire_ward' || idsOf(C.imbuesAt(worn, T0 + 90000)) !== 'none') out.push('IM-8 an imbuement stands at or past its run-out: ' + idsOf(C.imbuesAt(worn, T0 + 5000)) + ' / ' + idsOf(C.imbuesAt(worn, T0 + 90000)));
+  /* a Lab hero (no read instant) lasts the span; a raw list re-read at a boundary keeps its rules */
+  const lab = C.wornImbuesOf(read);
+  if (!lab || lab.some((w) => w.untilMs !== null) || idsOf(C.imbuesAt(lab, T0 + 1e9)) !== 'brute_edge,fire_ward') out.push('IM-8 a hero with no read instant does not last the span: ' + JSON.stringify(lab));
+  if (idsOf(C.imbuesAt([{ id: 'life_leech', band: 45, msLeft: 0 }, { id: 'nope', band: 45, msLeft: 9 }], T0)) !== 'none') out.push('IM-8 imbuesAt wears a spent or unknown imbuement');
   return out;
 }
 
@@ -108,13 +139,23 @@ const MUTANTS = [
   ['the fee ignores the ramp', 'src/core/imbue.js', 'const L = Math.max(0, Math.min(POWER_LEDGER.rampLevel, Math.floor(Number(heroLevel) || 0)));', 'const L = POWER_LEDGER.rampLevel;'],
   ['the band is the best ground\'s', 'src/data/imbue-rules.js', 'out.set(id, { ground: p.id, band: p.hunt.band[0], open:', 'out.set(id, { ground: p.id, band: p.hunt.band[1], open:'],
   ['a second of one kind is worn', 'src/core/imbue.js', 'if (!byKind.has(kind)) byKind.set(kind,', 'byKind.set(kind + byKind.size,'],
-  ['a spent imbuement is worn', 'src/core/imbue.js', "if (!own(IMBUE_RULES, id) || !whole(x.band) || !whole(x.msLeft)) continue;", "if (!own(IMBUE_RULES, id) || !whole(x.band)) continue;"],
+  ['a spent imbuement is worn', 'src/core/imbue.js', ': whole(x.msLeft) ? (from === null', ': true ? (from === null'],
+  ['the run-out instant is the read\'s own', 'src/core/imbue.js', '(from === null ? null : from + whole(x.msLeft))', '(from === null ? null : from)'],
+  ['an imbuement never runs out in the fight', 'src/core/imbue.js', '(from === null ? null : from + whole(x.msLeft))', '(null)'],
+  ['the engine\'s own set does not survive a re-read', 'src/core/imbue.js', "own(x, 'untilMs') ? (Number.isSafeInteger(x.untilMs) ? x.untilMs : null)", 'false ? (null)'],
+  ['msLeft rides on into the hero', 'src/core/imbue.js', 'kind, untilMs }));', 'kind, untilMs, msLeft: x.msLeft }));'],
+  ['a run-out imbuement still stands', 'src/core/imbue.js', 'w.untilMs === null || w.untilMs > atMs', 'true'],
+  ['a run-out lands one boundary late', 'src/core/imbue.js', 'w.untilMs === null || w.untilMs > atMs', 'w.untilMs === null || w.untilMs >= atMs'],
+  ['heroSetup never reads the read\'s instant', 'src/core/hunt-spawn.js', 'wornImbuesOf(o.wornImbues, o.readAtMs)', 'wornImbuesOf(o.wornImbues)'],
   ['no contest curve behind the band', 'src/core/imbue.js', 'return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));', 'return IMBUE.steps;'],
   ['a band past wearAhead is worn', 'src/core/imbue.js', 'if (!b || !L || b > L + GEAR_STEPS.wearAhead) return 0;', 'if (!b || !L) return 0;'],
   ['an imbuement fires on any monster', 'src/core/imbue.js', 'const fires = r.raises === channel && holdsOn(r, ctx);', 'const fires = r.raises === channel;'],
   ['a waiting imbuement takes no room', 'src/core/power-ledger.js', 'if (!ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;', 'if (false) room += g;'],
   ['the consumable slice has no cap', 'src/core/power-ledger.js', 'Math.max(0, Math.min(cap, gains + room) - room)', 'Math.max(0, gains)'],
+  ['the consumable slice ramps again', 'src/data/power-ledger.js', 'max: POWER_LEDGER.consumableStepsMax, ramps: false,', 'max: POWER_LEDGER.consumableStepsMax, ramps: true,'],
+  ['a conditional row with no fire size passes', 'src/data/imbue-rules.js', 'if (r.when && !(Number.isInteger(r.fire)', 'if (false && !(Number.isInteger(r.fire)'],
+  ['a fire size past one tier passes', 'src/data/imbue-rules.js', 'r.fire <= IMBUE.fireMax)', 'r.fire <= 999)'],
 ];
 
 process.exitCode = await runPureGuard({ mutate: process.argv.includes('--mutate'), guard: 'tests/imbue.mjs', pure, mutants: MUTANTS,
-  green: 'the five rows on open grounds, life, the fee, the recipe, the worn set, the band\'s steps and the slice\'s room all hold' });
+  green: 'the five rows on open grounds, life, the fee, the recipe, the worn set, the band\'s steps, the slice\'s room and the run-out instant all hold' });

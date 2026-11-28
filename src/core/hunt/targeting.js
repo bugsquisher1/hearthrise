@@ -22,6 +22,7 @@
 // ============================================================
 
 import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { MONSTERS } from '../../data/monsters.js';
 import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js';
 import { elementPermille, heroElementPermille } from '../elements.js';
@@ -249,14 +250,15 @@ export function holderTank(inst) {
   return tanks[runs % tanks.length];
 }
 
-/** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank). */
-export function challengeable(inst, k) {
+/** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank), or by any living hero casting `row`, a
+    BORROWED Challenge (`lent`, talent-rows.js lend: 17 section 3 "a borrowed Challenge taunts from any seat"). */
+export function challengeable(inst, k, row) {
   /* (none on a hero whose monsters may not switch off it: Hold Fast, lockedOn) */
-  return inReachOf(inst, k).filter((m) => !lockedOn(unitById(inst, m.target)));
+  return inReachOf(inst, k, row).filter((m) => !lockedOn(unitById(inst, m.target)));
 }
-/* the monsters tank `k`'s Challenge reaches and may take by the one-holder rule */
-function inReachOf(inst, k) {
-  if (!isTank(k) || !k.alive) return [];
+/* the monsters tank `k`'s Challenge reaches and may take by the one-holder rule (a seat that is no tank never holds the lap: the overflow) */
+function inReachOf(inst, k, row) {
+  if ((!isTank(k) && !(row && row.lent === true)) || !k.alive) return [];
   const holds = holderTank(inst) === k;
   /* a non-holder takes only what is on a hero that is not a tank */
   const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && isAlly(k, t) && !isTank(t); };
@@ -267,6 +269,7 @@ function inReachOf(inst, k) {
    tauntHoldMs from src/core/talents.js grantsOf; absent with no build) */
 const tauntReach = (k) => (Number.isInteger(k.tauntRadius) && k.tauntRadius > 0 ? k.tauntRadius : CHALLENGE.radius);
 const tauntHold = (k) => (Number.isInteger(k.tauntHoldMs) && k.tauntHoldMs > 0 ? k.tauntHoldMs : CHALLENGE.holdMs);
+const STEP = HUNT_TUNING.stepMs;
 
 /**
  * THE CHALLENGE'S EFFECT, the one writer of a taunt: every monster `challengeable`
@@ -274,11 +277,13 @@ const tauntHold = (k) => (Number.isInteger(k.tauntHoldMs) && k.tauntHoldMs > 0 ?
  * Emits `target` per monster and one `challenge`; the cast, its clocks and its
  * `cast` event are the ability path's (abilities.js fire).
  */
-export function challengeFrom(inst, sc, k) {
-  const took = challengeable(inst, k);
-  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = tauntHold(k); }
+export function challengeFrom(inst, sc, k, row) {
+  const took = challengeable(inst, k, row);
+  /* (a borrowed Challenge holds at its price: holdPm permille of the hold, on the engine's step grid) */
+  const hold = row && Number.isInteger(row.holdPm) ? Math.max(STEP, Math.floor((tauntHold(k) * row.holdPm) / 1000 / STEP) * STEP) : tauntHold(k);
+  for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = hold; }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
-  if (took.length) queueOn(inst, k, 'taunt', { n: took.length });
+  if (took.length) queueOn(inst, k, 'taunt', { n: took.length, list: took });
   return took.length;
 }
 

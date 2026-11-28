@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: b2ffab683c2b182c9b0653b9c4fdb6a9d7441b231dfeef13727ed7f5ff771453
+--   digest: 531c0d2c7fc5fc185a3a0ff63dd037cb957cfce9ef3bb70756e34e042742c2d3
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   720 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
@@ -1862,7 +1862,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('elderscale_heart', 9000),
   ('ember_arrowheads', 80),
   ('ember_axe', 280),
-  ('ember_bar', 100),
+  ('ember_bar', 64),
   ('ember_belt', 156),
   ('ember_boots', 156),
   ('ember_earrings', 195),
@@ -2104,7 +2104,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_arrowheads', 80),
   ('rune_arrows', 1),
   ('rune_axe', 360),
-  ('rune_bar', 100),
+  ('rune_bar', 59),
   ('rune_belt', 82),
   ('rune_blank', 1),
   ('rune_boots', 82),

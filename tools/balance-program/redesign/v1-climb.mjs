@@ -63,6 +63,24 @@ if (SIGS) { const { SIGNATURES } = await import(pathToFileURL(join(ROOT, 'src/da
    paired reading, so the Signature is the only difference */
 const ADD_MOVES = arg('add-moves') ? arg('add-moves').split(',').map((x) => (x === '-' ? null : x.split('+'))) : null;
 if (ADD_MOVES) { const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href); for (const l of ADD_MOVES) for (const id of l || []) if (!ABILITIES[id]) { console.error('v1-climb: no move ' + id); process.exit(2); } }
+/* --borrowed a,b,c,d (lane/e5-borrowing, 19 L6): the moves each seat borrows from another weapon, seat by seat ('-' for none, '+' between two,
+   move@pm its penalty in permille, as a border town or the crossing prices it), handed whole to the engine's own borrow (heroSetup `borrowed`
+   -> src/core/hunt/talent-rows.js lend: its native weapon's blow, a heal on Mend's clock, Magic at Mend's rate, an ally row's native reach),
+   with no build (no idle points to confound the pair). Each is slotted on the seat's played bar with its NATIVE played slot's conditions and
+   rune (played.mjs playedBar of the move's own role), its store rune at the borrower's Magic, ahead of the seat's own moves of its lane
+   (a borrowed heal before Mend) */
+const BORROWED = arg('borrowed') ? arg('borrowed').split(',').map((x) => (x === '-' ? null : x.split('+').map((b) => {
+  const [move, pm] = b.split('@');
+  return pm === undefined ? move : { move, penaltyPm: Number(pm) };
+}))) : null;
+if (BORROWED) {
+  const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href);
+  for (const l of BORROWED) for (const b of l || []) {
+    const id = typeof b === 'string' ? b : b.move;
+    if (!ABILITIES[id]) { console.error('v1-climb: no move ' + id); process.exit(2); }
+    if (typeof b !== 'string' && !(Number.isInteger(b.penaltyPm) && b.penaltyPm > 0 && b.penaltyPm < 1000)) { console.error('v1-climb: a penalty is a permille 1..999: ' + id); process.exit(2); }
+  }
+}
 
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 const { loadGridData, buildCell } = await imp('tools/balance-program/progression-grid.mjs');
@@ -143,6 +161,36 @@ const census = (() => {
   }
   return { rates, taken: taken.map((v) => (v.length ? avg(v) : 0)) };
 })();
+/* THE PLAYED SLOTS OF --borrowed (above): per seat { after, slots } (cell.mjs addSlotsBySeat), each borrowed move's NATIVE played slot (its
+   conditions and rune ladder) with its store rune at the borrower's Magic and shopping rule, ahead of the seat's own first move of its lane */
+async function lentSlots(cell, borrowed) {
+  const { playedBar, shoppingTier } = await imp('tools/balance-sim/played.mjs');
+  const { STYLES: STYLE_ROWS } = await imp('tools/balance-sim/styles.mjs');
+  const { ROLE_KEYS } = await imp('src/data/hunt-roles.js');
+  const { ABILITIES } = await imp('src/data/abilities.js');
+  const roleOfDiscipline = (d) => { const k = Object.values(ROLE_KEYS).find((r) => r.discipline === d); return k ? k.roles[0] : null; };
+  return cell.party.map((style, i) => {
+    const list = borrowed[i];
+    if (!list) return null;
+    const role = STYLE_ROWS[style].role, magic = (cell.skillsBySeat[i] || {}).magic || 1;
+    const tierOf = (family) => shoppingTier(role, family, magic, cell.shopping || 'allowed');
+    const own = playedBar(role, { magic, tierOf }).filter((s) => s.action.type === 'ability');
+    const slots = [];
+    let after = null;
+    for (const b of list) {
+      const id = typeof b === 'string' ? b : b.move;
+      const native = roleOfDiscipline(ABILITIES[id].disciplines[0]);
+      const slot = native && playedBar(native, { magic, tierOf }).find((s) => s.action.type === 'ability' && s.action.id === id);
+      if (!slot) throw new Error('v1-climb: ' + id + ' is on no native played bar (its conditions are the native slot\'s)');
+      slots.push(JSON.parse(JSON.stringify(slot)));
+      /* ahead of the seat's own first move of its lane: after the ability before it (or the bar's last ability) */
+      const at = own.findIndex((s) => ABILITIES[s.action.id] && ABILITIES[s.action.id].lane === ABILITIES[id].lane);
+      if (after === null) after = at > 0 ? own[at - 1].action.id : own.length ? own[own.length - 1].action.id : null;
+    }
+    return { after, slots };
+  });
+}
+
 const jobs = [], cells = [];
 for (const v of variants) for (const risk of v.risks) {
   const id = v.id + ':' + risk;
@@ -153,7 +201,8 @@ for (const v of variants) for (const risk of v.risks) {
   const traitsBySeat = TRAITS_KIND ? await K.traitPlans(TRAITS_KIND, b.plans, census || {}) : null;
   const cell = { ...b.cell, options: { risk, danger: start }, hours: HOURS, seeds: 1, trace: true, ...(HOLD_LEVEL ? { holdLevel: true } : {}),
     ...(AS_LEVEL ? { startBySeat: asLevel(b.cell), gearBySeat: pinnedKits(b.cell, v.L) } : {}), ...(traitsBySeat ? { traitsBySeat } : {}),
-    ...(SIGS ? { signatureBySeat: SIGS } : {}), ...(ADD_MOVES ? { addMovesBySeat: ADD_MOVES } : {}) };
+    ...(SIGS ? { signatureBySeat: SIGS } : {}), ...(ADD_MOVES ? { addMovesBySeat: ADD_MOVES } : {}),
+    ...(BORROWED ? { borrowedBySeat: BORROWED, addSlotsBySeat: await lentSlots(b.cell, BORROWED) } : {}) };
   cells.push({ id, variant: v.id, risk, L: v.L, start, ...(traitsBySeat ? { traitsBySeat } : {}) });
   for (let s = 0; s < SEEDS; s++) jobs.push({ id: id + '#' + s, cell: id, job: { ...cell, id: 'V1:' + id + '#' + s, seedBase: 1000 + s } });
 }
@@ -261,7 +310,11 @@ function readSeed(res, start) {
        monsters' swings at it that landed and the damage a swing did (after its armor). Per monster kind: kills, the mean time from its
        first wound to its death, and the damage it did (all seats) */
     causes: (res.party.danger || []).reduce((o, e) => { if (e[5] === 'fall' || e[5] === 'death') { const k = e[5] + ':' + (e[7] || '?') + '@' + (e[6] ?? '?'); o[k] = (o[k] || 0) + 1; } return o; }, {}),
-    seats: res.heroes.map((h) => ({ dps: h.dps, landedPct: h.landedPct, dmgPerSwing: h.dmgPerMonsterSwing, swingsPerH: h.monsterSwingsPerH, takenPerH: h.takenPerH, maxHp: h.maxHp || null })),
+    seats: res.heroes.map((h) => ({ dps: h.dps, landedPct: h.landedPct, dmgPerSwing: h.dmgPerMonsterSwing, swingsPerH: h.monsterSwingsPerH, takenPerH: h.takenPerH, maxHp: h.maxHp || null,
+      /* lane/e5-borrowing: the healing it cast on others and its casts an hour by move (a borrowed move's count says it fired) */
+      healOutPerH: h.healOutPerH, castsPerH: h.castsPerH || {},
+      /* lane/designer-imbue-calls: what an imbuement's condition touches (21 section 3.2), the damage dealt by kind and taken by element, and the hours they cover */
+      dealtToPerH: h.dealtToPerH || {}, takenElPerH: h.takenElPerH || {}, hours: h.hours || 0 })),
     kinds: (() => {
       const o = {};
       for (const [k, n] of Object.entries(res.party.killsByPerH || {})) o[k] = { kills: n * res.party.hours, ttkMs: 0, ttkN: 0, taken: 0 };
@@ -283,6 +336,12 @@ function readSeed(res, start) {
   };
 }
 
+/* a seat's per-hour map summed over seeds (x its hours) into shares by a key's group, thousandths */
+const shareOf = (rows, field, group) => {
+  const o = {}; let t = 0;
+  for (const r of rows) if (r) for (const [k, n] of Object.entries(r[field] || {})) { const g = group(k), v = n * (r.hours || 0); o[g] = (o[g] || 0) + v; t += v; }
+  return t > 0 ? Object.fromEntries(Object.entries(o).sort((x, y) => y[1] - x[1]).map(([g, v]) => [g, Math.round((1000 * v) / t)])) : {};
+};
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 const sd = (xs) => { const m = mean(xs); return xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : 0; };
 const r1 = (x) => (x === null || x === undefined ? null : Math.round(x * 10) / 10);
@@ -305,7 +364,10 @@ for (const c of cells) {
   report.cells[c.id] = {
     ...c, seedsRead: seeds.length,
     /* perSeed keeps a seed's place (null: no settled four-hour of its own), so the power moves below pair the same dice */
-    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 100) / 100 : null, sd: Math.round(sd(p) * 100) / 100, n: p.length, perSeed: p.map((x) => Math.round(x * 100) / 100), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
+    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 10000) / 10000 : null, sd: Math.round(sd(p) * 10000) / 10000, n: p.length, perSeed: p.map((x) => Math.round(x * 10000) / 10000),
+      /* (lane/signatures-batch-3) each seed to 5 places: a paired pace delta read off perSeed's hundredths moves in quanta of about 2.6 pace
+         steps (15 "Decision: the scale a Signature is sized on"), so signature-depth/sum.mjs reads this one when a report has it */
+      exact: p.map((x) => Math.round(x * 1e5) / 1e5), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
     held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: seeds.map((x) => (x.held === null ? null : r0(x.held))) },
     drift: r1(mean(seeds.map((x) => (x.halves[1] !== null && x.halves[0] !== null ? x.halves[1] - x.halves[0] : 0)))),
     within10: r1(100 * within(10)), within20: r1(100 * within(20)),
@@ -331,7 +393,12 @@ for (const c of cells) {
     causes: seeds.reduce((o, x) => { for (const [k, n] of Object.entries(x.causes)) o[k] = (o[k] || 0) + n; return o; }, {}),
     seats: STYLES.map((s, i) => {
       const at = (k) => { const v = seeds.map((x) => x.seats[i] && x.seats[i][k]).filter((x) => Number.isFinite(x)); return v.length ? Math.round(mean(v) * 100) / 100 : null; };
-      return { style: s, dps: at('dps'), landedPct: at('landedPct'), dmgPerSwing: at('dmgPerSwing'), swingsPerH: at('swingsPerH'), takenPerH: at('takenPerH') };
+      const casts = {};
+      for (const x of seeds) for (const [k, n] of Object.entries((x.seats[i] && x.seats[i].castsPerH) || {})) casts[k] = (casts[k] || 0) + n / seeds.length;
+      return { style: s, dps: at('dps'), landedPct: at('landedPct'), dmgPerSwing: at('dmgPerSwing'), swingsPerH: at('swingsPerH'), takenPerH: at('takenPerH'),
+        healOutPerH: at('healOutPerH'), castsPerH: Object.fromEntries(Object.entries(casts).map(([k, n]) => [k, r1(n)])),
+        /* the shares an imbuement's condition touches, over every seed (lane/designer-imbue-calls): damage dealt by the struck monster's role, damage taken by the blow's element */
+        dealtByRole: shareOf(seeds.map((x) => x.seats[i]), 'dealtToPerH', (k) => (MONSTERS[k] && MONSTERS[k].role) || 'none'), takenByElement: shareOf(seeds.map((x) => x.seats[i]), 'takenElPerH', (k) => k) };
     }),
     kinds: (() => {
       const o = {};
@@ -407,6 +474,8 @@ for (const [id, c] of Object.entries(report.cells)) {
   console.log('  ' + ''.padEnd(17) + ' ' + Object.entries(c.kinds).map(([k, v]) => k + '(' + v.role + ') ' + v.killsPerH + '/h ' + v.ttkS + ' s ' + v.takenPerKill).join(' | '));
   console.log('  ' + ''.padEnd(17) + ' broke off by: ' + Object.entries(c.causes).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + n).join(', '));
 }
+console.log('\nwhat an imbuement\'s condition touches (lane/designer-imbue-calls, 21 section 3.2): per seat, damage dealt by the struck monster\'s role and taken by the blow\'s element, thousandths');
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + c.seats.map((t) => t.style + ' dealt ' + JSON.stringify(t.dealtByRole) + ' taken ' + JSON.stringify(t.takenByElement)).join(' | '));
 console.log('\nheld as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken');
 console.log('that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' abs ' + (c.abs ? c.abs.level + ' (depth ' + c.abs.depth + ')' : 'n/a')

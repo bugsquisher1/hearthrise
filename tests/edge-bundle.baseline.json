@@ -633,6 +633,41 @@
         "bytes": 3913853,
         "on": "2026-11-28",
         "why": "kit-bands-2-3: 34 band 2-3 job recipes, their job faces and 2 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
+      },
+      {
+        "bytes": 3922817,
+        "on": "2026-11-28",
+        "why": "lane/e5-borrowing (19 L6) on the merged set: the borrow engine in talent-rows.js (lend, lentModsOf: a heal on Mend's clock, Magic at Mend's rate, native reach, no native unlock), a lent Challenge from any seat in targeting.js, the slot's reach in conditions.js, heroSetup's priced seam, BORROW_RULES and the re-measured heal values"
+      },
+      {
+        "bytes": 3993709,
+        "on": "2026-11-28",
+        "why": "lane/job-goods-vendor on the merged set: vendorPriceOf caps every job good at its inputs plus the floor's pay for its work, so hr-accrue reads src/core/trades.js jobSaleBounds and ships the trades catalogue (src/core/trades.js and src/data/trades.js, about 67 KB; 5 ms import, 10 ms on the first sale)"
+      },
+      {
+        "bytes": 3994264,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend + job-goods-vendor on one tree: the fourth borrow band and its comment in src/data/talents.js"
+      },
+      {
+        "bytes": 3996445,
+        "on": "2026-11-28",
+        "why": "lane/worn-imbues on the merged set (re-raised on set f4727e6ac): the worn-imbue projection reaches the engine (hunt-settle.js memberInput _wornImbues/_readAtMs, heroSetup readAtMs) and a worn imbuement runs out at one instant on both doors (src/core/imbue.js wornImbuesOf untilMs + imbuesAt, combat-sim.js syncUnit atMs); +2181 B, all of it this diff's code and its comments"
+      },
+      {
+        "bytes": 3997764,
+        "on": "2026-11-28",
+        "why": "p1-dealt-rows on the set with worn-imbues: payPersonal deals guarantees by turns (hunt-rewards.js, drops.js)"
+      },
+      {
+        "bytes": 3999907,
+        "on": "2026-11-28",
+        "why": "designer-imbue-calls: imbue-rules.js fire sizes, fireMax and validator; power-ledger.js consumable slice unramped (21 D-16/D-17)"
+      },
+      {
+        "bytes": 4018856,
+        "on": "2026-11-28",
+        "why": "signatures-batch-3 on the set with designer-imbue-calls: 15 Signature rules (signature-rules.js, reactions.js, abilities.js) plus their data"
       }
     ]
   }

@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-27",
- "digest": "e141fa5d65088725da7da776ad4c193726e9389bae85b449e6aaef28a8f04234",
+ "digest": "1103c120fc1de6a6531bf9c8261ce29a4fa7eb07aec1b0b975531dac2e04c8f8",
  "counts": {
   "relations": 386,
-  "functions": 1003,
+  "functions": 1004,
   "policies": 125,
   "indexes": 541,
   "triggers": 122,
@@ -1406,6 +1406,7 @@
    "hr_world_finds_prune(p_older interval, p_keep integer, p_limit integer)",
    "hr_world_notice_rare()",
    "hr_world_notices_immutable()",
+   "hr_worn_imbues_of(p_user uuid, p_slot integer)",
    "hr_worn_level(p_user uuid, p_slot integer, p_equip_slot text)",
    "hr_worn_signature_of(p_user uuid, p_slot integer)",
    "hr_worn_traits_of(p_user uuid, p_slot integer)",

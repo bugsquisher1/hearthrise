@@ -16,12 +16,18 @@
 // THE RECIPE is the row plus the levers below: `parts` of its one named part, `remains` of Remains, workPm of an Artificing hero's hour
 // (src/core/imbue.js imbueRecipe). No row holds a count or a price.
 //
-// SIZE. Every row is imbueSteps (2) on its best cell, x ramp(hero Level) in the consumable slice (src/data/power-ledger.js). THE ROOM
-// RULE (21 D-11): a worn imbuement takes its steps of the slice's room on every blow, firing or not, so three fill the cap of 6 and a
-// draught or a damage meal adds nothing on top (21 D-1's no dead buy is the clamp: src/core/power-ledger.js rows with `holds: false`).
-// The shown percent is the 2 steps over the share of the fight its condition touches on that cell: those shares are ASSUMED until Lab I1.
-// A LEECH is sustain (heal or mana on damage dealt): no blow or heal amount reads it, so it only takes its room until the leech rule lands
-// in the engine (21 section 3.9 item 3). A CONVERSION (Fire Edge) the same until the conversion rule lands (3.9 item 2).
+// SIZE (21 D-16, D-17, lane/designer-imbue-calls 2026-11-27). Every row is RATED imbueSteps (2) averaged over its best cell, whole at every
+// Level (the consumable slice takes no ramp: src/data/power-ledger.js). A conditional row FIRES at `fire` steps on a blow its condition holds
+// on: 2 over the MEASURED share of its best cell that the condition touches, a whole number, at most IMBUE.fireMax (one tier), and that is
+// the number its card shows. THE ROOM RULE (21 D-11): a worn imbuement takes its RATED 2 steps of the slice's room on every blow, firing
+// or not, so three fill the cap of 6 and a draught or a damage meal adds nothing on top (21 D-1's no dead buy); a firing row counts its
+// `fire` steps over its own room (the clamp's room field: HANDOFFS 2026-11-27 designer-imbue-calls item 1, owed; until it lands the engine
+// fires the rated 2).
+// A LEECH (D-18) heals the wearer `leech.pm` permille of the HP each of its blows takes (mana for a Mana Leech), through the heal cut, never
+// past max, the fraction carried to the next blow so a small hit still pays; it takes its room and no steps. A CONVERSION (Fire Edge, D-18)
+// resolves `convert.sharePm` of each blow against the target's percent for its element in place of the blow's own: one offense row of
+// stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it. Both owed
+// in the engine (HANDOFFS item 2).
 // LIFE. Quality sets life, not strength (D-7): plain 20, fine 25, master 30 hunted hours (lifeRungPm 250 a rung over plain).
 //
 // v0.3.0 (21 D-12). Every row's part and best ground is on a ground v0.3.0 opens (a pack with status 'open'), so a company can make an
@@ -42,6 +48,8 @@ import { ELEMENTS } from './elements.js';
 export const IMBUE = Object.freeze({
   hours: 20,
   steps: 2,
+  /* the most a conditional row fires at on one blow: one tier of steps (04 guard 3, GEAR_STEPS.conditionalStepsMax) */
+  fireMax: 20,
   lifeRungPm: 250,
   parts: 5,
   remains: 4,
@@ -54,19 +62,23 @@ export const IMBUE = Object.freeze({
 /* the equip slot each kind sits in (21 section 3.2): one of each kind a hero, a new one replaces the old */
 export const IMBUE_SLOTS = Object.freeze({ edge: 'weapon', ward: 'body', leech: 'helmet' });
 
-const row = (r) => Object.freeze({ convert: null, leech: null, ...r, best: Object.freeze(r.best), when: r.when ? Object.freeze(r.when) : null });
+const row = (r) => Object.freeze({ convert: null, leech: null, fire: null, ...r, best: Object.freeze(r.best), when: r.when ? Object.freeze(r.when) : null });
 /* THE SAMPLE OF FIVE (21 section 3.3, re-homed 2026-11-26 by D-12). The element is the data's word ('ember', shown as Fire:
    src/data/text/monster.js el_ember). Fire Ward: Krell's Hold casts Hot Pitch, Rake the Coals and Hall Fire, all ember, and river weed from
    the Ford wards it. Fire Edge: Muster Barrows is five Undead of five, and Undead take more Fire; a Stoker's rake tine from Pyre Field.
-   Life Leech: Krell's Hold's long fights on big bodies; a Mudlark's hook from the Slake. Brute Edge and Mana Leech keep 21's parts. */
+   Life Leech: Krell's Hold's long fights on big bodies; a Mudlark's hook from the Slake. Brute Edge and Mana Leech keep 21's parts.
+   THE FIRE SIZES are MEASURED (21 section 11, v1-climb's base cells, 12 seeds x 8 h): Muster's brutes take 43.8% of the hammer's damage, so
+   Brute Edge fires at 5 (2 / 0.438); on Krell's Hold the back row takes 17.4 to 17.7% of its damage as Fire and the front only 1.5%, so the
+   Ward is the back row's and fires at 11 (2 / 0.175). Life Leech's 20 permille returns 2 steps of the front's damage taken there (it takes
+   272,800 HP an hour and deals 101,300). */
 export const IMBUE_RULES = Object.freeze({
-  fire_ward: row({ name: 'Fire Ward', kind: 'ward', raises: 'defense', when: { metric: 'hit_element', eq: 'ember' }, key: 'ward_fire',
-    part: 'ford_weed', best: { ground: 'krells_hold', seat: 'front' }, tip: '−{pct}% Fire damage taken' }),
+  fire_ward: row({ name: 'Fire Ward', kind: 'ward', raises: 'defense', when: { metric: 'hit_element', eq: 'ember' }, key: 'ward_fire', fire: 11,
+    part: 'ford_weed', best: { ground: 'krells_hold', seat: 'back' }, tip: '−{pct}% Fire damage taken' }),
   fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'ember', sharePm: 50 },
     part: 'rake_tine', best: { ground: 'muster_barrows', seat: 'any' }, tip: '{pct}% of damage dealt as Fire' }),
-  brute_edge: row({ name: 'Brute Edge', kind: 'edge', raises: 'offense', when: { metric: 'target_role', eq: 'brute' }, key: 'edge_brute',
+  brute_edge: row({ name: 'Brute Edge', kind: 'edge', raises: 'offense', when: { metric: 'target_role', eq: 'brute' }, key: 'edge_brute', fire: 5,
     part: 'pike_ferrule', best: { ground: 'muster_barrows', seat: 'melee' }, tip: '+{pct}% damage vs Brutes' }),
-  life_leech: row({ name: 'Life Leech', kind: 'leech', raises: 'heal', when: null, key: 'leech_life', leech: { of: 'hp', pm: 10 },
+  life_leech: row({ name: 'Life Leech', kind: 'leech', raises: 'heal', when: null, key: 'leech_life', leech: { of: 'hp', pm: 20 },
     part: 'mudlark_hook', best: { ground: 'krells_hold', seat: 'melee' }, tip: 'Life Leech {pct}%' }),
   mana_leech: row({ name: 'Mana Leech', kind: 'leech', raises: 'mana', when: null, key: 'leech_mana', leech: { of: 'mana', pm: 10 },
     part: 'urn_shard', best: { ground: 'pyre_field', seat: 'mage' }, tip: 'Mana Leech {pct}%' }),
@@ -110,6 +122,8 @@ export function validateImbues(rows = IMBUE_RULES) {
     else if (r.when && /family/.test(r.when.metric)) out.push(id + ': no imbuement keys on a monster family (D-8)');
     else if (r.when && !(own(METRICS, r.when.metric) && METRICS[r.when.metric](r.when.eq))) out.push(id + ': condition ' + r.when.metric + ' ' + r.when.eq + ' matches nothing the fight has');
     if (!r.when && !r.convert && !r.leech) out.push(id + ': no condition and no rule: it would be a flat number (04 guard 2)');
+    if (r.when && !(Number.isInteger(r.fire) && r.fire >= IMBUE.steps && r.fire <= IMBUE.fireMax)) out.push(id + ': a condition fires at ' + r.fire + ' steps, not a whole number from its rated ' + IMBUE.steps + ' to ' + IMBUE.fireMax + ' (D-17)');
+    if (!r.when && r.fire !== null) out.push(id + ': a rule row has no condition to fire on, so no fire size');
     if (r.convert && !ELEMENTS.includes(r.convert.element)) out.push(id + ': converts to ' + r.convert.element + ', no element the data names');
     const home = PART_HOME.get(r.part);
     if (!home) out.push(id + ': part ' + r.part + ' is in no ground pack');

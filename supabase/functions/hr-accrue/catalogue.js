@@ -45,6 +45,7 @@ import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
 import { VENDOR_GEAR_TYPES, gearSaleRate } from '../../../src/data/loot-bands.js';
 import { dialedSale, SALE_FIT_PM, LOWER_TWIN } from '../../../src/data/loot-sale.js';
+import { jobSaleBounds } from '../../../src/core/trades.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -328,6 +329,32 @@ export const SHOP_BUYBACK_RATE = 0.5;
     is not a balance change: the vendor's bid for crafted food, drink and ammo stays where it was. */
 export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_PRICE_LIST]);
 
+/* ── A JOB GOOD SELLS FOR NO MORE THAN ITS INPUTS AND ITS WORK (lane/job-goods-vendor, 2026-11-27) ──
+   A good a town job makes (src/data/trades.js, every band, every recipe a later batch adds) still carries its bench-era book `v`, and
+   a book can stand far over its inputs: a Dawnsteel Bar books 1,050 against Dawnstone Ore's 95. So the sale of a job good is capped at
+   what its inputs sell for plus the floor's pay for the work its job adds (src/core/trades.js jobSaleBounds, workBid: floorShare x V of
+   that work), the inputs priced by this same function. The cap only ever LOWERS a sale: raising a good to its store bid would lift a
+   dropped Coal from 2 to 105 and the start kit's Bronze Arrows from nothing to 362 each, and the budgeted store floor (09 4.6, 5.5) is
+   its own build.
+   Computed once, on the first priced sale (a trades catalogue that fails validation fails every sale, not the boot).
+   A recipe cycle prices the repeated input at 0, so a loop can only lower a sale. */
+let JOB_SALE = null;
+const jobSale = () => JOB_SALE || (JOB_SALE = jobSaleBounds());
+
+/** `sale` (the book-derived bid of `id`) capped by every job recipe that makes `id`; `path` holds the goods above it in the chain. */
+function jobCapped(items, id, sale, path) {
+  const rows = sale > 0 ? catalogueGet(jobSale(), id) : undefined;
+  if (!rows) return sale;
+  const below = new Set(path).add(id);
+  let cap = sale;
+  for (const r of rows) {
+    let bound = r.workBid;
+    for (const [input, n] of r.inputs) bound += n * (below.has(input) ? 0 : jobCapped(items, input, bookSaleOf(items, input), below));
+    cap = Math.min(cap, bound);
+  }
+  return cap;
+}
+
 /**
  * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",
  * which is a refusal, not a free sale.
@@ -338,6 +365,11 @@ export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_
  *               audit. Same rule computeAccrual follows.
  */
 export function vendorPriceOf(items, id) {
+  return jobCapped(items, id, bookSaleOf(items, id), null);
+}
+
+/** The bid from the item's own row (book, raw rate, gear rate, income dial, sale ladder, shop buy-back), before the job cap. */
+function bookSaleOf(items, id) {
   const it = catalogueGet(items, id);
   if (!it || typeof it !== 'object') return 0;
   const book = Number(it.v) || 0;

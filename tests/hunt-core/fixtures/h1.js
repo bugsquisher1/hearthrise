@@ -6,13 +6,13 @@
 // every hunt-core test uses: `plant` copies src/core + src/data into a temp
 // root with a defect applied, `loadCore(root)` imports the modules from it.
 // Other lanes keep their fixtures in fixtures/<lane>.js (spec §1.6).
-import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, writeSync } from 'node:fs';
+import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 import { caughtBy, missWhy } from '../../_mutant-verdict.mjs';
+import { judgeMutants, inMutantBatch } from '../../_mutant-batch.mjs';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const V = sourceQuery(ROOT);
@@ -49,45 +49,11 @@ export async function loadCore(root) {
   return M;
 }
 
-/* ── ONE MODULE GRAPH A BATCH (lane/nightly-red-1128) ──
-   ES modules never unload, so a runner that imports a planted copy of src per mutant keeps every copy until it exits. Measured on
-   set/v0.2.144 26962cd28 (Node 26, heap at exit): abilities 1,509 MB, conditions 1,254, signature-rules 1,120 after its last full GC,
-   danger 1,035, first-week-bands 954, about 10 MB a mutant (35 with the play trees), against the ~2,048 MB heap of GitHub's Node 20,
-   where alpha-windows-pure died of the same growth (nightly 46142108500). judgeMutants answers judge(mu) for every mutant, MUTANT_BATCH
-   at a time in a child process (this same file, run again with `--mutant-batch=a:b`), which writes each answer and exits with its
-   copies. A batch that dies leaves its mutants a HARNESS answer, never a catch. A runner skips its cases in a batch child
-   (inMutantBatch): the parent ran them. run-all.mjs holds every file to a heap budget, so the next runner that grows is red first. */
-export const MUTANT_BATCH = 20;
-const BATCH_ARG = '--mutant-batch=';
-const ANSWER = 'MUTANT-ANSWER ';
-export const inMutantBatch = (argv = process.argv) => argv.some((a) => a.startsWith(BATCH_ARG));
-
-/** `judge(mu)` → its answer (a case's failure line or null) for every mutant, in their order. Never returns in a batch child. */
-export async function judgeMutants(mutants, judge, { per = MUTANT_BATCH, argv = process.argv } = {}) {
-  const mine = argv.find((a) => a.startsWith(BATCH_ARG));
-  if (mine) {
-    const [a, b] = mine.slice(BATCH_ARG.length).split(':').map(Number);
-    for (let i = a; i < Math.min(b, mutants.length); i++) {
-      let why = null;
-      try { why = await judge(mutants[i]); } catch (e) { why = 'threw ' + (e && e.message); }
-      /* fd 1 written synchronously: the exit below cannot cut a line a pipe still holds */
-      writeSync(1, ANSWER + JSON.stringify([i, why === undefined ? null : why]) + '\n');
-    }
-    process.exit(0);
-  }
-  const whys = new Array(mutants.length);
-  for (let a = 0; a < mutants.length; a += per) {
-    const b = Math.min(a + per, mutants.length);
-    const r = spawnSync(process.execPath, [...process.execArgv, argv[1], ...argv.slice(2), BATCH_ARG + a + ':' + b], { encoding: 'utf8', maxBuffer: 1e8 });
-    for (const l of String(r.stdout || '').split('\n')) {
-      if (!l.startsWith(ANSWER)) continue;
-      try { const [i, why] = JSON.parse(l.slice(ANSWER.length)); if (Number.isInteger(i) && i >= a && i < b) whys[i] = why; } catch { /* a torn line: that mutant stays unanswered */ }
-    }
-    const said = String(r.stderr || r.stdout || '').trim().split('\n').slice(-2).join(' | ').slice(0, 240);
-    for (let i = a; i < b; i++) if (whys[i] === undefined) whys[i] = 'HARNESS: mutants ' + a + '..' + (b - 1) + ' ran in a process that exited ' + r.status + ' with no answer for this one: ' + said;
-  }
-  return whys;
-}
+/* ONE MODULE GRAPH A BATCH (lane/nightly-red-1128, tests/_mutant-batch.mjs): every hunt-core runner judges its mutants through
+   judgeMutants, a batch a child process, since a planted copy of src is a module graph that never unloads; one process held
+   abilities 1,509 MB, conditions 1,254, signature-rules 1,120, danger 1,035, first-week-bands 954 (set/v0.2.144 26962cd28, Node 26).
+   run-all.mjs holds every file to a heap budget, so the next runner that grows is red first. */
+export { judgeMutants, inMutantBatch };
 
 /**
  * Copy src/core and src/data to a temp root and apply each [file, from, to]

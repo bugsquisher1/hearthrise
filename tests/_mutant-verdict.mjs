@@ -362,11 +362,12 @@ export const OWED = Object.freeze([]);
 /* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners outside
    the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each leaves as OWED's did:
    onto judge/report/exitOf or caseVerdict, and a run of its proof (tools/vitals.mjs, tools/economy-watch.local.mjs, tests/town-life.mjs,
-   tests/town-yard-farm.mjs, tests/button-system.mjs and tests/hunt-core/drop-tables.mjs left that day). */
+   tests/town-yard-farm.mjs, tests/button-system.mjs and tests/hunt-core/drop-tables.mjs left that day; tests/hunt-scene-live.mjs on
+   2026-11-28, lane/nightly-red-1128: its mutants judged in batches, a throw HARNESS). */
 export const OWED_FOUND = Object.freeze([
   'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
   'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs',
-  'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
+  'tests/hunt-live.mjs', 'tests/inner-flame.mjs', 'tests/party-hunt-start-gate.mjs',
   'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
   'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
   'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',

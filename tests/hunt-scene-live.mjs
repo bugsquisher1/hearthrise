@@ -99,6 +99,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { judgeMutants } from './_mutant-batch.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
@@ -1916,8 +1917,10 @@ async function mutate() {
   const MINE = scopedMutants('tests/hunt-scene-live.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
   const list = at > 0 ? MINE.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MINE;
+  /* TEN A PROCESS (tests/_mutant-batch.mjs): each planted copy of src is a module graph that never unloads, ~30 MB here, and one
+     process holding all 63 ran out of Node 20's heap 611 s in (next 46158422801). A throw or a missing anchor is HARNESS, never a catch. */
   /* `more`: further [from, to] edits in the same file, planted with the first (a rule two doors hold). */
-  for (const [name, file, from, to, arm, more] of list) {
+  const answers = await judgeMutants(list, async ([name, file, from, to, , more]) => {
     const base = mkdtempSync(join(tmpdir(), 'hr-hsl-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
@@ -1925,19 +1928,24 @@ async function mutate() {
       const p = join(base, file);
       let src = readFileSync(p, 'utf8');
       for (const [a, b] of [[from, to]].concat(more || [])) {
-        if (src.split(a).length !== 2) { console.error(`harness: anchor for "${name}" not found once`); process.exit(2); }
+        if (src.split(a).length !== 2) return { harness: `anchor for "${name}" not found once` };
         src = src.replace(a, b);
       }
       writeFileSync(p, src);
-      let fails;
-      try { fails = await nodeRules(await load(base)); } catch (e) { fails = ['threw: ' + e.message]; }
-      const hit = fails.some((f) => arm.test(f));
-      console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${name}${hit ? '' : ' (' + fails.join(' | ').slice(0, 200) + ')'}`);
-      if (!hit) escaped++;
+      try { return { fails: await nodeRules(await load(base)) }; } catch (e) { return { harness: 'the rules threw: ' + e.message }; }
     } finally { rmSync(base, { recursive: true, force: true }); }
-  }
-  console.log(escaped ? `hunt-scene-live --mutate: ${escaped} mutant(s) ESCAPED` : `hunt-scene-live --mutate: ${list.length}/${list.length} caught`);
-  process.exit(escaped ? 1 : 0);
+  }, { per: 10 });
+  let harness = 0;
+  list.forEach(([name, , , , arm], i) => {
+    const a = answers[i];
+    const why = a && typeof a === 'object' ? a.harness : String(a);
+    if (!a || typeof a !== 'object' || !Array.isArray(a.fails)) { console.log(`  HARNESS ${name} (${String(why).slice(0, 200)})`); harness++; return; }
+    const hit = a.fails.some((f) => arm.test(f));
+    console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${name}${hit ? '' : ' (' + a.fails.join(' | ').slice(0, 200) + ')'}`);
+    if (!hit) escaped++;
+  });
+  console.log(harness ? `hunt-scene-live --mutate: ${harness} HARNESS (not catches), ${escaped} ESCAPED` : escaped ? `hunt-scene-live --mutate: ${escaped} mutant(s) ESCAPED` : `hunt-scene-live --mutate: ${list.length}/${list.length} caught`);
+  process.exit(harness ? 2 : escaped ? 1 : 0);
 }
 
 

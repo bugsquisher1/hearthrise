@@ -74,12 +74,18 @@ export function rollDropTable(drops, mods, rng) {
   for (const d of drops) {
     if (!rng.chance(effectiveDropChance(d, mods))) continue;
     dropped[d.id] = (dropped[d.id] || 0) + 1;
-    /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
-       a Scarce piece is a standard drop at any odds. */
-    const band = bandOf(d);
-    events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
+    events.push(dropEvent(d));
   }
   return { dropped, events };
+}
+
+/**
+ * The event of ONE landed unit of row `d`, rolled (rollDropTable) or dealt (hunt-rewards.js payPersonal: a guarantee under personal loot).
+ * Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS); a Scarce piece is a standard drop at any odds.
+ */
+export function dropEvent(d) {
+  const band = bandOf(d);
+  return ({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
 }
 
 /** A prize table's whole roll: the sum of its rows' slices (src/data/boss-halls.js: at most 1; the generator refuses more). */

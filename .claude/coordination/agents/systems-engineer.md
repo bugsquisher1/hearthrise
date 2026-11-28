@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 · lane/p1-dealt-rows (12-targets 8.11 item 2: a guarantee is dealt under personal loot)
+1. *A deterministic deal is only as fair as its key is mixed.* (monster unit + swing) mod n: my first synthetic test fed arithmetic sequences (unit +1, swing every 7th kill) and read 29/29/29/14%; real play is mixed by the fight's dice. Measured on the real settle (Muster four, 3 secrets x 4 h): 975 Big Bones for 975 kills carrying it, seats 24.7/27.0/23.4/24.9%. Test with seeded gaps, and measure the real engine before trusting a rotation.
+2. *Move an event's shape into one exported function, keep the old anchor.* `drops.js dropEvent` now builds the drop event for a rolled and a dealt unit; returning `({ ... })` kept drop-tables.mjs's "the roller reveals nothing" anchor live without editing that slow guard, and the mutant now bites both paths.
+3. *A new divisor needs an empty-set guard.* `itemOwner(j, 0, …)` throws, so the "rollers of nobody" mutant became a HARNESS throw, not a catch; `if (!by.length) return;` makes the kill fail safe and the mutant is caught by PLP-1 again.
+4. *A dealt rule gives Security an exact bound.* Sum over seats of a guarantee's units = the window's kills of the monsters carrying it; PLP-4 asserts it on both doors (S-31's row).
+
 ## 2026-11-27 · lane/job-goods-vendor (HANDOFFS kit-bands-2-3 item 5: a job good never sells past its inputs plus its work, S-33)
 1. *Measure the sale, not the book.* The handoff priced Steel Bars at book 125; the vendor pays 25 (BULK_GOODS sell at the raw fifth). Read `vendorPriceOf` and the generated table before believing a faucet, and before choosing a fix that moves prices.
 2. *A proposed floor can be the faucet.* Pricing every job good at its store bid lifted dropped Coal 2 -> 105 and the start kit's arrows 0 -> 362. A cap that only lowers kills the class without opening a free-source faucet.

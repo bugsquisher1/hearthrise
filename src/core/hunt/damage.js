@@ -58,6 +58,7 @@ import { AMOUNT } from '../../data/amount.js';
 import { isEnemy, isAlly, isHero, isMonster } from './sides.js';
 import { queueOn, reactorsOf } from './react-queue.js';
 import { nearFall } from './talent-rows.js';
+import { leechOn } from './imbue-leech.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -263,9 +264,13 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* A BLOW AT A HERO says the HP it left and the hero's max (the hunt report's lowest health and close calls, src/core/hunt/report.js):
      a reading of the unit, never a played number. */
   const vit = isHero(target) ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
+  /* A WORN LEECH (imbue-leech.js, 21 D-18): the dealer's own blow at a foe pays back its share of the HP it took, the remainder carried to
+     its next blow; its mana rides this event (`back`), its HP is a heal after it. A tick or any `dot` piece is no blow. Dark: none worn. */
+  const lee = source && source.imbues && !(ability && ability.dot) && r.dmg > 0 ? leechOn(source, target, r.dmg) : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(vit || {}), ...traitsField(r.traits) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(lee && lee.mana ? { back: lee.mana } : {}), ...(vit || {}), ...traitsField(r.traits) }));
+  if (lee && lee.hp) sc.emit(makeEvent('heal', sc.atMs, { u, t: u, amount: lee.hp, ability: lee.id }));
   /* A SHIELD THAT BROKE (it held before this blow and is spent now): `shield_break` names the hero who cast it (`by`) and the blow's
      dealer (`u`), so the bar's triggers and the report read one event (abilities.js offerShield writes every shield). */
   if (shieldBy !== undefined && r.absorbed > 0 && !(target.shield > 0)) {

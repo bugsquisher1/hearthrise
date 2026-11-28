@@ -15,6 +15,12 @@
 // THE CLAMP, per slice and per channel (what holds on one blow or one heal at once): the cap is the slice's max (x ramp(Level) if it ramps);
 //   gains only (gear, consumable, temper)  min(cap, gains) + costs: costs are never clamped
 //   signed (build)                         min(cap, gains + costs): a vow buys past the cap only by paying for it; a net cost stays whole
+// THE ROOM (a gains-only slice; 21 D-11, D-17): a worn source that does not fire on this blow (holds: false) RESERVES its steps of the cap,
+// and one that FIRES at a measured size (a row with `room`: an imbuement's fire x c over its rated room) reserves its room and counts its
+// steps outside the cap:
+//   sum(firing steps) x s + max(0, min(cap, other gains + sum(room)) - sum(room)) + costs     s = min(1, cap / sum(room))
+// so three rated imbuements fill a cap of 6 and a meal on top adds nothing, while each fires whole on the blows it is for; a forged fourth
+// (rooms past the cap) scales every firing row down to the cap's share.
 // The ramp, the caps and the sums are plain arithmetic (no pow): the same bit on every engine.
 //
 // THE ENGINE READS IT through ledgerSteps (src/core/hunt/danger.js powerPm): a unit's `ledger` rows, its `heroLv` the Level. No source
@@ -57,10 +63,17 @@ export function clampLedger(rows, level) {
     let sl = by.get(r.slice);
     if (!sl) by.set(r.slice, (sl = new Map()));
     let ch = sl.get(r.raises);
-    if (!ch) sl.set(r.raises, (ch = { mine: new Map(), ally: new Map(), room: new Map() }));
+    if (!ch) sl.set(r.raises, (ch = { mine: new Map(), ally: new Map(), room: new Map(), fire: new Map() }));
     if (ally) { if (r.steps > 0) ch.ally.set(key, Math.max(ch.ally.get(key) || 0, r.steps)); return; }
+    const gainsOnly = !LEDGER_SLICES[r.slice].signed;
     /* ROOM (holds false): a worn source that does not fire on this blow still takes its steps of a gains-only slice's room (21 D-11) */
-    if (r.holds === false) { if (r.steps > 0 && !LEDGER_SLICES[r.slice].signed) ch.room.set(key, Math.max(ch.room.get(key) || 0, r.steps)); return; }
+    if (r.holds === false) { if (r.steps > 0 && gainsOnly) ch.room.set(key, Math.max(ch.room.get(key) || 0, r.steps)); return; }
+    /* FIRING OVER ITS ROOM (a row with `room`, 21 D-17): its room reserved as a waiting row's, its steps counted outside the cap */
+    if (gainsOnly && r.steps > 0 && Number.isFinite(r.room) && r.room > 0) {
+      ch.room.set(key, Math.max(ch.room.get(key) || 0, r.room));
+      ch.fire.set(key, Math.max(ch.fire.get(key) || 0, r.steps));
+      return;
+    }
     const kv = ch.mine.get(key) || [0, 0];
     if (r.steps > 0) kv[0] = Math.max(kv[0], r.steps); else kv[1] = Math.min(kv[1], r.steps);
     ch.mine.set(key, kv);
@@ -68,19 +81,24 @@ export function clampLedger(rows, level) {
   for (const [slice, sl] of by) {
     const cap = sliceCap(slice, level), signed = LEDGER_SLICES[slice].signed, k = shareOf(slice, level);
     for (const [channel, ch] of sl) {
-      let gains = 0, costs = 0;
-      for (const [key, [g, c]] of ch.mine) { if (!ch.ally.has(key)) gains += g; costs += c; }
+      let gains = 0, costs = 0, fired = 0;
+      /* a key that fires over its room counts its firing steps, never a plain gain of the same key as well */
+      for (const g of ch.fire.values()) fired += g;
+      for (const [key, [g, c]] of ch.mine) { if (!ch.ally.has(key) && !ch.fire.has(key)) gains += g; costs += c; }
       /* a key both worn here and lent by an ally counts once: the larger, the ally's whole when it is the larger */
       let lent = 0;
       for (const [key, g] of ch.ally) {
         const mine = ch.mine.has(key) ? ch.mine.get(key)[0] : 0;
         if (g > mine) lent += g; else gains += mine;
       }
-      /* a key that fires here counts its gain, never its room as well */
+      /* a key with a plain gain here counts its gain, never its room as well; a key that fires over its room keeps its room */
       let room = 0;
-      for (const [key, g] of ch.room) if (!ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;
+      for (const [key, g] of ch.room) if (ch.fire.has(key) || !ch.mine.has(key) || ch.mine.get(key)[0] <= 0) room += g;
       gains *= k; costs *= k; lent *= k; room *= k;
-      out[channel] += (signed ? Math.min(cap, gains + costs) : Math.max(0, Math.min(cap, gains + room) - room) + costs) + lent;
+      fired *= k;
+      /* rooms past the cap (a forged fourth): every firing row at the cap's share of them (a signed slice never fires over a room) */
+      const scale = room > cap ? cap / room : 1;
+      out[channel] += (signed ? Math.min(cap, gains + costs) : Math.max(0, Math.min(cap, gains + room) - room) + costs) + lent + fired * scale;
     }
   }
   return out;

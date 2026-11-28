@@ -19,8 +19,8 @@
 //                 a bar of the two does, some of them Brand and Reave (each cast names the clock it `took`); validate refuses a
 //                 replaced row that is missing, itself, on another lane, replacing another, or off a list the row is on
 // withered-cuts   THE HEAL CUT (heal-cut.js) on every way HP comes back: the formula (30% on a hero, half on a monster, a 40% guard
-//                 leaving 18%); food's instant half; a spell's heal; a spell's leech; the wraps' own heal (never regeneration); a
-//                 monster's mend on a Withered packmate
+//                 leaving 18%); food's instant half; a spell's heal; a spell's leech; a worn Life Leech (lane/imbue-engine); the wraps'
+//                 own heal (never regeneration); a monster's mend on a Withered packmate
 // element-rules   THE FIXED RULES (elements.js ELEMENT_ON_HERO, damage.js landHit): a necrotic blow that took a hero's HP Withers it,
 //                 a storm blow burns half the HP it took from the hero's mana (never below 0, on the dmg event's `burn`); a blow a shield
 //                 swallowed whole, a blow at a monster and a fire blow do neither; a guard lowers the damage, the burn and the cut alike
@@ -31,7 +31,7 @@
 //                 watched hunt (10 s settles) and a closed browser (10 min) land every blow, heal, mana and coin alike; each new
 //                 spell casts; Blight Withers what it hits
 //
-// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/core/hunt/status-effects.js src/shell/action-facts.js src/shell/slot-waits.js
+// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/core/hunt/imbue-leech.js src/core/hunt/status-effects.js src/shell/action-facts.js src/shell/slot-waits.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant, loadCore, mon, hero, world, instOf, subStep } from './fixtures/h1.js';
@@ -179,6 +179,16 @@ const cases = {
     const lee = Math.floor((took * 300) / 1000);
     if (!(took > 10) || back !== lee) return 'Reave took ' + took + ' and healed ' + back + ', want ' + lee;
     if (tookW !== took || backW !== lee - Math.floor((lee * 300) / 1000)) return 'Reave on a Withered caster healed ' + backW + ', want ' + (lee - Math.floor((lee * 300) / 1000));
+    /* A WORN LIFE LEECH (src/core/hunt/imbue-leech.js, 21 D-18; lane/imbue-engine): 20 permille of a 5,000 HP blow is 100 back, 70 Withered */
+    const worn = (withered) => {
+      const x = oneHero(M, { hp: 10, maxHp: 1000 }, {}, [{ x: 13, y: 3, hp: 50000, maxHp: 50000 }]);
+      Object.assign(x.h, { heroLv: 60, imbues: [{ id: 'life_leech', band: 50, kind: 'leech', untilMs: null }] });
+      if (withered) wither(M, x.inst, x.h);
+      M.damage.landHit(x.inst, x.sc, x.h, x.w.units[1], 5000, null, { id: 'basic', exact: true }, false);
+      const h = of(x.sc, 'heal').find((e) => e.ability === 'life_leech');
+      return h ? h.amount : 0;
+    };
+    if (worn(false) !== 100 || worn(true) !== 70) return 'a worn Life Leech healed ' + worn(false) + ' off a 5,000 HP blow and ' + worn(true) + ' Withered, want 100 and 70';
     /* THE WRAPS' OWN HEAL (pull-cycle.js tickHeroes): one second at 8 permille/s, Withered and not; regeneration alone is never cut */
     const second = (own, withered) => {
       const h = H(M, 1, 2, 8, 'tank', { hp: 1000, maxHp: 2000 });
@@ -406,6 +416,8 @@ const mutants = [
     edits: [['src/core/hunt/heal-rules.js', '    const cut = healIn(inst, t, n);\n', '    const cut = n;\n']] },
   { name: 'the leech is never cut', case: 'withered-cuts',
     edits: [['src/core/hunt/abilities.js', 'Math.min(healTaken(u, Math.floor((took * row.leechPm) / 1000)), int(u.maxHp)', 'Math.min(Math.floor((took * row.leechPm) / 1000), int(u.maxHp)']] },
+  { name: 'a worn Life Leech is never cut', case: 'withered-cuts',
+    edits: [['src/core/hunt/imbue-leech.js', 'Math.min(healTaken(u, pay.back), int(u.maxHp)', 'Math.min(pay.back, int(u.maxHp)']] },
   { name: 'the own heal is never cut', case: 'withered-cuts',
     edits: [['src/core/hunt/pull-cycle.js', '    const own = healTaken(h, worn);\n', '    const own = worn;\n']] },
   { name: 'regeneration is cut too', case: 'withered-cuts',

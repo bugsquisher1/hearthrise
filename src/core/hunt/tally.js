@@ -39,6 +39,9 @@
 //                    'basic'), spell (any other ability: a monster's spell)}
 //   cast by hero u   sustain.mana.spent += mana (the NET the cast kept: what
 //                    Magic XP is paid on), sustain.mana.back += back
+//   dmg by hero u    sustain.mana.back += back (a worn Mana Leech's mana off
+//                    the blow, imbue-leech.js; a Life Leech's HP is a `heal`
+//                    from the hero to itself: healIn.self)
 //   shot by hero u   sustain.mana.spent += mana (a staff's mana shot)
 //   rule_wait why 'mana' by hero u   sustain.mana.waits += 1, waitsBy[label] += 1
 //                    (conditions.js noteWait: once per change, never per step)
@@ -207,6 +210,8 @@ function sustainOf(ev, ids, heroOf) {
   switch (ev.type) {
     case 'dmg':
       if (ids.has(ev.t) && !ids.has(ev.u)) bump(heroOf(ev.t, ev).sustain.takenBy, ev.dot ? 'status' : (ev.ability || 'basic') === 'basic' ? 'swing' : 'spell', int(ev.amount, 'dmg amount'));
+      /* a worn Mana Leech's mana off its wearer's blow (imbue-leech.js: the event's `back`), mana in beside a cast's */
+      if (nat0(ev.back) && ids.has(ev.u)) heroOf(ev.u, ev).sustain.mana.back += ev.back;
       break;
     case 'heal':
       if (ids.has(ev.t)) bump(heroOf(ev.t, ev).sustain.healIn, ev.item ? 'food' : ev.u === ev.t ? 'self' : 'ally', int(ev.amount, 'heal amount'));

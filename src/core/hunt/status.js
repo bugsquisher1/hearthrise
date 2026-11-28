@@ -111,15 +111,17 @@ function strength(row, scale) {
 }
 
 /**
- * SPEND EVERY `once` STACK on `unit` (statuses.js `once`, Blunted: what it does holds for one blow): called once its blow has landed
- * (damage.js resolveAttacks after a swing and its splash, monster-spells.js after a wind-up's landing), a `status_off` for each status it
- * no longer carries. A unit with none is left exactly as it was. Draws nothing.
+ * SPEND EVERY `once` STACK OF ONE SIDE on `unit` (statuses.js `once`: what it does holds for one blow), `side` the effect it moves:
+ * 'dealtPm' (Blunted, the dealer's: called once its blow has landed, damage.js resolveAttacks after a swing and its splash, monster-spells.js
+ * after a wind-up's landing) or 'takenPm' (Braced, the target's: damage.js landHit, once a blow at it has landed), a `status_off` for each
+ * status it no longer carries. A unit with none is left exactly as it was. Draws nothing.
  */
-export function spendOnce(unit, sc) {
+export function spendOnce(unit, sc, side = 'dealtPm') {
   const list = stacksOf(unit);
-  if (!list.length || !list.some((s) => rowOf(s).once === true)) return;
-  unit.statuses = list.filter((s) => rowOf(s).once !== true);
-  for (const id of new Set(list.filter((s) => rowOf(s).once === true).map((s) => s.s))) sc.emit(makeEvent('status_off', sc.atMs, { t: unit.id, status: id }));
+  const spent = (s) => rowOf(s).once === true && rowOf(s)[side] !== undefined;
+  if (!list.length || !list.some(spent)) return;
+  unit.statuses = list.filter((s) => !spent(s));
+  for (const id of new Set(list.filter(spent).map((s) => s.s))) sc.emit(makeEvent('status_off', sc.atMs, { t: unit.id, status: id }));
 }
 
 /**

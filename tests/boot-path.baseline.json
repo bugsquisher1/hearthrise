@@ -182,6 +182,12 @@
         "gzipBytes": 138023,
         "on": "2026-11-28",
         "why": "signatures-batch-4: 9 new Signature rows in src/data/signatures.js, which the bag tooltip reads for a piece's name and rule (item-standing.js, item-lore.js: about 0.75 KB), the reaction vocabulary's new fields in src/data/talents.js (0.15 KB) and the standing-effect fold in the one effect reader status-effects.js (0.12 KB). The engine code that rode along (tauntOne, fallBackNow) moved to reactions.js and fall-save.js, on need; the sign-in stage moves only by the hashed chunk names it lists"
+      },
+      {
+        "modules": 10,
+        "gzipBytes": 138024,
+        "on": "2026-11-28",
+        "why": "signatures-batch-5 after its readings: data only, Thrower's Ring raised to twice as strong (its tip) and Night Carter's Boots sized on Pyre Field (best) in signatures.js, a few bytes; the sign-in stage moves only by the hashed chunk names it lists"
       }
     ],
     "town": [
@@ -748,6 +754,18 @@
         "gzipBytes": 880907,
         "on": "2026-11-28",
         "why": "designer-sig-batch5: longer Signature tips in signatures.js, read by the bag tooltip (+0.1 KB)"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 881280,
+        "on": "2026-11-28",
+        "why": "signatures-batch-5: data only, no engine module on the town path moved (conditions.js and react-queue.js untouched; the pieces are on need in abilities.js, reactions.js, monster-spells.js, damage.js, status.js, heal-rules.js, signature-casts.js): 3 new Signature rows and 5 rewritten tips in signatures.js (the bag tooltip reads them), the Whetted and Braced rows in statuses.js, the reaction vocabulary's min, within and a heal again in talents.js"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 881294,
+        "on": "2026-11-28",
+        "why": "signatures-batch-5 after its readings: data only, Thrower's Ring raised to twice as strong (its tip) and Night Carter's Boots sized on Pyre Field (best) in signatures.js, a few bytes; the sign-in stage moves only by the hashed chunk names it lists"
       }
     ]
   }

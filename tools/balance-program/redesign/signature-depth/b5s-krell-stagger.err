@@ -1,0 +1,13 @@
+V1: 12 seed jobs (1 cells x 12 seeds x 8 h) on 7 workers; krells_hold, Levels 97 / 100 / 70
+[1/12] base:steady#1 54 s, 54 s elapsed
+[2/12] base:steady#2 54 s, 54 s elapsed
+[3/12] base:steady#4 55 s, 55 s elapsed
+[4/12] base:steady#6 55 s, 55 s elapsed
+[5/12] base:steady#3 55 s, 55 s elapsed
+[6/12] base:steady#0 55 s, 56 s elapsed
+[7/12] base:steady#5 55 s, 56 s elapsed
+[8/12] base:steady#7 45 s, 99 s elapsed
+[9/12] base:steady#8 45 s, 99 s elapsed
+[10/12] base:steady#10 45 s, 101 s elapsed
+[11/12] base:steady#11 46 s, 101 s elapsed
+[12/12] base:steady#9 46 s, 101 s elapsed

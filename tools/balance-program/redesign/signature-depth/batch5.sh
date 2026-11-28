@@ -43,6 +43,8 @@ if [ -n "$REPLAY" ]; then
   SEEDS=2 run b5r-muster-bracers   muster_barrows 60 $X --signatures -,brood_bracers,-,-
   SEEDS=2 run b5r-muster-leggings  muster_barrows 60 $X --signatures -,-,-,lychgate_leggings
   SEEDS=2 RISK=bold run b5r-muster-cloak muster_barrows 60 $X --signatures -,-,-,hearth_masons_cloak
+  # (lane/signatures-batch-5: the row it raised, Thrower's Ring at twice as strong, against b5w-muster-ring100's first two seeds)
+  SEEDS=2 run b5r-muster-ring      muster_barrows 60 $X --signatures -,-,-,throwers_ring
   exit 0
 fi
 # ── THE PLAINS PLAYED HERE ──
@@ -106,3 +108,50 @@ SEEDS=36 run b5v-carters-leech-h60  carters_rest 117 $X --signatures -,-,-,zz_le
 SEEDS=36 run b5v-carters-leech-h70  carters_rest 117 $X --signatures -,-,-,zz_leech_h70
 SEEDS=36 RISK=bold run b5v-muster-cloak-90m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_90m --raw "$OUT/b5v-muster-cloak-90m36.raw.json"
 SEEDS=36 RISK=bold run b5v-muster-cloak-75m36 muster_barrows 60 $X --signatures -,-,-,zz_cloak_75m --raw "$OUT/b5v-muster-cloak-75m36.raw.json"
+# ── SYSTEMS, BATCH 5 BUILT (lane/signatures-batch-5, 2026-11-28; 15 "Batch 5: the rows and their moves"): each row by its real id on its
+#    cell against the same four with none and the same bar. A row whose move no recorded bar casts (Stagger, Parry, Gash) adds the move to
+#    its seat's bar in BOTH arms on the move's own new-slot trigger (`move@t`, tools/balance-sim/played.mjs playedSlot), so the Signature
+#    is the only difference. The plains play the tree with every row dark (engine-parity), so they replay on any tree that holds it. ──
+SW=sword,crossbow,mage,healer
+SEEDS=36 run b5s-carters-stagger36  carters_rest 117 $X --add-moves stagger@t,-,-,-
+run b5s-krell-stagger       krells_hold 97 $X --add-moves stagger@t,-,-,-
+run b5s-roost-sword-parry   wyvern_roost 140 $SW --add-moves parry@t,-,-,-
+run b5s-pyre-sword-parry    pyre_field 80 $S --add-moves parry@t,-,-,-
+run b5s-muster-axes-gash    muster_barrows 60 $A --add-moves gash@t,-,-,-
+run b5s-flood-axes-gash     catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,-
+run b5s-muster-tank-shelter muster_barrows 60 $T --add-moves shelter@t,-,-,-
+# (each row by its real id against the plain above with the same bar, or the batch 3 / 4 / 5 plain this tree replays seed for seed:
+#  b3-muster-mixed, b3-muster-tank, b4s-muster-sword, b4-carters-mixed36, b5-bone-mixed, b5-flood-axes, b3-pyre-mixed, b3-muster-mixed4)
+SEEDS=36 run b5s-carters-maul36     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures stable_trolls_maul,-,-,-
+run b5s-krell-maul          krells_hold 97 $X --add-moves stagger@t,-,-,- --signatures stable_trolls_maul,-,-,-
+run b5s-roost-breeches      wyvern_roost 140 $SW --add-moves parry@t,-,-,- --signatures ledgehide_breeches,-,-,-
+run b5s-pyre-breeches       pyre_field 80 $S --add-moves parry@t,-,-,- --signatures ledgehide_breeches,-,-,-
+run b5s-muster-hooks        muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures troll_pickers_hooks,-,-,-
+run b5s-flood-hooks         catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,- --signatures troll_pickers_hooks,-,-,-
+run b5s-muster-claw         muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures fledgling_claw,-,-,-
+run b5s-flood-claw          catacomb_flooded_wing 160 $A --add-moves gash@t,-,-,- --signatures fledgling_claw,-,-,-
+run b5s-muster-mitts-sword  muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
+run b5s-muster-mitts-tank   muster_barrows 60 $T --signatures teamsters_mitts,-,-,-
+run b5s-muster-ring-healer  muster_barrows 60 $X --signatures -,-,-,throwers_ring
+run b5s-muster-ring-tank    muster_barrows 60 $T --add-moves shelter@t,-,-,- --signatures throwers_ring,-,-,-
+run b5s-bone-boots          catacomb_bone_wing 175 $X --signatures -,-,-,night_carters_boots
+run b5s-flood-boots         catacomb_flooded_wing 160 $A --signatures -,-,-,night_carters_boots
+run b5s-pyre-boots          pyre_field 80 $X --signatures -,-,-,night_carters_boots
+SEEDS=36 run b5s-carters-apron36    carters_rest 117 $X --signatures -,-,-,brewers_apron
+SEEDS=4 run b5s-muster-candle       muster_barrows 60 $X --signatures -,-,the_cold_candle,-
+# (24 seeds where 12 read in band with se over 3: the Mitts on the sword four)
+SEEDS=24 run b5s-muster-sword24     muster_barrows 60 $S
+SEEDS=24 run b5s-muster-mitts24     muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
+# (the shapes, b5w-*: temporary ids on a scratch copy, ROOT=<copy>, each a real row with its number or line moved; sum.mjs VARIANTS5S)
+SEEDS=36 run b5w-carters-maul25     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures zz_maul25,-,-,-
+SEEDS=36 run b5w-carters-maul40     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures zz_maul40,-,-,-
+run b5w-muster-hooks2       muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks2,-,-,-
+# (a scratch status zz_whetted100 beside Whetted: the next Rend doubled)
+run b5w-muster-hooks100     muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks100,-,-,-
+run b5w-muster-ring100      muster_barrows 60 $X --signatures -,-,-,zz_ring100
+# (the Breeches with no reach to the ally: a monster beside the sword winding up at any other hero, the tip's own words; on the sword four
+#  no ally stands within a tile of the sword, so `within: 1` never fires there)
+run b5w-roost-breeches-any  wyvern_roost 140 $SW --add-moves parry@t,-,-,- --signatures zz_breeches_any,-,-,-
+run b5w-pyre-breeches-any   pyre_field 80 $S --add-moves parry@t,-,-,- --signatures zz_breeches_any,-,-,-
+run b5w-muster-signet-sick  muster_barrows 60 $X --signatures -,zz_signet_sick,-,-
+run b5w-muster-signet-armor muster_barrows 60 $X --signatures -,zz_signet_armor,-,-

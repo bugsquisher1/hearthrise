@@ -80,6 +80,8 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
   }
   /* THE CAST LANDED ON `t` (a reaction's `heal` moment, Brewer's Apron): once a hero a cast, laid over time or not (a tick is no cast) */
   if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id, was, dmg: landed });
+  /* (the cast keeps its heals for its own moment when its hero reacts to one, abilities.js effect: the heal's amount at the door, n) */
+  if (cast && cast.healed) cast.healed.push([t, n]);
   if (fx) afterHeal(inst, sc, u, t, n, row, fx);
 }
 

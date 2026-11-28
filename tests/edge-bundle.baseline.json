@@ -715,9 +715,24 @@
         "why": "designer-sig-batch5: reshaped Signature rows and longer tips in signatures.js"
       },
       {
-        "bytes": 3857982,
+        "bytes": 4085059,
         "on": "2026-11-28",
-        "why": "cut locked in (214626 bytes)"
+        "why": "lane/signatures-batch-5: batch 5's engine pieces (the interrupt and windup moments, min and within, a heal again, a cast at the moment's monster, Braced on the taken side, the standing raise in the new signature-casts.js, saves.of, Magic XP on the written mana in abilities.js and hunt-rewards.js) and their rows in signatures.js, statuses.js and talents.js, nearly half of it comments; nothing new is reached but signature-casts.js"
+      },
+      {
+        "bytes": 4085237,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-5 after its readings: Thrower's Ring raised to twice as strong and Night Carter's Boots sized on Pyre Field in signatures.js (data, +178 B with the row's comment)"
+      },
+      {
+        "bytes": 4085354,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-5: castNow's reaction-monster check split onto its own line for the type ratchet (abilities.js, +117 B, a comment and a narrowing)"
+      },
+      {
+        "bytes": 4086494,
+        "on": "2026-11-28",
+        "why": "lane/signatures-batch-5: signatures.js's header names batch 5's built rows, a comment block (+1 KB)"
       }
     ]
   }

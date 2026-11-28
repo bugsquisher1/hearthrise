@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "f1eae01a9c95de95",
+ "authored": "806cd3f9fe003a24",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 758,
-  "typed": 17621,
+  "bindings": 759,
+  "typed": 17622,
   "files": 263,
   "lever": 324,
-  "notLever": 434,
+  "notLever": 435,
   "unclaimed": 0
  },
  "problems": [],
@@ -12631,19 +12631,19 @@
    "sites": [
     {
      "file": "src/data/imbue-rules.js",
-     "line": 49,
+     "line": 48,
      "text": "hours: 20,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 56,
+     "line": 55,
      "text": "feeHoursPm: 400,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 77,
+     "line": 76,
      "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'ember', sharePm: 50 },",
      "binding": "IMBUE_RULES"
     }
@@ -16644,6 +16644,10 @@
   }
  ],
  "notLevers": [
+  {
+   "at": "src/core/imbue.js#leechPay",
+   "why": "the Leech carry clamp: a remainder in thousandths of one HP or mana, 0 to 999, the arithmetic of the permille carry (21 D-18); the lever is src/data/imbue-rules.js leech.pm"
+  },
   {
    "at": "src/data/balance-sheet.js#BALANCE_SHEET",
    "why": "balance TARGETS the guards judge against (close calls, typical low HP, XP against the contract, the fresh hero, harder-tier XP, blow shares): BL-3's target spec, not a gameplay number"

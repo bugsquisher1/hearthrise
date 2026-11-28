@@ -706,6 +706,12 @@
         "gzipBytes": 898775,
         "on": "2026-11-28",
         "why": "icons-arrowheads-signatures: item-art.js gains 6 arrowhead and 8 Signature icon rows (icons-ahead)"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 899452,
+        "on": "2026-11-28",
+        "why": "imbue-engine: src/core/hunt/imbue-leech.js (50 lines) is imported by world-state.js, which the town path reads (+0.7 KB)"
       }
     ]
   }

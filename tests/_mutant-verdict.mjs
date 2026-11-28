@@ -348,6 +348,12 @@ const EVERY_RUNNER = [
   [/catch \((\w+)\) \{\s*\w+ = \[['`]threw/, 'files a throw into the list it scores, so a crash reads as a catch: judge it with judge / caseVerdict'],
   [/catch \((\w+)\) \{\s*(?:\/\*[^*]*\*\/\s*)?(?:if \(\1 !== \w+\) )?(?:Array\.prototype\.push\.call\()?(?:fails|problems|out)(?:\.push\(|, )['`][A-Z][A-Z0-9]*-[A-Za-z0-9]+ [^'`]*['`] \+ String\(\(?\1\b/,
     'files a throw under a named rule id (a named catch-all), so a crash reads as that rule\'s catch: push harnessFail(where, e)'],
+  /* A PLANT THAT SWALLOWS ITS OWN WRITE (lane/nightly-red-1128: craft-wages' rung plant, `try { c.gold = gold; } catch { } return () => ...`).
+     A frozen row throws in strict mode, the empty catch makes the mutant a no-op, and its undo threw: hollow since lane prices-wage-hours
+     froze ROOM_RUNGS, and the throw hid four more hollow mutants behind it. A write (or Object.assign / defineProperty) in a try whose catch
+     is empty, then an undo: plant into a copy the check reads instead. A freeze probe (a write expected to throw, then asserted) is no plant. */
+  [/try \{(?:[^{}]*?(?:\]|\.\w+)\s*=(?![=>])[^{}]*|\s*Object\.(?:assign|defineProperty)\([^{}]*)\}\s*catch\s*(?:\(\w*\))?\s*\{\s*(?:\/\*[^*]*\*\/|\/\/[^\n]*)?\s*\}\s*return\s*\(\)\s*=>/,
+    'swallows a plant\'s write (a frozen row throws, the empty catch makes the mutant a no-op): plant into a copy the check reads'],
 ];
 /* OWED (frozen 2026-11-20; it only shrinks): runners still on an old shape, each a --mutate not yet re-proved. A file leaves by moving
    onto judge/report/exitOf (or caseVerdict/caughtBy) and a run of its --mutate; a file on this list no longer on the shape is red until
@@ -405,11 +411,18 @@ if (isMain(import.meta.url) && !process.argv.includes('--selftest')) {
     plainProblems([['tools/s.mjs', "    try { red = checks(x); } catch (e) { red = [`threw: ${e.message}`]; }"]]),
     plainProblems([['tests/r.mjs', "  } catch (e) {\n    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\\n')[0]);  } finally {"]]),
     plainProblems([['tests/q.mjs', "  } catch (e) {\n    fails.push('IP-1 the page broke: ' + String((e && e.message) || e).split('\\n')[0]);\n  }"]]),
+    /* a plant that swallows its own write, as craft-wages wrote it until lane/nightly-red-1128, and the Object.assign spelling */
+    plainProblems([['tests/o.mjs', "  const rung = (room, i, gold) => { const c = ROOM_RUNGS[room][i].cost; const was = c.gold; try { c.gold = gold; } catch { /* frozen below */ } return () => { c.gold = was; }; };"]]),
+    plainProblems([['tests/n.mjs', "  const plant = (row, patch) => { const was = { ...row };\n    try {\n      Object.assign(row, patch);\n    } catch (e) {}\n    return () => Object.assign(row, was); };"]]),
   ];
   /* ...and the shapes that are not the old way stay green: a named-rule judge, a harnessFail catch, a rule line that mentions a throw */
   const fine = plainProblems([['tests/p.mjs', "  } catch (e) {\n    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));\n  }\n"
     + "    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));\n    if (!tn) fail('WN-1 a town notice reads Mira threw Cinnabar');\n"
-    + "    const hit = findings(plant(t)).filter((f) => f.startsWith(rule + ' '));\n    if (hit.length) console.log(`  ✓ ${name}: caught by [${rule}]`);"]]);
+    + "    const hit = findings(plant(t)).filter((f) => f.startsWith(rule + ' '));\n    if (hit.length) console.log(`  ✓ ${name}: caught by [${rule}]`);"
+    /* a freeze probe (session-core ENV-6): the write is expected to throw and the next line asserts it did not take */
+    + "\n    try { a.data.skills.mining = 1; } catch (e) { /* strict-mode throw is fine */ }\n    return (a.data.skills.mining === 5 && Object.isFrozen(a)) || 'the record is writable';"
+    /* a plant into the guard's own copy, then its undo (craft-wages since lane/nightly-red-1128) */
+    + "\n  const rung = (room, i, gold) => { LADDER.rungs = { ...ROOM_RUNGS, [room]: [] }; return () => { LADDER.rungs = ROOM_RUNGS; }; };"]]);
   for (const f of fine) console.log('  ✗ a shape that is not the old way read as one: ' + f);
   const blind = planted.findIndex((p) => !p.length);
   if (blind >= 0) console.log('  ✗ planted old shape #' + (blind + 1) + ' was not seen');

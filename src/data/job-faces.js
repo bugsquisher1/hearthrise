@@ -21,8 +21,11 @@ import { GEAR_STEPS } from './danger.js';
    BAND 3 IS GRAVE DUST, not Razor Claw (the designer, lane/kit-bands-2-3, 09 4.14): band 3's runes bind with its Remains too, and Razor
    Claw drops only on the Pyre Field (entry Level 70), so a company hunting the Muster Barrows (the band-3 ground, gear Level 60) could
    never cut its own band's runes. Grave Dust drops on the Muster Barrows (cairn_wight, captain_hask) and on the Pyre Field (pyre_wraith,
-   provost), the home of both band-3 imbuement parts, so the binder still comes from where the band's parts drop. */
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'grave_dust']) });
+   provost), the home of both band-3 imbuement parts, so the binder still comes from where the band's parts drop.
+   BAND 4 IS BIG BONES (the designer, lane/kit-bands-4-5, 09 4.15): both band-4 grounds drop them (Krell's Hold: grave_guard, gatekeeper;
+   the Pyre Field: stoker, provost), so a company on either cuts its Graven runes. Razor Claw drops on the Pyre Field alone. Band 5 cuts no
+   rune and has no imbuement, so it names no Remains yet. */
+export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'grave_dust', 'big_bones']) });
 
 /** The item a hunted stream drops at `band` (null: none named). */
 export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;

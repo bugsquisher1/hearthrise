@@ -1,5 +1,5 @@
 {
- "count": 104,
+ "count": 88,
  "byBand": {
   "0": {
    "food": [
@@ -49,7 +49,6 @@
   "2": {
    "food": [
     "baked_potato",
-    "cooked_lobster",
     "cooked_panther_meat",
     "cooked_silverfin"
    ],
@@ -92,20 +91,14 @@
   "4": {
    "food": [
     "carrot_stew",
-    "cooked_swordfish",
     "vegetable_stew"
-   ],
-   "ammo": [
-    "rune_arrows",
-    "rune_whetstone"
    ],
    "tool": [
     "rune_axe",
     "rune_pickaxe"
    ],
    "material": [
-    "verdite_bar",
-    "yew_plank"
+    "verdite_bar"
    ]
   },
   "5": {
@@ -117,8 +110,7 @@
     "ember_tart",
     "fishers_pie",
     "pumpkin_pie",
-    "river_chowder",
-    "swordfish"
+    "river_chowder"
    ],
    "tool": [
     "ember_axe",
@@ -128,17 +120,6 @@
     "ember_earrings",
     "ember_necklace",
     "ember_ring"
-   ],
-   "drink": [
-    "goldenroot_tea"
-   ],
-   "ammo": [
-    "graven_earth_rune",
-    "graven_fire_rune",
-    "graven_ice_rune",
-    "graven_poison_rune",
-    "graven_rupture_rune",
-    "graven_water_rune"
    ],
    "material": [
     "heartgarnet"
@@ -174,15 +155,6 @@
     "cobalt_earrings",
     "cobalt_necklace",
     "cobalt_ring"
-   ],
-   "drink": [
-    "emberfruit_cordial"
-   ],
-   "ammo": [
-    "emberhead_arrows"
-   ],
-   "material": [
-    "runewood_plank"
    ],
    "armor": [
     "samite_cloak"
@@ -410,16 +382,6 @@
    ]
   },
   {
-   "id": "cooked_lobster",
-   "name": "Cooked Lobster",
-   "kind": "food",
-   "band": 2,
-   "by": "bench Level 30",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
    "id": "cooked_moonfish",
    "name": "Moonfish Fillet",
    "kind": "food",
@@ -455,16 +417,6 @@
    "kind": "food",
    "band": 2,
    "by": "bench Level 24",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "cooked_swordfish",
-   "name": "Swordfish Steak",
-   "kind": "food",
-   "band": 4,
-   "by": "bench Level 45",
    "doors": [
     "made by cooking"
    ]
@@ -670,26 +622,6 @@
    ]
   },
   {
-   "id": "emberfruit_cordial",
-   "name": "Emberfruit Cordial",
-   "kind": "drink",
-   "band": 7,
-   "by": "bench Level 72",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "emberhead_arrows",
-   "name": "Emberhead Arrows",
-   "kind": "ammo",
-   "band": 7,
-   "by": "bench Level 78",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "fang_studs_focus",
    "name": "Fang Studs (Focus)",
    "kind": "jewelry",
@@ -757,76 +689,6 @@
    "by": "bench Level 65",
    "doors": [
     "made by cooking"
-   ]
-  },
-  {
-   "id": "goldenroot_tea",
-   "name": "Goldenroot Tea",
-   "kind": "drink",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by cooking"
-   ]
-  },
-  {
-   "id": "graven_earth_rune",
-   "name": "Graven Earth Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "graven_fire_rune",
-   "name": "Graven Fire Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "graven_ice_rune",
-   "name": "Graven Ice Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "graven_poison_rune",
-   "name": "Graven Poison Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "graven_rupture_rune",
-   "name": "Graven Rupture Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
-   ]
-  },
-  {
-   "id": "graven_water_rune",
-   "name": "Graven Water Rune",
-   "kind": "ammo",
-   "band": 5,
-   "by": "bench Level 60",
-   "doors": [
-    "made by runecrafting"
    ]
   },
   {
@@ -960,16 +822,6 @@
    ]
   },
   {
-   "id": "rune_arrows",
-   "name": "Rune Arrows",
-   "kind": "ammo",
-   "band": 4,
-   "by": "metal rune",
-   "doors": [
-    "made by crafting"
-   ]
-  },
-  {
    "id": "rune_axe",
    "name": "Rune Axe",
    "kind": "tool",
@@ -987,26 +839,6 @@
    "by": "metal rune",
    "doors": [
     "made by smithing"
-   ]
-  },
-  {
-   "id": "rune_whetstone",
-   "name": "Rune Whetstone",
-   "kind": "ammo",
-   "band": 4,
-   "by": "metal rune",
-   "doors": [
-    "made by smithing"
-   ]
-  },
-  {
-   "id": "runewood_plank",
-   "name": "Runewood Plank",
-   "kind": "material",
-   "band": 7,
-   "by": "bench Level 75",
-   "doors": [
-    "made by crafting"
    ]
   },
   {
@@ -1130,16 +962,6 @@
    ]
   },
   {
-   "id": "swordfish",
-   "name": "Raw Swordfish",
-   "kind": "food",
-   "band": 5,
-   "by": "bench Level 55",
-   "doors": [
-    "gathered"
-   ]
-  },
-  {
    "id": "tomato_soup",
    "name": "Tomato Soup",
    "kind": "food",
@@ -1247,16 +1069,6 @@
    "by": "item Level 160",
    "doors": [
     "made by smithing"
-   ]
-  },
-  {
-   "id": "yew_plank",
-   "name": "Yew Plank",
-   "kind": "material",
-   "band": 4,
-   "by": "metal yew",
-   "doors": [
-    "made by crafting"
    ]
   }
  ]

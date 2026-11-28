@@ -638,6 +638,11 @@
         "bytes": 3922817,
         "on": "2026-11-28",
         "why": "lane/e5-borrowing (19 L6) on the merged set: the borrow engine in talent-rows.js (lend, lentModsOf: a heal on Mend's clock, Magic at Mend's rate, native reach, no native unlock), a lent Challenge from any seat in targeting.js, the slot's reach in conditions.js, heroSetup's priced seam, BORROW_RULES and the re-measured heal values"
+      },
+      {
+        "bytes": 3924136,
+        "on": "2026-11-28",
+        "why": "lane/p1-dealt-rows: personal loot deals a guaranteed row by turns instead of rolling it (12-targets 8.11 item 2): payPersonal's deal loop, drops.js dropEvent (one event shape for a rolled and a dealt unit), the monster unit handed down from payKill and calledSwing, and their comments"
       }
     ]
   }

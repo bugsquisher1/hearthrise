@@ -13,7 +13,7 @@
 --   hr_temper_kits (8 rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
 --     yet, is refused kits_owed, never sold for gold alone). hr_temper_rules.kit_item, 1063's one kit column, is no longer written: it
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
---   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
+--   hr_item_levels (380 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
 --     hr_imbue_levers.ramp_level has no reader once 1078-imbue-fee-timer.sql lands (the fee reads the band, 21 D-19). It stays, written,
 --     while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay: that file's insert names it (not null) and its piece and
@@ -256,12 +256,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('bakers_cap', 60),
   ('banded_legguards', 120),
   ('banded_signet', 20),
-  ('banded_signet_follow', 20),
-  ('banded_signet_keen', 20),
-  ('banded_signet_keen_follow', 20),
-  ('banded_signet_keen_surge', 20),
-  ('banded_signet_surge', 20),
-  ('banded_signet_surge_follow', 20),
   ('barrowking_mantle', 52),
   ('bierguard_sword', 100),
   ('boarhide_belt', 40),
@@ -388,9 +382,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('ember_tower_shield', 100),
   ('ember_warhammer', 100),
   ('fang_studs', 20),
-  ('fang_studs_focus', 20),
-  ('fang_studs_steady', 20),
-  ('fang_studs_steady_focus', 20),
   ('ferrymans_bow', 60),
   ('fire_tenders_cap', 100),
   ('first_keepers_staff', 120),
@@ -519,12 +510,6 @@ insert into public.hr_item_levels (item_id, item_level) values
   ('scholar_pants', 40),
   ('scribes_slippers', 100),
   ('seam_jasper_band', 40),
-  ('seam_jasper_band_follow', 40),
-  ('seam_jasper_band_keen', 40),
-  ('seam_jasper_band_keen_follow', 40),
-  ('seam_jasper_band_keen_surge', 40),
-  ('seam_jasper_band_surge', 40),
-  ('seam_jasper_band_surge_follow', 40),
   ('sewermans_boots', 60),
   ('sextons_wand', 100),
   ('shadowsilk_cape', 80),
@@ -908,7 +893,7 @@ do $mig$
 declare v_r record; v_j jsonb; v_t text;
 begin
   if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 6
-     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 395
+     or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 380
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000
      or (select count(*) from public.hr_temper_kits) <> 8 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
@@ -1390,5 +1375,5 @@ begin
   if has_function_privilege('authenticated', 'public.hr_temper_kit_at(integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_imbue_wearable(integer,integer)', 'execute') then
     raise exception 'VERIFY(r): a client role runs the kit or band-lock twin'; end if;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 8 Temper kits, 395 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 8 Temper kits, 380 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

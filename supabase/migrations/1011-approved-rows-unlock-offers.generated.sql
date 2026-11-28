@@ -8,7 +8,7 @@
 --   here is reverted by the next generation and FAILS
 --   `node tools/gen-unlock-offers.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   offer digest: 41826eafb95c09a3360d4d7d95d44fd9b55ab675ac315102ec7e706a7dc3f5a6
+--   offer digest: ea31bb4f300ab46c95baed33b15ded9ae5e49233eca4246ccb7071b00df10cc9
 --   45 authored unlock offers · 35 sellable (property=5 · room=30) · refused: held=10
 --
 -- ── WHAT THIS TABLE IS ──────────────────────────────────────────────────
@@ -142,35 +142,35 @@ delete from public.hr_unlock_offers where source = 'gen-unlock-offers'
 insert into public.hr_unlock_offers
   (offer_id, table_name, name, unlock_id, value, gold, items, req_property_tier, req_item, refusal, source)
 values
-  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 2500000, '{"ember_bar":20,"gatekeepers_chain":10,"iron_fitting":30,"runewood_plank":60,"timber_beam":30}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('property.castle', 'property', 'Hearthrise Castle', 'property:castle', 5, 2500000, '{"ember_bar":20,"gatekeepers_chain":10,"iron_bar":120,"oak_plank":150,"runewood_plank":60}'::jsonb, 4, null, null, 'gen-unlock-offers'),
   ('property.farmstead', 'property', 'Fieldworth Farmstead', 'property:farmstead', 2, 25000, '{"cooked_shrimp":10,"copper_ore":25,"oak_log":40,"wolf_pelt":4}'::jsonb, 1, null, null, 'gen-unlock-offers'),
   ('property.homestead', 'property', 'Hearthside Homestead', 'property:homestead', 1, 400, '{"copper_ore":20,"normal_log":30}'::jsonb, 0, null, null, 'gen-unlock-offers'),
-  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 600000, '{"bear_pelt":5,"big_bones":20,"iron_fitting":12,"maple_plank":50,"steel_bar":35,"timber_beam":12}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 150000, '{"iron_fitting":6,"iron_ore":40,"silk_thread":8,"timber_beam":6,"willow_plank":35}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('property.keep', 'property', 'Ironvale Keep', 'property:keep', 4, 600000, '{"bear_pelt":5,"big_bones":20,"iron_bar":48,"maple_plank":50,"oak_plank":60,"steel_bar":35}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('property.manor', 'property', 'Stonecross Manor', 'property:manor', 3, 150000, '{"iron_bar":24,"iron_ore":40,"oak_plank":30,"silk_thread":8,"willow_plank":35}'::jsonb, 2, null, null, 'gen-unlock-offers'),
   ('room.cellar.1', 'room', 'Cellar — Root Cellar', 'room:cellar', 1, 1200, '{"normal_log":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
   ('room.cellar.2', 'room', 'Cellar — Stone Cellar', 'room:cellar', 2, 4000, '{"oak_log":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
   ('room.cellar.3', 'room', 'Cellar — The Vault', 'room:cellar', 3, 12000, '{"willow_log":50}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.cellar.4', 'room', 'Cellar — The Cask Room', 'room:cellar', 4, 70000, '{"field_ration":20,"goldenroot_roast":6,"timber_beam":12}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.cellar.5', 'room', 'Cellar — The Deep Cellar', 'room:cellar', 5, 700000, '{"barrow_nail":20,"moonbloom_elixir":4,"runewood_plank":30}'::jsonb, 5, null, null, 'gen-unlock-offers'),
-  ('room.forge.1', 'room', 'Forge — Field Forge', 'room:forge', 1, 75000, '{"iron_bar":200,"iron_fitting":10,"oak_plank":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.forge.2', 'room', 'Forge — Stone Forge', 'room:forge', 2, 110000, '{"iron_bar":300,"iron_fitting":12,"steel_bar":40}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.forge.3', 'room', 'Forge — Double Bellows', 'room:forge', 3, 160000, '{"iron_fitting":15,"steel_bar":100,"timber_beam":10}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.forge.4', 'room', 'Forge — The Great Bellows', 'room:forge', 4, 240000, '{"coal":200,"iron_fitting":25,"steel_bar":150}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.forge.5', 'room', 'Forge — The Deep Forge', 'room:forge', 5, 900000, '{"ember_bar":30,"iron_fitting":40,"rake_tine":20}'::jsonb, 4, null, null, 'gen-unlock-offers'),
+  ('room.cellar.4', 'room', 'Cellar — The Cask Room', 'room:cellar', 4, 70000, '{"maple_plank":30,"oak_plank":60,"pumpkin_cider":30}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.cellar.5', 'room', 'Cellar — The Deep Cellar', 'room:cellar', 5, 700000, '{"barrow_nail":20,"emberfruit_cordial":20,"runewood_plank":30}'::jsonb, 5, null, null, 'gen-unlock-offers'),
+  ('room.forge.1', 'room', 'Forge — Field Forge', 'room:forge', 1, 75000, '{"iron_bar":240,"oak_plank":60}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.forge.2', 'room', 'Forge — Stone Forge', 'room:forge', 2, 110000, '{"iron_bar":348,"steel_bar":40}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.forge.3', 'room', 'Forge — Double Bellows', 'room:forge', 3, 160000, '{"iron_bar":60,"oak_plank":50,"steel_bar":100}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.forge.4', 'room', 'Forge — The Great Bellows', 'room:forge', 4, 240000, '{"coal":200,"iron_bar":100,"steel_bar":150}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.forge.5', 'room', 'Forge — The Deep Forge', 'room:forge', 5, 900000, '{"ember_bar":30,"iron_bar":160,"rake_tine":20}'::jsonb, 4, null, null, 'gen-unlock-offers'),
   ('room.garden.1', 'room', 'Garden — Kitchen Garden', 'room:garden', 1, 600, '{"wheat":20}'::jsonb, 1, null, null, 'gen-unlock-offers'),
   ('room.garden.2', 'room', 'Garden — Walled Garden', 'room:garden', 2, 2500, '{"wheat":60}'::jsonb, 1, null, null, 'gen-unlock-offers'),
   ('room.garden.3', 'room', 'Garden — The Beds', 'room:garden', 3, 9000, '{"pumpkin":5}'::jsonb, 1, null, null, 'gen-unlock-offers'),
-  ('room.garden.4', 'room', 'Garden — The Glasshouse', 'room:garden', 4, 60000, '{"goldenroot":15,"silk_thread":20,"timber_beam":10}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.garden.4', 'room', 'Garden — The Glasshouse', 'room:garden', 4, 60000, '{"goldenroot":15,"oak_plank":50,"silk_thread":20}'::jsonb, 3, null, null, 'gen-unlock-offers'),
   ('room.garden.5', 'room', 'Garden — The Orchard', 'room:garden', 5, 600000, '{"ford_weed":30,"moonbloom":12,"runewood_plank":40}'::jsonb, 4, null, null, 'gen-unlock-offers'),
   ('room.kitchen.1', 'room', 'Kitchen — Hearthstone', 'room:kitchen', 1, 40000, '{"cooked_trout":50,"iron_bar":60,"oak_plank":60}'::jsonb, 1, null, null, 'gen-unlock-offers'),
-  ('room.kitchen.2', 'room', 'Kitchen — Iron Stove', 'room:kitchen', 2, 70000, '{"cooked_lobster":50,"iron_bar":100,"willow_plank":60}'::jsonb, 1, null, null, 'gen-unlock-offers'),
-  ('room.kitchen.3', 'room', 'Kitchen — Cast-Iron Range', 'room:kitchen', 3, 110000, '{"steel_bar":30,"wheat_bread":40,"willow_plank":100}'::jsonb, 1, null, null, 'gen-unlock-offers'),
-  ('room.kitchen.4', 'room', 'Kitchen — Twin Range', 'room:kitchen', 4, 180000, '{"field_ration":25,"timber_beam":20,"willow_plank":100}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.kitchen.5', 'room', 'Kitchen — The Great Hearth', 'room:kitchen', 5, 800000, '{"cooked_shark":100,"ember_bar":8,"runewood_plank":40}'::jsonb, 5, null, null, 'gen-unlock-offers'),
-  ('room.library.1', 'room', 'Library — Shelf', 'room:library', 1, 60000, '{"oak_plank":80,"silk_thread":15,"timber_beam":8}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.library.2', 'room', 'Library — Reading Room', 'room:library', 2, 90000, '{"silk_thread":25,"timber_beam":12,"willow_plank":60}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.library.3', 'room', 'Library — The Library', 'room:library', 3, 130000, '{"maple_plank":60,"silk_thread":30,"timber_beam":15}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.library.4', 'room', 'Library — The Scriptorium', 'room:library', 4, 200000, '{"magic_essence":10,"silk_thread":40,"timber_beam":20}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.2', 'room', 'Kitchen — Iron Stove', 'room:kitchen', 2, 70000, '{"cooked_pikeperch":50,"iron_bar":100,"willow_plank":60}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.3', 'room', 'Kitchen — Cast-Iron Range', 'room:kitchen', 3, 110000, '{"steel_bar":30,"tomato_juice":40,"willow_plank":100}'::jsonb, 1, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.4', 'room', 'Kitchen — Twin Range', 'room:kitchen', 4, 180000, '{"cooked_goldgill":25,"oak_plank":100,"willow_plank":100}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.kitchen.5', 'room', 'Kitchen — The Great Hearth', 'room:kitchen', 5, 800000, '{"cooked_swordfish":100,"ember_bar":8,"runewood_plank":40}'::jsonb, 5, null, null, 'gen-unlock-offers'),
+  ('room.library.1', 'room', 'Library — Shelf', 'room:library', 1, 60000, '{"oak_plank":120,"silk_thread":15}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.library.2', 'room', 'Library — Reading Room', 'room:library', 2, 90000, '{"oak_plank":60,"silk_thread":25,"willow_plank":60}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.library.3', 'room', 'Library — The Library', 'room:library', 3, 130000, '{"maple_plank":60,"oak_plank":75,"silk_thread":30}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.library.4', 'room', 'Library — The Scriptorium', 'room:library', 4, 200000, '{"magic_essence":10,"oak_plank":100,"silk_thread":40}'::jsonb, 3, null, null, 'gen-unlock-offers'),
   ('room.library.5', 'room', 'Library — The Great Library', 'room:library', 5, 850000, '{"magic_essence":60,"priests_cord":20,"runewood_plank":40}'::jsonb, 5, null, null, 'gen-unlock-offers'),
   ('room.shrine.1', 'room', 'Shrine — Wayside Shrine', 'room:shrine', 1, null, null, null, null, 'held:its_room_is_not_built_yet', 'gen-unlock-offers'),
   ('room.shrine.2', 'room', 'Shrine — Stone Altar', 'room:shrine', 2, null, null, null, null, 'held:its_room_is_not_built_yet', 'gen-unlock-offers'),
@@ -182,11 +182,11 @@ values
   ('room.trophy.3', 'room', 'Trophy Room — Hall of Heads', 'room:trophy', 3, null, null, null, null, 'held:its_room_is_not_built_yet', 'gen-unlock-offers'),
   ('room.trophy.4', 'room', 'Trophy Room — Hall of Banners', 'room:trophy', 4, null, null, null, null, 'held:its_room_is_not_built_yet', 'gen-unlock-offers'),
   ('room.trophy.5', 'room', 'Trophy Room — The Long Gallery', 'room:trophy', 5, null, null, null, null, 'held:its_room_is_not_built_yet', 'gen-unlock-offers'),
-  ('room.workshop.1', 'room', 'Workshop — Work Bench', 'room:workshop', 1, 75000, '{"iron_fitting":5,"oak_plank":200,"timber_beam":10}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.workshop.2', 'room', 'Workshop — Joiner''s Bench', 'room:workshop', 2, 110000, '{"timber_beam":12,"willow_plank":100}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.workshop.3', 'room', 'Workshop — The Sawpit', 'room:workshop', 3, 160000, '{"iron_fitting":10,"timber_beam":20,"willow_plank":200}'::jsonb, 2, null, null, 'gen-unlock-offers'),
-  ('room.workshop.4', 'room', 'Workshop — The Lathe', 'room:workshop', 4, 240000, '{"iron_fitting":25,"maple_plank":100,"silk_thread":30}'::jsonb, 3, null, null, 'gen-unlock-offers'),
-  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, 900000, '{"duskwood_plank":25,"rune_bar":6,"timber_beam":30}'::jsonb, 4, null, null, 'gen-unlock-offers');
+  ('room.workshop.1', 'room', 'Workshop — Work Bench', 'room:workshop', 1, 75000, '{"iron_bar":20,"oak_plank":250}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.2', 'room', 'Workshop — Joiner''s Bench', 'room:workshop', 2, 110000, '{"oak_plank":60,"willow_plank":100}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.3', 'room', 'Workshop — The Sawpit', 'room:workshop', 3, 160000, '{"iron_bar":40,"oak_plank":100,"willow_plank":200}'::jsonb, 2, null, null, 'gen-unlock-offers'),
+  ('room.workshop.4', 'room', 'Workshop — The Lathe', 'room:workshop', 4, 240000, '{"iron_bar":100,"maple_plank":100,"silk_thread":30}'::jsonb, 3, null, null, 'gen-unlock-offers'),
+  ('room.workshop.5', 'room', 'Workshop — The Master''s Shop', 'room:workshop', 5, 900000, '{"oak_plank":150,"rune_bar":6,"yew_plank":25}'::jsonb, 4, null, null, 'gen-unlock-offers');
 
 -- ── SELF-CHECK ───────────────────────────────────────────────────────────
 do $$

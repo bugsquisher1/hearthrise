@@ -7,11 +7,11 @@
 -- STATUS: supabase/migration-notes/1061-store-step-catalogue.generated.sql.json (STAGED until the Coordinator applies it).
 -- WHAT (lane/econ-followups, backend-architect, 2026-11-22; 04-math-strategy.md section 11, 09-crafting.md 4.6; Tyler 2026-11-22: goods
 -- are priced by depth): the rule a store use is priced by, so the server prices it at the BUYER's store step, never at the row's own.
---   hr_store_terms     49 rows, one a store row (hr_hunt_basic_supplies' ids), rewritten whole.
+--   hr_store_terms     48 rows, one a store row (hr_hunt_basic_supplies' ids), rewritten whole.
 --   hr_store_grounds   16 rows (carters_rest 117, catacomb_bone_wing 175, catacomb_flooded_wing 160, coppercap_warrens 41, hasks_ford 52, krells_hold 97, meadowbrook_thicket 10, mill_cellar 3, millrace_sewer 12, mosslight_glade 23, muster_barrows 60, ox_road 120, pyre_field 80, the_slake 57, wickstead 13, wyvern_roost 140): each Danger scale ground's reference wage step.
 --   hr_store_price     internal, the twin of store-kit.js storePriceOf: greatest(floor, round(coef x hr_wage(step) [x amount] / per)),
 --                      float8 in the JS's order (each operation exactly rounded, the same bits), Math.round as floor plus one at a
---                      fraction of a half or more; pinned at 1176 prices (every row at 24 steps, §3).
+--                      fraction of a half or more; pinned at 1152 prices (every row at 24 steps, §3).
 -- READERS: 1062-store-step.sql (hr_store_step, the member read, the settle's bill and its gold_out proof, the call series' plan, the
 -- settings view's store list). The client reads only the settings view.
 -- ORDER: 1061 in its name, after 1055 (hr_danger_grounds, whose rows §3 matches) and 1058's catalogues (hr_wage, hr_hunt_basic_supplies),
@@ -68,7 +68,6 @@ insert into public.hr_store_terms (basic_id, line, coef, amount, per, floor_gold
   ('thin_goldenroot_tea', 'meal', '0.10500000000000001'::float8, 396, 16950, 129),
   ('thin_emberfruit_cordial', 'meal', '0.10500000000000001'::float8, 480, 16950, 238),
   ('plain_iron_arrows', 'charge', '0.10500000000000001'::float8, 0, 1500, 1),
-  ('plain_barbed_arrows', 'charge', '0.10500000000000001'::float8, 0, 1500, 1),
   ('plain_iron_bolts', 'charge', '0.10500000000000001'::float8, 0, 1500, 1),
   ('plain_steel_arrows', 'charge', '0.10500000000000001'::float8, 0, 1500, 1),
   ('plain_mithril_arrows', 'charge', '0.10500000000000001'::float8, 0, 1500, 2),
@@ -155,8 +154,8 @@ end $mig$;
 do $mig$
 declare v_r record; v_p bigint;
 begin
-  if (select count(*) from public.hr_store_terms) <> 49 then
-    raise exception 'VERIFY(a): the catalogue holds % store terms, want 49', (select count(*) from public.hr_store_terms); end if;
+  if (select count(*) from public.hr_store_terms) <> 48 then
+    raise exception 'VERIFY(a): the catalogue holds % store terms, want 48', (select count(*) from public.hr_store_terms); end if;
   if exists (select 1 from public.hr_hunt_basic_supplies q where not exists (select 1 from public.hr_store_terms t where t.basic_id = q.basic_id))
      or exists (select 1 from public.hr_store_terms t where not exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = t.basic_id)) then
     raise exception 'VERIFY(a): hr_store_terms and hr_hunt_basic_supplies name different rows: regenerate both from src/data/supply-basics.js'; end if;
@@ -455,30 +454,6 @@ begin
     ('plain_iron_arrows', 2048, 3204::bigint),
     ('plain_iron_arrows', 4000, 7760061::bigint),
     ('plain_iron_arrows', 4001, 7760061::bigint),
-    ('plain_barbed_arrows', 1, 1::bigint),
-    ('plain_barbed_arrows', 2, 1::bigint),
-    ('plain_barbed_arrows', 7, 1::bigint),
-    ('plain_barbed_arrows', 8, 1::bigint),
-    ('plain_barbed_arrows', 16, 1::bigint),
-    ('plain_barbed_arrows', 31, 1::bigint),
-    ('plain_barbed_arrows', 32, 1::bigint),
-    ('plain_barbed_arrows', 46, 1::bigint),
-    ('plain_barbed_arrows', 60, 1::bigint),
-    ('plain_barbed_arrows', 63, 1::bigint),
-    ('plain_barbed_arrows', 64, 1::bigint),
-    ('plain_barbed_arrows', 70, 1::bigint),
-    ('plain_barbed_arrows', 100, 1::bigint),
-    ('plain_barbed_arrows', 127, 1::bigint),
-    ('plain_barbed_arrows', 128, 2::bigint),
-    ('plain_barbed_arrows', 180, 2::bigint),
-    ('plain_barbed_arrows', 255, 2::bigint),
-    ('plain_barbed_arrows', 256, 3::bigint),
-    ('plain_barbed_arrows', 511, 7::bigint),
-    ('plain_barbed_arrows', 512, 7::bigint),
-    ('plain_barbed_arrows', 1024, 54::bigint),
-    ('plain_barbed_arrows', 2048, 3204::bigint),
-    ('plain_barbed_arrows', 4000, 7760061::bigint),
-    ('plain_barbed_arrows', 4001, 7760061::bigint),
     ('plain_iron_bolts', 1, 1::bigint),
     ('plain_iron_bolts', 2, 1::bigint),
     ('plain_iron_bolts', 7, 1::bigint),
@@ -1347,5 +1322,5 @@ begin
     if v_p is distinct from v_r.price then
       raise exception 'VERIFY(d): % at step % costs % in SQL, % in src/data/store-kit.js', v_r.id, v_r.s, v_p, v_r.price; end if;
   end loop;
-  raise notice 'gen-store-prices: % store terms, % scale ground(s), the twin pinned at % prices; all green', 49, 16, 1176;
+  raise notice 'gen-store-prices: % store terms, % scale ground(s), the twin pinned at % prices; all green', 48, 16, 1152;
 end $mig$;

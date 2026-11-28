@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', everyHours: 0.01722, ch: 0.456, band: 'common' }, { id: 'bone_chips', everyHours: 0.02153, ch: 0.365, band: 'common' }, { id: 'pike_band', everyHours: 0.1077, ch: 0.0729, band: 'uncommon' },
         { id: 'steel_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_boots', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
         { id: 'steel_helm', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'boarhide_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' }, { id: 'scholar_helmet', everyHours: 1.077, ch: 0.00729, band: 'scarce' },
-        { id: 'willow_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }, { id: 'warband_bulwark', everyHours: 1.077, ch: 0.00729, band: 'scarce' }],
+        { id: 'willow_crossbow', everyHours: 1.435, ch: 0.00547, band: 'scarce' }, { id: 'warband_bulwark', everyHours: 15, ch: 0.000524, band: 'rare' }],
       hp: 67, atk: 28, aim: 57, evasion: 19, def: 2, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,

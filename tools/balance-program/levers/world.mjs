@@ -560,7 +560,7 @@ export const WORLD = [
 
   /* ── 19. RARE-DROP PROBABILITIES ───────────────────────────────────────────────────────────────────────────────────────────── */
   L('rare.band-rows', 'rare-drops', 'content', 'Scarce, Rare, Key and Trophy drop chances', {
-    rows: rows('ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows and the reforge patterns\' boss drops', [MON_ROWS, PACKS, home('src/data/patterns.js#PATTERNS', 'open')], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
+    rows: rows('ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows', [MON_ROWS, PACKS], dropsByBand(['scarce', 'rare', 'key', 'trophy'])),
     names: ['MONSTERS', 'BAND_TARGETS'],
     def: 'each row\'s chance typed by hand until a test measures its hours inside its band (Scarce 0.75 to 1.5 h, Rare 10 to 20 h, Key 1.5 to 3 h, Trophy 100 to 150 h a hero at the floor)',
     range: 'BAND_TARGETS (a target table) and the 0.95 cap. Ruled 2026-11-20: generous to Krell, rarer after',

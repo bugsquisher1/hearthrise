@@ -51,7 +51,7 @@ export const NOT_LEVERS = Object.freeze([
   { at: 'src/core/hunt/report.js#*', why: 'the hunt report\'s counters and the shape the database accepts (32 rules, 8 reasons a rule, counts under 999,999,999, gear under 9,999): display counters, no value moves on them (its header)' },
   { at: 'src/data/hunt-report.js#HUNT_REPORT', why: 'the hunt report\'s reading thresholds (a close call under 25% HP, near death, the bar\'s length, the rules shown, the Danger scale\'s falls one report keeps): src/core/hunt/report.js words the fight with them, no fight, purse or clock reads them' },
   { at: 'src/data/condition-metrics.js#*', why: 'the rule editor\'s limits' }, { at: 'src/data/party-words.js#*', why: 'party words' }, { at: 'src/data/skill-unlocks.js#*', why: 'the skills window\'s unlock list (display)' },
-  { at: 'src/data/jewelry.js#fmtPct', why: 'a percent formatter' }, { at: 'src/data/jewelry.js#guaranteeJobs', why: 'a words builder' },
+  { at: 'src/data/jewelry.js#fmtPct', why: 'a percent formatter' },
   { at: 'src/data/jewelry.js#ODDS_SCALE', why: 'the odds unit (a 10,000)' }, { at: 'src/data/armour-weights.js#pct', why: 'a percent formatter' }, { at: 'src/data/chests.js#CHEST_ITEM_DESC', why: 'item words' },
   { at: 'src/data/live-events.js#LIVE_EVENT_SHOWN', why: 'when the event banner shows' }, { at: 'src/data/gold-sinks.js#ROUND_SHOW', why: 'the round\'s show (art timing)' }, { at: 'src/data/hearth.js#BURN_SHOW', why: 'the burn\'s show (art timing)' },
   { at: 'src/data/how-to-play.js#HELP_NOTES', why: 'unit conversions for the help text (ms an hour, minutes an hour): the numbers shown are STAMINA_MAX_MS and RULED, read, not set here' },

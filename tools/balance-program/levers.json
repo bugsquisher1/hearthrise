@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "dfd7265df487d3b1",
+ "authored": "f8596b85100b32b2",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 756,
-  "typed": 17648,
-  "files": 263,
-  "lever": 321,
-  "notLever": 435,
+  "bindings": 742,
+  "typed": 16919,
+  "files": 260,
+  "lever": 308,
+  "notLever": 434,
   "unclaimed": 0
  },
  "problems": [],
@@ -967,24 +967,24 @@
     "today": [
      {
       "table": "src/data/stonecraft.js STONECRAFT_ITEMS",
-      "rows": 40,
-      "carrying": 38,
+      "rows": 39,
+      "carrying": 37,
       "distinct": 7,
       "low": 1,
       "high": 88
      },
      {
       "table": "src/data/slot-ladders.js SLOT_ITEMS",
-      "rows": 44,
-      "carrying": 7,
-      "distinct": 7,
+      "rows": 43,
+      "carrying": 6,
+      "distinct": 6,
       "low": 1,
       "high": 88
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
-      "carrying": 46,
+      "rows": 718,
+      "carrying": 45,
       "distinct": 7,
       "low": 1,
       "high": 88
@@ -6343,13 +6343,13 @@
    "sites": [
     {
      "file": "src/data/monsters.js",
-     "line": 78,
+     "line": 76,
      "text": "const MONSTER_SPEED_DEFAULT = 3000;",
      "binding": "MONSTER_SPEED_DEFAULT"
     },
     {
      "file": "src/data/monsters.js",
-     "line": 96,
+     "line": 94,
      "text": "export const MONSTER_RANGE = Object.freeze({ min: 2, max: 6 });",
      "binding": "MONSTER_RANGE"
     }
@@ -8481,9 +8481,9 @@
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs"
+     "tests/town-works.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9169,9 +9169,9 @@
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs"
+     "tests/town-works.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9246,9 +9246,9 @@
      "tests/hunt-summary.mjs",
      "tests/leaderboard-server-source.mjs",
      "tests/mutation-safety.mjs",
-     "tests/recipe-yield-guard.mjs"
+     "tests/town-works.mjs"
     ],
-    "mentionCount": 9,
+    "mentionCount": 8,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10074,11 +10074,10 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows and the reforge patterns' boss drops",
+    "what": "ch (and everyHours, the hours it derives from on a scale ground: tools/gen-drop-hours.mjs, src/data/monsters.js rows too since lane/scale-early-grounds) on scarce, rare, key and trophy rows",
     "homes": [
      "src/data/monsters.js#MONSTERS",
-     "src/data/grounds/*/pack.js#default",
-     "src/data/patterns.js#PATTERNS"
+     "src/data/grounds/*/pack.js#default"
     ],
     "today": {
      "table": "src/data/monsters.js MONSTERS[*].drops",
@@ -10088,8 +10087,8 @@
       "key",
       "trophy"
      ],
-     "rows": 314,
-     "distinct": 93,
+     "rows": 319,
+     "distinct": 96,
      "low": 0.0005,
      "high": 0.05
     }
@@ -10163,11 +10162,11 @@
     ],
     "today": {
      "table": "src/data/hearthfind.js HEARTHFIND_TABLE",
-     "rows": 12,
-     "carrying": 12,
-     "distinct": 4,
+     "rows": 3,
+     "carrying": 3,
+     "distinct": 3,
      "low": 180,
-     "high": 350
+     "high": 250
     }
    },
    "flags": [
@@ -10653,7 +10652,7 @@
    "sites": [
     {
      "file": "src/data/slot-ladders.js",
-     "line": 86,
+     "line": 73,
      "text": "export const SLOT_ITEMS = withGearStats({",
      "binding": "SLOT_ITEMS"
     },
@@ -10674,12 +10673,6 @@
      "line": 63,
      "text": "const STEP_CAPE_KEEP_PM = 960;",
      "binding": "STEP_CAPE_KEEP_PM"
-    },
-    {
-     "file": "src/data/slot-ladders.js",
-     "line": 67,
-     "text": "const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });",
-     "binding": "STEP_MAKE"
     }
    ],
    "definition": "a point of attack and strength a tier for every style (rings tiers 1-3, studs and necklaces 1-2), cloaks steadyPm; tiers 4 to 7 ruled, not built",
@@ -10719,8 +10712,7 @@
      "src/data/slot-ladders.js: export const SLOT_ITEMS = withGearStats({",
      "src/data/slot-ladders.js: const STEP_JEWELS = Object.freeze([",
      "src/data/slot-ladders.js: const STEP_CAPE_TOP = Object.freeze({ tier: 7, steadyPm: 255 });",
-     "src/data/slot-ladders.js: const STEP_CAPE_KEEP_PM = 960;",
-     "src/data/slot-ladders.js: const STEP_MAKE = Object.freeze({ input: 6, part: 4, xp: 5600, ms: 6800 });"
+     "src/data/slot-ladders.js: const STEP_CAPE_KEEP_PM = 960;"
     ],
     "existingPatches": []
    },
@@ -10733,7 +10725,7 @@
     ],
     "today": {
      "table": "src/data/slot-ladders.js SLOT_ITEMS",
-     "rows": 44,
+     "rows": 43,
      "carrying": 27,
      "distinct": 14,
      "low": 1,
@@ -11062,7 +11054,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
+      "rows": 718,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11070,7 +11062,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
+      "rows": 718,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11163,15 +11155,15 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
-      "carrying": 448,
+      "rows": 718,
+      "carrying": 431,
       "distinct": 35,
       "low": 1,
       "high": 150
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
+      "rows": 718,
       "carrying": 229,
       "distinct": 63,
       "low": 1,
@@ -12885,13 +12877,13 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 106,
+     "line": 105,
      "text": "export const BASIC_SUPPLIES = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     },
     {
      "file": "src/data/supply-basics.js",
-     "line": 247,
+     "line": 243,
      "text": "export const SUPPLY_SHOP_OFFERS = Object.freeze([",
      "binding": "BASIC_SUPPLIES"
     }
@@ -13069,7 +13061,7 @@
    "sites": [
     {
      "file": "src/data/supply-basics.js",
-     "line": 99,
+     "line": 98,
      "text": "export const STORE_RUNE_PRICE = Object.freeze(RUNE_TIERS.map((t) => chargePrice(runeId(CRAFTED_RUNE_FAMILIES[0], t.tier))));",
      "binding": "BASIC_AMMO_PREMIUM"
     }
@@ -13329,19 +13321,19 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
-      "carrying": 27,
+      "rows": 718,
+      "carrying": 9,
       "distinct": 5,
       "low": 1,
       "high": 5
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 798,
-      "carrying": 27,
-      "distinct": 9,
+      "rows": 718,
+      "carrying": 9,
+      "distinct": 5,
       "low": 120000,
-      "high": 900000
+      "high": 420000
      }
     ]
    },
@@ -13371,13 +13363,13 @@
    "sites": [
     {
      "file": "src/data/supplies.js",
-     "line": 162,
+     "line": 154,
      "text": "export const BAG_TARGET_HOURS = 3;",
      "binding": "BAG_TARGET_HOURS"
     },
     {
      "file": "src/data/supplies.js",
-     "line": 170,
+     "line": 162,
      "text": "const BASE_BAG_GUIDES = Object.freeze({",
      "binding": "BASE_BAG_GUIDES"
     }
@@ -14894,10 +14886,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14965,10 +14958,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15022,10 +15016,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15071,10 +15066,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15122,10 +15118,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15178,10 +15175,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15227,10 +15225,11 @@
      }
     ],
     "mentions": [
+     "tests/kit-recipes.mjs",
      "tests/trade-formulas.mjs",
      "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 2,
+    "mentionCount": 3,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15705,13 +15704,13 @@
    "sites": [
     {
      "file": "src/data/homestead-tiers.js",
-     "line": 53,
+     "line": 57,
      "text": "export const PROPERTY_TIERS = Object.freeze([",
      "binding": "PROPERTY_TIERS"
     },
     {
      "file": "src/data/homestead-tiers.js",
-     "line": 127,
+     "line": 131,
      "text": "export const ROOM_RUNGS = Object.freeze({",
      "binding": "ROOM_RUNGS"
     },
@@ -16139,22 +16138,11 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "ms, xp, req, qty on gathering nodes and recipes",
+    "what": "ms, xp, req, qty on the farm plots, the drinks and the runes' book",
     "homes": [
-     "src/data/gathering.js#TREES",
-     "src/data/gathering.js#ROCKS",
-     "src/data/gathering.js#FISH_SPOTS",
      "src/data/gathering.js#CROPS",
-     "src/data/recipes.js#BASE_RECIPES",
-     "src/data/drinks.js#DRINK_RECIPES",
      "src/data/drinks.js#DRINK_ITEMS",
-     "src/data/stonecraft.js#STONECRAFT_RECIPES",
-     "src/data/stonecraft.js#BIND",
      "src/data/stonecraft.js#RUNE_VALUE",
-     "src/data/shields.js#SHIELD_RECIPES",
-     "src/data/style-gear.js#STYLE_GEAR_RECIPES",
-     "src/data/slot-ladders.js#SLOT_RECIPES",
-     "src/data/jewelry.js#JEWEL_PIECES",
      "src/data/library2-items.js#SUPPLY_CHAINS",
      "src/core/artisan.js#BURN_PER_LEVEL_RELIEF",
      "src/core/artisan.js#BURN_XP_SHARE",
@@ -16857,10 +16845,6 @@
   {
    "at": "src/data/jewelry.js#fmtPct",
    "why": "a percent formatter"
-  },
-  {
-   "at": "src/data/jewelry.js#guaranteeJobs",
-   "why": "a words builder"
   },
   {
    "at": "src/data/jewelry.js#ODDS_SCALE",
@@ -17644,10 +17628,6 @@
    ],
    "bindings": 1
   },
-  "src/data/patterns.js#PATTERNS": {
-   "pin": "open",
-   "bindings": 1
-  },
   "src/data/hearthfind.js#HEARTHFIND_HOURS_MAX": {
    "pin": "count",
    "keys": [
@@ -17844,18 +17824,16 @@
   "src/data/items.js#ITEMS": {
    "pin": "keys",
    "keys": [
-    "critB",
     "durationMs",
     "foodTier",
     "heals",
     "madeLv",
     "magnitude",
+    "rangeAtkB",
     "rangeStrB",
     "reqLv",
     "steadyPm",
     "tier",
-    "toolSpeed",
-    "toolTier",
     "v"
    ],
    "bindings": 1
@@ -18174,55 +18152,14 @@
    "typed": 1,
    "bindings": 1
   },
-  "src/data/gathering.js#TREES": {
-   "pin": "keys",
-   "keys": [
-    "ms",
-    "req",
-    "xp"
-   ],
-   "bindings": 1
-  },
-  "src/data/gathering.js#ROCKS": {
-   "pin": "keys",
-   "keys": [
-    "ms",
-    "qty",
-    "req",
-    "xp"
-   ],
-   "bindings": 1
-  },
-  "src/data/gathering.js#FISH_SPOTS": {
-   "pin": "keys",
-   "keys": [
-    "ms",
-    "req",
-    "xp"
-   ],
-   "bindings": 1
-  },
   "src/data/gathering.js#CROPS": {
    "pin": "keys",
    "keys": [
+    "band",
     "hours",
     "req",
     "xp",
     "yield"
-   ],
-   "bindings": 1
-  },
-  "src/data/recipes.js#BASE_RECIPES": {
-   "pin": "open",
-   "bindings": 1
-  },
-  "src/data/drinks.js#DRINK_RECIPES": {
-   "pin": "keys",
-   "keys": [
-    "ms",
-    "outputQty",
-    "req",
-    "xp"
    ],
    "bindings": 1
   },
@@ -18234,42 +18171,12 @@
    ],
    "bindings": 1
   },
-  "src/data/stonecraft.js#STONECRAFT_RECIPES": {
-   "pin": "open",
-   "bindings": 1
-  },
-  "src/data/stonecraft.js#BIND": {
-   "pin": "keys",
-   "keys": [
-    "blanks",
-    "ms",
-    "qty",
-    "xp"
-   ],
-   "bindings": 1
-  },
   "src/data/stonecraft.js#RUNE_VALUE": {
    "pin": "count",
    "keys": [
     "·"
    ],
    "typed": 4,
-   "bindings": 1
-  },
-  "src/data/shields.js#SHIELD_RECIPES": {
-   "pin": "open",
-   "bindings": 1
-  },
-  "src/data/style-gear.js#STYLE_GEAR_RECIPES": {
-   "pin": "open",
-   "bindings": 1
-  },
-  "src/data/slot-ladders.js#SLOT_RECIPES": {
-   "pin": "open",
-   "bindings": 1
-  },
-  "src/data/jewelry.js#JEWEL_PIECES": {
-   "pin": "open",
    "bindings": 1
   },
   "src/data/library2-items.js#SUPPLY_CHAINS": {
@@ -19300,7 +19207,7 @@
     "hours",
     "killsPerHour"
    ],
-   "typed": 15,
+   "typed": 6,
    "bindings": 1
   },
   "src/data/chests.js#CHEST_LUCK": {
@@ -19497,17 +19404,6 @@
     "·"
    ],
    "typed": 1,
-   "bindings": 1
-  },
-  "src/data/slot-ladders.js#STEP_MAKE": {
-   "pin": "count",
-   "keys": [
-    "input",
-    "ms",
-    "part",
-    "xp"
-   ],
-   "typed": 4,
    "bindings": 1
   },
   "src/data/jewelry.js#SURGE_MULT_PM": {
@@ -20316,16 +20212,16 @@
     "copper_ore",
     "ember_bar",
     "gatekeepers_chain",
-    "iron_fitting",
+    "iron_bar",
     "iron_ore",
     "maple_plank",
     "normal_log",
     "oak_log",
+    "oak_plank",
     "reqLv",
     "runewood_plank",
     "silk_thread",
     "steel_bar",
-    "timber_beam",
     "willow_plank",
     "wolf_pelt",
     "·"

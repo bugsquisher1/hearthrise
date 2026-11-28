@@ -37,6 +37,8 @@ const STOKE_PINS = [{ keep: 'full' }, { keep: 'two_thirds', own_first: false, bu
   { keep: 'off', buy_per_day: 40, cap_hours_pm: 60 }, { keep: 'hot' }, {}];
 const IL_PINS = [1, 20, 60, 80, 100, 120, 200, 400];
 const LEVEL_PINS = [0, 39, 40, 79, 80, 120, 199, 200, 500];
+/* the imbuement fee at the band (lane/imbue-fee-timer, 21 D-19): no band, the first, each sample row's (45 to 70), and far past them */
+const FEE_BAND_PINS = [0, 1, 20, 45, 50, 55, 69, 70, 71, 100, 120, 200, 400];
 /* the kit a band (lane/tp-server-1): every band's first and last item Level, below the first band and past the last row */
 const KIT_IL_PINS = [0, 1, 19, 20, 39, 40, 59, 60, 79, 80, 99, 100, 119, 120, 139, 140, 159, 160, 400];
 /* the imbuement band lock (lane/tp-server-1): bands either side of each hero Level's wear-ahead edge, and the empty ends */
@@ -135,7 +137,7 @@ export function rowsOf(d) {
   };
   for (const s of slots) for (let r = 1; r <= T.ranks; r++) for (const il of [60, 200]) pins.rank.push([s, r, il, tc.rankQuote(s, r, il)]);
   for (const s of ['weapon', 'ring1', 'body']) for (const il of IL_PINS) for (const n of [0, 1, 2, 5]) pins.seat.push([s, n, il, tc.seatPrice(s, n, il)]);
-  for (const il of IL_PINS) for (const L of LEVEL_PINS) pins.fee.push([il, L, ic.applyFee(il, L)]);
+  for (const b of [...new Set([...FEE_BAND_PINS, ...imbues.map((x) => x.band)])].sort((x, y) => x - y)) pins.fee.push([b, ic.applyFee(b)]);
   for (const st of [0, 4, 7, 10, 20]) for (const il of IL_PINS) pins.carry.push([st, il, d.carry.carryFee(st, il)]);
   /* and a whole quote: a Rare's one Trait at each rank, onto the next tier's base (the job prices the steps it moves) */
   const trait = Object.keys(d.danger.TRAITS).sort()[0];
@@ -171,6 +173,9 @@ export function buildSql(r) {
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
 --   hr_item_levels (${r.itemLevels.length} gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (${r.imbues.length} rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
+--     hr_imbue_levers.ramp_level has no reader once 1078-imbue-fee-timer.sql lands (the fee reads the band, 21 D-19). It stays, written,
+--     while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay: that file's insert names it (not null) and its piece and
+--     ramp hr_imbue_fee(int, int), which 1063-flame-temper.sql, 1071 and 1077 call before 1078 drops it, reads it.
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp, hr_flame_walk (the settle's walk,
 --   lane/f1-inner-flame: 1074-inner-flame-luck.sql reads it); hr_temper_rank_mh, hr_temper_rank_cap,
@@ -477,10 +482,13 @@ returns bigint language sql stable set search_path = public, pg_catalog as $fn$
               else (v.hours::bigint * 3600000 * (1000 + v.life_rung_pm * (array_position(v.qualities, p_quality) - 1))) / 1000 end
     from public.hr_imbue_levers v where v.id = 1
 $fn$;
-create or replace function public.hr_imbue_fee(p_item_level int, p_hero_level int)
+-- THE APPLY FEE AT THE BAND (src/core/imbue.js applyFee; lane/imbue-fee-timer, 21 D-19): fee_hours_pm of wage at the imbuement's band, no
+-- ramp, whole gold up. Never the worn piece's item Level nor the hero's Level. hr_imbue_apply charges it and the section \`imbues\` shows it
+-- (1078-imbue-fee-timer.sql), so the price a player reads is the price the verb takes. 1063's catalogue's hr_imbue_fee(int, int), the piece
+-- and ramp fee, stays callable for 1063-flame-temper.sql, 1071 and 1077 in the replay and is dropped by 1078.
+create or replace function public.hr_imbue_fee(p_band int)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
-  select ceil(v.fee_hours_pm::numeric * public.hr_wage(greatest(1, coalesce(p_item_level, 1)))
-              * least(v.ramp_level, greatest(0, coalesce(p_hero_level, 0))) / (1000::numeric * v.ramp_level))::bigint
+  select ceil(v.fee_hours_pm::numeric * public.hr_wage(greatest(1, coalesce(p_band, 1))) / 1000::numeric)::bigint
     from public.hr_imbue_levers v where v.id = 1
 $fn$;
 -- THE BAND LOCK (src/core/imbue.js imbueStepsAt, which counts 0 past it): an imbuement of band b is worn by a hero of Level L only when
@@ -524,7 +532,7 @@ begin
       'public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)',
       'public.hr_temper_rank_mh(text,integer)', 'public.hr_temper_rank_cap(integer)', 'public.hr_temper_rank_quote(text,integer,integer)',
       'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_temper_kit_at(integer)', 'public.hr_imbue_life_ms(text)',
-      'public.hr_imbue_fee(integer,integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
+      'public.hr_imbue_fee(integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
       'public.hr_pity_after(bigint,double precision,boolean)', 'public.hr_carry_fee(integer,integer)'] loop
     execute format('revoke execute on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
@@ -609,9 +617,12 @@ ${values(r.pins.life, ([q, ms]) => `    ('${q}', ${ms}::bigint)`)}) p(q, ms) loo
     if public.hr_imbue_life_ms(v_r.q) <> v_r.ms then raise exception 'VERIFY(m): a % imbuement lasts % ms in SQL, % in JS', v_r.q, public.hr_imbue_life_ms(v_r.q), v_r.ms; end if;
   end loop;
   for v_r in select * from (values
-${values(r.pins.fee, ([il, L, g]) => `    (${il}, ${L}, ${g}::bigint)`)}) p(il, l, g) loop
-    if public.hr_imbue_fee(v_r.il, v_r.l) <> v_r.g then raise exception 'VERIFY(n): the imbue fee at item Level % hero Level % is % in SQL, % in JS', v_r.il, v_r.l, public.hr_imbue_fee(v_r.il, v_r.l), v_r.g; end if;
+${values(r.pins.fee, ([b, g]) => `    (${b}, ${g}::bigint)`)}) p(b, g) loop
+    if public.hr_imbue_fee(v_r.b) is distinct from v_r.g then
+      raise exception 'VERIFY(n): the imbue fee at band % is % in SQL, % in src/core/imbue.js applyFee', v_r.b, public.hr_imbue_fee(v_r.b), v_r.g; end if;
   end loop;
+  if has_function_privilege('authenticated', 'public.hr_imbue_fee(integer)', 'execute') or has_function_privilege('anon', 'public.hr_imbue_fee(integer)', 'execute') then
+    raise exception 'VERIFY(n): a client role runs the imbue fee twin'; end if;
   for v_r in select * from (values
 ${values(r.pins.chance, ([ch, n, l, c]) => `    (${lit(ch)}::float8, ${n}, ${l}, ${lit(c)}::float8)`)}) p(ch, n, l, c) loop
     if public.hr_hero_chance(v_r.ch, v_r.n, v_r.l) is distinct from v_r.c then

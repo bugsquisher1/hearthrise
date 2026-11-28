@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "fa00143f00bad2c3",
+ "authored": "4b13697f1b426b15",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -6243,7 +6243,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6629,7 +6629,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9756,7 +9756,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9826,7 +9826,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9940,7 +9940,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10059,7 +10059,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10415,7 +10415,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12635,7 +12635,7 @@
      "binding": "IMBUE_RULES"
     }
    ],
-   "definition": "three a hero (Edge, Ward, Leech), each rated imbueSteps averaged on its best cell in the consumable slice, whole at every Level (21 D-16); a conditional row fires at its measured fire steps (2 over the share its condition touches, at most fireMax, D-17) and takes its rated room; a leech heals leech.pm of the HP its blows take, a conversion resolves sharePm of a blow at the target element (D-18); plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp (owed: at the imbuement band, no ramp, D-19)",
+   "definition": "three a hero (Edge, Ward, Leech), each rated imbueSteps averaged on its best cell in the consumable slice, whole at every Level (21 D-16); a conditional row fires at its measured fire steps (2 over the share its condition touches, at most fireMax, D-17) and takes its rated room; a leech heals leech.pm of the HP its blows take, a conversion resolves sharePm of a blow at the target element (D-18); plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the imbuement band, no ramp, on any piece at any Level (21 D-19; hr_imbue_fee, 1078-imbue-fee-timer.sql)",
    "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
    "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
    "outcomes": [
@@ -13854,7 +13854,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {

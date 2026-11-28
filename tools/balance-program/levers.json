@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "65d0b97fd68e5dbc",
+ "authored": "c879cc4b0f90a048",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 757,
-  "typed": 17541,
+  "bindings": 758,
+  "typed": 17556,
   "files": 263,
   "lever": 324,
-  "notLever": 433,
+  "notLever": 434,
   "unclaimed": 0
  },
  "problems": [],
@@ -983,7 +983,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 45,
       "distinct": 7,
       "low": 1,
@@ -6243,7 +6243,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6629,7 +6629,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -8005,7 +8005,7 @@
      "tests/drop-formula.mjs",
      "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8174,7 +8174,7 @@
      "tests/drop-formula.mjs",
      "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "asserted"
    },
    "perturb": {
@@ -8255,7 +8255,7 @@
      "tests/drop-formula.mjs",
      "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "asserted"
    },
    "perturb": {
@@ -9756,7 +9756,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9826,7 +9826,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9940,7 +9940,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10059,7 +10059,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 110,
+    "mentionCount": 111,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11056,7 +11056,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11064,7 +11064,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11157,7 +11157,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 447,
       "distinct": 37,
       "low": 1,
@@ -11165,7 +11165,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 229,
       "distinct": 63,
       "low": 1,
@@ -11252,7 +11252,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 16,
+    "mentionCount": 17,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11327,7 +11327,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 16,
+    "mentionCount": 17,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11426,7 +11426,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 16,
+    "mentionCount": 17,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11730,7 +11730,7 @@
      "tests/hunt-core/amount.mjs",
      "tests/hunt-core/danger.mjs"
     ],
-    "mentionCount": 16,
+    "mentionCount": 17,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11805,7 +11805,7 @@
      "tests/drop-formula.mjs",
      "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "asserted"
    },
    "perturb": {
@@ -11881,7 +11881,7 @@
      "tests/drop-formula.mjs",
      "tests/flame-settle-db.mjs"
     ],
-    "mentionCount": 29,
+    "mentionCount": 30,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13315,7 +13315,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13323,7 +13323,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 785,
+      "rows": 787,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -17048,6 +17048,10 @@
   {
    "at": "src/data/trades.js#KIT_BATCHES",
    "why": "content rows: each named recipe band is which metal it is, a row, never a size (the Temper kits a band, Iron to Dawnsteel; its work and price are derived, src/core/trades.js)"
+  },
+  {
+   "at": "src/data/trades.js#RUNE_BAND_TIERS",
+   "why": "content rows: the rune tier (runes.js RUNE_TIERS ids) each built band cuts, Chalked at band 0 to Carved at band 3 (09 4.14), ids, never a size; a rune's work and price are derived"
   },
   {
    "at": "src/data/talents.js#reactProblems",

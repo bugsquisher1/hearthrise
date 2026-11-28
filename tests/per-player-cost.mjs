@@ -505,11 +505,11 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
 /* ── THE WATCHED DOOR, READ ON THREE DICE (lane/rel-cost-lt, 2026-11-27) ─────────────────────────────────────────────────────
    24 polls are 6.4 minutes of a four's hunt, and a dice event lands in some of them and not others: on the Krell four 2 of 26 spans
    (13 dice offsets, dark and lit, MEASURED 2026-11-27) held one Rare. Read at its last save (measure, above) such a span still reads
-   +4% (the event 5 polls after a save) to +24% (1 poll after: a whole save for 16 s of hunt) where the long-run cost of Krell's Rare
-   rate is about +1%, so with personal loot's honest +6% a save the four had 10% of headroom and an event 1 to 4 polls after a save
-   read red. The watched door is measured on WATCHED_DICE (the uuid sequence rewound to DICE0 + each), every metric the MEDIAN: one
-   span's dice event is outvoted, a cost every span pays (a row, a statement, a save more a flush) is in all three. The closed doors
-   save every window, so a dice event moves no save there: one reading. */
+   +4% (the event the last poll but one) to +16% (one poll after a save: a save more for 16 s of hunt, MEASURED by --selftest) where
+   the long-run cost of Krell's Rare rate is about +1%; with the v0.3.0 switches' honest +6% the lit four reads 1,200 of a 1,316 cap,
+   so one such span could read red. The watched door is measured on WATCHED_DICE (the uuid sequence rewound to DICE0 + each), every
+   metric the MEDIAN: one span's dice event is outvoted, a cost every span pays (a row, a statement, a save more a flush) is in all
+   three. The closed doors save every window, so a dice event moves no save there: one reading. */
 const WATCHED_DICE = Object.freeze([0, 1, 2]);
 /* --selftest's line between a dice event read as its rate and one read as a save's fixed rows (MEASURED 2026-11-27 on the dark
    chain: the planted events' median +3.9%; the late event with its unsaved poll saved and counted +11.7%, the save's fixed rows over

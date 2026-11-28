@@ -678,6 +678,11 @@
         "bytes": 4024578,
         "on": "2026-11-28",
         "why": "kit-bands-4-5: 27 band 4-5 job recipes, faces and 3 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
+      },
+      {
+        "bytes": 4031694,
+        "on": "2026-11-28",
+        "why": "lane/kit-bands-6-9 (09 4.16): src/data rows only - trades.js bands 5-8 kit batches (22 rows) and faces, job-faces.js Remains bands 5-8, items.js/stonecraft.js/drinks.js nine new goods, item-descriptions.js their lines, core-model.js SUPPLY_GATES rule comment; library2-items.js lost its dead whetstone copies"
       }
     ]
   }

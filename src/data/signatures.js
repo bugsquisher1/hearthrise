@@ -113,11 +113,8 @@
 //                               (src/core/hunt/fall-save.js)
 // P8 (the boss cell, tools) is not built: CONFLICTS 2026-11-28 signatures-batch-4.
 //
-// BATCH 4'S CALLS AND THE OUT-OF-BAND ROWS, RULED (game designer, lane/designer-sig-batch5, 2026-11-28; 15 "Batch 4's calls and the
-// out-of-band rows, ruled", each reading there): set in data, #19 (once a minute), #31 (3% once every 20 s), #32 (every fourth), #37 (under
-// half mana, a 40 s clock), #41 (every third), #43 (a brute under half), #28 and #40 (their numbers, below). Kept as built: #4 (36 seeds owed),
-// #23. RULED OUT, their rows as batch 4 built them until batch 5 rewrites each on its piece (HANDOFFS 2026-11-28 designer-sig-batch5): #18,
-// #26, #33, #42; #38 (rule D replaced: no Signature waits on a boss alone); #25's Frost Lance save waits on `saves.of`.
+// BATCH 5'S RULINGS (lane/designer-sig-batch5, 2026-11-28): the rows set and cut, each reading in 15 "Batch 4's calls and the out-of-band
+// rows, ruled"; the cut rows stay as batch 4 built them until batch 5 rewrites each (HANDOFFS 2026-11-28 designer-sig-batch5).
 //
 // `home` is where it drops, as 24-content-pipeline.md section 4's contract reads it (tests/content-coherence.mjs CC-6): { kind, id } with
 // kind 'monster' (MONSTERS), 'ground' (HUNT_GROUNDS: the Flooded Wing) or 'chest' (a Hearth Chest key: the Tower's Bronze lock); `move` the
@@ -226,7 +223,6 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'taunt', do: 'boon', to: 'party', status: 'guarded', pw: 1250, ms: 3000 }] }),
   lock_keepers_chain: sig({ id: 'lock_keepers_chain', n: 19, name: 'Lock-Keeper\'s Chain', slot: 'necklace', move: 'spring_tide',
     home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    /* (once a minute since lane/designer-sig-batch5: at 30 s it read 13.0 and at 40 s 13.7 pace steps on Muster, over; 60 s 8.5) */
     tip: 'A hero near fall-back: Spring Tide is ready again (once a minute)',
     reacts: [{ on: 'near_fall', do: 'ready', move: 'spring_tide', clockMs: 60000 }] }),
   greened_bracers: sig({ id: 'greened_bracers', n: 20, name: 'Greened Bracers', slot: 'gloves', move: 'green_sickness',
@@ -259,13 +255,10 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'heal', family: 'water', do: 'mana', pm: 5 }] }),
   vault_leech_ring: sig({ id: 'vault_leech_ring', n: 28, name: 'Vault Leech Ring', slot: 'ring', family: 'poison',
     home: { kind: 'monster', id: 'vault_leech' }, best: { seat: 'healer', ground: 'carters_rest' },
-    /* (reshaped, lane/designer-sig-batch5: the Sickness on the monster attacking the lowest ally read 3.2 pace steps on Muster; a heal on the
-       lowest ally reads where healing binds: 60% read 11.8 on Carter's Rest, 36 seeds, Muster 4.7 at 50%, the spread holds) */
     tip: 'Poison rune spells: the hurt ally lowest on health heals for 60% of the damage they deal',
     reacts: [{ on: 'cast', family: 'poison', do: 'heal', to: 'lowest', pm: 600 }] }),
   the_cellar_key: sig({ id: 'the_cellar_key', n: 31, name: 'The Cellar Key', slot: 'necklace',
     home: { kind: 'monster', id: 'the_landlord' }, best: { seat: 'healer', ground: 'carters_rest' },
-    /* (3% once every 20 s since lane/designer-sig-batch5: 2% at 30 s read 5.7 pace steps on Carter's Rest, 36 seeds; 3% at 20 s 10.0) */
     tip: 'When a monster hits an ally below 30% health, that ally heals 3% of max health (once every 20 s for each ally)',
     reacts: [{ on: 'ally_hit', belowPm: 300, do: 'heal', to: 'target', pm: 30, clockMs: 20000, per: 'target' }] }),
   teamsters_mitts: sig({ id: 'teamsters_mitts', n: 33, name: 'Teamster\'s Mitts', slot: 'gloves', move: 'power_strike',
@@ -282,15 +275,12 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'ally_hit', belowPm: 450, role: 'stalker', do: 'status', status: 'blunted' }] }),
   bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',
     home: { kind: 'monster', id: 'bull_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    /* (the line raised to half since lane/designer-sig-batch5: on brutes under 30% it read 2.2 pace steps at home and 5.2 on Muster; under
-       half 10.5 on Muster, the Roost 4.9, the spread holds) */
     tip: 'Single-target hits on a brute below half health deal double damage',
     reacts: [{ on: 'hit', single: true, belowPm: 500, role: 'brute', do: 'echo', pm: 1000, ms: 100 }] }),
 
   /* ── BATCH 4 (lane/signatures-batch-4): the auras, the pair, the cast costs, the saved shot, the fall-back save ── */
   ledger_ring: sig({ id: 'ledger_ring', n: 32, name: 'Ledger Ring', slot: 'ring',
     home: { kind: 'monster', id: 'ledger_wight' }, best: { seat: 'mage', ground: 'muster_barrows' },
-    /* (every fourth since lane/designer-sig-batch5: every fifth read 13.7 coin steps, under the coin bar; every fourth 17.0) */
     tip: 'Every fourth spell you cast costs no mana',
     costs: { of: 'spell', pay: 'none', every: 4 }, reacts: [] }),
   sergeants_sash: sig({ id: 'sergeants_sash', n: 34, name: 'Sergeant\'s Sash', slot: 'cape',
@@ -304,19 +294,14 @@ export const SIGNATURES = Object.freeze({
     aura: { takenPm: -40, r: 2 }, reacts: [] }),
   lychgate_leggings: sig({ id: 'lychgate_leggings', n: 37, name: 'Lychgate Leggings', slot: 'pants',
     home: { kind: 'chest', id: 'gold' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    /* (under half mana, a 40 s clock since lane/designer-sig-batch5: under 30% it read 3.0 coin steps, the healer drinks first; under half
-       for 5 s, 40 s clock 23.1) */
     tip: 'Below half mana: your heals cost no mana for 5 s (40 s cooldown)',
     costs: { of: 'heal', pay: 'none', belowManaPm: 500, ms: 5000, clockMs: 40000 }, reacts: [] }),
   hearth_masons_cloak: sig({ id: 'hearth_masons_cloak', n: 40, name: 'Hearth Mason\'s Cloak', slot: 'cape',
     home: { kind: 'chest', id: 'platinum' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    /* (once every 75 minutes since lane/designer-sig-batch5, rule F: Level XP kept on Bold against the plain four's better stance, Steady,
-       36 seeds: an hour read +21.3 (11.8), 75 minutes +7.8 (12.4), 90 minutes +5.3, two hours -1.9) */
     tip: 'Once every 75 minutes, a hero of your party who would die falls back instead',
     save: { clockMs: 4500000 }, reacts: [] }),
   brood_bracers: sig({ id: 'brood_bracers', n: 41, name: 'Brood Bracers', slot: 'gloves',
     home: { kind: 'monster', id: 'brood_wyvern' }, best: { seat: 'ranger', ground: 'muster_barrows' },
-    /* (every third since lane/designer-sig-batch5: a credit after five landed read 12.5 coin steps, under the coin bar; after three 20.9) */
     tip: 'Every third arrow that hits: your next shot costs no arrow',
     saves: { ammo: true, every: 3, hit: true }, reacts: [] }),
   pyre_priests_hood: sig({ id: 'pyre_priests_hood', n: 44, name: 'Pyre Priest\'s Hood', slot: 'helmet',

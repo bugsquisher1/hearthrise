@@ -698,6 +698,11 @@
         "bytes": 4064757,
         "on": "2026-11-28",
         "why": "sig4-followups: damage.js's BasicCost typedef (the type ratchet's two TS2339), and tauntOne and fallBackNow moved beside their engine readers in reactions.js and fall-save.js (their own imports) so the town path loads neither"
+      },
+      {
+        "bytes": 4065048,
+        "on": "2026-11-28",
+        "why": "lane/designer-sig-batch5: eight Signature rows re-set in src/data/signatures.js, their tips longer (the Vault Leech Ring's heal on the lowest ally, the Cloak's 75 minutes, the Leggings' and the Bracers' new words) and a two-line ruling header"
       }
     ]
   }

@@ -234,6 +234,11 @@ env:
 # PostgreSQL installs' own deadlines where a job has one), stated on each job. GitHub starts queued jobs roughly in file
 # order, so the jobs are listed by timeout-minutes, longest first (tests/ci-shape.mjs CI-SHAPE-12): a 60-min job left
 # for the last wave sets the run's tail. A new job goes where its timeout puts it.
+#
+# EVERY CHECKOUT SETS persist-credentials: false, so the token is never left in .git/config where every later step, npm
+# lifecycle scripts included, can read it and `git push`. Said once here: GitHub refuses a workflow file past its size limit
+# with "a workflow file issue" and runs no job at all (rehearsal 46157668627 at 513,354 bytes; 508,182 ran), and 73 copies
+# of that note were 11 KB of it (lane/ci-inpage-shard, 2026-11-28). tests/ci-shape.mjs CI-SHAPE-15 holds the file's size.
 jobs:
 
   # ── release-proven ── A COMMIT IS PROVED ONCE, AND MAIN DOES NOT PROVE IT AGAIN (lane/ci-speed, 2026-11-18).
@@ -287,8 +292,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -527,8 +530,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1026,8 +1027,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1336,8 +1335,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1392,8 +1389,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1528,8 +1523,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1576,8 +1569,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1624,8 +1615,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1751,8 +1740,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1939,8 +1926,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1970,8 +1955,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2006,8 +1989,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2064,8 +2045,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2116,8 +2095,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2390,8 +2367,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2438,8 +2413,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2618,8 +2591,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2679,8 +2650,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2716,8 +2685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2756,8 +2723,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2934,8 +2899,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3012,8 +2975,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3325,8 +3286,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3368,8 +3327,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3405,8 +3362,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3442,8 +3397,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3480,8 +3433,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3677,8 +3628,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3720,8 +3669,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3757,8 +3704,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3826,8 +3771,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4052,8 +3995,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4156,8 +4097,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4196,8 +4135,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4278,8 +4215,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4514,8 +4449,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4645,8 +4578,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4895,8 +4826,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4941,8 +4870,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4979,8 +4906,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5016,8 +4941,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5052,8 +4975,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5088,8 +5009,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5127,8 +5046,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5326,8 +5243,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5374,8 +5289,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5433,8 +5346,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5470,8 +5381,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5513,8 +5422,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5561,8 +5468,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5589,8 +5494,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5648,8 +5551,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5740,8 +5641,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5864,8 +5763,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5895,8 +5792,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5926,8 +5821,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5964,8 +5857,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6025,8 +5916,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6087,8 +5976,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6173,8 +6060,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6403,8 +6288,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6802,8 +6685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6920,8 +6801,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6991,8 +6870,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -7808,8 +7685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -7945,8 +7820,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8082,8 +7955,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8165,8 +8036,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8219,8 +8088,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8276,8 +8143,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8504,8 +8369,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8589,8 +8452,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8787,8 +8648,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4

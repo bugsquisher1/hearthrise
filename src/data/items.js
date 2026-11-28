@@ -682,6 +682,17 @@ export const ITEMS={
   rune_arrowheads: {n:'Rune Arrowheads', icon:'🔺', v:400},
   /* band 5's head (09 4.15): forged from one Emberforged Bar, booked under it the same way */
   ember_arrowheads: {n:'Emberforged Arrowheads', icon:'🔺', v:400},
+  /* band 6's head (lane/kit-bands-6-9, 09 4.16): forged from one Dawnsteel Bar, booked under it the same way */
+  dawn_arrowheads: {n:'Dawnsteel Arrowheads', icon:'🔺', v:800},
+  /* bands 7 and 8's rock, bar and Temper kit (09 4.16): the Cobalt and Wolfram tiers (gear-tiers.js STEP_TIERS) had gear and no metal a
+     smith could work, so a Temper rank on their pieces was owed a kit nobody made. Each is Dawnsteel's ore, bar and salts carried up the
+     wage curve to its item Level (wage.js: x1.083 at 140, x1.173 at 160), as the step tiers' gear is booked */
+  cobalt_ore: {n:'Cobalt Ore', icon:'🔷', v:103},
+  cobalt_bar: {n:'Cobalt Bar', icon:'🟦', v:1140},
+  cobalt_temper_salts: {n:'Cobalt Tempering Salts', icon:'🧂', v:250, tag:'temper'},
+  wolfram_ore: {n:'Wolfram Ore', icon:'🪨', v:111},
+  wolfram_bar: {n:'Wolfram Bar', icon:'⬛', v:1230},
+  wolfram_temper_salts: {n:'Wolfram Tempering Salts', icon:'🧂', v:270, tag:'temper'},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -990,6 +1001,7 @@ const BULK_GOODS = [
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
   'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
   'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads', 'rune_ore', 'rune_arrowheads', 'ember_arrowheads',
+  'dawn_arrowheads', 'cobalt_ore', 'cobalt_bar', 'cobalt_temper_salts', 'wolfram_ore', 'wolfram_bar', 'wolfram_temper_salts',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

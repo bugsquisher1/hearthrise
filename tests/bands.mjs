@@ -43,7 +43,8 @@
 //         Level the reference four's measured old career (tools/balance-sim/skill-lines-geometric.json 'party', as measured, frozen when the
 //         live lines moved onto the Level clock) first reached the old gate
 //         (1 / 15 / 30 / 45 / 60 / 75 / 88): Melee on the hammer, Ranged on the bow, Magic on the mage; a rune's item gate and its spell
-//         version read that row, and the store prices it at the made-at Level, never the gate
+//         version read that row, and the store prices it at the made-at Level, never the gate. A RUNG OPENS BY ITS BAND (09 4.16): rung
+//         r's gate is capped at band r - 1's gear item Level (20 x (r - 1)), and each metal's whetstone sits on its metal's arrow's rung
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -105,7 +106,8 @@ if (process.argv.includes('--mutate')) {
   ['tests/bands.mjs', 'a skill reads half a Level over the clock', [['src/core/bands.js', '  if (pacePm === 1000) return 1000 * s;', '  if (pacePm === 1000) return 1000 * s + 500;']]],
   ['tests/bands.mjs', 'the pace read upside down', [['src/core/bands.js', '  const want = (pacePm * hoursTo(s)) / 1000;', '  const want = (1000 * hoursTo(s)) / pacePm;']]],
   ['tests/bands.mjs', 'the curve counts the next Level\'s health', [['src/core/xp.js', 'BigInt(refHealthOf(n))', 'BigInt(refHealthOf(n + 1))']]],
-  ['tests/bands.mjs', 'a supply gate drifts from the Level the career reached it', [['src/data/core-model.js', 'ranged: Object.freeze([1, 9, 19, 39, 66, 105, 142]),', 'ranged: Object.freeze([1, 9, 19, 39, 60, 105, 142]),']]],
+  ['tests/bands.mjs', 'a supply gate drifts from the Level the career reached it', [['src/data/core-model.js', 'ranged: Object.freeze([1, 9, 19, 39, 66, 100, 120]),', 'ranged: Object.freeze([1, 9, 19, 39, 60, 100, 120]),']]],
+  ['tests/bands.mjs', 'a rung past its band\'s Level (the career\'s 142, not the band\'s 120)', [['src/data/core-model.js', 'ranged: Object.freeze([1, 9, 19, 39, 66, 100, 120]),', 'ranged: Object.freeze([1, 9, 19, 39, 66, 100, 142]),']]],
   ['tests/bands.mjs', 'a rune\'s spell version reads its old skill gate', [['src/data/runes.js', '  return RUNE_TIERS[tier - 1] && Number.isInteger(gates[tier - 1]) ? gates[tier - 1] : Infinity;', '  return RUNE_TIERS[tier - 1] ? RUNE_TIERS[tier - 1].level : Infinity;']]],
   ['tests/bands.mjs', 'the bridge misses its reference point', [['src/core/bands.js', 'const [[a, A], [b, B]] = s <= p[1][0] ? [p[0], p[1]] : [p[1], p[2]];', 'const [[a, A], [b, B]] = [p[0], p[2]];']]],
   ['tests/sustain.mjs', 'a share starts outside its band', [['src/data/sustain.js', 'freePm: lever(150, [100, 250]),', 'freePm: lever(300, [100, 250]),']]],
@@ -285,13 +287,22 @@ for (const [id, pin] of Object.entries(PINS)) {
   ok(!!snap && SL.madeOn(snap) === 'geometric' && SL.madeOn(SL.loadLines()) === 'time', 'BD-10 the gates\' provenance is not the frozen geometric careers beside a live snapshot on the clock');
   const firstAt = (style, k, n) => { for (let L = 1; L <= 1000; L++) if (SL.skillsAt(snap, 'party', style, L, SL.AS_MEASURED)[k] >= n) return L; return null; };
   for (const [k, style] of [['melee', 'hammer'], ['ranged', 'bow'], ['magic', 'mage']]) {
-    CM.SUPPLY_GATES[k].forEach((g, i) => ok(g === firstAt(style, k, OLD[i]), 'BD-10 ' + k + ' tier ' + (i + 1) + ' gates at ' + g + ', the ' + style + ' career reached ' + OLD[i] + ' at Level ' + firstAt(style, k, OLD[i])));
+    /* A RUNG OPENS BY ITS BAND (09 4.16): rung i + 1 is band i's supply, so its gate is the career's Level capped at that band's gear item
+       Level (tierSteps x i) */
+    CM.SUPPLY_GATES[k].forEach((g, i) => {
+      const want = Math.min(firstAt(style, k, OLD[i]), Math.max(1, GEAR_STEPS.tierSteps * i));
+      ok(g === want, 'BD-10 ' + k + ' tier ' + (i + 1) + ' gates at ' + g + ', not ' + want + ' (the ' + style + ' career reached ' + OLD[i] + ' at Level ' + firstAt(style, k, OLD[i]) + ', band ' + i + '\'s gear is item Level ' + GEAR_STEPS.tierSteps * i + ')');
+    });
+  }
+  /* THE STONE SITS ON ITS ARROW'S RUNG (09 4.16): a metal's whetstone is its metal's arrow's rung, gated by the Melee row there */
+  for (const [arrow, stone] of [['barbed_arrows', 'iron_whetstone'], ['steel_arrows', 'steel_whetstone'], ['mithril_arrows', 'mithril_whetstone'], ['rune_arrows', 'rune_whetstone'], ['emberhead_arrows', 'ember_whetstone'], ['dawnpoint_arrows', 'dawn_whetstone']]) {
+    ok(ITEMS[stone] && ITEMS[stone].tier === ITEMS[arrow].tier && ITEMS[stone].reqLv === CM.SUPPLY_GATES.melee[ITEMS[stone].tier - 1], 'BD-10 ' + stone + ' is not on ' + arrow + '\'s rung (' + (ITEMS[stone] && ITEMS[stone].tier) + ' against ' + ITEMS[arrow].tier + ') at its Melee gate');
   }
   for (let t = 1; t <= RN.RUNE_TIERS.length; t++) {
     ok(RN.versionLevel(t) === CM.SUPPLY_GATES.magic[t - 1] && RN.versionLevel(t, 'melee') === CM.SUPPLY_GATES.melee[t - 1], 'BD-10 a tier ' + t + ' spell version does not read its skill gate');
     ok(ITEMS[RN.runeId('fire', t)].reqLv === CM.SUPPLY_GATES.magic[t - 1] && ITEMS[RN.runeId('fire', t)].madeLv === RN.RUNE_TIERS[t - 1].level, 'BD-10 the tier ' + t + ' Fire Rune gate or made-at Level is off');
   }
-  ok(ITEMS.rune_arrows.reqLv === CM.SUPPLY_GATES.ranged[4] && ITEMS.rune_arrows.madeLv === 60 && ITEMS.mithril_whetstone.reqLv === CM.SUPPLY_GATES.melee[4], 'BD-10 an ammo row does not read the clock gate');
+  ok(ITEMS.rune_arrows.reqLv === CM.SUPPLY_GATES.ranged[4] && ITEMS.rune_arrows.madeLv === 60 && ITEMS.mithril_whetstone.reqLv === CM.SUPPLY_GATES.melee[3], 'BD-10 an ammo row does not read the clock gate');
 }
 
 if (fails.length) { console.error('✗ bands: ' + fails.length + ' failing\n  ' + fails.slice(0, 30).join('\n  ')); process.exit(1); }

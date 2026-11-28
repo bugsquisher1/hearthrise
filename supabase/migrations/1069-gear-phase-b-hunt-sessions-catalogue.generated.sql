@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 531c0d2c7fc5fc185a3a0ff63dd037cb957cfce9ef3bb70756e34e042742c2d3
---   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   720 vendor values, 49 store supplies paid per use, 5 target modes,
+--   digest: 3315c84c5e2f5b2fe209d2266fe0060d152e11b33a7692d69cff4cb413ea29ff
+--   81 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
+--   729 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -735,6 +735,7 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('dawn_whetstone', 'ammo', false, 0, null),
   ('dawnpoint_arrows', 'ammo', true, 0, null),
   ('ember_tart', 'buff', false, 0, 'combat_xp'),
+  ('ember_whetstone', 'ammo', false, 0, null),
   ('emberfruit_cordial', 'mana', false, 0, null),
   ('emberhead_arrows', 'ammo', true, 0, null),
   ('etched_earth_rune', 'ammo', true, 0, null),
@@ -757,6 +758,7 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('mithril_arrows', 'ammo', true, 0, null),
   ('mithril_whetstone', 'ammo', false, 0, null),
   ('moonbloom_elixir', 'buff', false, 0, 'all_xp'),
+  ('moonbloom_wine', 'mana', false, 0, null),
   ('pumpkin_cider', 'mana', false, 0, null),
   ('pumpkin_pie', 'buff', false, 0, 'all_xp'),
   ('river_chowder', 'heal', true, 360, null),
@@ -1535,7 +1537,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('density_min', 0),
   ('distance_max', 8),
   ('distance_min', 1),
-  ('drink_mana_per_min_max', 19440),
+  ('drink_mana_per_min_max', 23040),
   ('flame_regen_k', 50),
   ('flame_regen_max_permille', 1000),
   ('gather_share_max', 100),
@@ -1732,6 +1734,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cistern_venom_gland', 8),
   ('coal', 2),
   ('coalbearers_sword', 252),
+  ('cobalt_bar', 82),
   ('cobalt_belt', 218),
   ('cobalt_boots', 218),
   ('cobalt_earrings', 273),
@@ -1739,11 +1742,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cobalt_hatchets', 273),
   ('cobalt_helm', 327),
   ('cobalt_necklace', 546),
+  ('cobalt_ore', 20),
   ('cobalt_platebody', 819),
   ('cobalt_platelegs', 600),
   ('cobalt_ring', 546),
   ('cobalt_shield', 204),
   ('cobalt_sword', 273),
+  ('cobalt_temper_salts', 50),
   ('cobalt_warhammer', 300),
   ('coffer_guards_helm', 234),
   ('coffin_nail', 15),
@@ -1779,8 +1784,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('crown_shard', 150),
   ('culvert_bat_fang', 6),
   ('dark_sigil', 180),
+  ('dawn_arrowheads', 160),
   ('dawn_axe', 540),
-  ('dawn_bar', 210),
+  ('dawn_bar', 77),
   ('dawn_belt', 201),
   ('dawn_boots', 201),
   ('dawn_earrings', 252),
@@ -1879,6 +1885,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_temper_salts', 36),
   ('ember_tower_shield', 146),
   ('ember_warhammer', 214),
+  ('ember_whetstone', 45),
   ('emberfruit', 96),
   ('emberfruit_cordial', 160),
   ('emberfruit_seed', 120),
@@ -2034,9 +2041,10 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('mithril_temper_salts', 20),
   ('mithril_warhammer', 86),
   ('mithril_whetstone', 12),
-  ('moonbloom', 170),
+  ('moonbloom', 145),
   ('moonbloom_elixir', 2600),
   ('moonbloom_seed', 210),
+  ('moonbloom_wine', 280),
   ('moonfish', 22),
   ('mosslight_clump', 126),
   ('mosslight_tendril', 5),
@@ -2309,6 +2317,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('willow_wand', 44),
   ('wolf_pelt', 7),
   ('wolfbone_torc', 130),
+  ('wolfram_bar', 90),
   ('wolfram_belt', 236),
   ('wolfram_boots', 236),
   ('wolfram_earrings', 295),
@@ -2316,11 +2325,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wolfram_hatchets', 295),
   ('wolfram_helm', 354),
   ('wolfram_necklace', 590),
+  ('wolfram_ore', 22),
   ('wolfram_platebody', 886),
   ('wolfram_platelegs', 649),
   ('wolfram_ring', 590),
   ('wolfram_shield', 221),
   ('wolfram_sword', 295),
+  ('wolfram_temper_salts', 54),
   ('wolfram_warhammer', 324),
   ('woodwards_hood', 163),
   ('woolen_cloak', 72),
@@ -2399,11 +2410,11 @@ insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 79
+  if (select count(*) from public.hr_hunt_supplies) <> 81
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 720
+     or (select count(*) from public.hr_hunt_vendor_value) <> 729
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

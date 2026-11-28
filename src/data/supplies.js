@@ -80,11 +80,12 @@ export const SUPPLY_ROWS = Object.freeze([
   ...Object.keys(ITEMS).filter((id) => isRuneItem(ITEMS[id])).sort().map((id) => [A, id, true]),
   [A, 'coarse_whetstone', false], [A, 'copper_whetstone', false], [A, 'iron_whetstone', false],
   [A, 'steel_whetstone', false], [A, 'mithril_whetstone', false], [A, 'rune_whetstone', false],
-  [A, 'dawn_whetstone', false],
-  // mana — the six drinks (src/data/drinks.js). Not essential: with no mana a mage
+  [A, 'ember_whetstone', false], [A, 'dawn_whetstone', false],
+  // mana — the seven drinks (src/data/drinks.js). Not essential: with no mana a mage
   // loses spells, not the hunt, and the shop drink is the fallback.
   [M, 'turnip_juice', false], [M, 'carrot_juice', false], [M, 'tomato_juice', false],
   [M, 'pumpkin_cider', false], [M, 'goldenroot_tea', false], [M, 'emberfruit_cordial', false],
+  [M, 'moonbloom_wine', false],
 ]);
 
 /* Staged mana rows: none since lane S2 (2026-10-18) moved the six drinks into SUPPLY_ROWS. */

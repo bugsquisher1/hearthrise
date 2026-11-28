@@ -23,9 +23,14 @@ import { GEAR_STEPS } from './danger.js';
    never cut its own band's runes. Grave Dust drops on the Muster Barrows (cairn_wight, captain_hask) and on the Pyre Field (pyre_wraith,
    provost), the home of both band-3 imbuement parts, so the binder still comes from where the band's parts drop.
    BAND 4 IS BIG BONES (the designer, lane/kit-bands-4-5, 09 4.15): both band-4 grounds drop them (Krell's Hold: grave_guard, gatekeeper;
-   the Pyre Field: stoker, provost), so a company on either cuts its Graven runes. Razor Claw drops on the Pyre Field alone. Band 5 cuts no
-   rune and has no imbuement, so it names no Remains yet. */
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'grave_dust', 'big_bones']) });
+   the Pyre Field: stoker, provost), so a company on either cuts its Graven runes. Razor Claw drops on the Pyre Field alone.
+   BANDS 5 TO 8 ARE NAMED BEFORE THEIR RUNES (the designer, lane/kit-bands-6-9, 09 4.16): no rune tier or imbuement sits past band 4 yet, but
+   the rune ladder runs on (HANDOFFS 2026-11-28, kit-bands-6-9), and each band's binder is the Remains a ground OF THAT BAND drops, so the
+   rows are owed no face when they land (tests/kit-recipes.mjs KR-BINDER). Band 5 Big Bones (Carter's Rest: stable_troll, the_landlord),
+   band 6 Big Bones (the Ox Road: yoke_ox, wagonmaster), band 7 Dragon Bones (the Wyvern Roost: every wyvern, its only Remains), band 8
+   Big Bones (both Catacomb wings: bone_wall, and keeper_dunn in the Flooded Wing). */
+export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'grave_dust', 'big_bones',
+  'big_bones', 'big_bones', 'dragon_bones', 'big_bones']) });
 
 /** The item a hunted stream drops at `band` (null: none named). */
 export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;

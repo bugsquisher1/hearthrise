@@ -46,8 +46,8 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 758 (in 263 files, 17621 typed numbers) |
-| Claimed by a lever | 324 |
+| Top-level bindings in the rule code that hold a typed number | 755 (in 263 files, 17628 typed numbers) |
+| Claimed by a lever | 321 |
 | Claimed by a not-a-lever reason | 434 |
 | Unclaimed | 0 |
 | Exceptions, intentional and accidental | 17 and 9 |

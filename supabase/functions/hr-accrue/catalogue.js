@@ -336,8 +336,8 @@ export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_
    that work), the inputs priced by this same function. The cap only ever LOWERS a sale: raising a good to its store bid would lift a
    dropped Coal from 2 to 105 and the start kit's Bronze Arrows from nothing to 362 each, and the budgeted store floor (09 4.6, 5.5) is
    its own build.
-   Computed once, on the first sale (a trades catalogue that fails validation then refuses sales, never the whole engine). A recipe
-   cycle prices the repeated input at 0, so a loop can only lower a sale. */
+   Computed once, on the first priced sale (a trades catalogue that fails validation fails every sale, not the boot).
+   A recipe cycle prices the repeated input at 0, so a loop can only lower a sale. */
 let JOB_SALE = null;
 const jobSale = () => JOB_SALE || (JOB_SALE = jobSaleBounds());
 

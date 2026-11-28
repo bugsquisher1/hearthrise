@@ -1,0 +1,295 @@
+THE FORMULA TABLE (band 3, a Level 60 hero; V / Fine / Master in gold, fee and store at the same band)
+  ore           mining       gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  rune_stone    mining       gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  log           woodcutting  gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  fish          fishing      gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  grain         farming      gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  herb          farming      gather           L 1 v030  work   0.07 h own   0.07 h V    286  bid 114  {}
+  bar           smithing     refine           L 1 v030  work  0.098 h own  0.028 h V    400  bid 160  {"ore":1}
+  shaft         woodcrafting refine           L 1 v030  work  0.098 h own  0.028 h V    400  bid 160  {"log":1}
+  cut_stone     runecutting  refine           L 1 v030  work  0.098 h own  0.028 h V    400  bid 160  {"rune_stone":1}
+  meal          cooking      make   meal      L 1 v030  work   0.14 h own   0.07 h V    572 / 584 / 596  fee 143  ask 794  bid 228  {"fish":1}
+  drink         cooking      make   meal      L 1 v030  work   0.14 h own   0.07 h V    572 / 584 / 596  fee 143  ask 794  bid 228  {"grain":1}
+  honing_stone  smithing     make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"bar":2}
+  arrowhead     smithing     make             L 1 v030  work   0.14 h own  0.042 h V    572  fee 0  bid 228  {"bar":1}
+  arrow         woodcrafting make   charge    L 1 v030  work   0.28 h own  0.042 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"arrowhead":1,"shaft":1}
+  bolt          woodcrafting make   charge    L11 v030  work   0.28 h own  0.042 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"arrowhead":1,"shaft":1}
+  ward_charm    woodcrafting make   charge    L21 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"shaft":2}
+  imbuement     artificing   make   imbuement L 1 v030  work  0.533 h own  0.533 h V   2181 / 2727 / 3272  fee 546  bid 872  {} {"rare_part":6.667,"remains":1}
+  draught       alchemy      make   draught   L 1 later work   0.15 h own   0.08 h V    613 / 626 / 638  fee 154  bid 245  {"herb":1} {"common_part":1.25}
+  camp_pot      cooking      make   draught   L41 later work   0.67 h own   0.32 h V   2741 / 2796 / 2852  fee 686  bid 1096  {"grain":5} {"common_part":5}
+  temper_kit    smithing     make             L21 v030  work  0.414 h own   0.12 h V   1693  fee 424  bid 677  {"bar":3}
+  haft          woodcrafting make             L11 later work  0.542 h own   0.15 h V   2217  fee 0  bid 886  {"shaft":4}
+  rune_earth    runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  rune_water    runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  rune_fire     runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  rune_ice      runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  rune_poison   runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  rune_rupture  runecutting  make   charge    L 1 v030  work   0.28 h own  0.084 h V   1145 / 1168 / 1192  fee 287  ask 1587  bid 458  {"cut_stone":2} {"remains":0.15}
+  tool_pick     smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_axe      smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_rod      smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_hoe      smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_knife    smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_hammer   smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_saw      smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_chisel   smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_graver   smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+  tool_mortar   smithing     make             L11 later work  1.084 h own   0.15 h V   4434 / 5543 / 6652  fee 1109  bid 1773  {"haft":1,"bar":4}
+
+THE SUPPLY BILL a hunted hero-hour, the engine's burn priced on the formulas (from tools/balance-program/redesign/trades/k1-band6-oxroad.json)
+  09 2.5 at the reference: crafted 0.2 / store 0.3 hours of wage (all four lines); v0.3.0 crafted 0.16 (meal, charge, imbuement), store 0.194 (meal and charge, a tier behind)
+  base:steady     L120 restore  11160 (HP 1620) charges  1572  kit-hours meal 0.66 charge 1.05  crafted  2898 = 0.139 h of wage, 0.142 of gross   store  3440 = 0.165 h, 0.168 of gross   (engine's store 0.251 of gross; gross 0.98 x wage)
+  a style's charge kit-hour, Steady L60: 3320 shots a bow-hour, 1484 casts a caster-hour (refCharges 1500 is the four's mean)
+
+A WORK-HOUR'S VALUE, the whole chain, in hours of wage at the goods' band (09 4.3: townWageShare 0.25), 200 seeds x an 8 h day a stage
+  ore           L 1 newest           0.094 labor-h a good  value  0.185  after fee  0.185  XP 3584/h on its own stage
+  ore           L 1 first            0.094 labor-h a good  value  0.185  after fee  0.185  XP 3584/h on its own stage
+  ore           L15 newest           0.084 labor-h a good  value  0.209  after fee  0.209  XP 3584/h on its own stage
+  ore           L15 first            0.069 labor-h a good  value  0.253  after fee  0.253  XP 3584/h on its own stage
+  ore           L30 newest           0.073 labor-h a good  value  0.239  after fee  0.239  XP 3575/h on its own stage
+  ore           L30 first            0.066 labor-h a good  value  0.267  after fee  0.267  XP 2370/h on its own stage
+  ore           L50 newest            0.07 labor-h a good  value  0.251  after fee  0.251  XP 3581/h on its own stage
+  ore           L50 first            0.063 labor-h a good  value   0.28  after fee   0.28  XP 895/h on its own stage
+  ore           L50 +mastery+bench   0.052 labor-h a good  value  0.336  after fee  0.336  XP 895/h on its own stage
+  ore           L70 newest           0.067 labor-h a good  value  0.263  after fee  0.263  XP 3589/h on its own stage
+  ore           L70 first             0.06 labor-h a good  value  0.293  after fee  0.293  XP 897/h on its own stage
+  ore           L70 +mastery+bench    0.05 labor-h a good  value  0.352  after fee  0.352  XP 897/h on its own stage
+  ore           L90 newest           0.064 labor-h a good  value  0.274  after fee  0.274  XP 3594/h on its own stage
+  ore           L90 first            0.057 labor-h a good  value  0.306  after fee  0.306  XP 899/h on its own stage
+  ore           L90 +mastery+bench   0.048 labor-h a good  value  0.367  after fee  0.367  XP 899/h on its own stage
+  ore           L99 newest           0.064 labor-h a good  value  0.273  after fee  0.273  XP 3578/h on its own stage
+  ore           L99 first            0.056 labor-h a good  value   0.31  after fee   0.31  XP 895/h on its own stage
+  ore           L99 +mastery+bench   0.047 labor-h a good  value  0.373  after fee  0.373  XP 895/h on its own stage
+  fish          L 1 newest           0.094 labor-h a good  value  0.185  after fee  0.185  XP 3584/h on its own stage
+  fish          L 1 first            0.094 labor-h a good  value  0.185  after fee  0.185  XP 3584/h on its own stage
+  fish          L15 newest           0.084 labor-h a good  value  0.209  after fee  0.209  XP 3584/h on its own stage
+  fish          L15 first            0.069 labor-h a good  value  0.253  after fee  0.253  XP 3584/h on its own stage
+  fish          L30 newest           0.073 labor-h a good  value  0.239  after fee  0.239  XP 3575/h on its own stage
+  fish          L30 first            0.066 labor-h a good  value  0.267  after fee  0.267  XP 2370/h on its own stage
+  fish          L50 newest            0.07 labor-h a good  value  0.251  after fee  0.251  XP 3581/h on its own stage
+  fish          L50 first            0.063 labor-h a good  value   0.28  after fee   0.28  XP 895/h on its own stage
+  fish          L50 +mastery+bench   0.052 labor-h a good  value  0.336  after fee  0.336  XP 895/h on its own stage
+  fish          L70 newest           0.067 labor-h a good  value  0.263  after fee  0.263  XP 3589/h on its own stage
+  fish          L70 first             0.06 labor-h a good  value  0.293  after fee  0.293  XP 897/h on its own stage
+  fish          L70 +mastery+bench    0.05 labor-h a good  value  0.352  after fee  0.352  XP 897/h on its own stage
+  fish          L90 newest           0.064 labor-h a good  value  0.274  after fee  0.274  XP 3594/h on its own stage
+  fish          L90 first            0.057 labor-h a good  value  0.306  after fee  0.306  XP 899/h on its own stage
+  fish          L90 +mastery+bench   0.048 labor-h a good  value  0.367  after fee  0.367  XP 899/h on its own stage
+  fish          L99 newest           0.064 labor-h a good  value  0.273  after fee  0.273  XP 3578/h on its own stage
+  fish          L99 first            0.056 labor-h a good  value   0.31  after fee   0.31  XP 895/h on its own stage
+  fish          L99 +mastery+bench   0.047 labor-h a good  value  0.373  after fee  0.373  XP 895/h on its own stage
+  meal          L 1 newest           0.221 labor-h a good  value  0.158  after fee  0.118  XP 3584/h on its own stage
+  meal          L 1 first            0.221 labor-h a good  value  0.158  after fee  0.118  XP 3584/h on its own stage
+  meal          L15 newest           0.187 labor-h a good  value  0.187  after fee   0.14  XP 3584/h on its own stage
+  meal          L15 first            0.139 labor-h a good  value  0.251  after fee  0.188  XP 3584/h on its own stage
+  meal          L30 newest           0.155 labor-h a good  value  0.226  after fee  0.169  XP 3575/h on its own stage
+  meal          L30 first            0.131 labor-h a good  value  0.267  after fee    0.2  XP 2370/h on its own stage
+  meal          L50 newest           0.147 labor-h a good  value  0.237  after fee  0.178  XP 3581/h on its own stage
+  meal          L50 first            0.125 labor-h a good  value   0.28  after fee   0.21  XP 895/h on its own stage
+  meal          L50 +mastery+bench   0.106 labor-h a good  value  0.331  after fee  0.248  XP 895/h on its own stage
+  meal          L70 newest           0.141 labor-h a good  value  0.248  after fee  0.186  XP 3589/h on its own stage
+  meal          L70 first            0.119 labor-h a good  value  0.293  after fee   0.22  XP 897/h on its own stage
+  meal          L70 +mastery+bench   0.101 labor-h a good  value  0.346  after fee   0.26  XP 897/h on its own stage
+  meal          L90 newest           0.135 labor-h a good  value  0.259  after fee  0.194  XP 3594/h on its own stage
+  meal          L90 first            0.114 labor-h a good  value  0.306  after fee  0.229  XP 899/h on its own stage
+  meal          L90 +mastery+bench   0.097 labor-h a good  value  0.361  after fee  0.271  XP 899/h on its own stage
+  meal          L99 newest           0.137 labor-h a good  value  0.256  after fee  0.192  XP 3578/h on its own stage
+  meal          L99 first            0.113 labor-h a good  value   0.31  after fee  0.233  XP 895/h on its own stage
+  meal          L99 +mastery+bench   0.095 labor-h a good  value  0.367  after fee  0.275  XP 895/h on its own stage
+  honing_stone  L 1 newest           0.557 labor-h a good  value  0.126  after fee  0.094  XP 3584/h on its own stage
+  honing_stone  L 1 first            0.557 labor-h a good  value  0.126  after fee  0.094  XP 3584/h on its own stage
+  honing_stone  L15 newest           0.439 labor-h a good  value  0.159  after fee  0.119  XP 3572/h on its own stage
+  honing_stone  L15 first            0.282 labor-h a good  value  0.248  after fee  0.186  XP 3572/h on its own stage
+  honing_stone  L30 newest           0.335 labor-h a good  value  0.209  after fee  0.157  XP 3587/h on its own stage
+  honing_stone  L30 first            0.262 labor-h a good  value  0.267  after fee    0.2  XP 2378/h on its own stage
+  honing_stone  L50 newest           0.319 labor-h a good  value  0.219  after fee  0.164  XP 3592/h on its own stage
+  honing_stone  L50 first             0.25 labor-h a good  value   0.28  after fee   0.21  XP 898/h on its own stage
+  honing_stone  L50 +mastery+bench   0.188 labor-h a good  value  0.372  after fee  0.279  XP 898/h on its own stage
+  honing_stone  L70 newest           0.305 labor-h a good  value   0.23  after fee  0.172  XP 3600/h on its own stage
+  honing_stone  L70 first            0.238 labor-h a good  value  0.293  after fee   0.22  XP 900/h on its own stage
+  honing_stone  L70 +mastery+bench    0.18 labor-h a good  value  0.389  after fee  0.292  XP 900/h on its own stage
+  honing_stone  L90 newest           0.292 labor-h a good  value  0.239  after fee  0.179  XP 3574/h on its own stage
+  honing_stone  L90 first            0.229 labor-h a good  value  0.306  after fee  0.229  XP 893/h on its own stage
+  honing_stone  L90 +mastery+bench   0.173 labor-h a good  value  0.405  after fee  0.303  XP 893/h on its own stage
+  honing_stone  L99 newest             0.3 labor-h a good  value  0.234  after fee  0.175  XP 3599/h on its own stage
+  honing_stone  L99 first            0.225 labor-h a good  value  0.311  after fee  0.233  XP 900/h on its own stage
+  honing_stone  L99 +mastery+bench   0.169 labor-h a good  value  0.413  after fee   0.31  XP 900/h on its own stage
+  arrow         L 1 newest           0.648 labor-h a good  value  0.108  after fee  0.081  XP 3584/h on its own stage
+  arrow         L 1 first            0.648 labor-h a good  value  0.108  after fee  0.081  XP 3584/h on its own stage
+  arrow         L15 newest           0.487 labor-h a good  value  0.144  after fee  0.108  XP 3590/h on its own stage
+  arrow         L15 first            0.284 labor-h a good  value  0.247  after fee  0.185  XP 3590/h on its own stage
+  arrow         L30 newest           0.352 labor-h a good  value  0.199  after fee  0.149  XP 3587/h on its own stage
+  arrow         L30 first            0.262 labor-h a good  value  0.267  after fee    0.2  XP 2378/h on its own stage
+  arrow         L50 newest           0.336 labor-h a good  value  0.208  after fee  0.156  XP 3592/h on its own stage
+  arrow         L50 first             0.25 labor-h a good  value   0.28  after fee   0.21  XP 898/h on its own stage
+  arrow         L50 +mastery+bench   0.172 labor-h a good  value  0.406  after fee  0.304  XP 898/h on its own stage
+  arrow         L70 newest           0.321 labor-h a good  value  0.218  after fee  0.163  XP 3600/h on its own stage
+  arrow         L70 first            0.238 labor-h a good  value  0.293  after fee   0.22  XP 900/h on its own stage
+  arrow         L70 +mastery+bench   0.165 labor-h a good  value  0.425  after fee  0.318  XP 900/h on its own stage
+  arrow         L90 newest           0.308 labor-h a good  value  0.227  after fee   0.17  XP 3589/h on its own stage
+  arrow         L90 first            0.229 labor-h a good  value  0.306  after fee  0.229  XP 897/h on its own stage
+  arrow         L90 +mastery+bench   0.158 labor-h a good  value  0.443  after fee  0.332  XP 897/h on its own stage
+  arrow         L99 newest           0.319 labor-h a good  value  0.219  after fee  0.164  XP 3599/h on its own stage
+  arrow         L99 first            0.225 labor-h a good  value  0.311  after fee  0.233  XP 900/h on its own stage
+  arrow         L99 +mastery+bench   0.155 labor-h a good  value  0.451  after fee  0.338  XP 900/h on its own stage
+  rune_fire     L 1 newest           0.557 labor-h a good  value  0.126  after fee  0.094  XP 3584/h on its own stage
+  rune_fire     L 1 first            0.557 labor-h a good  value  0.126  after fee  0.094  XP 3584/h on its own stage
+  rune_fire     L15 newest           0.439 labor-h a good  value  0.159  after fee  0.119  XP 3572/h on its own stage
+  rune_fire     L15 first            0.282 labor-h a good  value  0.248  after fee  0.186  XP 3572/h on its own stage
+  rune_fire     L30 newest           0.335 labor-h a good  value  0.209  after fee  0.157  XP 3587/h on its own stage
+  rune_fire     L30 first            0.262 labor-h a good  value  0.267  after fee    0.2  XP 2378/h on its own stage
+  rune_fire     L50 newest           0.319 labor-h a good  value  0.219  after fee  0.164  XP 3592/h on its own stage
+  rune_fire     L50 first             0.25 labor-h a good  value   0.28  after fee   0.21  XP 898/h on its own stage
+  rune_fire     L50 +mastery+bench   0.188 labor-h a good  value  0.372  after fee  0.279  XP 898/h on its own stage
+  rune_fire     L70 newest           0.305 labor-h a good  value   0.23  after fee  0.172  XP 3600/h on its own stage
+  rune_fire     L70 first            0.238 labor-h a good  value  0.293  after fee   0.22  XP 900/h on its own stage
+  rune_fire     L70 +mastery+bench    0.18 labor-h a good  value  0.389  after fee  0.292  XP 900/h on its own stage
+  rune_fire     L90 newest           0.292 labor-h a good  value  0.239  after fee  0.179  XP 3574/h on its own stage
+  rune_fire     L90 first            0.229 labor-h a good  value  0.306  after fee  0.229  XP 893/h on its own stage
+  rune_fire     L90 +mastery+bench   0.173 labor-h a good  value  0.405  after fee  0.303  XP 893/h on its own stage
+  rune_fire     L99 newest             0.3 labor-h a good  value  0.234  after fee  0.175  XP 3599/h on its own stage
+  rune_fire     L99 first            0.225 labor-h a good  value  0.311  after fee  0.233  XP 900/h on its own stage
+  rune_fire     L99 +mastery+bench   0.169 labor-h a good  value  0.413  after fee   0.31  XP 900/h on its own stage
+  imbuement     L 1 newest           0.715 labor-h a good  value  0.186  after fee   0.14  XP 3593/h on its own stage
+  imbuement     L 1 first            0.715 labor-h a good  value  0.186  after fee   0.14  XP 3593/h on its own stage
+  imbuement     L15 newest           0.656 labor-h a good  value  0.203  after fee  0.152  XP 3472/h on its own stage
+  imbuement     L15 first            0.542 labor-h a good  value  0.246  after fee  0.184  XP 3472/h on its own stage
+  imbuement     L30 newest           0.557 labor-h a good  value  0.239  after fee  0.179  XP 3572/h on its own stage
+  imbuement     L30 first              0.5 labor-h a good  value  0.267  after fee    0.2  XP 2368/h on its own stage
+  imbuement     L50 newest           0.557 labor-h a good  value  0.239  after fee  0.179  XP 3410/h on its own stage
+  imbuement     L50 first              0.5 labor-h a good  value  0.267  after fee    0.2  XP 853/h on its own stage
+  imbuement     L50 +mastery+bench     0.5 labor-h a good  value  0.267  after fee    0.2  XP 853/h on its own stage
+  imbuement     L70 newest           0.523 labor-h a good  value  0.255  after fee  0.191  XP 3469/h on its own stage
+  imbuement     L70 first            0.471 labor-h a good  value  0.283  after fee  0.212  XP 867/h on its own stage
+  imbuement     L70 +mastery+bench   0.471 labor-h a good  value  0.283  after fee  0.212  XP 867/h on its own stage
+  imbuement     L90 newest           0.494 labor-h a good  value   0.27  after fee  0.202  XP 3521/h on its own stage
+  imbuement     L90 first            0.444 labor-h a good  value    0.3  after fee  0.225  XP 880/h on its own stage
+  imbuement     L90 +mastery+bench   0.444 labor-h a good  value    0.3  after fee  0.225  XP 880/h on its own stage
+  imbuement     L99 newest           0.501 labor-h a good  value  0.266  after fee  0.199  XP 3456/h on its own stage
+  imbuement     L99 first            0.444 labor-h a good  value    0.3  after fee  0.225  XP 864/h on its own stage
+  imbuement     L99 +mastery+bench   0.444 labor-h a good  value    0.3  after fee  0.225  XP 864/h on its own stage
+  temper_kit    L30 newest           0.496 labor-h a good  value  0.209  after fee  0.156  XP 3567/h on its own stage
+  temper_kit    L30 first            0.433 labor-h a good  value  0.239  after fee  0.179  XP 3567/h on its own stage
+  temper_kit    L50 newest           0.472 labor-h a good  value  0.219  after fee  0.164  XP 3597/h on its own stage
+  temper_kit    L50 first            0.369 labor-h a good  value   0.28  after fee   0.21  XP 2385/h on its own stage
+  temper_kit    L50 +mastery+bench   0.276 labor-h a good  value  0.374  after fee   0.28  XP 2385/h on its own stage
+  temper_kit    L70 newest           0.451 labor-h a good  value  0.229  after fee  0.172  XP 3582/h on its own stage
+  temper_kit    L70 first            0.353 labor-h a good  value  0.293  after fee   0.22  XP 895/h on its own stage
+  temper_kit    L70 +mastery+bench   0.265 labor-h a good  value  0.391  after fee  0.293  XP 895/h on its own stage
+  temper_kit    L90 newest           0.433 labor-h a good  value  0.239  after fee  0.179  XP 3565/h on its own stage
+  temper_kit    L90 first            0.339 labor-h a good  value  0.305  after fee  0.229  XP 891/h on its own stage
+  temper_kit    L90 +mastery+bench   0.254 labor-h a good  value  0.407  after fee  0.305  XP 891/h on its own stage
+  temper_kit    L99 newest           0.445 labor-h a good  value  0.233  after fee  0.174  XP 3586/h on its own stage
+  temper_kit    L99 first            0.333 labor-h a good  value  0.311  after fee  0.233  XP 896/h on its own stage
+  temper_kit    L99 +mastery+bench    0.25 labor-h a good  value  0.415  after fee  0.311  XP 896/h on its own stage
+
+LABOR: kitWork 0.8 at the reference (0.64 on v0.3.0's lines), 0.559 on the measured Steady L60 burn
+  the labor ratio hunting 6h a hero: 0.6 at the reference (v0.3.0 lines), 0.524 on the measured burn, 0.568 with tools
+  the labor ratio hunting 10h a hero: 1 at the reference (v0.3.0 lines), 0.873 on the measured burn, 0.946 with tools
+TOOLS: 0.023 hours of wage a work-hour, life 12 / 15 / 18 h, the store's rent 512 gold a work-hour at Level 60
+THE FLOOR (09 5.5, 6 h hunted a hero): 12.19 idle work-hours an account-day at the floor = 1.219 hours of wage (budget 1) against 23.52 minted
+
+K1, THE KIT TRADES BY DAY LENGTH (Steady L60, the measured burn): kit-trade work 0.479 work-hours a hunted hour (0.559 with imbuements); a hunted hour's kit is 0.122 of gross at V, 0.03 in job fees made at home, 0.169 from the store
+  hunt 10 h, free    work 8 h used 0.8: ratio 0.748 (0.873 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 1.61 work-h a hero
+  hunt 10 h, free    work 8 h used 1: ratio 0.599 (0.699 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 3.21 work-h a hero
+  hunt 10 h, premium work 10 h used 0.8: ratio 0.599 (0.699 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 3.21 work-h a hero
+  hunt 10 h, premium work 10 h used 1: ratio 0.479 (0.559 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 5.21 work-h a hero
+  hunt 12 h, free    work 8 h used 0.8: ratio 0.898 (1.048 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 0.65 work-h a hero
+  hunt 12 h, free    work 8 h used 1: ratio 0.718 (0.838 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 2.25 work-h a hero
+  hunt 12 h, premium work 10 h used 0.8: ratio 0.718 (0.838 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 2.25 work-h a hero
+  hunt 12 h, premium work 10 h used 1: ratio 0.575 (0.671 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 4.25 work-h a hero
+  hunt 14 h, free    work 8 h used 0.8: ratio 1.047 (1.222 with imbuements)  makes 0.955 of its kit, store 0.045, spends 0.037 of gross, spare 0 work-h a hero
+  hunt 14 h, free    work 8 h used 1: ratio 0.838 (0.978 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 1.3 work-h a hero
+  hunt 14 h, premium work 10 h used 0.8: ratio 0.838 (0.978 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 1.3 work-h a hero
+  hunt 14 h, premium work 10 h used 1: ratio  0.67 (0.782 with imbuements)  makes     1 of its kit, store     0, spends 0.03 of gross, spare 3.3 work-h a hero
+  THE FALLBACK, gold an hour of effect for a hero at the band's first step: store / crafted at the band / crafted one band behind / fee only
+    band 0 meal     679 /   452 /   452 /  113  store 1.502x the band, 1.502x one behind
+    band 0 charge  1358 /   905 /   905 /  227  store 1.501x the band, 1.501x one behind
+    band 1 meal     729 /   488 /   485 /  122  store 1.493x the band, 1.502x one behind
+    band 1 charge  1457 /   976 /   971 /  244  store 1.493x the band, 1.501x one behind
+    band 2 meal     786 /   528 /   524 /  132  store 1.49x the band, 1.502x one behind
+    band 2 charge  1572 /  1057 /  1047 /  265  store 1.487x the band, 1.501x one behind
+    band 3 meal     852 /   572 /   567 /  143  store 1.489x the band, 1.504x one behind
+    band 3 charge  1703 /  1145 /  1134 /  287  store 1.487x the band, 1.501x one behind
+    band 4 meal     923 /   620 /   614 /  155  store 1.488x the band, 1.503x one behind
+    band 4 charge  1844 /  1240 /  1229 /  310  store 1.487x the band, 1.501x one behind
+    band 5 meal     999 /   671 /   665 /  168  store 1.489x the band, 1.502x one behind
+    band 5 charge  1998 /  1343 /  1330 /  336  store 1.488x the band, 1.502x one behind
+    band 6 meal    1082 /   727 /   720 /  182  store 1.488x the band, 1.502x one behind
+    band 6 charge  2163 /  1455 /  1441 /  364  store 1.487x the band, 1.501x one behind
+    band 7 meal    1172 /   788 /   780 /  197  store 1.487x the band, 1.502x one behind
+    band 7 charge  2343 /  1576 /  1561 /  394  store 1.487x the band, 1.501x one behind
+    band 8 meal    1269 /   853 /   845 /  214  store 1.488x the band, 1.501x one behind
+    band 8 charge  2538 /  1707 /  1691 /  427  store 1.487x the band, 1.501x one behind
+  THE PACE, a company of four, day by day (kit work an hour by trade {"cooking":0.092,"fishing":0.046,"farming":0.046,"smithing":0.055,"mining":0.129,"woodcrafting":0.018,"woodcutting":0.018,"runecutting":0.074})
+    hunt 10 h, work 8 h at 0.8, band span 10 trade Levels (spare 6.45 work-h a day): days the worst kit line is at the band / one behind / two or more: 89 / 51 / 0
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  14): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0  (1 behind)
+      band 2 from day   6 (Level  31): kit bands meal 2, drink 2, honing 2, arrow 2, rune 2
+      band 3 from day  16 (Level  51): kit bands meal 3, drink 3, honing 3, arrow 3, rune 3
+      band 4 from day  29 (Level  70): kit bands meal 4, drink 4, honing 4, arrow 4, rune 4
+      band 5 from day  46 (Level  90): kit bands meal 5, drink 5, honing 5, arrow 5, rune 5
+      band 6 from day  64 (Level 110): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 7 from day  85 (Level 130): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6  (1 behind)
+      band 8 from day 107 (Level 150): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7  (1 behind)
+    hunt 10 h, work 8 h at 1, band span 10 trade Levels (spare 12.85 work-h a day): days the worst kit line is at the band / one behind / two or more: 131 / 9 / 0
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  14): kit bands meal 1, drink 1, honing 1, arrow 1, rune 1
+      band 2 from day   6 (Level  31): kit bands meal 2, drink 2, honing 2, arrow 2, rune 2
+      band 3 from day  16 (Level  51): kit bands meal 3, drink 3, honing 3, arrow 3, rune 3
+      band 4 from day  29 (Level  70): kit bands meal 5, drink 5, honing 5, arrow 5, rune 5
+      band 5 from day  46 (Level  90): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 6 from day  64 (Level 110): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 7 from day  85 (Level 130): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7
+      band 8 from day 107 (Level 150): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7  (1 behind)
+    hunt 10 h, work 10 h at 0.8, band span 10 trade Levels (spare 12.85 work-h a day): days the worst kit line is at the band / one behind / two or more: 131 / 9 / 0
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  14): kit bands meal 1, drink 1, honing 1, arrow 1, rune 1
+      band 2 from day   6 (Level  31): kit bands meal 2, drink 2, honing 2, arrow 2, rune 2
+      band 3 from day  16 (Level  51): kit bands meal 3, drink 3, honing 3, arrow 3, rune 3
+      band 4 from day  29 (Level  70): kit bands meal 5, drink 5, honing 5, arrow 5, rune 5
+      band 5 from day  46 (Level  90): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 6 from day  64 (Level 110): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 7 from day  85 (Level 130): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7
+      band 8 from day 107 (Level 150): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7  (1 behind)
+    hunt 12 h, work 8 h at 1, band span 10 trade Levels (spare 9.02 work-h a day): days the worst kit line is at the band / one behind / two or more: 97 / 43 / 0
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  15): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0  (1 behind)
+      band 2 from day   5 (Level  31): kit bands meal 2, drink 2, honing 2, arrow 2, rune 2
+      band 3 from day  13 (Level  50): kit bands meal 3, drink 3, honing 3, arrow 3, rune 3
+      band 4 from day  24 (Level  70): kit bands meal 4, drink 4, honing 4, arrow 4, rune 4
+      band 5 from day  38 (Level  90): kit bands meal 5, drink 5, honing 5, arrow 5, rune 5
+      band 6 from day  54 (Level 110): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 7 from day  71 (Level 130): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6  (1 behind)
+      band 8 from day  90 (Level 150): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7  (1 behind)
+    hunt 14 h, work 8 h at 1, band span 10 trade Levels (spare 5.19 work-h a day): days the worst kit line is at the band / one behind / two or more: 44 / 83 / 13
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  16): kit bands meal 0, drink 0, honing 0, arrow 0, rune 1  (1 behind)
+      band 2 from day   4 (Level  30): kit bands meal 1, drink 1, honing 1, arrow 1, rune 2  (1 behind)
+      band 3 from day  11 (Level  50): kit bands meal 2, drink 2, honing 2, arrow 2, rune 3  (1 behind)
+      band 4 from day  21 (Level  70): kit bands meal 4, drink 4, honing 4, arrow 4, rune 4
+      band 5 from day  33 (Level  91): kit bands meal 4, drink 4, honing 4, arrow 4, rune 5  (1 behind)
+      band 6 from day  46 (Level 110): kit bands meal 5, drink 5, honing 5, arrow 5, rune 6  (1 behind)
+      band 7 from day  61 (Level 130): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6  (1 behind)
+      band 8 from day  77 (Level 150): kit bands meal 6, drink 6, honing 6, arrow 6, rune 7  (2 behind)
+    hunt 14 h, work 8 h at 0.8, band span 10 trade Levels (spare 0 work-h a day): days the worst kit line is at the band / one behind / two or more: 1 / 9 / 130
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  16): kit bands meal 0, drink 0, honing 0, arrow 0, rune 1  (1 behind)
+      band 2 from day   4 (Level  30): kit bands meal 1, drink 1, honing 1, arrow 0, rune 2  (2 behind)
+      band 3 from day  11 (Level  50): kit bands meal 2, drink 2, honing 2, arrow 1, rune 3  (2 behind)
+      band 4 from day  21 (Level  70): kit bands meal 3, drink 3, honing 3, arrow 2, rune 4  (2 behind)
+      band 5 from day  33 (Level  91): kit bands meal 4, drink 4, honing 4, arrow 2, rune 5  (3 behind)
+      band 6 from day  46 (Level 110): kit bands meal 5, drink 5, honing 5, arrow 3, rune 6  (3 behind)
+      band 7 from day  61 (Level 130): kit bands meal 5, drink 5, honing 6, arrow 3, rune 6  (4 behind)
+      band 8 from day  77 (Level 150): kit bands meal 6, drink 6, honing 6, arrow 4, rune 7  (4 behind)
+    hunt 10 h, work 8 h at 0.8, band span 8 trade Levels (spare 6.45 work-h a day): days the worst kit line is at the band / one behind / two or more: 139 / 1 / 0
+      band 0 from day   0 (Level   1): kit bands meal 0, drink 0, honing 0, arrow 0, rune 0
+      band 1 from day   1 (Level  14): kit bands meal 0, drink 0, honing 0, arrow 0, rune 1  (1 behind)
+      band 2 from day   6 (Level  31): kit bands meal 2, drink 2, honing 2, arrow 2, rune 2
+      band 3 from day  16 (Level  51): kit bands meal 4, drink 4, honing 4, arrow 4, rune 4
+      band 4 from day  29 (Level  70): kit bands meal 5, drink 5, honing 5, arrow 5, rune 5
+      band 5 from day  46 (Level  90): kit bands meal 6, drink 6, honing 6, arrow 6, rune 6
+      band 6 from day  64 (Level 110): kit bands meal 7, drink 7, honing 7, arrow 7, rune 7
+      band 7 from day  85 (Level 130): kit bands meal 8, drink 8, honing 8, arrow 8, rune 8
+      band 8 from day 107 (Level 150): kit bands meal 8, drink 8, honing 8, arrow 8, rune 12

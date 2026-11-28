@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 1cc802b87a67f260295f57fab4897f1988ba919628cb60dbe0ceba1ad0ba2124
---   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   720 vendor values, 49 store supplies paid per use, 5 target modes,
+--   digest: e1f16ae610976cd12e528252ce6979a0886bea6e3ff063949db063fe8bb52fc5
+--   80 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
+--   728 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -735,6 +735,7 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('dawn_whetstone', 'ammo', false, 0, null),
   ('dawnpoint_arrows', 'ammo', true, 0, null),
   ('ember_tart', 'buff', false, 0, 'combat_xp'),
+  ('ember_whetstone', 'ammo', false, 0, null),
   ('emberfruit_cordial', 'mana', false, 0, null),
   ('emberhead_arrows', 'ammo', true, 0, null),
   ('etched_earth_rune', 'ammo', true, 0, null),
@@ -1732,6 +1733,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cistern_venom_gland', 8),
   ('coal', 2),
   ('coalbearers_sword', 252),
+  ('cobalt_bar', 82),
   ('cobalt_belt', 218),
   ('cobalt_boots', 218),
   ('cobalt_earrings', 273),
@@ -1739,11 +1741,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('cobalt_hatchets', 273),
   ('cobalt_helm', 327),
   ('cobalt_necklace', 546),
+  ('cobalt_ore', 20),
   ('cobalt_platebody', 819),
   ('cobalt_platelegs', 600),
   ('cobalt_ring', 546),
   ('cobalt_shield', 204),
   ('cobalt_sword', 273),
+  ('cobalt_temper_salts', 50),
   ('cobalt_warhammer', 300),
   ('coffer_guards_helm', 234),
   ('coffin_nail', 15),
@@ -1779,8 +1783,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('crown_shard', 150),
   ('culvert_bat_fang', 6),
   ('dark_sigil', 180),
+  ('dawn_arrowheads', 160),
   ('dawn_axe', 540),
-  ('dawn_bar', 210),
+  ('dawn_bar', 77),
   ('dawn_belt', 201),
   ('dawn_boots', 201),
   ('dawn_earrings', 252),
@@ -1796,7 +1801,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dawn_sword', 195),
   ('dawn_temper_salts', 46),
   ('dawn_warhammer', 214),
-  ('dawn_whetstone', 100),
+  ('dawn_whetstone', 40),
   ('dawnbound_amulet', 504),
   ('dawnforged_signet', 504),
   ('dawnhide_belt', 141),
@@ -1879,6 +1884,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_temper_salts', 36),
   ('ember_tower_shield', 146),
   ('ember_warhammer', 214),
+  ('ember_whetstone', 30),
   ('emberfruit', 96),
   ('emberfruit_cordial', 160),
   ('emberfruit_seed', 120),
@@ -2309,6 +2315,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('willow_wand', 44),
   ('wolf_pelt', 7),
   ('wolfbone_torc', 130),
+  ('wolfram_bar', 90),
   ('wolfram_belt', 236),
   ('wolfram_boots', 236),
   ('wolfram_earrings', 295),
@@ -2316,11 +2323,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('wolfram_hatchets', 295),
   ('wolfram_helm', 354),
   ('wolfram_necklace', 590),
+  ('wolfram_ore', 22),
   ('wolfram_platebody', 886),
   ('wolfram_platelegs', 649),
   ('wolfram_ring', 590),
   ('wolfram_shield', 221),
   ('wolfram_sword', 295),
+  ('wolfram_temper_salts', 54),
   ('wolfram_warhammer', 324),
   ('woodwards_hood', 163),
   ('woolen_cloak', 72),
@@ -2399,11 +2408,11 @@ insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 79
+  if (select count(*) from public.hr_hunt_supplies) <> 80
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 720
+     or (select count(*) from public.hr_hunt_vendor_value) <> 728
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

@@ -116,6 +116,7 @@ export const ITEM_TEXT = Object.freeze({
   one_mithril_arrowheads: 'Mithril Arrowhead',
   one_rune_arrowheads: 'Rune Arrowhead',
   one_ember_arrowheads: 'Emberforged Arrowhead',
+  one_dawn_arrowheads: 'Dawnsteel Arrowhead',
   one_big_bones: 'Big Bone',
   one_dragon_bones: 'Dragon Bone',
   one_bone_chips: 'Bone Chip',

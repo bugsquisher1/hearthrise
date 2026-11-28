@@ -10,7 +10,7 @@
 -- number is typed twice. Tables (each RLS on, no policy, no client grant, rewritten whole):
 --   hr_flame_rules (1 row), hr_flame_levels (99 Levels), hr_flame_fuel (6 Remains goods by band)
 --   hr_temper_rules (1 row), hr_temper_slots (13 slots)
---   hr_temper_kits (6 rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
+--   hr_temper_kits (8 rows, lane/tp-server-1: the Temper kit a band, 21 D-14; a band with no row, or whose kit is no hr_items row
 --     yet, is refused kits_owed, never sold for gold alone). hr_temper_rules.kit_item, 1063's one kit column, is no longer written: it
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
 --   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
@@ -225,7 +225,9 @@ insert into public.hr_temper_kits (band, item_id) values
   (3, 'mithril_temper_salts'),
   (4, 'rune_temper_salts'),
   (5, 'ember_temper_salts'),
-  (6, 'dawn_temper_salts');
+  (6, 'dawn_temper_salts'),
+  (7, 'cobalt_temper_salts'),
+  (8, 'wolfram_temper_salts');
 delete from public.hr_item_levels;
 insert into public.hr_item_levels (item_id, item_level) values
   ('adept_belt', 20),
@@ -908,7 +910,7 @@ begin
   if (select count(*) from public.hr_flame_levels) <> 99 or (select count(*) from public.hr_flame_fuel) <> 6
      or (select count(*) from public.hr_temper_slots) <> 13 or (select count(*) from public.hr_item_levels) <> 395
      or (select count(*) from public.hr_imbue_rules) <> 5 or (select sum(slot_pm) from public.hr_temper_slots) <> 1000
-     or (select count(*) from public.hr_temper_kits) <> 6 then
+     or (select count(*) from public.hr_temper_kits) <> 8 then
     raise exception 'VERIFY(a): a catalogue table is not the data''s'; end if;
   foreach v_t in array array['hr_flame_rules', 'hr_flame_levels', 'hr_flame_fuel', 'hr_temper_rules', 'hr_temper_slots', 'hr_temper_kits',
                              'hr_item_levels', 'hr_imbue_rules', 'hr_imbue_levers', 'hr_loot_rules', 'hr_carry_rules'] loop
@@ -1360,9 +1362,9 @@ begin
     (119, 'ember_temper_salts'),
     (120, 'dawn_temper_salts'),
     (139, 'dawn_temper_salts'),
-    (140, null::text),
-    (159, null::text),
-    (160, null::text),
+    (140, 'cobalt_temper_salts'),
+    (159, 'cobalt_temper_salts'),
+    (160, 'wolfram_temper_salts'),
     (400, null::text)) p(il, k) loop
     if public.hr_temper_kit_at(v_r.il) is distinct from v_r.k then
       raise exception 'VERIFY(r): a rank on item Level % takes kit % in SQL, % in src/core/trades.js temperKitAt', v_r.il, public.hr_temper_kit_at(v_r.il), v_r.k; end if;
@@ -1388,5 +1390,5 @@ begin
   if has_function_privilege('authenticated', 'public.hr_temper_kit_at(integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_imbue_wearable(integer,integer)', 'execute') then
     raise exception 'VERIFY(r): a client role runs the kit or band-lock twin'; end if;
-  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 6 Temper kits, 395 item Levels, 5 imbuements; every twin pinned; all green';
+  raise notice 'gen-flame-temper: 99 Flame Levels, 6 fuels, 13 Temper slots, 8 Temper kits, 395 item Levels, 5 imbuements; every twin pinned; all green';
 end $mig$;

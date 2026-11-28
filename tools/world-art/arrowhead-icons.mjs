@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/arrowhead-icons.mjs — THE SIX ARROWHEADS, ONE FAMILY, DRAWN BY RULE
+// tools/world-art/arrowhead-icons.mjs — THE ARROWHEADS, ONE FAMILY, DRAWN BY RULE
 // (Art Director, lane/icons-arrowheads-signatures, 2026-11-28; replaces job-face-icons.mjs's re-dyed Barrow Nail, which read as a
 // nail or a peg beside the arrows it makes).
 //
@@ -37,6 +37,8 @@ const METAL = Object.freeze({
   mithril: ['#231d1f', '#2e4a52', '#4f7a80', '#86b4b4', '#c8e6e0'],
   rune: ['#17141a', '#2c2e33', '#3a4652', '#5c6c7a', '#8a9aa8'],
   ember: ['#17141a', '#2f2723', '#4f4e52', '#6a6865', '#8a867d'],
+  /* band 6 (lane/kit-bands-6-9, 09 4.16): plain, in Dawnsteel's ramp (step-tier-icons.mjs RAMPS.dawn), a placeholder for the Art Director */
+  dawn: ['#3a4652', '#5c6c7a', '#8a9aa8', '#c4ccd2', '#e6dcbc'],
 });
 const FROST = ['#4fa8e8', '#a8e4ff'];
 const HOT = ['#8e1f1f', '#c23a2a', '#f2a03a', '#ffd36a'];
@@ -138,7 +140,8 @@ export function toImage(grid) {
 }
 
 const IDS = Object.freeze({ bronze_arrowheads: 'bronze', iron_arrowheads: 'iron', steel_arrowheads: 'steel',
-  mithril_arrowheads: 'mithril', rune_arrowheads: 'rune', ember_arrowheads: 'ember' });
+  mithril_arrowheads: 'mithril', rune_arrowheads: 'rune', ember_arrowheads: 'ember',
+  dawn_arrowheads: 'dawn' });
 /** id -> () => the icon's grid. */
 export const DRAW = Object.freeze(Object.fromEntries(Object.entries(IDS).map(([id, tier]) => [id, () => drawGrid(tier)])));
 

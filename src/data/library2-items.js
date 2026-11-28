@@ -226,22 +226,6 @@ const ARMOUR_SETS = {
    MATERIAL rung `emberhead_arrows` (tier 6, a different axis entirely).
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* R7: the ammo-slot ladders share ONE stat curve, because they are one slot (the rune ladder left it: runes
-   are spell reagents, src/data/stonecraft.js, Tyler 2026-10-23). */
-const AMMO_STR = [2, 3, 5, 8, 11, 14, 18];
-const AMMO_REQ = [1, 15, 30, 45, 60, 75, 88];
-const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legendary', 'mythic'];
-
-/* Whetstones burn 0.02/swing (§7.2 — charges on the consumption channel, not a
-   timer) and carry `strB` ONLY: critB would leak to every style through
-   equipmentStats, and spdB is closed by the b343 ruling. */
-const whet = (id, name, i, v) => [id, {
-  n: name, icon: '🪨', v, type: 'ammo', slot: 'ammo', tier: i + 1,
-  rarity: AMMO_RARITY[i], reqSkill: 'melee', reqLv: AMMO_REQ[i],
-  strB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 0.02,
-  pendingSkill: 'smithing',
-}];
-
 const SUPPLY_CHAINS = Object.fromEntries([
   /* ITEM-PLAN-04 · the graded blanks, cut at Runecrafting. (Quarried stone,
      blocks and ashlar were deleted with Stonemason in the 2026-10-14 demolition.) */
@@ -250,16 +234,8 @@ const SUPPLY_CHAINS = Object.fromEntries([
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2) became the family x tier runes (src/data/stonecraft.js,
      lane b-spell-content 2026-10-23). */
 
-  /* ITEM-PLAN-03 · the whetstone ladder (§6.3). Values are the Designer's
-     derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
-     inside the anti-faucet rule; 200 would have been a 3.03× faucet. */
-  whet('coarse_whetstone',  'Coarse Whetstone',    0, 5),
-  whet('copper_whetstone',  'Copper Whetstone',    1, 20),
-  whet('iron_whetstone',    'Iron Whetstone',      2, 55),
-  whet('steel_whetstone',   'Steel Whetstone',     3, 130),
-  whet('mithril_whetstone', 'Mithril Whetstone',   4, 300),
-  whet('rune_whetstone',    'Rune Whetstone',      5, 700),
-  whet('dawn_whetstone',    'Dawnsteel Whetstone', 6, 1600),
+  /* ITEM-PLAN-03 · the whetstone ladder lives in src/data/stonecraft.js alone (its rows overrode these, so the copies here were a second
+     authority that had drifted from the shipped rungs; removed in lane/kit-bands-6-9, 09 4.16). Their flavour lines stay below. */
 
   /* W0 (2026-10-10): the six elemental arrow/whetstone variants and the two
      artisan tool ladders (fletching knives, mason's rules) were CUT. Their

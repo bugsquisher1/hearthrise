@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270
---   rows: 763 items (27 untradeable) ·
---         464 item-slot pairs · 14 equip slots ·
+--   catalogue digest: 417336d7e6e52e4c1be1dcde051655401f0e2da84687fc909a3833d0d1394da8
+--   rows: 771 items (27 untradeable) ·
+--         465 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
 --
@@ -320,6 +320,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('coal','Coal',true,null,10,null,null,null,false,null,false),
   ('coalbearers_sword','Coalbearer''s Sword',true,'weapon',36000,'level',110,null,false,null,false),
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
+  ('cobalt_bar','Cobalt Bar',true,null,1140,null,null,null,false,null,false),
   ('cobalt_belt','Cobalt Belt',true,'armor',31200,'level',130,null,false,'heavy',false),
   ('cobalt_boots','Cobalt Boots',true,'armor',31200,'level',130,null,false,'heavy',false),
   ('cobalt_earrings','Cobalt Earrings',true,'jewelry',39000,'level',130,null,false,null,false),
@@ -327,11 +328,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('cobalt_hatchets','Cobalt Hatchets',true,'weapon',39000,'level',130,null,false,null,true),
   ('cobalt_helm','Cobalt Helm',true,'armor',46800,'level',130,null,false,'heavy',false),
   ('cobalt_necklace','Cobalt Necklace',true,'jewelry',78000,'level',130,null,false,null,false),
+  ('cobalt_ore','Cobalt Ore',true,null,103,null,null,null,false,null,false),
   ('cobalt_platebody','Cobalt Platebody',true,'armor',117000,'level',130,null,false,'heavy',false),
   ('cobalt_platelegs','Cobalt Platelegs',true,'armor',85800,'level',130,null,false,'heavy',false),
   ('cobalt_ring','Cobalt Ring',true,'jewelry',78000,'level',130,null,false,null,false),
   ('cobalt_shield','Cobalt Shield',true,'offhand',29250,'level',130,null,false,null,false),
   ('cobalt_sword','Cobalt Sword',true,'weapon',39000,'level',130,null,false,null,false),
+  ('cobalt_temper_salts','Cobalt Tempering Salts',true,null,250,null,null,null,false,null,false),
   ('cobalt_warhammer','Cobalt Warhammer',true,'weapon',42900,'level',130,null,false,null,true),
   ('coffer_guards_helm','Coffer-Guard''s Helm',true,'armor',15600,'level',90,null,false,'heavy',false),
   ('coffin_nail','Coffin Nail',true,null,114,null,null,null,false,null,false),
@@ -367,6 +370,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('crown_shard','Crown Shard',true,null,150,null,null,null,false,null,false),
   ('culvert_bat_fang','Culvert Bat Fang',true,null,30,null,null,null,false,null,false),
   ('dark_sigil','Dark Sigil',true,null,180,null,null,null,false,null,false),
+  ('dawn_arrowheads','Dawnsteel Arrowheads',true,null,800,null,null,null,false,null,false),
   ('dawn_axe','Dawnsteel Axe',true,'tool',2700,null,null,null,false,null,false),
   ('dawn_bar','Dawnsteel Bar',true,null,1050,null,null,null,false,null,false),
   ('dawn_belt','Dawnsteel Belt',true,'armor',28800,'level',110,null,false,'heavy',false),
@@ -384,7 +388,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'level',110,null,false,null,false),
   ('dawn_temper_salts','Dawnsteel Tempering Salts',true,null,230,null,null,null,false,null,false),
   ('dawn_warhammer','Dawnsteel Warhammer',true,'weapon',39600,'level',110,null,false,null,true),
-  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',100,'melee',168,null,false,null,false),
+  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',40,'melee',120,null,false,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'level',86,null,false,null,false),
   ('dawnforged_signet','Dawnforged Signet',true,'jewelry',72000,'level',84,null,false,null,false),
   ('dawnhide_belt','Dawnhide Belt',true,'armor',20160,'level',110,null,false,'medium',false),
@@ -394,7 +398,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawnhide_helmet','Dawnhide Hood',true,'armor',30240,'level',110,null,false,'medium',false),
   ('dawnhide_pants','Dawnhide Chaps',true,'armor',55440,'level',110,null,false,'medium',false),
   ('dawnlit_mantle','Dawnlit Mantle',true,'armor',86400,'level',110,null,false,null,false),
-  ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',142,null,false,null,false),
+  ('dawnpoint_arrows','Dawnpoint Arrows',true,'ammo',12,'ranged',120,null,false,null,false),
   ('dawnsteel_rod','Dawnsteel Rod',true,'tool',58000,null,null,null,false,null,false),
   ('dawnstone_ore','Dawnstone Ore',true,null,95,null,null,null,false,null,false),
   ('death_steel','Death Steel',true,null,550,null,null,null,false,null,false),
@@ -468,10 +472,11 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_temper_salts','Ember Tempering Salts',true,null,180,null,null,null,false,null,false),
   ('ember_tower_shield','Emberforged Tower Shield',true,'offhand',9750,'level',90,null,false,null,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'level',90,null,false,null,true),
+  ('ember_whetstone','Emberforged Whetstone',true,'ammo',30,'melee',100,null,false,null,false),
   ('emberfruit','Emberfruit',true,null,480,null,null,192,true,null,false),
   ('emberfruit_cordial','Emberfruit Cordial',true,null,160,null,null,null,false,null,false),
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false,null,false),
-  ('emberhead_arrows','Emberhead Arrows',true,'ammo',9,'ranged',105,null,false,null,false),
+  ('emberhead_arrows','Emberhead Arrows',true,'ammo',9,'ranged',100,null,false,null,false),
   ('emberheart','Emberheart',false,'trophy',0,null,null,null,false,null,false),
   ('emberstone_ore','Emberstone Ore',true,null,55,null,null,null,false,null,false),
   ('etched_earth_rune','Etched Earth Rune',true,'ammo',3,'magic',15,null,false,null,false),
@@ -560,7 +565,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_platelegs','Iron Platelegs',true,'armor',285,'level',10,null,false,'heavy',false),
   ('iron_sword','Iron Sword',true,'weapon',200,'level',10,null,false,null,false),
   ('iron_warhammer','Iron Warhammer',true,'weapon',145,'level',10,null,false,null,true),
-  ('iron_whetstone','Iron Whetstone',true,'ammo',3,'melee',23,null,false,null,false),
+  ('iron_whetstone','Iron Whetstone',true,'ammo',3,'melee',9,null,false,null,false),
   ('ironbound_shield','Ironbound Shield',true,'offhand',200,'level',10,null,false,null,false),
   ('jarls_rimetorc','Jarl''s Collar',true,'jewelry',3300,'level',66,null,false,null,false),
   ('juniper_bow','Juniper Bow',true,'weapon',40950,'level',130,null,false,null,true),
@@ -623,7 +628,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_sword','Mithril Sword',true,'weapon',1500,'level',50,null,false,null,false),
   ('mithril_temper_salts','Mithril Tempering Salts',true,null,100,null,null,null,false,null,false),
   ('mithril_warhammer','Mithril Warhammer',true,'weapon',1650,'level',50,null,false,null,true),
-  ('mithril_whetstone','Mithril Whetstone',true,'ammo',12,'melee',73,null,false,null,false),
+  ('mithril_whetstone','Mithril Whetstone',true,'ammo',12,'melee',45,null,false,null,false),
   ('moonbloom','Moonbloom',true,null,850,null,null,240,true,null,false),
   ('moonbloom_elixir','Moonbloom Elixir',true,null,2600,null,null,480,false,null,false),
   ('moonbloom_seed','Moonbloom Seed',true,null,280,null,null,null,false,null,false),
@@ -723,7 +728,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_sword','Rune Sword',true,'weapon',5000,'level',70,null,false,null,false),
   ('rune_temper_salts','Rune Tempering Salts',true,null,135,null,null,null,false,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'level',70,null,false,null,true),
-  ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',115,null,false,null,false),
+  ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',73,null,false,null,false),
   ('runebound_shield','Runebound Shield',true,'offhand',3750,'level',70,null,false,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'level',90,null,false,null,true),
   ('runewood_codex','Runewood Codex',true,'offhand',10400,'level',90,null,false,null,false),
@@ -813,7 +818,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_platelegs','Steel Platelegs',true,'armor',1100,'level',30,null,false,'heavy',false),
   ('steel_sword','Steel Sword',true,'weapon',800,'level',30,null,false,null,false),
   ('steel_warhammer','Steel Warhammer',true,'weapon',550,'level',30,null,false,null,true),
-  ('steel_whetstone','Steel Whetstone',true,'ammo',11,'melee',45,null,false,null,false),
+  ('steel_whetstone','Steel Whetstone',true,'ammo',11,'melee',23,null,false,null,false),
   ('steelgrate','Steelgrate',true,'offhand',750,'level',30,null,false,null,false),
   ('steeplejacks_bow','Steeplejack''s Bow',true,'weapon',37800,'level',110,null,false,null,true),
   ('sticky_core','Sticky Core',true,null,4,null,null,null,false,null,false),
@@ -927,6 +932,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('willow_wand','Willow Wand',true,'weapon',450,'level',30,null,false,null,false),
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false,null,false),
   ('wolfbone_torc','Wolfbone Necklace',true,'jewelry',260,'level',10,null,false,null,false),
+  ('wolfram_bar','Wolfram Bar',true,null,1230,null,null,null,false,null,false),
   ('wolfram_belt','Wolfram Belt',true,'armor',33760,'level',150,null,false,'heavy',false),
   ('wolfram_boots','Wolfram Boots',true,'armor',33760,'level',150,null,false,'heavy',false),
   ('wolfram_earrings','Wolfram Earrings',true,'jewelry',42200,'level',150,null,false,null,false),
@@ -934,11 +940,13 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('wolfram_hatchets','Wolfram Hatchets',true,'weapon',42200,'level',150,null,false,null,true),
   ('wolfram_helm','Wolfram Helm',true,'armor',50640,'level',150,null,false,'heavy',false),
   ('wolfram_necklace','Wolfram Necklace',true,'jewelry',84400,'level',150,null,false,null,false),
+  ('wolfram_ore','Wolfram Ore',true,null,111,null,null,null,false,null,false),
   ('wolfram_platebody','Wolfram Platebody',true,'armor',126600,'level',150,null,false,'heavy',false),
   ('wolfram_platelegs','Wolfram Platelegs',true,'armor',92840,'level',150,null,false,'heavy',false),
   ('wolfram_ring','Wolfram Ring',true,'jewelry',84400,'level',150,null,false,null,false),
   ('wolfram_shield','Wolfram Shield',true,'offhand',31650,'level',150,null,false,null,false),
   ('wolfram_sword','Wolfram Sword',true,'weapon',42200,'level',150,null,false,null,false),
+  ('wolfram_temper_salts','Wolfram Tempering Salts',true,null,270,null,null,null,false,null,false),
   ('wolfram_warhammer','Wolfram Warhammer',true,'weapon',46420,'level',150,null,false,null,true),
   ('woodwards_hood','Woodward''s Hood',true,'armor',10920,'level',90,null,false,'medium',false),
   ('woolen_cloak','Woollen Cloak',true,'armor',145,'level',12,null,false,null,false),
@@ -1150,6 +1158,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('ember_sword','weapon'),
   ('ember_tower_shield','shield'),
   ('ember_warhammer','weapon'),
+  ('ember_whetstone','ammo'),
   ('emberhead_arrows','ammo'),
   ('etched_earth_rune','ammo'),
   ('etched_fire_rune','ammo'),
@@ -1910,7 +1919,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270', now())
+  values (true, '417336d7e6e52e4c1be1dcde051655401f0e2da84687fc909a3833d0d1394da8', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1938,11 +1947,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 763 then raise exception 'hr_items has % rows, generator emitted 763', v_n; end if;
+  if v_n <> 771 then raise exception 'hr_items has % rows, generator emitted 771', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'ca7cbb2df299b702f7a0216749885236' then
-    raise exception 'hr_items names differ from src/data (expected digest ca7cbb2df299b702f7a0216749885236)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'b8b7ac9d1d7fbc96792c7dc946c71276' then
+    raise exception 'hr_items names differ from src/data (expected digest b8b7ac9d1d7fbc96792c7dc946c71276)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2140,7 +2149,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 417336d7e6e52e4c1be1dcde051655401f0e2da84687fc909a3833d0d1394da8',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

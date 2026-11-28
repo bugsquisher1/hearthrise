@@ -13,6 +13,7 @@
 -- 48 ms, 0.84 a town settle. The town engine reads eleven fields of it (supabase/functions/hr-accrue/envelope.js
 -- engineInputsFromEnvelope) and tick.js four more (the pointer and the version).
 --
+-- AMENDED IN PLACE by lane/bench-cut-server (09-crafting.md 4.17, 1079-one-town-work-cut.sql), before it ever applied: the bench tax is cut, so the read carries no `bench_tax` and needs no hr_bench_tax_view.
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
 -- hr_tick_town_state(p_user, p_slot) -> jsonb  NEW, SECURITY DEFINER, EXECUTE for hr_engine only (as hr_accrue_read). The
 --   town engine's inputs, each by the SAME definition hr_state_of uses, and nothing else:
@@ -45,13 +46,13 @@
 do $mig$
 begin
   if to_regprocedure('public.hr_hunt_member_state(uuid,integer)') is null or to_regprocedure('public.hr_bench_run_view(uuid,integer)') is null
-     or to_regprocedure('public.hr_bench_tax_view(uuid,integer)') is null or to_regprocedure('public.hr_skill_inputs_view(uuid,integer)') is null
+     or to_regprocedure('public.hr_skill_inputs_view(uuid,integer)') is null
      or to_regprocedure('public.hr_state_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: the member state, a section function or hr_state_of is missing'; end if;
   -- the sections the read calls are still the registry's for those keys
-  if (select count(*) from public.hr_state_sections where (key, fn) in (('bench_run', 'hr_bench_run_view'), ('bench_tax', 'hr_bench_tax_view'),
-                                                                        ('skill_inputs', 'hr_skill_inputs_view'), ('gm', 'hr_gm_section'))) <> 4 then
-    raise exception 'PRECONDITION: hr_state_sections no longer maps bench_run, bench_tax, skill_inputs and gm to the functions this read calls'; end if;
+  if (select count(*) from public.hr_state_sections where (key, fn) in (('bench_run', 'hr_bench_run_view'),
+                                                                        ('skill_inputs', 'hr_skill_inputs_view'), ('gm', 'hr_gm_section'))) <> 3 then
+    raise exception 'PRECONDITION: hr_state_sections no longer maps bench_run, skill_inputs and gm to the functions this read calls'; end if;
   -- the detector already allows the grant §1 makes (1032's link 25): without it the grant would read engine_execute_outside_allowlist
   if strpos((select prosrc from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure),
             '''hr_tick_town_state(uuid,integer)''') = 0 then
@@ -88,7 +89,6 @@ begin
       select jsonb_object_agg(item_id, qty)
         from public.account_bank where user_id = p_user), '{}'::jsonb),
     'bench_run', public.hr_bench_run_view(p_user, v_st.slot),
-    'bench_tax', public.hr_bench_tax_view(p_user, v_st.slot),
     'skill_inputs', public.hr_skill_inputs_view(p_user, v_st.slot));
 end $fn$;
 
@@ -143,7 +143,7 @@ begin
     v_a := public.hr_tick_town_state(u, 0);
     v_b := public.hr_state_of(u, 0);
     if (v_a ->> 'ok')::boolean is not true then raise exception 'narrow-town-read §4(b): the read answered %', v_a; end if;
-    foreach k in array array['version', 'gm', 'buffs', 'inventory', 'equipment', 'bank', 'bench_run', 'bench_tax', 'skill_inputs'] loop
+    foreach k in array array['version', 'gm', 'buffs', 'inventory', 'equipment', 'bank', 'bench_run', 'skill_inputs'] loop
       if (v_a -> k) is distinct from (v_b -> k) then
         raise exception 'narrow-town-read §4(b): % is % in the read, % in hr_state_of', k, v_a -> k, v_b -> k; end if;
     end loop;
@@ -157,7 +157,7 @@ begin
       raise exception 'narrow-town-read §4(b): the skills'' xp or carried remainder differ'; end if;
     if exists (select 1 from jsonb_object_keys(v_a) x
                 where x not in ('ok', 'version', 'now', 'gm', 'buffs', 'state', 'skills', 'inventory', 'equipment', 'bank', 'bench_run',
-                                'bench_tax', 'skill_inputs')) then
+                                'skill_inputs')) then
       raise exception 'narrow-town-read §4(b): the read carries a key the town engine does not read: %', (select array_agg(x) from jsonb_object_keys(v_a) x); end if;
     raise exception using errcode = 'HRNT1', message = 'probe done - rolling back';
   exception when sqlstate 'HRNT1' then null;

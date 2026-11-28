@@ -889,8 +889,11 @@ begin
     raise exception 'VERIFY(a): the two verbs are not exactly the signed-in client''s'; end if;
   if to_regclass('cron.job') is not null and not exists (select 1 from cron.job where jobname = 'hr-trade-jobs') then
     raise exception 'VERIFY(a): the sweep is not scheduled'; end if;
-  if (select enabled from public.hr_flags where key = 'trade_jobs') then raise exception 'VERIFY(a): trade_jobs is lit at the apply'; end if;
+  -- the switch is dark until 1079-one-town-work-cut.sql lights it (its bridge helper marks that it has run: a retried apply finds it lit)
+  if (select enabled from public.hr_flags where key = 'trade_jobs') is distinct from (to_regprocedure('public.hr_hearth_fuel_of(text)') is not null) then
+    raise exception 'VERIFY(a): trade_jobs is % at the apply', (select case when enabled then 'lit' else 'dark' end from public.hr_flags where key = 'trade_jobs'); end if;
   begin
+    update public.hr_flags set enabled = false where key = 'trade_jobs';   -- the dark arm reads it dark (rolled back below)
     perform set_config('request.jwt.claim.sub', v_u::text, true);
     insert into auth.users (id) values (v_u) on conflict (id) do nothing;
     insert into public.hr_access_allowlist (user_id, note) values (v_u, 'k1-job-slice §9 probe') on conflict (user_id) do nothing;
@@ -1111,7 +1114,8 @@ begin
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.trade_jobs where user_id = v_u)
      or exists (select 1 from public.company_trade_xp where user_id = v_u) then
     raise exception 'VERIFY(a): §9 LEAKED a probe row'; end if;
-  if (select enabled from public.hr_flags where key = 'trade_jobs') then raise exception 'VERIFY(a): trade_jobs is lit after the probe'; end if;
+  if (select enabled from public.hr_flags where key = 'trade_jobs') is distinct from (to_regprocedure('public.hr_hearth_fuel_of(text)') is not null) then
+    raise exception 'VERIFY(a): the probe moved the trade_jobs switch'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'k1-job-slice: a job starts on the server''s quote, refuses in order, settles from its seed on the sweep and on a collect, stops with its sets back; all green';
 end $$;

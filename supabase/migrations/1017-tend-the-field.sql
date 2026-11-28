@@ -98,8 +98,10 @@
 -- ── §0 PRECONDITIONS AND THE PINS ───────────────────────────────────────────
 -- The four verbs this file CALLS are the images it reads the answers of (the replayed chain on set/v0.2.143; md5 of prosrc,
 -- carriage returns removed). Any other body is a restatement this file was not written against: refuse, re-read, re-pin.
+-- RETRY PIN (lane/bench-cut-server): 1079-one-town-work-cut.sql restates harvest, plant and water (the company's Farming, the same
+-- answers this file reads: ok, qty, the plot); a retried apply after it finds that image (the second column).
 do $mig$
-declare v_sig text; v_pin text; v_md5 text;
+declare v_sig text; v_pin text; v_pin2 text; v_md5 text;
 begin
   if to_regclass('public.account_farm_plots') is null or to_regclass('public.hr_crops') is null
      or to_regclass('public.hr_crop_plot_tier') is null or to_regclass('public.hr_shop_supply_offers') is null
@@ -116,15 +118,15 @@ begin
      or to_regprocedure('public.hr_farm_growth_hours(timestamp with time zone,timestamp with time zone[],timestamp with time zone)') is null
      or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
     raise exception 'PRECONDITION: a helper the tend calls is missing'; end if;
-  for v_sig, v_pin in values
-    ('public.hr_farm_harvest(integer,integer,uuid)',      '6eecf24a7b44ed6b21b21c24678fce0a'),
-    ('public.hr_farm_plant(integer,integer,text,uuid)',   '3afdde2f463aee5da658a819389a22ac'),
-    ('public.hr_farm_water(integer,integer,uuid)',        '68c370148c33add05e756ddaa2f45b60'),
-    ('public.hr_farm_purse_pay(uuid,integer,bigint)',     'a8d70b18926e10157c873126aab36fdb')
+  for v_sig, v_pin, v_pin2 in values
+    ('public.hr_farm_harvest(integer,integer,uuid)',      '6eecf24a7b44ed6b21b21c24678fce0a', '04175e3159395fccf049cf459aa4e942'),
+    ('public.hr_farm_plant(integer,integer,text,uuid)',   '3afdde2f463aee5da658a819389a22ac', 'aad5413dcf1f4d4640fb3e7bc8f7adc4'),
+    ('public.hr_farm_water(integer,integer,uuid)',        '68c370148c33add05e756ddaa2f45b60', '434c2d700812436e2eb9d2d07eb6bf2a'),
+    ('public.hr_farm_purse_pay(uuid,integer,bigint)',     'a8d70b18926e10157c873126aab36fdb', 'a8d70b18926e10157c873126aab36fdb')
   loop
     if to_regprocedure(v_sig) is null then raise exception 'PRECONDITION: % is missing', v_sig; end if;
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_sig);
-    if v_md5 is distinct from v_pin then
+    if v_md5 is distinct from v_pin and v_md5 is distinct from v_pin2 then
       raise exception 'PIN: % is not the image this file reads the answer of (%) - md5 %: another file moved it; re-read and re-pin', v_sig, v_pin, v_md5; end if;
   end loop;
 end $mig$;
@@ -540,6 +542,10 @@ begin
     insert into public.account_wallet as w (user_id, gold, version, updated_at) values (v_u, 1000, 1, now())
       on conflict (user_id) do update set gold = excluded.gold;
     select coalesce(sum(xp), 0) into v_xp0 from public.player_skills where user_id = v_u and slot = 0 and skill_id = 'farming';
+    -- the Farming the server credits: the hero's before 1079-one-town-work-cut.sql, the company's after it (a retried apply)
+    if to_regclass('public.company_trade_xp') is not null then
+      execute 'select $1 + coalesce(sum(xp), 0) from public.company_trade_xp where user_id = $2 and trade_id = ''farming''' into v_xp0 using v_xp0, v_u;
+    end if;
 
     -- (a) THE BILL
     b := public.hr_state_of(v_u, 0) -> 'farm_tend';
@@ -568,7 +574,10 @@ begin
     if (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = 'turnip')
        is distinct from (select sum((h ->> 'qty')::bigint) from jsonb_array_elements(v -> 'harvested') h) then
       raise exception 'tend §4(b): the bag''s turnips are not the two harvests'' %', v -> 'harvested'; end if;
-    select xp into v_xp1 from public.player_skills where user_id = v_u and slot = 0 and skill_id = 'farming';
+    select coalesce(sum(xp), 0) into v_xp1 from public.player_skills where user_id = v_u and slot = 0 and skill_id = 'farming';
+    if to_regclass('public.company_trade_xp') is not null then
+      execute 'select $1 + coalesce(sum(xp), 0) from public.company_trade_xp where user_id = $2 and trade_id = ''farming''' into v_xp1 using v_xp1, v_u;
+    end if;
     if v_xp1 - v_xp0 <> (v ->> 'xp')::bigint then raise exception 'tend §4(b): Farming XP moved % but the answer says %', v_xp1 - v_xp0, v ->> 'xp'; end if;
     if (select count(*) filter (where intent = 'farm_harvest') || '/' || count(*) filter (where intent = 'farm_plant') || '/'
             || count(*) filter (where intent = 'farm_water') || '/' || count(*) filter (where intent = 'farm_tend') || '/'

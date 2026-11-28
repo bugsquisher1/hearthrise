@@ -19,6 +19,10 @@
 --   capped each day, longer with Premium. Work is bought in 2 h blocks at x1.5, at most 4 a day: the buy is a later slice; the cap
 --   counts what the ledger says was bought (hr_work_extra_ms: the hook, 0 until a `work` row joins hr_time_blocks).
 --
+-- AMENDED IN PLACE by lane/bench-cut-server (09-crafting.md 4.17, 1079-one-town-work-cut.sql), before it ever applied: the company-trades half is CUT. company_trade_xp (1073-k1-job-slice.sql) is
+--   the one store of a company's trade XP on 09's table, so company_trades, its fold, the projection trigger hr_trade_row_sync,
+--   hr_trade_lock and hr_trade_is, and the section's `trades` never ship; the town read carries no `bench_tax` (the bench tax is cut).
+--   The work day stays whole. The text below the cut describes the file as first written.
 -- ── THE CONTRACT ─────────────────────────────────────────────────────────────
 -- public.company_trades (user_id, trade_id, xp)    NEW: THE ONE COPY of a company's trade XP. A trade is a skill whose hr_skills.cat
 --   is in hr_work_day.trade_cats (gather, artisan: Woodcutting, Mining, Fishing, Farming, Cooking, Crafting, Smithing, Runecrafting).
@@ -111,114 +115,13 @@ begin
     raise exception 'PIN: hr_apply is neither 1040''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
 end $mig$;
 
--- ── §1 THE COMPANY'S TRADES ──────────────────────────────────────────────────
-create table if not exists public.company_trades (
-  user_id    uuid        not null references auth.users (id) on delete cascade,
-  trade_id   text        not null,
-  xp         bigint      not null default 0 check (xp >= 0),
-  updated_at timestamptz not null default now(),
-  primary key (user_id, trade_id)
-);
-alter table public.company_trades enable row level security;
-revoke all on public.company_trades from public, anon, authenticated, service_role;
-comment on table public.company_trades is
-  '1059-company-trades.sql: the one copy of a company''s trade XP (Tyler CR-Q1 a). Every hero''s player_skills row for a trade is its projection (hr_trade_row_sync).';
-
--- ── §2 WHAT A TRADE IS, AND THE ACCOUNT'S TRADE KEY ──────────────────────────
--- plpgsql, not sql: each is called per row or per settle, and a plpgsql body's plan is cached for the backend (tests/settle-budget.mjs SB-3).
-create or replace function public.hr_trade_is(p_skill text)
-returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
-begin
-  -- COMPANY-TRADES (1059-company-trades.sql): a skill whose catalogue category is a trade category (hr_work_day, src/data/work-day.js).
-  return exists (select 1 from public.hr_skills k join public.hr_work_day w on w.id
-                  where k.skill_id = p_skill and k.cat = any (w.trade_cats));
-end $fn$;
-
-create or replace function public.hr_trade_lock(p_user uuid)
-returns void language plpgsql set search_path = public, pg_catalog as $fn$
-begin
-  -- COMPANY-TRADES (1059-company-trades.sql): the account's trade key, the last lock a writer of trade XP takes (header, CONCURRENCY).
-  perform pg_advisory_xact_lock(hashtextextended('hr_trades:' || p_user::text, 0));
-end $fn$;
-
+-- ── §1-§2 WHAT TOWN WORK IS (the company-trades table and its key were cut: the header) ──────────────────────────────────────
 create or replace function public.hr_work_kinds()
 returns text[] language plpgsql stable set search_path = public, pg_catalog as $fn$
 begin
   -- COMPANY-TRADES (1059-company-trades.sql): the pointer kinds that are town work (hr_work_day, src/data/work-day.js WORK_KINDS).
   return coalesce((select w.work_kinds from public.hr_work_day w where w.id), '{}'::text[]);
 end $fn$;
-
--- ── §3 THE FOLD: EACH COMPANY'S BEST, ON EVERY HERO (once; a second apply writes nothing) ─────────────────────────────────────
-drop trigger if exists hr_trade_row_sync on public.player_skills;
-do $mig$
-declare r record; v_moved int; v_total int := 0; v_accts int := 0;
-begin
-  insert into public.company_trades as c (user_id, trade_id, xp)
-    select s.user_id, s.skill_id, max(s.xp) from public.player_skills s
-     where public.hr_trade_is(s.skill_id)
-     group by s.user_id, s.skill_id
-    on conflict (user_id, trade_id) do update set xp = greatest(c.xp, excluded.xp)
-     where excluded.xp > c.xp;
-  -- every hero a row for every trade (a hero older than a trade, the b370 lesson), at its company's total
-  insert into public.player_skills (user_id, slot, skill_id, xp)
-    select ps.user_id, ps.slot, k.skill_id, coalesce(c.xp, 0)
-      from public.player_state ps
-      cross join public.hr_skills k
-      left join public.company_trades c on c.user_id = ps.user_id and c.trade_id = k.skill_id
-     where public.hr_trade_is(k.skill_id)
-    on conflict (user_id, slot, skill_id) do nothing;
-  for r in select c.user_id, jsonb_object_agg(c.trade_id, c.xp order by c.trade_id) as trades,
-                  (select min(ps.slot) from public.player_state ps where ps.user_id = c.user_id) as slot
-             from public.company_trades c
-            where exists (select 1 from public.player_skills s where s.user_id = c.user_id and s.skill_id = c.trade_id and s.xp <> c.xp)
-            group by c.user_id loop
-    update public.player_skills s set xp = c.xp
-      from public.company_trades c
-     where c.user_id = r.user_id and s.user_id = c.user_id and s.skill_id = c.trade_id and s.xp <> c.xp;
-    get diagnostics v_moved = row_count;
-    if r.slot is not null then
-      insert into public.player_ledger (user_id, slot, kind, intent, meta)
-        values (r.user_id, r.slot, 'admin', 'company_trades_fold',
-                jsonb_build_object('trades', r.trades, 'rows_raised', v_moved, 'why', 'Tyler 2026-11-22 CR-Q1 a: trade Levels are the company''s'));
-    end if;
-    v_total := v_total + v_moved; v_accts := v_accts + 1;
-  end loop;
-  raise notice 'company-trades fold: % account(s), % hero trade row(s) raised to their company''s best (max, nothing minted)', v_accts, v_total;
-end $mig$;
-
--- ── §4 THE PROJECTION ────────────────────────────────────────────────────────
-create or replace function public.hr_trade_row_sync()
-returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
-declare v_x bigint;
-begin
-  -- COMPANY-TRADES (1059-company-trades.sql): a trade row IS its company's XP. The rules are the file header's THE PROJECTION.
-  if not public.hr_trade_is(new.skill_id) then return new; end if;
-  perform public.hr_trade_lock(new.user_id);
-  if tg_op = 'INSERT' then
-    -- an upsert of a row the hero has: its DO UPDATE is the write (and fires this trigger as an UPDATE)
-    if exists (select 1 from public.player_skills s where s.user_id = new.user_id and s.slot = new.slot and s.skill_id = new.skill_id) then
-      return new;
-    end if;
-    insert into public.company_trades as c (user_id, trade_id, xp) values (new.user_id, new.skill_id, greatest(0, coalesce(new.xp, 0)))
-      on conflict (user_id, trade_id) do update set xp = c.xp + greatest(0, coalesce(excluded.xp, 0)), updated_at = now()
-      returning c.xp into v_x;
-  else
-    if new.xp is not distinct from old.xp then return new; end if;
-    select c.xp into v_x from public.company_trades c where c.user_id = new.user_id and c.trade_id = new.skill_id;
-    -- the fan-out's own write (or a write of the total it already holds)
-    if new.xp is not distinct from v_x then return new; end if;
-    insert into public.company_trades as c (user_id, trade_id, xp) values (new.user_id, new.skill_id, greatest(0, coalesce(new.xp, 0)))
-      on conflict (user_id, trade_id) do update set xp = greatest(0, coalesce(excluded.xp, 0)), updated_at = now()
-      returning c.xp into v_x;
-  end if;
-  new.xp := v_x;
-  -- every other hero of the company reads the same total (rows in place: no key column moves)
-  update public.player_skills s set xp = v_x
-   where s.user_id = new.user_id and s.skill_id = new.skill_id and s.slot <> new.slot and s.xp is distinct from v_x;
-  return new;
-end $fn$;
-create trigger hr_trade_row_sync before insert or update of xp on public.player_skills
-  for each row execute function public.hr_trade_row_sync();
 
 -- ── §5 THE WORK DAY ──────────────────────────────────────────────────────────
 alter table public.player_state add column if not exists work_day date;
@@ -304,18 +207,17 @@ returns jsonb language plpgsql stable security definer set search_path = public,
 declare v jsonb; v_cap bigint; v_t bigint;
 begin
   -- THE SECTION `work_day` (1059-company-trades.sql): the hero's work day as the server holds it. The engine's half (hr_work_state:
-  -- `day`/`used_ms` the stored state it starts from); `today_ms`/`left_ms`/`cap_ms` today's, as of the last settle; `trades` the
-  -- company's trades (every hero reads their Levels in `skills`, the projection of company_trades).
+  -- `day`/`used_ms` the stored state it starts from); `today_ms`/`left_ms`/`cap_ms` today's, as of the last settle. The company's
+  -- trade Levels are the trade_jobs section's (company_trade_xp, 1073).
   v := public.hr_work_state(p_user, p_slot);
   if v is null then return null; end if;
   v_cap := (v->>'base_ms')::bigint + (v->>'extra_ms')::bigint;
   v_t := case when v->>'day' = v->>'today' then (v->>'used_ms')::bigint else 0 end;
   return v || jsonb_build_object('cap_ms', v_cap, 'today_ms', v_t, 'left_ms', greatest(0, v_cap - v_t),
-    'premium', public.hr_premium_active(p_user, p_slot, now()),
-    'trades', coalesce((select jsonb_agg(k.skill_id order by k.skill_id) from public.hr_skills k where public.hr_trade_is(k.skill_id)), '[]'::jsonb));
+    'premium', public.hr_premium_active(p_user, p_slot, now()));
 end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
-  ('work_day', 'hr_work_day_view', '1059-company-trades.sql: the hero''s town work day (used, cap, left) and the company''s trades')
+  ('work_day', 'hr_work_day_view', '1059-company-trades.sql: the hero''s town work day (used, cap, left)')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §5b THE WORLD TICK'S TOWN READ CARRIES THE DAY (1048-narrow-town-read.sql's hr_tick_town_state, restated whole + one key) ─────
@@ -326,7 +228,7 @@ declare v_md5 text;
 begin
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_tick_town_state(uuid,integer)');
   if v_md5 is null then raise exception 'PRECONDITION: 1048-narrow-town-read.sql first (hr_tick_town_state)'; end if;
-  if v_md5 not in ('e702b0fd863d73ea2a9f88704023ed5b', 'c11bd877a9342fbe9c79caa679e6f538') then
+  if v_md5 not in ('3b7573c0e5e750259d9959b07f8251cf', '9fb6510d3f33b90ee0d9300b54fdc113') then
     raise exception 'PIN: hr_tick_town_state is neither 1048''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
 end $mig$;
 create or replace function public.hr_tick_town_state(p_user uuid, p_slot integer)
@@ -355,7 +257,6 @@ begin
       select jsonb_object_agg(item_id, qty)
         from public.account_bank where user_id = p_user), '{}'::jsonb),
     'bench_run', public.hr_bench_run_view(p_user, v_st.slot),
-    'bench_tax', public.hr_bench_tax_view(p_user, v_st.slot),
     'skill_inputs', public.hr_skill_inputs_view(p_user, v_st.slot),
     -- WORK-DAY (1059-company-trades.sql): the hero's work day, the engine's half of the `work_day` section
     'work_day', public.hr_work_state(p_user, v_st.slot));
@@ -447,8 +348,7 @@ end $mig$;
 do $grants$
 declare v_sig text; v_role text;
 begin
-  foreach v_sig in array array['public.hr_trade_is(text)', 'public.hr_trade_lock(uuid)', 'public.hr_work_kinds()',
-                               'public.hr_trade_row_sync()',
+  foreach v_sig in array array['public.hr_work_kinds()',
                                'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date)',
                                'public.hr_work_base_ms(uuid,integer)', 'public.hr_work_extra_ms(uuid,integer)',
                                'public.hr_work_state(uuid,integer)', 'public.hr_work_day_view(uuid,integer)'] loop
@@ -473,7 +373,7 @@ do $$
 declare
   c_u constant uuid := '000000c0-0000-4000-a000-000000c01059';
   k constant text := '000000c0-0000-4000-a000-0000';
-  v jsonb; v_ver bigint; v_node text; v_x bigint; v_n int; v_st public.player_state%rowtype; v_cap bigint; v_role text; v_y timestamptz;
+  v jsonb; v_ver bigint; v_node text; v_kind text; v_skill text; v_x bigint; v_n int; v_st public.player_state%rowtype; v_cap bigint; v_role text; v_y timestamptz;
 begin
   begin
     insert into auth.users (id) values (c_u) on conflict (id) do nothing;
@@ -486,40 +386,13 @@ begin
     v := public.hr_create_character(1);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-trades §8-harness: hero 1 refused: %', v; end if;
     update public.player_state set premium_until = null where user_id = c_u;
-    select a.activity_id into v_node from public.hr_activities a where a.kind = 'gather' and a.req_skill = 'mining' and coalesce(a.req_lv, 1) <= 1
-     order by a.activity_id limit 1;
-    if v_node is null then raise exception 'company-trades §8-harness: no level-1 mining node'; end if;
-
-    -- (a) THE PROJECTION
-    select version into v_ver from public.player_state where user_id = c_u and slot = 0;
-    v := public.hr_apply(c_u, 0, v_ver, (k || '0c105901')::uuid, jsonb_build_object('xp', jsonb_build_object('mining', 100, 'melee', 7),
-           'journal', jsonb_build_object('kind', 'admin', 'intent', 'company_trades_probe')));
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-trades §8(a): hero 0''s credit refused: %', v; end if;
-    select version into v_ver from public.player_state where user_id = c_u and slot = 1;
-    v := public.hr_apply(c_u, 1, v_ver, (k || '0c105902')::uuid, jsonb_build_object('xp', jsonb_build_object('mining', 50),
-           'journal', jsonb_build_object('kind', 'admin', 'intent', 'company_trades_probe')));
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-trades §8(a): hero 1''s credit refused: %', v; end if;
-    perform public.hr_apply(c_u, 1, v_ver, (k || '0c105902')::uuid, jsonb_build_object('xp', jsonb_build_object('mining', 50),
-           'journal', jsonb_build_object('kind', 'admin', 'intent', 'company_trades_probe')));
-    select xp into v_x from public.company_trades where user_id = c_u and trade_id = 'mining';
-    if v_x is distinct from 150
-       or (select xp from public.player_skills where user_id = c_u and slot = 0 and skill_id = 'mining') is distinct from 150
-       or (select xp from public.player_skills where user_id = c_u and slot = 1 and skill_id = 'mining') is distinct from 150 then
-      raise exception 'company-trades §8(a): Mining company % hero 0 % hero 1 % (want 150 each)', v_x,
-        (select xp from public.player_skills where user_id = c_u and slot = 0 and skill_id = 'mining'),
-        (select xp from public.player_skills where user_id = c_u and slot = 1 and skill_id = 'mining'); end if;
-    if (select xp from public.player_skills where user_id = c_u and slot = 0 and skill_id = 'melee')
-       = (select xp from public.player_skills where user_id = c_u and slot = 1 and skill_id = 'melee') then
-      raise exception 'company-trades §8(a): a combat skill moved on the other hero'; end if;
-    if exists (select 1 from public.company_trades c where c.user_id = c_u and not public.hr_trade_is(c.trade_id)) then
-      raise exception 'company-trades §8(a): a combat skill has a company row'; end if;
-    v := public.hr_create_character(2);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-trades §8-harness: hero 2 refused: %', v; end if;
-    if (select xp from public.player_skills where user_id = c_u and slot = 2 and skill_id = 'mining') is distinct from 150 then
-      raise exception 'company-trades §8(a): a new hero was not born at the company''s Mining'; end if;
-    if exists (select 1 from public.player_skills s join public.company_trades c on c.user_id = s.user_id and c.trade_id = s.skill_id
-                where s.user_id = c_u and s.xp <> c.xp) then
-      raise exception 'company-trades §8(a): a hero''s trade row is not its company''s'; end if;
+    -- a level-1 town job: a gathering node while the catalogue has one, else the Great Hearth's fuel run (the cut keeps only that,
+    -- 09 4.17); its window is journalled `gather` either way (the work day is the subject, and a retried apply after the cut
+    -- replays this hr_apply image, whose bench-tax craft branch calls what the cut dropped)
+    select a.kind, a.activity_id, a.req_skill into v_kind, v_node, v_skill from public.hr_activities a
+     where a.kind = any (public.hr_work_kinds()) and a.req_skill is not null and coalesce(a.req_lv, 1) <= 1
+     order by (a.kind = 'gather') desc, a.activity_id limit 1;
+    if v_node is null then raise exception 'company-trades §8-harness: no level-1 town job'; end if;
 
     -- (b) THE TWIN
     v := public.hr_work_fold('2026-11-20', 7 * 3600000, '2026-11-20T23:00:00Z', '2026-11-21T03:00:00Z', 8 * 3600000, 0, '2026-11-21');
@@ -536,7 +409,7 @@ begin
     --     to 18:01 (8 h 1 min) is refused, a window to 18:00 (the 8 h cap) lands
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '0c105903')::uuid, jsonb_build_object('activity',
-           jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 100000, 'next', 'wait')));
+           jsonb_build_object('kind', v_kind, 'id', v_node, 'restart', true, 'count', 100000, 'next', 'wait')));
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'company-trades §8(c): starting the job was refused: %', v; end if;
     v_cap := public.hr_work_base_ms(c_u, 0);
     if v_cap <> 8 * 3600000 then raise exception 'company-trades §8(c): a free day is % ms, want 8 h', v_cap; end if;
@@ -545,18 +418,16 @@ begin
      where user_id = c_u and slot = 0;
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '0c105904')::uuid, jsonb_build_object(
-           'accrued_to', v_y + interval '18 hours 1 minute', 'xp', jsonb_build_object('mining', 10),
+           'accrued_to', v_y + interval '18 hours 1 minute', 'xp', jsonb_build_object(v_skill, 10),
            'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue')));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if v->>'error' is distinct from 'work_cap' or v_st.work_ms <> 0 or v_st.version <> v_ver
-       or (select xp from public.company_trades where user_id = c_u and trade_id = 'mining') <> 150 then
+    if v->>'error' is distinct from 'work_cap' or v_st.work_ms <> 0 or v_st.version <> v_ver then
       raise exception 'company-trades §8(c): a window past the cap answered % (work_ms %)', v, v_st.work_ms; end if;
     v := public.hr_apply(c_u, 0, v_ver, (k || '0c105905')::uuid, jsonb_build_object(
-           'accrued_to', v_y + interval '18 hours', 'xp', jsonb_build_object('mining', 10),
+           'accrued_to', v_y + interval '18 hours', 'xp', jsonb_build_object(v_skill, 10),
            'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue')));
     select * into v_st from public.player_state where user_id = c_u and slot = 0;
-    if coalesce(v->>'ok', '') <> 'true' or v_st.work_day is distinct from (v_y at time zone 'utc')::date or v_st.work_ms <> v_cap
-       or (select xp from public.company_trades where user_id = c_u and trade_id = 'mining') <> 160 then
+    if coalesce(v->>'ok', '') <> 'true' or v_st.work_day is distinct from (v_y at time zone 'utc')::date or v_st.work_ms <> v_cap then
       raise exception 'company-trades §8(c): a window to the cap answered % (day %, work_ms %)', v, v_st.work_day, v_st.work_ms; end if;
     -- a forged work_to: no instant, or beside no accrual
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
@@ -570,11 +441,11 @@ begin
     update public.player_state set work_day = (now() at time zone 'utc')::date, work_ms = v_cap where user_id = c_u and slot = 0;
     select version into v_ver from public.player_state where user_id = c_u and slot = 0;
     v := public.hr_apply(c_u, 0, v_ver, (k || '0c105907')::uuid, jsonb_build_object('activity',
-           jsonb_build_object('kind', 'gather', 'id', v_node, 'restart', true, 'count', 20, 'next', 'wait')));
+           jsonb_build_object('kind', v_kind, 'id', v_node, 'restart', true, 'count', 20, 'next', 'wait')));
     if v->>'error' is distinct from 'work_cap' then raise exception 'company-trades §8(c): a new job on a spent day answered %', v; end if;
     -- the section says so, and Premium's day is 10 h
     v := public.hr_state_of(c_u, 0)->'work_day';
-    if (v->>'left_ms')::bigint <> 0 or (v->>'cap_ms')::bigint <> v_cap or not (v->'trades' ? 'mining') or v->'trades' ? 'melee' then
+    if (v->>'left_ms')::bigint <> 0 or (v->>'cap_ms')::bigint <> v_cap or v ? 'trades' then
       raise exception 'company-trades §8(c): the section reads %', v; end if;
     update public.hr_flags set enabled = true where key = 'beta_premium';
     if public.hr_work_base_ms(c_u, 0) <> 10 * 3600000 then
@@ -586,26 +457,19 @@ begin
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   perform set_config('request.jwt.claims', '', true);
-  if exists (select 1 from public.player_state where user_id = c_u) or exists (select 1 from public.company_trades where user_id = c_u) then
+  if exists (select 1 from public.player_state where user_id = c_u) then
     raise exception 'company-trades §8: LEAKED a probe row'; end if;
   -- (d) THE SURFACE
   foreach v_role in array array['anon', 'authenticated'] loop
-    if has_table_privilege(v_role, 'public.company_trades', 'select') or has_table_privilege(v_role, 'public.company_trades', 'update')
-       or has_function_privilege(v_role, 'public.hr_work_day_view(uuid,integer)', 'execute')
-       or has_function_privilege(v_role, 'public.hr_trade_lock(uuid)', 'execute')
+    if has_function_privilege(v_role, 'public.hr_work_day_view(uuid,integer)', 'execute')
        or has_function_privilege(v_role, 'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date)', 'execute') then
-      raise exception 'company-trades §8(d): % reaches the company''s trades or the work day', v_role; end if;
+      raise exception 'company-trades §8(d): % reaches the work day', v_role; end if;
   end loop;
   if not exists (select 1 from public.hr_state_sections where key = 'work_day' and fn = 'hr_work_day_view') then
     raise exception 'company-trades §8(d): the work_day section is not registered'; end if;
-  if not exists (select 1 from pg_trigger where tgname = 'hr_trade_row_sync' and tgrelid = 'public.player_skills'::regclass) then
-    raise exception 'company-trades §8(d): the projection trigger is missing'; end if;
   select (length(prosrc) - length(replace(prosrc, 'WORK-DAY (1059', ''))) / length('WORK-DAY (1059') into v_n
     from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure;
   if v_n <> 4 then raise exception 'company-trades §8(d): hr_apply carries % WORK-DAY edits, want 4', v_n; end if;
-  if exists (select 1 from public.player_skills s join public.company_trades c on c.user_id = s.user_id and c.trade_id = s.skill_id
-              where s.xp <> c.xp) then
-    raise exception 'company-trades §8(d): a hero''s trade row is not its company''s'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'company-trades: trade XP is the company''s (projected on every hero), a hero''s town work stops at its day (8 h, 10 h Premium), work_cap refuses a window past it and a new job on a spent day; all green';
+  raise notice 'company-trades: a hero''s town work stops at its day (8 h, 10 h Premium), work_cap refuses a window past it and a new job on a spent day; all green';
 end $$;

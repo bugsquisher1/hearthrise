@@ -104,7 +104,7 @@ begin
     raise exception 'PRECONDITION: apply 2027-01-18-dead-surfaces-cut.sql, 2027-03-14-jewelry-hallmark.sql and 1004-tick-pack-heroes.sql first'; end if;
   -- THE PINS. Any other body is a concurrent restatement: refuse, never silently revert it (re-derive this file from it).
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure;
-  if v_md5 not in ('e0a71bfea1bf596df13f9cbfc59f5cf3', 'e04ff4a811d10d931ba8125ad2aa8b0d') then
+  if v_md5 not in ('e0a71bfea1bf596df13f9cbfc59f5cf3', '4d4deea9ef47e58083ccbde727dbad20') then
     raise exception 'PIN: hr_state_of moved (md5 %): re-derive this restatement from the new body', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_server_now()'::regprocedure;
   if v_md5 not in ('da61e5f17e005006466464900f8100ac', 'c2f9a557ce4b6f3eb51a110d5167bdd8') then
@@ -163,6 +163,8 @@ returns jsonb language plpgsql security definer set search_path = public as $fun
 -- restated again WHOLE by lane/c-approved-cuts (Tyler 2026-11-20, build plan L10): the old dungeons' `dungeon_cooldowns`
 -- and `state.dungeon_scrip`, the bond's `state.hearth_tokens` and the gem rows' `gem_unlocks` leave the envelope with
 -- the functions, tables and columns they read. Nothing else moved.
+-- Amended in place by lane/bench-cut-server (09 4.17, 1079-one-town-work-cut.sql): `unlocked_recipes` leaves with the recipe verbs
+-- (no hr_unlocks row is a recipe since the cookbook cut, so the key was always {}). Nothing else moved.
 -- This body is AUTHORED HERE. Do not add an anchored programmatic patch to it:
 -- tests/patch-chain-guard.mjs refuses a third one, and twenty-four of them are
 -- how the envelope every client renders came to exist in no file at all.
@@ -440,15 +442,6 @@ begin
     -- ── total_level — derived server-side ──
     --    introduced by 2026-08-11-apply-engine.sql
     'total_level', public.hr_total_level(p_user, v_st.slot),
-    -- recipe-learn (2026-09-14): the gated recipes THIS CHARACTER has learned,
-    -- in the client's own `{ "<scroll_id>": true }` shape. Written only by
-    -- hr_recipe_learn (there is no client write policy and no client write grant
-    -- on player_progress); the SAME rows hr_perks_of hands the away engine, so
-    -- the attended screen and the night finally read one set. `{}` on a fresh
-    -- character is a known state, not an error: no row is a LOCKED recipe.
-    -- ── unlocked_recipes — the gated recipes THIS character has learned ──
-    --    introduced by 2026-09-14-recipe-learn.sql
-    'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),
     -- THE SERVER'S COUNTED RENOWN (2026-09-12). The high-water hr_claim_rank
     -- decides every rank against, cached on player_state by the ratchet §1 added
     -- to hr_apply. Read straight off the row this function already selected, so
@@ -1561,7 +1554,7 @@ declare
     'hr_start_kit.hearth_tokens'];
   c_top   constant text[] := array['ok', 'version', 'now', 'level', 'vitals', 'buffs', 'place', 'stamina', 'state', 'skills',
     'inventory', 'bank', 'equipment', 'enchant', 'progress', 'progress_truncated', 'client_state', 'total_level',
-    'unlocked_recipes', 'renown_high', 'bounty', 'hero_slots', 'traits', 'companions', 'must_rename', 'inventory_complete',
+    'renown_high', 'bounty', 'hero_slots', 'traits', 'companions', 'must_rename', 'inventory_complete',
     'farm_land'];
   c_state constant text[] := array['slot', 'gold', 'gold_v', 'gems', 'marks', 'hp', 'max_hp', 'level_xp', 'bank_cap',
     'active_kind', 'active_id', 'active_since', 'accrued_to', 'combat_xp_accrued_to', 'tool_carry',
@@ -1607,7 +1600,7 @@ begin
   end if;
 
   -- (b) THE THREE RESTATED BODIES.
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> 'e04ff4a811d10d931ba8125ad2aa8b0d'
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_state_of(uuid,integer)'::regprocedure) <> '4d4deea9ef47e58083ccbde727dbad20'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_server_now()'::regprocedure) <> 'c2f9a557ce4b6f3eb51a110d5167bdd8'
      or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) <> 'e2af9f791457942c87e71b3e9fdc8b34' then
     raise exception 'approved-cuts §7(b): a restated body is not this file''s image'; end if;

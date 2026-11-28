@@ -273,6 +273,78 @@ The lucky four holds 692.7 of Muster's 700, so the ground's top may hold this re
 
 **A finding for batch 3: a rule that pays on a kill reads under.** Five kill-keyed shapes were read and none reached the band: the Blade's reset per kill, the Saber's free cast on a kill (2.2) and its Blunted on a kill (1.0), the Coal Runner's Bow (-2.2) and the Hall Fire Wand's burst (4.1). A kill lands as a pull thins. Batch 3's kill-keyed rows (#22, #31, #33) read their moments first (`moments.mjs`), before 12 seeds are spent on them.
 
+## Batch 3, measured (systems, lane/signatures-batch-3, 2026-11-27)
+
+**How it plays:** fifteen more Signatures work in the fight engine for a hero that wears one. Players still see none (`SIGNATURE_RULES.live` false). Each is reaction rows on the shared pieces plus these new general ones, and two rules that are no reaction are read where they act:
+
+| Piece | What it is | First used by | Later rows that can reuse it |
+|---|---|---|---|
+| A pull begins | a moment when a pack turns on the party (`pull-cycle.js` startPull), the pack its monsters | #42 | any pull-start rule |
+| A moment's monsters | a `status` lands on the monsters a moment names (`list`): a pull's pack, the monsters a Challenge took | #42, #1 | |
+| A rune family | the moment's move spends a rune of that family (`family`) | #24, #27 | every rune Signature |
+| Single target, boss, alone | a swing or a one-enemy move, a boss monster, no other hero of the wearer's side in the world | #43, #38, #22 | |
+| Once every N moments | the moments that pass a row's filters, counted on the hero's cooldowns; the row works on each Nth (`every`). A chance with no dice | #31 | any "a 20% chance" row |
+| Where it lands | a heal on the moment's hero or the party, mana on the moment's hero as a share of the heal, a boon on the wearer or the party (`to`) | #26, #31, #27, #20, #38 | |
+| A rune saved | every Nth cast of a family's spell pays no rune (`saves`, `abilities.js` fire) | #25 | |
+| A raised stack cap | the wearer's stacks of a status land past its cap (`stackPlus`, `status.js`) | #29 | |
+| Steeped | a status on Kindled's key: the next Greater Mend raised | #20 | |
+
+**The pick: 15 of the 24.** Batch 3 is the reaction rows. The other nine need pieces that are no reaction, so they go to batch 4:
+
+| Left for batch 4 | The piece it needs |
+|---|---|
+| #34 Sergeant's Sash, #35 Gatekeeper's Plate | a standing aura: monsters within r of the wearer deal less, allies within r regenerate more mana |
+| #45 Convoy Bell, #46 Lead Rein | the same standing piece, held while the partner is in the party |
+| #32 Ledger Ring, #37 Lychgate Leggings, #44 Pyre Priest's Hood | a cast that costs no mana, or costs health |
+| #40 Hearth Mason's Cloak | a remains share on the drop roller (lane/drop-formula's roller, `13` N-9 and N-11) |
+| #41 Brood Bracers | a design call first. The reference ranger shoots store arrows bought a shot, so "returns to your quiver" is a refund or a minted arrow (`13` N-14) |
+
+With the support's 8, #8, #30, Parry and Gash, batch 4 is 21, one over a batch. Power Strike has no Signature in the pool, so CC-5 goes red on it once Signatures are live. Undertow is cut in `23` but is still a live move in `abilities.js`.
+
+**Done, verified and assumed, kept apart:** every row's rule is proven in `tests/hunt-core/signature-rules.mjs` (one case a row, each with its mutant: 40 cases, 68 mutants caught) and on the real settle (both paths: the Boots' Chill at a pull's instant, the Tooth's carried overkill, the Ring's echo and the Key's party heal, each settling the same in 10-minute and 100-second windows). The sizes below are MEASURED. The luck ceiling (the V10 kit sampler) is still owed.
+
+MEASURED on `lane/signatures-batch-3` snapshots ff3b87e33 (the plains: the hunt engine of `set/v0.2.144` a70e10fdf) and c2cb4bba2 (the rows), the shapes on a scratch copy of afbf4cb0b with temporary rows (the two shield shapes also with a scratch `shield` doer that lands on the moment's hero or the party; neither shape was kept, so the doer is not in the tree), `tools/balance-program/redesign/signature-depth/batch3.sh` and `sum.mjs --batch 3`: each Signature on its seat's reference company (MID kits at the ground's reference Level, Steady, 12 seeds x 8 h, held from hour 4), paired against the same four with none on the same seeds. The plain fours were played again on this tree first: the re-cut bands moved them (the Muster tank four's first seed held 671 in batch 2 and 672 here, its pace 0.90 and 1.00 of the hours table). engine-parity held with the switch off, before and after merging the set at 669db6867, so the readings stand on the merged tree. Each seed's pace is now read to five places (v1-climb `payX.exact`): batch 2's hundredths moved a paired reading in quanta of about 2.6 pace steps. Shapes tried were temporary ids on a scratch copy, taken out (the `b3v-*` reports).
+
+| Signature (seat) | Best cell | Plain held | Held delta (se) | Pace steps (se) | Coin a hero-hour | Second ground | Its pace steps (se) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| #19 Lock-Keeper's Chain (healer) | Muster Barrows | 606.0 | +13.3 (2.7) | **+12.0 (2.7)** | | The Slake | +3.3 (1.7) | **In band, spread holds.** Can turn on |
+| #20 Greened Bracers (healer) | Muster Barrows | 606.0 | +8.0 (3.0) | **+7.2 (2.8)** | | The Slake, its home | +5.0 (1.6) | **In band, spread holds within its se.** Can turn on |
+| #22 Slake Waders (a lone sword) | The Slake, its home | 52.5 | +5.6 (0.8) | **+7.5 (0.8)** | | Muster Barrows | -0.0 (1.5) | **In band, spread holds.** Can turn on |
+| #1 Bannerman's Pavise (tank) | Muster Barrows | 669.3 | -1.8 (2.8) | -1.3 (2.7) | | (the tank's others pinned or unsettled) | | Under. Dark |
+| #42 Night Carter's Boots (tank) | Muster Barrows | 669.3 | -1.8 (1.8) | -1.9 (1.8) | | | | Under. Dark |
+| #26 Thrower's Ring (healer) | Muster Barrows | 606.0 | +1.4 (2.5) | +1.1 (2.1) | | | | Under (a heal). Dark |
+| #31 The Cellar Key (healer) | Muster Barrows | 606.0 | +0.3 (2.0) | +0.0 (1.8) | | | | Under (a heal). Dark |
+| #24 Stoker's Ring (mage) | Muster Barrows | 606.0 | +0.2 (2.5) | +0.2 (2.2) | | | | Under (a rare moment). Dark |
+| #43 Bull's Tooth (ranger) | Muster Barrows | 606.0 | +0.2 (2.9) | +0.3 (2.5) | | | | Under (a rare moment). Dark |
+| #28 Vault Leech Ring (healer) | Muster Barrows | 606.0 | -1.6 (3.7) | -1.3 (3.4) | | | | Under. Dark |
+| #38 Drowned Signet (ranger) | Muster Barrows, the Captain's ground | 606.0 | +2.6 (3.5) | +2.6 (3.4) | | | | Under (a boss-fight piece). Dark |
+| #29 Fledgling Claw (axes) | Muster Barrows | 608.5 | +0.0 (0.0) | +0.0 (0.0) | | | | No moment: the identical hunt. Dark |
+| #25 The Cold Candle (mage), 4 seeds | Muster Barrows | 608.1 | +0.0 (0.0) | +0.0 (0.0) | store -107, all runes | | | A coin piece: the identical fight, the four's store bill 2.3% lower |
+| #27 Riverstone Earrings (healer), 4 seeds | Muster Barrows | 608.1 | -3.3 (2.1) | -3.0 (2.1) | store -51 (drink -41) | | | A coin piece: 1.1% off the bill |
+| #33 Teamster's Mitts (tank), 4 seeds | Muster Barrows | 673.1 | +0.0 (0.0) | +0.0 (0.0) | 0 | | | No moment: the tank never drinks. Dark |
+
+Shapes tried (each against its row's plain four):
+
+| Shape | Held delta (se) | Pace steps (se) | Reading |
+|---|---|---|---|
+| #31 every fifth death: a shield of 3% on each hero of the party | +0.5 (2.5) | +0.2 (2.1) | A 3% shell never replaces the healer's bigger Protective Ward |
+| #26 a shell you cast breaks: its hero gets a 6% shield | +103.3 (1.8) | **+115.7 (2.6)** | Runs away: the new shell is the wearer's too, so its break sets the rule off again, blow after blow |
+| #26 the same, once every 30 s a hero | +1.4 (2.6) | +1.1 (2.2) | Under. The strength was all in the chain |
+| #1 a Challenge: the monsters it taunts Weakened (-8%, 8 s) | -0.8 (1.5) | -1.0 (1.5) | Under |
+| #42 a pull: its pack Weakened (-8%, 8 s) | -2.3 (1.8) | -2.0 (1.9) | Under. Even the whole pack's blows cut for the pull's first 8 s buys nothing |
+
+**What the readings say.**
+
+- **A save reads, a top-up does not.** The Chain brings Spring Tide back as a hero crosses its near-fall line (12.0). The Bracers raise the next Greater Mend, which the healer casts at the hero under 80% (7.2). The Waders heal a lone hero, which no healer covers (7.5). The Key's party heal (0.0) and the Ring's heal on a broken shell (1.1) land when the healer has the pull covered, so they are overheal. Heal rules behave the way mana did in batch 2: they read where healing binds. Batch 4's #45 inherits this.
+- **A shield-on-break rule needs a clock, and the clock is its size.** Unclocked, the Ring's shell renewed itself on every breaking blow (+115.7). At 30 s it read 1.1. "A reaction never sets off another" holds inside one drain, not across blows, so any rule that answers a broken shell with a shell carries a clock.
+- **A rare moment reads nothing at any number.** The Stoker's echo is about 0.5% of the mage's damage (its Fire hits seldom find a chilled monster), the Tooth's carried overkill about 1% of the bow's, the Signet's boon about 70 s an hour (Captain Hask dies about 7 times an hour on Muster; the piece is for his own fight, which the harness does not play).
+- **No moment, the identical hunt:** the Claw (the axes' Bleed never stands at five on one monster: Rend lays one a cast and a stack lasts 6 s) and the Mitts (the tank's mana never runs low, so it never drinks).
+- **The Challenge's room is crowded by its own Roads.** Shield Priest heals on a taunt, Taunting Guard shields on one, Hard Challenge and Braced Call cut what the tank takes. Armor Break on the taunted is damage on monsters already held (-1.3), and Weakened on them read -1.0. A Challenge Signature that reads has to pay at the tank's danger moment, the way Ferry Pennies does (a Mend under 45%, 12.7 in batch 2), and none of the Challenge's own moments is that.
+- **The pull's start is not the tank's danger.** A 3 s Chill is spent while the pack walks in (-1.9), and the whole pack Weakened for the pull's first 8 s read -2.0. The tank rows that read in batch 2 pay on a moment of the fight itself (its shell breaking, its Frost Slam landing, its Mend under 45%), never on the pull's start. The Boots stay as written, dark, for the designer. (A Chill of 8 s on the pull and on the taunted were queued and not played: the Weakened readings answered them.)
+- **Coin pieces have no bar yet.** The Candle's fight is identical and its four's store bill is 107 coin a hero-hour lower (2.3%), the Riverstone's 51 (1.1%). 15 sizes coin pieces with the market, which has no number yet.
+- **Repetition, audited.** Armor Break is new to Signatures (#1). Chill gains a pull-start source (#42). Emboldened carries #18 and #38, "a hero's next cast raised" #16 (Kindled) and #20 (Steeped), the shell's break #3 (Guarded) and #26 (a heal). Different seats, moves and moments, one status a key.
+- **The luck ceiling (V10)** is still owed. No batch-3 row turns on before the kit sampler reads it with its seat's Traits.
+
 ## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
@@ -298,9 +370,9 @@ The lucky four holds 692.7 of Muster's 700, so the ground's top may hold this re
 ## Shield
 
 **1. Bannerman's Pavise** · Shield · Drops from: Hask's Ford, Bannerman
-Challenge: the first blow from each monster you taunt lands at half damage
+Challenge: monsters it taunts lose a quarter of their armor for 6 s
 Best for: Tank
-Note: Takes the edge off a pull while the tank sits near its 20% line. Works with every Challenge branch. (Dropped 2026-11-26, batch 2: the reference tank holds its pulls without a Challenge, about 9 casts and 13 monsters taunted an hour on Muster, so the rule had no moment to pay on: -0.2 (2.9) on Muster, +0.5 on its home, where the tank four sits at the top. A Challenge Signature needs a moment the tank meets. Its piece, Blunted, went to #4 and #23.)
+Note: The tank calls them off the back row and opens their guard for the party. Works with every Challenge branch (none of them touches armor). (Batch 3, 2026-11-27: a new rule on the same piece and home. The first-blow rule was dropped in batch 2 at 0.8 pace steps. On this set the played tank casts its Challenge about 270 times an hour, so the taunt is a moment it meets every pull. The Shield Priest vow already heals on a taunt and Taunting Guard shields on one, so this rule takes neither. -1.3 (2.7) pace steps on Muster, and Weakened on the taunted -1.0 (1.5). Dark.)
 
 **2. Ossuary Helm** · Helmet · Drops from: Unmarked Catacombs, Bone Wall
 Frost Slam: you gain a shield of 2% of your max health for each monster it Chills (up to 10%)
@@ -399,15 +471,15 @@ Circle of Renewal: each hero it heals deals 10% more damage for 4s (once per cas
 Best for: Healer
 Note: A healer that adds damage. With Lasting Circle it starts on the first tick.
 
-**19. Passing Bell** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
-Spring Tide: also restores 20% mana to every hero it heals (once a minute)
+**19. Lock-Keeper's Chain** · Necklace · Drops from: The Tower, Hearth Chest (Gold lock)
+A hero near fall-back: Spring Tide is ready again (once every 30 s)
 Best for: Healer
-Note: Refills the casters. Ebb Tide casts more often but doesn't refill more.
+Note: The big heal comes back when it's needed. Works with every Spring Tide branch, best with Turning Tide. (Batch 3, 2026-11-27: the mana rule was cut in batch 2 and the name changed, since the Tower's Gold lock already holds the Passing-Bell Hammer. 12.0 (2.7) pace steps on Muster, the Slake 3.3 (1.7): in band, the spread holds.)
 
 **20. Greened Bracers** · Gloves · Drops from: The Slake, Greened Pikeman
-Green Sickness: restores 2 mana to you for each monster it hits
+Green Sickness: your next Greater Mend heals 30% more
 Best for: Healer
-Note: Offense that pays for heals. Weaker with Single Dose, which hits one monster.
+Note: Offense that pays for heals. Spent on the next Greater Mend, kept 30 s. (Batch 3, 2026-11-27: the mana rule was cut in batch 2. Steeped is Kindled's key, a hero's next cast raised. 7.2 (2.8) pace steps on Muster, the Slake 5.0 (1.6): in band, the spread holds within its se.)
 
 **21. Drover's Hat** · Helmet · Drops from: Ox Road, Drover
 Shields you cast return 25% of the damage they absorb to the attacker
@@ -428,32 +500,32 @@ Note: A late escape for any hero. Best with Second Wind. (Reshaped 2026-11-26, b
 **24. Stoker's Ring** · Ring · Drops from: Pyre Field, Stoker
 Fire rune spells vs a chilled target: +20% damage
 Best for: Mage, Ranger, Melee (sword)
-Note: Ice then fire. Makes a party want both.
+Note: Ice then fire. Makes a party want both. (Batch 3, 2026-11-27: played as a second hit of 20% a sub-step later. 0.2 (2.2) pace steps on Muster. The mage's Fire hits seldom find a chilled monster, so the echo is about 0.5% of its damage. Dark.)
 
 **25. The Cold Candle** · Necklace · Drops from: Keeper Dunn
-Ice rune spells: 30% chance to use no rune
+Ice rune spells: every third one uses no rune
 Best for: Mage, Tank
-Note: Fewer runes to buy for a frost build. Sized with the market.
+Note: Fewer runes to buy for a frost build. Sized with the market. (Batch 3, 2026-11-27: "a 30% chance" is every third, so no dice are drawn and the bill is the same on every seed. On the Security list, `13` N-14. On Muster the fight is identical and the four's store bill is 107 coin a hero-hour lower, 2.3%.)
 
 **26. Thrower's Ring** · Ring · Drops from: Carter's Rest, Slate Thrower
-Earth rune shields: when one breaks, its wearer is healed for 30% of the shield
+When a shield you cast breaks, its wearer heals 6% of max health
 Best for: Tank, Healer, Mage
-Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8.
+Note: Works on Shelter, Protective Ward, Arcane Barrier and #2 and #8. (Batch 3, 2026-11-27: "30% of the shield" became 6% of max health, about the same on a Protective Ward. The engine keeps a shell's points left, not its size, and keeping the size would be a new stored field on every hero. 1.1 (2.1) pace steps on Muster: a heal on a four with a healer is overheal. As a 6% shield it ran away, +115.7, since the new shell breaks too, and at once every 30 s a hero it read 1.1. Dark.)
 
 **27. Riverstone Earrings** · Earrings · Drops from: Hask's Ford, Banded Pikeman
-Water rune heals: also restore mana to the target equal to 10% of the healing
+Water rune heals: the hero healed gets mana equal to 10% of the healing
 Best for: Healer
-Note: Keeps the Mage and the healer going on long hunts.
+Note: Keeps the Mage and the healer going on long hunts. A coin piece: fewer drinks, sized with the market. (Batch 3, 2026-11-27: -3.0 (2.1) pace steps on Muster and 51 coin a hero-hour off the four's bill, 1.1%.)
 
 **28. Vault Leech Ring** · Ring · Drops from: Unmarked Catacombs, Vault Leech
 Poison rune spells: when a monster with their Sickness dies, the Sickness moves to the nearest monster
 Best for: Healer
-Note: Green Sickness is the only Poison rune spell that gives Sickness. The support's Lye spends one too, but it gives Weakened. Best with Single Dose.
+Note: Green Sickness is the only Poison rune spell that gives Sickness. The support's Lye spends one too, but it gives Weakened. Best with Single Dose. (Batch 3, 2026-11-27: -1.3 (3.4) pace steps on Muster. Dark.)
 
 **29. Fledgling Claw** · Necklace · Drops from: Wyvern Roost, Wyvern Fledgling
 Rupture rune spells: Bleed on the target can stack to 6 instead of 5
 Best for: Melee, axes
-Note: Rend spends a Rupture rune, and Gash will too (wave 3). The cap counts for both.
+Note: Rend spends a Rupture rune, and Gash will too (wave 3). The cap counts for both. (Batch 3, 2026-11-27: the wearer's own Bleeds land a sixth stack, any other source stops at five. The axe four on Muster played the identical hunt, 0.0 (0.0): its Bleed never stands at five stacks on one monster, so the rule has no moment. Re-read once Gash lays Bleed too. Dark.)
 
 **30. Raft Builder's Earrings** · Earrings · Drops from: The Tower, Hearth Chest (Silver lock)
 Storm rune spells: the mana they return also goes to the party member lowest on mana
@@ -467,19 +539,19 @@ Note: Updraft is cut, so Brand (4 mana back on a kill, Sword only when live) is 
 ## Procs
 
 **31. The Cellar Key** · Necklace · Drops from: Carter's Rest, The Landlord
-On kill: 20% chance to heal the party for 3% health
+Every fifth monster that dies heals your party for 3% of max health
 Best for: Healer, any
-Note: Best on grounds with big pulls.
+Note: Best on grounds with big pulls. (Batch 3, 2026-11-27: "on kill, a 20% chance" became every fifth death, anyone's blow. A healer kills little, and a count draws no dice. 0.0 (1.8) pace steps on Muster, and as a 3% party shield 0.2 (2.1). Dark.)
 
 **32. Ledger Ring** · Ring · Drops from: Hask's Ford, Ledger Wight
 On crit: your next spell costs no mana (10s cooldown)
 Best for: Mage
-Note: Wants crit on the rest of the kit. Only weapon hits crit today.
+Note: Wants crit on the rest of the kit. Only weapon hits crit today. (Batch 4: a spell that costs no mana is a new engine piece, with #37 and #44.)
 
 **33. Teamster's Mitts** · Gloves · Drops from: Ox Road, Dead Teamster
-On kill: restore 4 mana
+On kill: restore 2% of your max mana
 Best for: Melee
-Note: Fewer drinks on big pulls.
+Note: Fewer drinks on big pulls. A coin piece, sized with the market. (Batch 3, 2026-11-27: 4 mana became a share of the pool, so it means the same at every Level. The tank four on Muster played the identical hunt: a tank never drinks, so mana on a kill does nothing. Dark.)
 
 ## Auras
 
@@ -508,7 +580,7 @@ Note: Lets a healer run low on purpose.
 **38. Drowned Signet** · Ring · Drops from: Captain Hask
 Target boss below 25% health: +15% damage for you and your party for 10s (once per boss)
 Best for: Melee, Ranger
-Note: Hask hits harder below a quarter. This ends him first.
+Note: Hask hits harder below a quarter. This ends him first. (Batch 3, 2026-11-27: Emboldened at 1.5 times its row, on every hero of the party, once a boss. Captain Hask is Muster's boss, about 7 kills an hour for the reference four, so the boon runs about 70 s an hour: 2.6 (3.4) pace steps. Its cell is the Captain's own fight, which the harness does not play. Dark.)
 
 ## Loot and economy
 
@@ -532,12 +604,12 @@ Note: Cuts the arrow bill on long hunts.
 **42. Night Carter's Boots** · Boots · Drops from: Unmarked Catacombs, Night Carter
 Pull start: every monster in the pull is Chilled for 3s
 Best for: Tank, any
-Note: The tank gets set up before the first swing. It lands before Frost Slam or Hoarfrost can, the one moment no other Chill covers.
+Note: The tank gets set up before the first swing. It lands before Frost Slam or Hoarfrost can, the one moment no other Chill covers. (Batch 3, 2026-11-27: -1.9 (1.8) pace steps on Muster. The pack walks to the tank in its first seconds and Chill slows swings, not steps, so the 3 s are mostly spent before the first blow. Dark.)
 
 **43. Bull's Tooth** · Earrings · Drops from: Wyvern Roost, Bull Wyvern
 Single-target hits: overkill damage carries over to the nearest monster
 Best for: Ranger, Mage
-Note: Big hits stop wasting damage on weak monsters. Area hits don't carry.
+Note: Big hits stop wasting damage on weak monsters. Area hits don't carry. (Batch 3, 2026-11-27: 0.3 (2.5) pace steps on Muster. The bow's carried overkill is about 1% of its damage. Dark.)
 
 **44. Pyre Priest's Hood** · Helmet · Drops from: Krell's Hold, Pyre Priest
 Above 70% health: spells cost health instead of mana (1 health per mana)
@@ -549,7 +621,7 @@ Note: Risky. Needs a healer or Mend. Keeps Full Wick nearly always on, so the La
 **22. Slake Waders** · Boots · Drops from: The Slake, Mudlark
 While you hunt alone: each kill heals you for 4% of your max health
 Best for: Any hero hunting alone
-Note: Was Undertow's. Undertow is cut and its job is now the alone rule on every weapon's strikes (`23` section 4), so this goes with the rule, not one move. A party never sees it.
+Note: Was Undertow's. Undertow is cut and its job is now the alone rule on every weapon's strikes (`23` section 4), so this goes with the rule, not one move. A party never sees it. (Batch 3, 2026-11-27: "alone" is no other hero of its side in the hunt. A lone sword on the Slake read 7.5 (0.8) pace steps, Muster -0.0 (1.5). In band, the spread holds.)
 
 ## Pair
 
@@ -612,6 +684,8 @@ One table for Traits (`14-trait-candidates.md`), Signatures (this doc) and Talen
 | Bleed | Rend, Gash (wave 3), the Roads' Bleeding Rake, #9 | One count of stacks per monster, from every source. Cap 5, or 6 on a target hit by #29's wearer |
 | Poisoned | Poison (#7, #12) and Sickness | What Traits #30 and #40 read. One Poison a monster, a new one restarts it |
 | Blunted (a monster's next blow) | #4, #23 | Its own key: one blow, spent on it, added to Weakened, never replacing it |
+| A hero's next cast raised | #16 (Kindled: Fireball, Frost Lance), #20 (Steeped: Greater Mend) | One key: the strongest stack on the hero, spent on the cast it names (batch 3) |
+| Armor Break (a monster's armor) | Power Strike's and Stagger's Roads options, a Roads vow, #1 | One a monster, the largest counts |
 | Damage taken by a hero | Traits that lower damage taken, Guard Strike, Guarding Challenge's rank 15, #3, #17, #46 | Different sources add, held to 30% (Guarded's key, hero_takes_less). The Lab sets one cap for the total. The same party Trait counts once |
 | Shields | Shelter, Protective Ward, Arcane Barrier, High Tide, the support's Warm Stone, #2, #8, #36 | One shield per hero. A new one replaces it only if bigger |
 | Hero deals more damage | Charged Barrier, #16, #18, #38, damage Traits | Different sources add. The same Signature or party Trait counts once in a party |

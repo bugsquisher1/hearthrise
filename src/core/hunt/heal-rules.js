@@ -57,12 +57,15 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
     n = Math.floor((n * outPmFor(inst, u, row, t)) / 1000);
     if (nearFall(inst, t, t.hp)) cast.near = true;
   }
+  /* (the HP the cast lands on `t` now, or lays over time: its `heal` moment's amount, lane/signatures-batch-3's Riverstone Earrings) */
+  let landed = n;
   if (fx && fx.hotAll === true && fx.hotMs > 0) layOverTime(inst, sc, u, t, n, fx.hotMs);
   else {
     /* the heal door: a WITHERED target takes every heal cut (heal-cut.js), and the healing it receives raises the rest */
     const missing = int(t.maxHp) - int(t.hp);
     const cut = healIn(inst, t, n);
     const got = Math.max(0, Math.min(cut, missing));
+    landed = got;
     t.hp = int(t.hp) + got;
     /* (the worn Traits that held on its amount, abilities.js effect: the event names them, src/core/hunt/trait-rules.js) */
     sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}), ...traitsField(cast && cast.tr) }));
@@ -71,7 +74,7 @@ export function landHeal(u, t, n, sc, surge, row, piped, cast) {
     if (fx && fx.hotPm > 0 && fx.hotMs > 0) layOverTime(inst, sc, u, t, Math.floor((n * fx.hotPm) / 1000), fx.hotMs);
   }
   /* THE CAST LANDED ON `t` (a reaction's `heal` moment, Brewer's Apron): once a hero a cast, laid over time or not (a tick is no cast) */
-  if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id, was });
+  if (inst && row) queueOn(inst, u, 'heal', { t, ability: row.id, was, dmg: landed });
   if (fx) afterHeal(inst, sc, u, t, n, row, fx);
 }
 

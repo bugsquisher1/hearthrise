@@ -283,7 +283,7 @@ export function challengeFrom(inst, sc, k, row) {
   const hold = row && Number.isInteger(row.holdPm) ? Math.max(STEP, Math.floor((tauntHold(k) * row.holdPm) / 1000 / STEP) * STEP) : tauntHold(k);
   for (const m of took) { retarget(inst, m, k.id, sc); m.queued = false; m.holdMs = hold; }
   if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
-  if (took.length) queueOn(inst, k, 'taunt', { n: took.length });
+  if (took.length) queueOn(inst, k, 'taunt', { n: took.length, list: took });
   return took.length;
 }
 

@@ -643,6 +643,11 @@
         "bytes": 3993709,
         "on": "2026-11-28",
         "why": "lane/job-goods-vendor on the merged set: vendorPriceOf caps every job good at its inputs plus the floor's pay for its work, so hr-accrue reads src/core/trades.js jobSaleBounds and ships the trades catalogue (src/core/trades.js and src/data/trades.js, about 67 KB; 5 ms import, 10 ms on the first sale)"
+      },
+      {
+        "bytes": 3994264,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend + job-goods-vendor on one tree: the fourth borrow band and its comment in src/data/talents.js"
       }
     ]
   }

@@ -598,6 +598,12 @@
         "gzipBytes": 985112,
         "on": "2026-11-28",
         "why": "e5-borrowing: talent-rows borrow list and grantsOf read by the Talents window and town pick (+0.6 KB)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985124,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend: the fourth borrow band in talents.js, read by the Talents window"
       }
     ]
   }

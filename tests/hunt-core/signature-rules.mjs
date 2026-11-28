@@ -900,10 +900,11 @@ const cases = {
     const sc = sc2(M, 74);
     blowAt(M, inst, sc, m, a, 500); M.RX.drainReactions(inst, sc);
     if (stacksOf(m, 'blunted').length) return 'a blow that left the ally at half Blunted its monster';
+    /* (a stalker's blow to 42%: under the 45% line, over a 40% one) */
+    blowAt(M, inst, sc, n, a, 80); M.RX.drainReactions(inst, sc);
+    if (stacksOf(n, 'blunted').length !== 1 || stacksOf(m, 'blunted').length) return 'a stalker\'s blow that left the ally at 42%: ' + JSON.stringify([m.statuses, n.statuses]) + ' (want the striker Blunted, the other not)';
     blowAt(M, inst, sc, sw, a, 100); M.RX.drainReactions(inst, sc);
-    if (stacksOf(sw, 'blunted').length) return 'a swarm\'s blow that left the ally at 40% Blunted it (want a stalker\'s only)';
-    blowAt(M, inst, sc, n, a, 50); M.RX.drainReactions(inst, sc);
-    if (stacksOf(n, 'blunted').length !== 1 || stacksOf(m, 'blunted').length) return 'a stalker\'s blow that left the ally at 35%: ' + JSON.stringify([m.statuses, n.statuses]) + ' (want the striker Blunted, the other not)';
+    if (stacksOf(sw, 'blunted').length) return 'a swarm\'s blow that left the ally at 32% Blunted it (want a stalker\'s only)';
     blowAt(M, inst, sc, o, g, 700); M.RX.drainReactions(inst, sc);
     if (stacksOf(o, 'blunted').length) return 'a blow on the wearer itself Blunted its monster';
     return null;

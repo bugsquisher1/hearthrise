@@ -6,7 +6,8 @@
 //
 // Each set of three against the same four wearing nothing, on the same seeds: the held step's paired delta and PACE STEPS (the paired
 // delta of the held pace, v1-climb payX from hour 4, %, over the pace one held step buys on the report's ground, signature-depth/pace-step.mjs), each a
-// mean with its standard error; I3's bar is a held move of 0.4 or more (21 3.8) and the designer's 6 +- 2 pace steps on Krell's Hold (11.4).
+// mean with its standard error; I3's bar is a held move of 0.4 or more (21 3.8) and the designer's 6 +- 2 pace steps on Krell's Hold (11.4),
+// read on 36 seeds with its se at most 3 (11.6: on 12 the plain four's draw alone moved it by 6.5 pace steps).
 // Beside them what the set did: damage dealt a second by seat, the share of the damage taken that heal spells and leech covered (sustain
 // spellPm: a Life Leech's heal is the hero's own, healIn.self), Level XP an hour, deaths. Prints markdown. Exit 0 printed · 2 a report is missing.
 import { readFileSync, existsSync } from 'node:fs';
@@ -18,6 +19,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 import { paceStepPct } from '../signature-depth/pace-step.mjs';
 const PAIRS = [
   ['I3 Krell\'s Hold L97: Brute Edge, Fire Ward, Life Leech (im-krell-fire)', 'k-plain', 'k-fire'],
+  ['I3 as ruled: the Leech on the contest curve (im-krell-curve, 21 D-21)', 'k-plain', 'k-curve'],
   ['Muster Barrows L60: Brute Edge, Fire Ward, Mana Leech (im-muster-fire)', 'm-plain', 'm-fire'],
 ];
 const cellOf = (name) => {

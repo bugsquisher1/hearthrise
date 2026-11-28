@@ -299,7 +299,7 @@ Temper is its own slice, 5 steps on a whole kit at Level 200, opened in whole ra
 - **Recipe.** `imbueParts` of its one named rare part, plus `imbueRemains` Remains of the part's band, plus `imbueWork` work-hours at the Artificing bench (`09` 4.3: the imbuement line is 0.1 of a kit-hour, so 0.08 work-hours a hunted hour for three, 0.53 work-hours each for 20 hours). The made imbuement is a stack keyed by kind, band and quality, and trades on the book.
 - **Apply fee** (D-19). `imbueFeeHours` of wage at the imbuement's band, burned when applied, the same at every Level.
 
-**What a hero pays** (COMPUTED at full ramp): goods worth about 0.13 hours of wage plus a 0.4 fee, 0.53 an imbuement for 20 hours, 0.08 hours of wage a hunted hour for all three, about 8% of gross coin. For that, up to 6 steps on the right ground, about 4% pace, and about 2.4% more coin from depth. So imbuements are an XP choice that costs gold: "levels or gold tonight" (`02` package 5).
+**What a hero pays** (COMPUTED at full ramp): goods worth about 0.13 hours of wage plus a 0.4 fee, 0.53 an imbuement for 20 hours, 0.08 hours of wage a hunted hour for all three, about 8% of gross coin. For that, up to 6 steps on the right ground, about 4% pace (MEASURED about 3% on Krell's Hold, 11.6), and about 2.4% more coin from depth. So imbuements are an XP choice that costs gold: "levels or gold tonight" (`02` package 5).
 
 | Lever | Start | Band |
 |---|---|---|
@@ -675,7 +675,7 @@ At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are
 | The slice whole at every Level | `src/data/power-ledger.js` `consumable.ramps` false | SET. `tests/imbue.mjs` IM-7, `tests/hunt-core/danger.mjs` ledger |
 | The fire sizes, the Fire Ward's seat, Life Leech 20 | `src/data/imbue-rules.js` (`fire`, `fireMax`, `best`, `leech.pm`); `validateImbues` refuses a condition with no whole fire size from 2 to 20 (IM-1) | SET (data), played by the engine (lane/imbue-engine, 2026-11-27) |
 | The fire size and the rated room in the clamp | `src/core/imbue.js imbueRows`, `src/core/power-ledger.js clampLedger` | BUILT (lane/imbue-engine, 2026-11-27): a firing row is `fire` x c over a room of 2 x c, counted outside the cap; rooms past the cap scale the firing rows. `tests/imbue.mjs` IM-7, IM-9; `tests/hunt-core/amount.mjs` imbue |
-| The leech rule and the conversion | `src/core/hunt/imbue-leech.js` (through `damage.js landHit`), `src/core/imbue.js` `leechPay` and `convertMult`, `amount.js`, `tally.js` | BUILT (lane/imbue-engine, 2026-11-27). The carry is a persisted unit int (`leechMilli`), so the world shape moves (1069 hunt-sessions regenerated, the edge deploys with it). Neither rule reads the contest curve, only the wear gate. `tests/imbue.mjs` IM-10, `amount.mjs` imbue and leech, `necrotic-storm.mjs` withered-cuts, `tests/worn-imbues-db.mjs` WI-7 (both doors) |
+| The leech rule and the conversion | `src/core/hunt/imbue-leech.js` (through `damage.js landHit`), `src/core/imbue.js` `leechPay` and `convertMult`, `amount.js`, `tally.js` | BUILT (lane/imbue-engine, 2026-11-27). The carry is a persisted unit int (`leechMilli`), so the world shape moves (1069 hunt-sessions regenerated, the edge deploys with it). Neither rule reads the contest curve, only the wear gate (ruled in 11.6, D-21: both read it; owed, HANDOFFS 2026-11-28). `tests/imbue.mjs` IM-10, `amount.mjs` imbue and leech, `necrotic-storm.mjs` withered-cuts, `tests/worn-imbues-db.mjs` WI-7 (both doors) |
 | The fee at the band, no ramp | `src/core/imbue.js applyFee(band)`; `hr_imbue_fee(band)` (1069, generated, VERIFY(n) by band); `hr_imbue_apply` and the section `imbues` restated in `1078-imbue-fee-timer.sql`; the piece-and-ramp `hr_imbue_fee(int, int)` dropped. `hr_imbue_levers.ramp_level` stays written and unread while 1063's STAGED catalogue is in the replay (its insert names it) | STAGED (lane/imbue-fee-timer, S-32). `tests/imbue.mjs` IM-3, `tests/worn-imbues-db.mjs` WI-6 |
 | The timer only while worn | `hr_flame_temper_settle` restated in `1078-imbue-fee-timer.sql`: only a row `hr_worn_imbues_of` plays runs (its kind's slot, a worn piece) | STAGED (lane/imbue-fee-timer). `tests/worn-imbues-db.mjs` WI-2 (both doors), WI-5 |
 | No staged catalogue moved | `hr_imbue_rules` holds no size or seat (`node tools/gen-flame-temper.mjs --check`) | |
@@ -690,7 +690,7 @@ At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are
 | The same with the slice whole (`im-muster-whole`, the tree) | held −0.3 ± 2.6, pace +0.6 ± 2.2 pace steps: nothing (only the Edge fires on Muster, 2 steps on 44% of the hammer's blows) | MEASURED |
 | The same with D-17's fire sizes (`im-muster-fire`) | held −3.8 ± 2.2, pace −1.4 ± 2.0 pace steps: inside the noise. Damage dealt a second over the hunt: as built +0.1%, whole +0.4%, with the fire sizes +0.9% on the three damage seats (hammer 17.10 to 17.27, bow 18.56 to 18.71, mage 21.02 to 21.22), the order and size the shares predict | MEASURED |
 | What 12 seeds can read | One imbuement's rated 2 steps is about 0.9% pace (`15`: 0.43% a pace step), under the cell's se of 2 pace steps. A single imbuement is checked by its damage line and its share, a set of three by I3 | COMPUTED |
-| I3 in full (a set of three that all fire) | On the tree with items 1 and 2 built (lane/imbue-engine, `tools/balance-program/redesign/imbue/run.sh` + `sum.mjs`, the mixed four, MID, Steady, 12 seeds x 8 h, paired against none). Krell's Hold at Level 97 (`im-krell-fire`: Brute Edge 70, Fire Ward 45, Life Leech 50): held +7.8 (se 2.7) steps, pace **+17.8 (se 5.7) pace steps**, Level XP an hour +4.9%, no deaths: I3 passes (held 0.4 or more) and reads past the bar of 6 ± 2 pace steps (CONFLICTS 2026-11-27, imbuements in the fight). Muster at Level 60 (`im-muster-fire`, the Mana Leech now returning mana): held −3.9 (2.0), pace −1.1 (1.9), inside the noise as before (only the Edge fires there). Re-read 2026-11-28 on each ground's own pace step (`15` "Decision: the pace step, ground by ground": Krell's Hold 0.610, Muster 0.398): Krell's **+12.6 (4.0)**, still past the bar, Muster −1.2 (2.0) | MEASURED |
+| I3 in full (a set of three that all fire) | On the tree with items 1 and 2 built (lane/imbue-engine, `tools/balance-program/redesign/imbue/run.sh` + `sum.mjs`, the mixed four, MID, Steady, 12 seeds x 8 h, paired against none). Krell's Hold at Level 97 (`im-krell-fire`: Brute Edge 70, Fire Ward 45, Life Leech 50): held +7.8 (se 2.7) steps, pace **+17.8 (se 5.7) pace steps**, Level XP an hour +4.9%, no deaths: I3 passes (held 0.4 or more) and reads past the bar of 6 ± 2 pace steps (CONFLICTS 2026-11-27, imbuements in the fight). Muster at Level 60 (`im-muster-fire`, the Mana Leech now returning mana): held −3.9 (2.0), pace −1.1 (1.9), inside the noise as before (only the Edge fires there). Re-read 2026-11-28 on each ground's own pace step (`15` "Decision: the pace step, ground by ground": Krell's Hold 0.610, Muster 0.398): Krell's **+12.6 (4.0)**, still past the bar, Muster −1.2 (2.0). (Re-read on 36 seeds in 11.6: +6.1 (1.9) at Level 97 and +5.2 (1.5) over the ground's span, inside the bar. The 12-seed plain drew four trapped seeds.) | MEASURED |
 | Rated sizes on their best cells | Brute Edge 5 x 0.438 = 2.2 steps on the hammer; Fire Ward 11 x 0.175 = 1.9 steps of the back row's defense; Life Leech 20 permille = 2.1 steps of the front's damage taken; Fire Edge +2 on Undead | COMPUTED |
 
 ### 11.5 Walk-through: a melee hero's first Brute Edge at Level 60 (real data, grepped on the set)
@@ -704,3 +704,62 @@ At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are
 | 5 | Apply it to the weapon in town | Step 4 and 6,813 gold (D-19) | `hr_imbue_apply`; `hunt_open` while hunting | Staged (S-32, dark); the band fee staged in 1078 |
 | 6 | Hunt Muster Barrows | Step 5 | `muster_knight` and `captain_hask` are `role: 'brute'`; `imbueStepsAt(70, 60)` is 2, so the Edge fires at 5 | Yes (lane/imbue-engine) |
 | 7 | A better sword drops and goes on | Step 6 | `hero_worn_imbue` is keyed by the slot, so the Edge stays (D-20) | Yes, as built |
+
+## 11.6 I3 read again, and the two rule-row calls (2026-11-28, game designer, `lane/designer-imbue-i3`; CONFLICTS 2026-11-27 imbuements in the fight)
+
+### 11.6.1 How it plays
+
+- A full set of three on the ground it is for makes the four level about 3% faster there (6 pace steps of 0.61%). That is a real reason to pay for them, and a little less than one lucky Signature.
+- Every imbuement fades the same way once you outgrow its band. A band 50 Life Leech heals 2% up to Level 50, 1.7% at Level 97 and 1.2% at Level 200. A Fire Edge's 5% fades the same way. The card shows your own number.
+- A Fire Edge takes its place in your consumables on every blow, like every other imbuement. Against a monster that is neither weak to Fire nor resists it, it does nothing, and a meal does not fill the gap.
+
+### 11.6.2 Rulings made here
+
+| # | Ruling | Amends | Why |
+|---|---|---|---|
+| D-21 | **Every imbuement reads its band by the contest curve, the Leech and the conversion too.** With c = `imbueStepsAt(band, Level)` / `imbueSteps`: a Leech heals `leech.pm` x c permille (rounded whole, at least 1), and a conversion's row is its whole steps x c, a gain and a cost alike | D-18 (as built: "neither reads the contest curve"), 11.3 | D-16 already says an imbuement is weaker past its band. Reading the Leech's share as "already reading the hero" made a band 50 Leech a good for life: a Level 200 hero healed the full 2%, so no higher band's Leech would ever be worth its part. A Brute Edge's +2% is a share of the blow too, and it fades. One rule for all five keeps the higher grounds' parts wanted. At Level 97 the band 50 Leech heals 17 permille, and I3 moves 0.1 pace steps (11.6.4) |
+| D-22 | **A conversion waits on a blow it does not change.** When the target's Fire percent equals the blow's own, Fire Edge writes the waiting row every conditional row writes (its rated 2 x c of room, `holds: false`) | D-18's "room 2 in the other channels", D-11 | D-11 says "firing or not". With no room taken there, a meal beside a Fire Edge counts on every neutral monster, so the Edge and a meal together beat any other Edge on a mixed ground, and D-1's "three fill the slice" leaks. On a target that resists Fire the Edge already costs. The bestiary page still decides |
+| D-23 | **I3 is in band and no number moves.** Brute Edge 5, Fire Ward 11, Life Leech 20 and Fire Edge's 50 stay. I3 is read on 36 seeds at the ground's Level (`run.sh` `KSEEDS`), its se at most 3, and confirmed over the ground's span (Level -3 and +3, 12 seeds each, pooled) | 11.4's I3 row | The 12-seed read was the plain four's draw. Four of its first 12 seeds fell once too often and held 28 to 32 against 44 to 47. Against those 12, each imbuement alone read nearly the whole set (Brute Edge 11.8, Life Leech 11.1, Fire Ward 5.8 pace steps against the set's 12.6), which three sizes adding to one cannot do. Seeds 13 to 36 read 2.8 and 2.9. Cutting the sizes to fit the 12-seed read would have left each imbuement about half its rated 2 steps on every other cell |
+
+Kit-bands-2-3's recipes stay: `imbuement_brute_edge` is 5 `pike_ferrule` and 4 `grave_dust`, `imbuement_fire_edge` 5 `rake_tine` and 4 `grave_dust` (`jobRecipes()`, read on this set). D-16, D-17, D-19 and D-20 are unchanged. D-21 is D-16 applied to the two rules D-18 left out, and D-22 is D-11 applied to the conversion.
+
+### 11.6.3 What is set here and what is owed
+
+| Piece | Where | State |
+|---|---|---|
+| I3's reading | `tools/balance-program/redesign/imbue/run.sh` (`KSEEDS` 36, the `k-curve` step), `sum.mjs` (the ruled row), the reports `k-plain`, `k-fire`, `k-curve` at 36 seeds | SET, MEASURED |
+| The ruled set as a candidate | `tools/balance-program/candidates/im-krell-curve.json`: `im-krell-fire` plus D-21's Leech line, the exact line the engine owes | SET |
+| D-21, the Leech on the curve | `src/core/imbue.js leechOf`: `pm` x c, whole, at least 1 | OWED (engine, HANDOFFS 2026-11-28 item 1; lane/signatures-batch-4 is in the engine) |
+| D-21, the conversion on the curve, and D-22, its waiting row | `src/core/imbue.js imbueRows`, the convert branch | OWED (HANDOFFS item 2) |
+| The cards | `{pct}`: a Leech `pm` x c / 10, Fire Edge 5 x c | OWED (the card lane, HANDOFFS item 3) |
+| No data row, no catalogue | `src/data/imbue-rules.js` unchanged; `node tools/gen-flame-temper.mjs --check` exit 0 | |
+
+### 11.6.4 Readings
+
+All on the tree at `set/v0.2.144` cfbad20fd: v1-climb's `base` cell, the mixed four (hammer, bow, mage, healer), MID kits, Steady, 8 h, paced from hour 4, paired against the same four wearing nothing on the same seeds. A pace step on Krell's Hold is 0.610% of held pace (`15` "Decision: the pace step, ground by ground", `signature-depth/pace-step.mjs`; lane/pace-step-per-ground landed on the set while this lane ran, and every number here is read on it).
+
+| Reading | Held delta (se) | Pace steps (se) | Level XP an hour | Kind |
+|---|---|---|---|---|
+| Krell's Hold L97, the set as built (`im-krell-fire`), 36 seeds | +2.8 (1.5) | **+6.1 (1.9)** | +2.6% | MEASURED |
+| The same as ruled (`im-krell-curve`, the Leech at 17 permille), 36 seeds | +2.4 (1.6) | **+6.0 (2.1)** | +2.1% | MEASURED |
+| The 36 in thirds, as built | | seeds 1 to 12 +12.6 (4.0), 13 to 24 +2.8 (2.6), 25 to 36 +2.9 (2.3) | | MEASURED |
+| L94 and L100 as ruled, 12 seeds each | | +4.8 (2.1), +3.9 (2.3) | | MEASURED |
+| **Pooled over the span (L94, L97, L100: 60 pairs)** | as built +2.4 (1.1), as ruled +2.3 (1.1) | **as built +5.2 (1.5), as ruled +5.3 (1.4): inside 6 ± 2** | | MEASURED |
+| Each alone against the first 12 plain seeds (scratch candidates, not kept) | Brute Edge +6.8 (2.3), Fire Ward +3.8 (2.7), Life Leech +7.1 (2.6) | +11.8 (3.6), +5.8 (4.2), +11.1 (3.8) | | MEASURED |
+| The plain four's own spread at 12 seeds | L94 41.2, L97 38.6, L100 45.2 held | L97 to L100 +10.5 (4.2), L94 to L97 -3.6 (4.0): three Levels up read as a loss, so 12 seeds cannot place this cell | | MEASURED |
+| Muster L60 (`im-muster-fire`), unchanged, on Muster's 0.398 | -3.9 (2.0) | -1.2 (2.0) | +0.7% | MEASURED (lane/imbue-engine) |
+| I3's held bar (3.8: 0.4 or more) | passes on every read | | | MEASURED |
+
+What is left: each imbuement's own I1 read (2 ± 1 held on its best cell) wants the same 36 seeds. Against the first 12 the Fire Ward read least, which fits a back-row Ward on a ground where the hammer takes 86% of the damage. Mana Leech's coin bar on the Pyre Field mage (D-18) is still owed.
+
+### 11.6.5 Walk-through: one Life Leech kept from Level 97 to Level 200 (real data, grepped on the set)
+
+| # | Step | Holds and can reach, from earlier steps only | Real source | Doable |
+|---|---|---|---|---|
+| 1 | Hunt the Slake | A company of about Level 50 (band 50 to 65) | `the_slake` pack, `status: "open"`, band [50, 65] | Yes |
+| 2 | Five Mudlark Hooks drop | Step 1 | `mudlark_hook` on the Mudlark's row (Level 52), every 0.45 hunted hours | Yes |
+| 3 | Four Bones | Step 1 | `bones` on the Slake's rows; band 2's Remains face is Bones (`STREAM_FACES.remains[2]`) | Yes |
+| 4 | Make Life Leech | Steps 2 and 3, an Artificing hero at rung 1 | `jobRecipes()` `imbuement_life_leech`: 5 `mudlark_hook`, 4 `bones`, band 2, makes `imbue_life_leech` (band 50) | Staged (dark) |
+| 5 | Apply it to the helmet in town | Step 4 and 6,290 gold | `applyFee(50)` is 6,290 (D-19); `hr_imbue_apply`, `hunt_open` while hunting | Staged (dark) |
+| 6 | Hunt Krell's Hold at Level 97 | Step 5 | `imbueStepsAt(50, 97)` / 2 is 0.849, so it heals 17 permille (D-21) and the card reads 1.7% | Owed (D-21's line; as built it heals 20) |
+| 7 | Reach Level 200 | Step 6 | c is 0.592, so 12 permille, 1.2%. A higher band Leech comes from the Catacombs' Leech Jaw when that ground opens | Owed (D-21); `unmarked_catacombs` is `status: 'staged'` |

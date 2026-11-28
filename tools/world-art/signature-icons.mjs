@@ -110,13 +110,13 @@ function edge(g, m) {
 function bannermansPavise() {
   const g = blank();
   // the staff behind the shield's top, then the pennon flying right off it
-  for (let y = 2; y <= 9; y++) { put(g, 15, y, EARTH[5]); put(g, 16, y, EARTH[3]); }
-  put(g, 15, 1, BRONZE[3]); put(g, 16, 1, BRONZE[2]);
-  const pennon = mask(inPoly([[17, 2], [27, 3.2], [23.5, 5], [27, 7], [17, 7.2]]));
+  for (let y = 3; y <= 9; y++) { put(g, 15, y, EARTH[5]); put(g, 16, y, EARTH[3]); }
+  put(g, 15, 2, BRONZE[3]); put(g, 16, 2, BRONZE[2]);
+  const pennon = mask(inPoly([[17, 3], [27, 4.2], [23.5, 6], [27, 8], [17, 8.2]]));
   shade(g, pennon, [CLOTH[0], CLOTH[1], BLOOD[0], BLOOD[1]]);
-  for (let x = 18; x <= 22; x++) put(g, x, 4, x % 2 ? BLOOD[1] : BLOOD[0]);
+  for (let x = 18; x <= 22; x++) put(g, x, 5, x % 2 ? BLOOD[1] : BLOOD[0]);
   // the pavise: a tall board, its top a shallow arch, its foot squared
-  const body = mask((x, y) => x > 6 && x < 25 && y > 9 + Math.pow((x - 16) / 9, 2) * 2.6 && y < 30);
+  const body = mask((x, y) => x > 6 && x < 25 && y > 9 + Math.pow((x - 16) / 9, 2) * 2.6 && y < 29);
   shade(g, body, IRON);
   // the painted face inside a one-pixel iron rim: per pale, red at the left, bone at the right, the keel down the middle
   const face = mask((x, y) => x > 8 && x < 23 && y > 11.2 + Math.pow((x - 16) / 9, 2) * 2.6 && y < 28);
@@ -125,7 +125,7 @@ function bannermansPavise() {
     const down = y > 22 ? 1 : 0;
     g[y][x] = x < 15 ? [BLOOD[1], BLOOD[0], CLOTH[1]][Math.min(2, (x === 9 ? 0 : 1) + down)] : x > 16 ? [BONE[1], BONE[0], STONE[4], STONE[3]][Math.min(3, (x >= 21 ? 2 : x === 17 ? 0 : 1) + down)] : null;
   }
-  for (let y = 10; y <= 29; y++) { put(g, 15, y, STEEL[3]); put(g, 16, y, IRON[1]); }
+  for (let y = 10; y <= 28; y++) { put(g, 15, y, STEEL[3]); put(g, 16, y, IRON[1]); }
   // a gold mark on the red: the bannerman's chevron, and the rim's rivets
   for (const [x, y] of [[10, 18], [11, 17], [12, 16], [13, 17], [14, 18], [10, 19], [14, 19]]) put(g, x, y, GOLD);
   for (const [x, y] of [[8, 13], [23, 13], [8, 28], [23, 28]]) put(g, x, y, STEEL[3]);
@@ -171,7 +171,7 @@ function greenedBracers() {
   /** one vambrace on the diagonal: its wide elbow cuff at the upper right, its wrist at the lower left, lit on its upper-left side */
   const brace = (ex, ey, len) => {
     const at = (x, y) => { const dx = x - ex, dy = y - ey; return { u: (dy - dx) * Math.SQRT1_2, v: -(dx + dy) * Math.SQRT1_2 }; };
-    const halfAt = (u) => 5 - (u / len) * 1.9;
+    const halfAt = (u) => 4.5 - (u / len) * 1.7;
     const m = mask((x, y) => { const { u, v } = at(x, y); return u >= 0 && u <= len && Math.abs(v) <= halfAt(u); });
     const s1 = len * 0.36, s2 = len * 0.68;
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
@@ -190,8 +190,8 @@ function greenedBracers() {
     }
     return m;
   };
-  brace(29, 10, 20);
-  const front = brace(22.5, 2.5, 21);
+  brace(26.5, 12, 18);
+  const front = brace(21, 5.5, 19);
   edge(g, front);
   return outlined(g);
 }
@@ -202,7 +202,7 @@ function slakeWaders() {
   /** one wader: a tall leg from its strapped top to a broad foot pointing left */
   const wader = (x0, top) => {
     const leg = mask((x, y) => y > top && y < 27 && x > x0 + (y - top) * 0.06 && x < x0 + 7.2 - (y - top) * 0.04);
-    const foot = mask((x, y) => y >= 23 && y < 30 && x > x0 - 4.5 + (y - 23) * 0.2 && x < x0 + 7 && !(y < 26 && x < x0 + 0.5));
+    const foot = mask((x, y) => y >= 23 && y < 29 && x > x0 - 4.5 + (y - 23) * 0.2 && x < x0 + 7 && !(y < 26 && x < x0 + 0.5));
     const m = leg.map((r, y) => r.map((v, x) => v || foot[y][x]));
     shade(g, m, [SHADOW[2], EARTH[0], EARTH[1], EARTH[2], EARTH[3]]);
     // the strapped top: a turned cuff and a bronze buckle
@@ -219,7 +219,7 @@ function slakeWaders() {
     put(g, x0 + 1, 21, FROST[1]); put(g, x0 + 1, 22, FROST[0]);
     return m;
   };
-  wader(19, 2);
+  wader(19, 3);
   const front = wader(9, 5);
   edge(g, front);
   return outlined(g);

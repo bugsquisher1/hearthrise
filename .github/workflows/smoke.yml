@@ -5770,6 +5770,12 @@ jobs:
         run: |
           node tests/work-blocks.mjs
           node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate
+      # tests/worn-imbues-db.mjs
+      - name: Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/worn-imbues-db.mjs
+          node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}

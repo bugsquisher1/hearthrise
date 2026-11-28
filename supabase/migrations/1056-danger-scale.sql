@@ -112,8 +112,9 @@ begin
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' and v_md5 = 'e3d169248d2c291574fd4d3fcd148a3f')
        -- ...and after 1071-trait-pieces.sql, hr_hunt_instance_read restated whole (this file's overlay in it, the tier and the scale out),
-       -- and after 1076-personal-loot.sql, restated whole again (1074's flame and the instance's frozen loot rule added)
-       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9', '3d6b400342a45792fd331fb61566c862')) then
+       -- and after 1076-personal-loot.sql, restated whole again (1074's flame and the instance's frozen loot rule added), and after
+       -- 1077-worn-imbues.sql (each member's worn imbuements added)
+       and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9', '3d6b400342a45792fd331fb61566c862', 'f90bff161e33d7db33ac8ff585156ede')) then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

@@ -648,6 +648,11 @@
         "bytes": 3994264,
         "on": "2026-11-28",
         "why": "designer-greater-mend + job-goods-vendor on one tree: the fourth borrow band and its comment in src/data/talents.js"
+      },
+      {
+        "bytes": 3996445,
+        "on": "2026-11-28",
+        "why": "lane/worn-imbues on the merged set (re-raised on set f4727e6ac): the worn-imbue projection reaches the engine (hunt-settle.js memberInput _wornImbues/_readAtMs, heroSetup readAtMs) and a worn imbuement runs out at one instant on both doors (src/core/imbue.js wornImbuesOf untilMs + imbuesAt, combat-sim.js syncUnit atMs); +2181 B, all of it this diff's code and its comments"
       }
     ]
   }

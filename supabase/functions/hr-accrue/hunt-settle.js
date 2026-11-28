@@ -657,7 +657,7 @@ export async function readHuntSettle(o, mode) {
      role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
     m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether,
-      wornTraits: m._wornTraits, wornSignature: m._wornSignature,
+      wornTraits: m._wornTraits, wornSignature: m._wornSignature, wornImbues: m._wornImbues, readAtMs: m._readAtMs,
       talents: m._talents, level: charLevelFromXp(m.levelXp), lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
@@ -780,6 +780,11 @@ function memberInput(m, inst, perks) {
        drops an unknown id or rank (trait-rules.js wornTraitsOf, signature-rules.js wornSignatureOf); a read without them wears nothing */
     _wornTraits: Array.isArray(m.worn_traits) && m.worn_traits.length ? m.worn_traits : null,
     _wornSignature: typeof m.worn_signature === 'string' && m.worn_signature ? m.worn_signature : null,
+    /* THE IMBUEMENTS IT WEARS (1077-worn-imbues.sql, hr_hunt_instance_read `worn_imbues`): the server's own hero_worn_imbue rows on a worn
+       piece, [{ id, band, msLeft }], null while dark. msLeft counts from this session's settled_to (`_readAtMs`): heroSetup makes it the
+       instant it runs out (src/core/imbue.js wornImbuesOf), the same on both doors */
+    _wornImbues: Array.isArray(m.worn_imbues) && m.worn_imbues.length ? m.worn_imbues : null,
+    _readAtMs: nowMs,
     /* WHAT ITS TRAIT ROLL READS (hr_hunt_instance_read `drops`, hr_trait_drops_of): its pity by rarity and its company flame's luck as its
        hunt began (frozen per hunt, 1074-inner-flame-luck.sql); null while trait_drops is off (traitDropsOf hands the engine no roll) */
     _drops: m.drops && typeof m.drops === 'object' ? m.drops : null,

@@ -661,6 +661,8 @@
     "node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate": "db-replay",
     "node tests/work-blocks.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate": "db-replay",
+    "node tests/worn-imbues-db.mjs": "db-replay",
+    "node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate": "db-replay",
     "node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest": "db-replay",
     "node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=1/3": "in-page-51",
     "node tools/mutant-gate.mjs node tests/boss-call-window.mjs --mutate --shard=2/3": "in-page-52",

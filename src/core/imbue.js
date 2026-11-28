@@ -5,8 +5,9 @@
 //
 // THE SERVER OWNS THE TIMER. hero_worn_imbue (user, hero slot, equip slot, imbue, band, quality, ms_left) is written by hr_imbue_apply and
 // counted down by the settle's hunted milliseconds only (never in town). The browser shows ms_left; it never runs a clock on it.
-// THE WORN SET the fight reads is the hero's `wornImbues` ([{ id, band, msLeft }], the server's projection, owed): wornImbuesOf keeps one a
-// kind (the slot's), drops an unknown id, a spent one and one more than wearAhead over the hero, so a forged list can never stack.
+// THE WORN SET the fight reads is the hero's `wornImbues` ([{ id, band, msLeft }], hr_worn_imbues_of through hr_hunt_instance_read,
+// 1077-worn-imbues.sql): wornImbuesOf keeps one a kind and turns msLeft into the instant it runs out, imbuesAt drops it there, and
+// imbueStepsAt counts one past wearAhead 0. So a forged list never stacks, and a run-out lands at one instant on both doors.
 // THE ROWS (imbueRows), one a worn imbuement on every blow or heal, in the consumable slice at full size times its band's contest curve:
 //   it fires   { slice: 'consumable', raises, steps, key }                its channel, and its condition holds on this blow
 //   it waits   the same row with holds: false                               any other blow: it still takes its room (21 D-11)
@@ -59,18 +60,34 @@ export function imbueStepsAt(band, heroLevel) {
   return IMBUE.steps / powSquare(1 + DANGER.powerStep, Math.max(0, L - b));
 }
 
-/** THE WORN SET AS THE FIGHT PLAYS IT, from the server's list [{ id, band, msLeft }]: an unknown id, a band no whole number, a spent one
-    (msLeft 0) and a second of one kind are dropped (the first of a kind stays). Frozen [{ id, band, kind }], or null with none. */
-export function wornImbuesOf(list) {
+/** THE WORN SET AS THE FIGHT PLAYS IT, from the server's list [{ id, band, msLeft }] read at `fromMs` (the hero's settled_to): an unknown
+    id, a band no whole number, a spent one and a second of one kind are dropped. Frozen [{ id, band, kind, untilMs }], or null with none.
+    untilMs = fromMs + msLeft: the timer takes each settled ms off ms_left, so it is ONE instant however the windows are cut (null with no
+    fromMs: a Lab hero, it lasts the span). An entry with its own untilMs keeps it (the engine re-reads its output); no msLeft rides on,
+    so a peer's frozen row (member.js frozenKey) holds still from window to window. */
+export function wornImbuesOf(list, fromMs) {
   if (!Array.isArray(list) || !list.length) return null;
+  const from = Number.isSafeInteger(fromMs) ? fromMs : null;
   const byKind = new Map();
   for (const x of list) {
     const id = x && x.id;
-    if (!own(IMBUE_RULES, id) || !whole(x.band) || !whole(x.msLeft)) continue;
+    if (!own(IMBUE_RULES, id) || !whole(x.band)) continue;
+    const untilMs = own(x, 'untilMs') ? (Number.isSafeInteger(x.untilMs) ? x.untilMs : null)
+      : whole(x.msLeft) ? (from === null ? null : from + whole(x.msLeft)) : undefined;
+    if (untilMs === undefined) continue;
     const kind = IMBUE_RULES[id].kind;
-    if (!byKind.has(kind)) byKind.set(kind, Object.freeze({ id, band: whole(x.band), kind }));
+    if (!byKind.has(kind)) byKind.set(kind, Object.freeze({ id, band: whole(x.band), kind, untilMs }));
   }
   return byKind.size ? Object.freeze([...byKind.values()]) : null;
+}
+
+/** The worn set standing at boundary `atMs` (combat-sim.js syncUnit): less each one whose untilMs is at or before it (the timer deletes
+    that row in the window holding the instant). Null with none; the whole set when atMs is no number. */
+export function imbuesAt(worn, atMs) {
+  const set = wornImbuesOf(worn);
+  if (!set || !Number.isFinite(atMs)) return set;
+  const left = set.filter((w) => w.untilMs === null || w.untilMs > atMs);
+  return left.length === set.length ? set : left.length ? Object.freeze(left) : null;
 }
 
 /* a row's condition on this blow: the role of the monster struck (`role`) or the element of the blow taken (`element`) */

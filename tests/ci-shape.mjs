@@ -49,6 +49,9 @@
 //   CI-SHAPE-14 a proof split into shards (`--shard=K/N`) runs every shard 1..N exactly once, all with one N:
 //               a shard left out is a third of a proof that never runs, and every other job stays green
 //               (lane/ci-reds-1127, 2026-11-27, when the Call out and HUD proofs were split across jobs)
+//   CI-SHAPE-15 the workflow file stays at or under WORKFLOW_MAX_BYTES as committed (LF): GitHub refused it at 513,354 bytes
+//               with "a workflow file issue", on the push and the dispatch alike, and no job ran (46157655675, 46157668627;
+//               508,182 ran), while our lenient parser read it fine (lane/ci-inpage-shard, 2026-11-28)
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -83,6 +86,10 @@ import { readHeaders, generate, regionSteps, headerSteps } from '../tools/lib/ci
 const BASELINE_PATH = join(ROOT, 'tests', 'ci-shape.baseline.json');
 /** A mutant shard on a command line (` --shard=K/N`, CI-SHAPE-14). */
 const SHARD_FLAG = /\s--shard=(\d+)\/(\d+)(?=\s|$)/;
+/* CI-SHAPE-15: the largest smoke.yml GitHub was seen to run (508,182 bytes, set/v0.2.144 at 124f5f9bb), rounded down; it refused
+   513,354. A red here is fixed by making the file smaller (a repeated note said once, a job's narrative cut to its numbers, a family
+   moved to a reusable workflow), never by raising this past a size GitHub has not been seen to take. */
+const WORKFLOW_MAX_BYTES = 508_000;
 
 /** An environment step, not a guard. Derived from the step NAME, never a list. */
 export function isInfraStep(step) {
@@ -133,9 +140,10 @@ export function actionRunLines(text) {
  * @param {string} o.listText      the output of `run-ci-local --list`
  * @param {{path: string, text: string}[]} [o.actions]  the composite actions (.github/actions/*\/action.yml)
  * @param {{steps: object[], errors: object[]}} [o.headers]  the guards' ci-step headers (tools/lib/ci-register.mjs); none = CI-SHAPE-13 not judged
+ * @param {number} [o.maxBytes]  CI-SHAPE-15's cap (WORKFLOW_MAX_BYTES), injectable for the selftest
  * @returns {{problems: {check:string, message:string}[], jobs: any[]}}
  */
-export function analyse({ workflowText, baseline, listText, actions = [], headers = null }) {
+export function analyse({ workflowText, baseline, listText, actions = [], headers = null, maxBytes = WORKFLOW_MAX_BYTES }) {
   const problems = [];
   const fail = (check, message) => problems.push({ check, message });
 
@@ -150,6 +158,11 @@ export function analyse({ workflowText, baseline, listText, actions = [], header
   }
   const twice = jobs.map((j) => j.name).filter((n, i, all) => all.indexOf(n) !== i);
   if (twice.length) fail('CI-SHAPE-1', `job name(s) ${[...new Set(twice)].join(', ')} appear twice: GitHub will not load the workflow at all.`);
+  const bytes = Buffer.byteLength(workflowText.split('\r\n').join('\n'));
+  if (bytes > maxBytes) {
+    fail('CI-SHAPE-15', `the workflow is ${bytes.toLocaleString('en-US')} bytes as committed, over ${maxBytes.toLocaleString('en-US')}: GitHub refuses a file `
+      + 'this size with "a workflow file issue" and runs no job on any push. Make it smaller (WORKFLOW_MAX_BYTES says how), never raise the cap.');
+  }
 
   for (const j of jobs) {
     if (!Number.isFinite(j.timeoutMinutes)) {
@@ -383,6 +396,8 @@ async function runReport({ write }) {
   }
   console.log(`\n  ${cmds.length} guard command(s), `
     + `${new Set(cmds.map((x) => x.cmd)).size} distinct, across ${jobs.length} job(s)`);
+  const bytes = Buffer.byteLength(workflowText.split('\r\n').join('\n'));
+  console.log(`  smoke.yml ${bytes.toLocaleString('en-US')} bytes as committed, ${(WORKFLOW_MAX_BYTES - bytes).toLocaleString('en-US')} under CI-SHAPE-15's ${WORKFLOW_MAX_BYTES.toLocaleString('en-US')}`);
 
   if (!problems.length) {
     console.log(`\n  ok — every guard command runs in exactly one job, the register agrees, ${headers.steps.length} step(s) are their guards' headers, and`);
@@ -465,6 +480,12 @@ async function selftest() {
     ['two jobs with one name, so GitHub refuses the file', 'CI-SHAPE-1', () => ({
       workflowText: workflowText.replace(/^ {2}client-guards-2:$/m, '  client-guards:'), baseline, listText,
     })],
+    ['the workflow grown one byte past the size GitHub takes (46157668627: refused, no job ran)', 'CI-SHAPE-15', () => {
+      const pad = WORKFLOW_MAX_BYTES - Buffer.byteLength(workflowText) + 1;
+      if (pad < 1) throw harness('--selftest: the real workflow is already over WORKFLOW_MAX_BYTES');
+      const wf = insertInJob('edge', [`      # ${'x'.repeat(Math.max(0, pad - 9))}`]);
+      return { workflowText: wf, baseline, listText: listOf(wf) };
+    }],
     ['the matrix collapsed back to something unparseable', 'CI-SHAPE-1', () => ({
       workflowText: dropLine((l) => l === 'jobs:', 'the "jobs:" line'), baseline, listText,
     })],

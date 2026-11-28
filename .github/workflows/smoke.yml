@@ -234,6 +234,11 @@ env:
 # PostgreSQL installs' own deadlines where a job has one), stated on each job. GitHub starts queued jobs roughly in file
 # order, so the jobs are listed by timeout-minutes, longest first (tests/ci-shape.mjs CI-SHAPE-12): a 60-min job left
 # for the last wave sets the run's tail. A new job goes where its timeout puts it.
+#
+# EVERY CHECKOUT SETS persist-credentials: false, so the token is never left in .git/config where every later step, npm
+# lifecycle scripts included, can read it and `git push`. Said once here: GitHub refuses a workflow file past its size limit
+# with "a workflow file issue" and runs no job at all (rehearsal 46157668627 at 513,354 bytes; 508,182 ran), and 73 copies
+# of that note were 11 KB of it (lane/ci-inpage-shard, 2026-11-28). tests/ci-shape.mjs CI-SHAPE-15 holds the file's size.
 jobs:
 
   # ── release-proven ── A COMMIT IS PROVED ONCE, AND MAIN DOES NOT PROVE IT AGAIN (lane/ci-speed, 2026-11-18).
@@ -287,8 +292,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -527,8 +530,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1026,8 +1027,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1336,8 +1335,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1380,6 +1377,9 @@ jobs:
   # its full sweep on every push until a nightly proves it green: 23.2 fits. 2026-11-17: Faction and Tower
   # (added since) moved to in-page-39; with Wiki this is ~27.8 min (59%), 40.3 (86%) with the stall.
   # 2026-11-18 (lane/ci-speed): timeout 47 -> 55: the full sweep measured 27.3 min, x2.
+  # 2026-11-28 (lane/ci-inpage-shard): 50.8 of 55 on run 46138211972, 42.3 of it character-window --mutate (47 mutants at ~52 s).
+  # Its two shards run in in-page-55 and -56 (tests/page-mutant-shards.mjs books them); this keeps setup 0.7 + Roll of Honor
+  # 2.5 + Monster facts 1.3 + Wiki 2.9 + the gate's plan 1.6 + Character plain 1.0 = about 10 min. The timeout stays (CI-SHAPE-12 order).
   in-page-25:
     runs-on: ubuntu-latest
     needs: release-proven
@@ -1389,8 +1389,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1435,16 +1433,15 @@ jobs:
       # section, after this opening's ask (a stale one shows none); nothing the
       # engine lacks is drawn; Save is ONE hr_outfit_set; the death log is the
       # server's; the trade skills hold no combat skill and each unlock names
-      # its kind.
-      - name: Character window (play.html)
+      # its kind. The window's own run is registered by tests/character-window.mjs's header (the region
+      # below), its two mutant shards in in-page-55 and in-page-56.
+      - name: Outfit catalogue and the character sheet core
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-outfits.mjs --check
           node tools/mutant-gate.mjs node tools/gen-outfits.mjs --selftest
           node tests/character-sheet-core.mjs
           node tools/mutant-gate.mjs node tests/character-sheet-core.mjs --mutate
-          node tests/character-window.mjs
-          node tools/mutant-gate.mjs node tests/character-window.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -1457,6 +1454,14 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/character-window.mjs
+      - name: Character window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/character-window.mjs
+      # ── END SELF-REGISTERED GUARDS ──
 
   # ── in-page-10 / 11 / 12 ── THE ALPHA WINDOWS, SPLIT OUT 2026-10-22. in-page
   # was CANCELLED at its 36-min timeout on runs 39822946872 and 39833140559 with
@@ -1518,8 +1523,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1566,8 +1569,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1614,8 +1615,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1741,8 +1740,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1916,6 +1913,65 @@ jobs:
           node tools/mutant-gate.mjs node tools/deploy-differential.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
+  # in-page-55: the Character window's mutants, shard 1 of 2 (lane/ci-inpage-shard, 2026-11-28; tests/character-window.mjs --shard). The 47
+  # mutants each boot the page, 47-62 s a mutant (46138211972: 40.5 min for 47, in-page-25 at 50.8 of 55). Here: setup 0.7 + the gate 1.6 +
+  # the scope 0.85 + its own clean control 0.9 + 24 mutants 20.8 = 25.0 min; x2 = 51 (tests/page-mutant-shards.mjs books it). Registered
+  # by the guard's own header.
+  in-page-55:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 51
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/character-window.mjs
+      - name: Character window, mutants shard 1 of 2 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/character-window.mjs --mutate --shard=1/2
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # in-page-56: the Character window's mutants, shard 2 of 2 (lane/ci-inpage-shard, 2026-11-28; see in-page-55). Here: setup 0.7 + the
+  # gate 1.6 + the scope 0.85 + its own clean control 0.9 + 23 mutants 19.9 = 24.1 min; x2 = 48, 51 as its twin. Registered by the
+  # guard's own header.
+  in-page-56:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 51
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/character-window.mjs
+      - name: Character window, mutants shard 2 of 2 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/character-window.mjs --mutate --shard=2/2
+      # ── END SELF-REGISTERED GUARDS ──
+
   # ── in-page-19 ── PRESET NAMES (2026-10-26 re-shard; its alpha-windows shard 6/6 left for the time-balanced
   # 15 on 2026-11-15, lane a-133-ci-time). MEASURED on nightly 43608955464 (job 132552464018, every mutant run):
   # plain + --mutate 21/21 = 8.7 min (15:59:54 -> 16:08:37), + setup 0.6 = 9.3; x2 = 19, 30 so the apt stall
@@ -1933,8 +1989,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -1991,8 +2045,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2043,8 +2095,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2317,8 +2367,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2365,8 +2413,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2545,8 +2591,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2606,8 +2650,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2643,8 +2685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2683,8 +2723,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2861,8 +2899,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -2939,8 +2975,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3252,8 +3286,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3295,8 +3327,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3332,8 +3362,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3369,8 +3397,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3407,8 +3433,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3604,8 +3628,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3647,8 +3669,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3684,8 +3704,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3753,8 +3771,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -3979,8 +3995,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4069,6 +4083,11 @@ jobs:
   # 17.8 --mutate (clean control 4.0, then the mutants 13.8, each already on its own pages and stopping at its
   # first red), so one slow runner cancels it. Here alone: 0.9 + 4.0 + 17.8 = 22.7 min; x2 = 46. Every mutant runs.
   # 2026-11-18 (lane/ci-speed): timeout 46 -> 45: the full sweep measured 22.1 min, x2.
+  # 2026-11-28 (lane/ci-inpage-shard): 34.7 of 45 on run 46132371081 (plain 5.8, the gate's plan 1.4, --mutate's scope 0.75, clean
+  # control 5.8, 156 mutants 20.2). The mutants run in two shards, 2/2 in in-page-57; here setup 0.7 + plain 5.8 + the gate 1.4 +
+  # scope 0.75 + control 5.8 + 78 mutants 10.6 = 25.1 min (56%). Registered by tests/phone-touch.mjs's header; no artifact
+  # step, as the suite writes no file on a red (screenshots only with --shots) and the region lands after any such step.
+  # THE PHONE (QA's phone playtest 2026-10-24 scored mobile 4/10): the rules are tests/phone-touch.mjs's header.
   in-page-40:
     runs-on: ubuntu-latest
     needs: release-proven
@@ -4078,8 +4097,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4089,31 +4106,14 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # THE PHONE (QA's phone playtest 2026-10-24 scored mobile 4/10): Configure
-      # action scrolls inside its sheet with Save and the close in reach (667x375
-      # to 922x423) and the page never pans sideways; Hunt details toggles the
-      # analyzer, which closes and never covers the hunt bar, and a pending leave
-      # keeps the bar on one line off the Party panel; a touch phone held upright
-      # is asked to turn (never a desktop or a tablet); Settings toggle by their
-      # words on 44 px lines; the Shop, the hunt bar, the analyzer tabs, the item
-      # tooltip and Equip answer a thumb. Each mutant runs only the pages its rule
-      # reads (BLOCKS_OF). --mutate plants 146.
-      - name: Phone touch (play.html)
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/phone-touch.mjs
+      - name: Phone touch, the rules and mutants shard 1 of 2 (play.html)
         if: ${{ !cancelled() }}
         run: |
           node tests/phone-touch.mjs
-          node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-40
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
+          node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=1/2
+      # ── END SELF-REGISTERED GUARDS ──
 
   # ── in-page-39 ── THE FACTION AND TOWER WINDOWS, SPLIT OUT OF in-page-25 2026-11-17 (lane/fix135-ci-budget).
   # release/v0.2.135 (run 44118906758) CANCELLED in-page-25 at its 47 inside tower-window --mutate, 0 escaped:
@@ -4135,8 +4135,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4217,8 +4215,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4453,8 +4449,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4584,8 +4578,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4834,8 +4826,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4880,8 +4870,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4918,8 +4906,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4955,8 +4941,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -4991,8 +4975,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5027,8 +5009,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5066,8 +5046,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5265,8 +5243,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5313,8 +5289,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5372,8 +5346,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5409,8 +5381,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5452,8 +5422,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5500,8 +5468,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5528,8 +5494,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5587,8 +5551,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5679,8 +5641,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5803,8 +5763,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5834,8 +5792,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5865,8 +5821,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5903,8 +5857,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -5964,8 +5916,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6026,8 +5976,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6098,6 +6046,35 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/beta-load.mjs --shape=lt --accounts=1000 --online=0.02 --minutes=5 --warm=120 --workers=3 --json=beta-load-lt.json
+      # ── END SELF-REGISTERED GUARDS ──
+
+  # in-page-57: the Phone touch mutants, shard 2 of 2 (lane/ci-inpage-shard, 2026-11-28; tests/phone-touch.mjs --shard, 1/2 beside the
+  # plain run in in-page-40). Here: setup 0.7 + the gate 1.4 + the scope 0.75 + its own clean control 5.8 (the whole rule set) + 78
+  # mutants 9.7 (46132371081) = 18.4 min; x2 = 37, 39 for a slow runner's control. Registered by the guard's own header.
+  in-page-57:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 39
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/phone-touch.mjs
+      - name: Phone touch, mutants shard 2 of 2 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/phone-touch.mjs --mutate --shard=2/2
       # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-14: the last steps of db-replay-6, from "Frame self-echo" on, split out 2026-11-18 (lane/ci-speed). db-replay-6 took up to 39.2 min
@@ -6311,8 +6288,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6710,8 +6685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6828,8 +6801,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -6899,8 +6870,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -7669,6 +7638,11 @@ jobs:
         run: |
           node tests/needs-you.mjs
           node tools/mutant-gate.mjs node tests/needs-you.mjs --mutate
+      # tests/page-mutant-shards.mjs
+      - name: Page mutant shards - every mutant of a sharded page suite in exactly one shard, each job within budget
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/page-mutant-shards.mjs
       # tests/piece-client.mjs
       - name: Trait pieces in the browser - the readers, the drop moment, the return card line, the two intents
         if: ${{ !cancelled() }}
@@ -7711,8 +7685,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -7848,8 +7820,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -7985,8 +7955,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8068,8 +8036,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8122,8 +8088,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8179,8 +8143,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8407,8 +8369,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8492,8 +8452,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -8690,8 +8648,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
           persist-credentials: false
 
       - uses: actions/setup-node@v4

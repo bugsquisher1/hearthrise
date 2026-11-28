@@ -12,6 +12,8 @@
 //   a reaction          the Roads node or option that grants it (src/data/talents.js `n`: Draining Sickness's heal, Shield Priest's)
 //   a worn Trait        its row's `name` (src/data/traits.js through gear-steps.js): a `dmg` or `heal` event's `tr` names the Traits that
 //                       held on it (src/core/hunt/trait-rules.js). DARK: no event carries one while GEAR_STEPS.traitsLive is false
+//   a worn imbuement    its row's `name` (src/data/imbue-rules.js): a worn Leech's heal names it (src/core/hunt/imbue-leech.js, damage.js
+//                       landHit). DARK: none is worn while the imbuements switch is off
 //
 //   nameOf(id)       the name, or null when nothing names `id` (tests/hunt-event-names.mjs holds every id the engine emits named)
 //   sourceName(id)   the name, else the id spelled out: a source this build does not know still reads as words, never as a code
@@ -23,6 +25,7 @@ import { roleSpellRow } from '../data/monster-roles.js';
 import { STATUSES } from '../data/statuses.js';
 import { TALENT_NODES } from '../data/talents.js';
 import { TRAITS } from '../data/gear-steps.js';
+import { IMBUE_RULES } from '../data/imbue-rules.js';
 import { t, hasText } from './player-text.js';
 
 /* reaction id -> the name of the node or option that grants it, read once (the first one that names it) */
@@ -50,6 +53,7 @@ export function nameOf(id) {
   if (Object.hasOwn(STATUSES, id)) return STATUSES[id].name;
   if (hasText('fight.piece_' + id)) return t('fight.piece_' + id);
   if (Object.hasOwn(TRAITS, id)) return TRAITS[id].name;
+  if (Object.hasOwn(IMBUE_RULES, id)) return IMBUE_RULES[id].name;
   return reactName(id);
 }
 

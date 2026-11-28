@@ -14,13 +14,12 @@
 //   SG-3  the cloth line: every tier-1 and tier-2 piece is reachable light armour (armourClass cloth: a drop since
 //         2026-11-18, Tyler: armor, weapons and shields drop, a bench makes none), tier 1
 //         worn from its material's Level (src/data/gear-tiers.js: tier 1 at 1, tier 2 at 10), and each tier's set carries more magic damage than the last
-//   SG-4  a reforged piece (Klappa's Club, style-gear.js; the Steelgrate, shields.js: the only made weapons and shields since
-//         2026-11-18) never sells for more than the BOOK value of what went in (the bench is never a faucet)
-//   SG-5  every reforge opens at or below the level its piece is worn at, from inputs a player can reach without it
-//   SG-6  every reforge sits in a Work-window category (recipes.js recipeCategory), never uncategorized
-//   SG-7  Klappa's Club (Tyler 2026-11-03, the tribute to Andy): the club hero's rung between the kit and the Iron Warhammer, reforged at a
-//         fresh bench from the kit's one club (so it is no wage) and what a Level 5 hero can reach; PLAYED: the bench run on the real span,
-//         then its blow and a real Thicket hunt on the settle
+//   (SG-4, SG-5 and SG-6 RETIRED WITH THE BENCH, lane/bench-cut-data 2026-11-28, 09-crafting.md 4.13: their subject was the reforge rows,
+//         Klappa's Klub's and the Steelgrate's. No bench reforges anything now: both drop, and a drop's sale is the loot band's, held by
+//         tests/hunt-core/drop-tables.mjs.)
+//   SG-7  Klappa's Klub (Tyler 2026-11-03, the tribute to Andy): the club hero's rung between the kit and the Iron Warhammer, a Scarce drop of
+//         the Thicket's Gray Whelps (the bench cut), so a Level 5 hero on the ground it opens at reaches it; PLAYED: its blow and a real
+//         Thicket hunt on the settle
 //   SG-8  cloth's damage is a premium, not the hit (designer 2026-11-15, lane/d-mage-110): from tier 2 up, every tier of the ladder (the
 //         step tiers past Dawnsteel too, the retired weapon line's WL9), a Mage in its tier's wand,
 //         spellbook and six cloth pieces at that tier's Level (Magic at the Level) hits at most 1.3 times a warhammer at the same Level
@@ -38,17 +37,13 @@
 // ════════════════════════════════════════════════════════════════════════
 import { fileURLToPath } from 'node:url';
 import { isMain as isEntryModule } from './_is-main.mjs';
-import { STYLE_LADDER, CLOTH_LADDER, STYLE_GEAR_RECIPES } from '../src/data/style-gear.js';
-import { SHIELD_RECIPES } from '../src/data/shields.js';
-import { recipeCategory } from '../src/data/recipes.js';
+import { STYLE_LADDER, CLOTH_LADDER } from '../src/data/style-gear.js';
 import { START_EQUIPMENT, START_INVENTORY } from '../src/data/start-kit.js';
-/* ITEMS and ARTISAN_RECIPES are the SAME identities reachableSources reads (its re-export), so a plant reaches it. */
-import { reachableSources, recipeInputs, ITEMS, ARTISAN_RECIPES, MONSTERS } from '../src/data/catalogue-coherence.js';
+/* ITEMS and MONSTERS are the SAME identities reachableSources reads (its re-export), so a plant reaches it. */
+import { reachableSources, ITEMS, MONSTERS } from '../src/data/catalogue-coherence.js';
 import { roleWeaponOf } from '../src/data/hunt-roles.js';
-import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
-import { ROCKS } from '../src/data/gathering.js';
-import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
-import { indexArtisanRecipes, simulateArtisanSpan } from '../src/core/artisan-sim.js';
+import { OPEN_GROUNDS } from '../src/data/hunt-grounds.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
 import { playerCombatRolls } from '../src/core/combat.js';
 import { deriveProfile } from '../src/core/member.js';
 import { skillXpForLevel } from '../src/core/xp.js';
@@ -70,9 +65,6 @@ export function check() {
   const fails = [];
   const reach = reachableSources();
   const kit = new Set(Object.keys(START_INVENTORY).concat(Object.values(START_EQUIPMENT)));
-  const made = new Map();
-  for (const [skill, rows] of Object.entries(STYLE_GEAR_RECIPES)) for (const r of rows) made.set(r.output, { skill, r });
-  for (const r of SHIELD_RECIPES) made.set(r.output, { skill: 'smithing', r });
 
   for (const [style, row] of Object.entries(STYLE_LADDER)) {
     const p = ITEMS[row.practice];
@@ -108,19 +100,6 @@ export function check() {
     lastMagic = magic;
   }
 
-  for (const [id, { skill, r }] of made) {
-    const ins = recipeInputs(r);
-    const book = Object.entries(ins).reduce((s, [k, q]) => s + q * (Number((ITEMS[k] || {}).v) || 0), 0);
-    const sell = vendorPriceOf(ITEMS, id) * (r.outputQty || 1);
-    if (sell > book) fails.push(`SG-4 ${r.id}: ${id} sells for ${sell} g, its inputs are worth ${book} g at book (the bench would mint gold)`);
-    const it = ITEMS[id] || {};
-    const wear = it.type === 'armor' ? Infinity : Number(it.reqLv) || 1;
-    if (!(Number(r.req) <= wear)) fails.push(`SG-5 ${r.id}: opens at ${skill} ${r.req}, after ${id} is worn at ${wear}`);
-    const far = Object.keys(ins).filter((k) => k === id || !reach.has(k));
-    if (far.length) fails.push(`SG-5 ${r.id}: input(s) a player cannot reach: ${far.join(', ')}`);
-    if (!(ARTISAN_RECIPES[skill] || []).some((x) => x.id === r.id)) fails.push(`SG-6 ${r.id}: not on the ${skill} bench (ARTISAN_RECIPES)`);
-    else if (!recipeCategory(skill, r, ITEMS)) fails.push(`SG-6 ${r.id}: no Work-window category (recipeCategory returns null)`);
-  }
   /* SG-9: a weapon carries only its own style's accuracy and damage, the pair the engine rolls it on (the header) */
   for (const [id, it] of Object.entries(ITEMS)) {
     if (!it || it.type !== 'weapon') continue;
@@ -141,44 +120,30 @@ export function check() {
     const mage = maxHitOf({ weapon: wand, shield: book, ...robes }, L), melee = maxHitOf({ weapon: hammer }, L);
     if (!(mage <= 1.3 * melee)) fails.push(`SG-8 tier ${t + 1} at Level ${L}: a Mage in full cloth hits ${mage}, ${(mage / melee).toFixed(2)} times the warhammer's ${melee} (at most 1.3)`);
   }
-  /* SG-7: the row reads; the bench and the blow are played in club() below (the hunt only in the plain run: it takes seconds). */
+  /* SG-7: the row reads; the blow is played in club() below (the hunt only in the plain run: it takes seconds). */
   const kclub = ITEMS.klappas_club, pclub = ITEMS.practice_club, iron = ITEMS.iron_warhammer;
-  const made7 = made.get('klappas_club');
-  if (!kclub || !made7) fails.push('SG-7 Klappa\'s Club is gone, or no bench makes it');
+  if (!kclub) fails.push('SG-7 Klappa\'s Klub is gone');
   else {
-    const r = made7.r, ins = recipeInputs(r);
     if (!(pclub.reqLv < kclub.reqLv && kclub.reqLv < iron.reqLv)) fails.push(`SG-7 worn at Level ${kclub.reqLv}: not between the Practice Club (${pclub.reqLv}) and the Iron Warhammer (${iron.reqLv})`);
     if (!(kclub.strB > pclub.strB && kclub.atkB >= pclub.atkB)) fails.push(`SG-7 no better than the Practice Club (${kclub.atkB}/${kclub.strB} against ${pclub.atkB}/${pclub.strB})`);
     if (!(kclub.strB <= iron.strB && kclub.atkB < iron.atkB)) fails.push(`SG-7 not under the Iron Warhammer at its own Level (${kclub.atkB}/${kclub.strB} against ${iron.atkB}/${iron.strB})`);
     /* the formula's club at its own Level (docs/design/redesign/28-named-pieces.md row 62): no borrowed piece, no offset */
     if (kclub.statsAs !== undefined || kclub.statPlus !== undefined || kclub.iL !== kclub.reqLv) fails.push(`SG-7 Klappa's Club is not the formula's club at its own Level (statsAs ${kclub.statsAs}, item Level ${kclub.iL}, Level ${kclub.reqLv})`);
-    if (ins.practice_club !== 1 || reach.get('practice_club') !== 'start kit') fails.push('SG-7 the reforge does not spend the kit\'s one club: the row becomes a wage');
-    /* req 1 keeps its loot from Sell all loot on the first trip home (bag-model.js madeInto: only what the bench can make NOW is kept) */
-    if (r.req !== 1) fails.push(`SG-7 opens at Smithing ${r.req}: Sell all loot sells its fangs on the first trip home`);
-    for (const id of Object.keys(ins)) if (id !== 'practice_club' && !firstHourDoor(id)) fails.push(`SG-7 ${id}: no door a Level 1-5 hero walks through`);
+    /* its door: a drop of a body on a ground that opens at or under the Klub's own Level, so the club hero finds it where it can wear it */
+    if (!reach.has('klappas_club') || !firstHuntDoor('klappas_club', kclub.reqLv)) fails.push(`SG-7 Klappa's Klub has no drop on a ground a Level ${kclub.reqLv} hero hunts`);
   }
   return fails;
 }
 
-/* The first hour's doors: a monster on the first ground, a level-1 rock, or a level-1 bench from one of those. */
-function firstHourDoor(id) {
-  const cellar = new Set(HUNT_GROUNDS.mill_cellar.pockets.flatMap((p) => (p.pack || []).concat(p.spawns)).map((s) => s.monster));
-  if ([...cellar].some((m) => (MONSTERS[m].drops || []).some((d) => d.id === id))) return true;
-  if (ROCKS.some((n) => n.prod === id && n.req <= 1)) return true;
-  return Object.values(ARTISAN_RECIPES).flat().some((r) => r.output === id && r.req <= 1 && Object.keys(recipeInputs(r)).every(firstHourDoor));
+/* A drop of a body placed on an open ground whose band opens at or under `level` (the Thicket opens at 5). */
+function firstHuntDoor(id, level) {
+  return Object.values(OPEN_GROUNDS).some((g) => Number(((HUNT_INDEX[g.hunt] || {}).band || [Infinity])[0]) <= level
+    && (g.pockets || []).flatMap((p) => (p.pack || []).concat(p.spawns || [], p.adds || [])).some((s) => ((MONSTERS[s.monster] || {}).drops || []).some((d) => d.id === id)));
 }
 
-/* SG-7, played: the reforge on the real span, then what it does in a fight. Answers failures. */
+/* SG-7, played: what it does in a fight. Answers failures. */
 function club() {
   const fails = [];
-  const reforge = ARTISAN_RECIPES.smithing.find((r) => r.output === 'klappas_club');
-  const state = { activeSkill: 'smithing', skillTargetId: reforge.id, skills: { smithing: 0 }, inventory: { practice_club: 1, bronze_bar: 6, small_fang: 3 }, equipment: {}, unlockedRecipes: [], toolCarry: {}, stats: {} };
-  let xp = 0;
-  const fx = { addItem: (id, n) => { state.inventory[id] = (state.inventory[id] || 0) + n; }, removeItem: (id, n) => { state.inventory[id] = (state.inventory[id] || 0) - n; }, addXp: (s, n) => { xp += n; } };
-  const out = simulateArtisanSpan(state, { fromMs: 0, toMs: 600000, recipes: indexArtisanRecipes(ARTISAN_RECIPES), items: ITEMS, rng: { chance: () => false, int: (a) => a, next: () => 0.5 }, bonus: () => 0, fx });
-  if (state.inventory.klappas_club !== 1) fails.push('SG-7 the bench did not make the club: ' + JSON.stringify({ bag: state.inventory, stopped: out && out.stoppedBy }));
-  if (state.inventory.practice_club > 0 || state.inventory.bronze_bar > 0 || state.inventory.small_fang > 0) fails.push('SG-7 the bench left its inputs: ' + JSON.stringify(state.inventory));
-  if (!(xp > 0)) fails.push('SG-7 the reforge paid no Smithing XP');
   /* its blow: on the engine's own roll, against a Gray Whelp, at the Melee a career carries at Level 5 and 10, and at the Warhammer's Level */
   const blow = (weapon, melee) => playerCombatRolls(MONSTERS.gray_whelp, { items: ITEMS, equipment: { weapon }, skills: { melee: skillXpForLevel('melee', melee) }, profile: deriveProfile('club') });
   for (const melee of [8, 20, 25]) {
@@ -211,9 +176,6 @@ function mutate() {
   const control = check();
   if (control.length) { console.error('MUTATE CONTROL: the tree is not clean:\n  ' + control.join('\n  ')); process.exit(2); }
   const setField = (id, k, v) => { const had = Object.prototype.hasOwnProperty.call(ITEMS[id], k); const was = ITEMS[id][k]; ITEMS[id][k] = v; return () => { if (had) ITEMS[id][k] = was; else delete ITEMS[id][k]; }; };
-  /* a frozen row (the shields, shields.js) is swapped whole for a copy, and put back */
-  const swap = (id, patch) => { const was = ITEMS[id]; ITEMS[id] = { ...was, ...patch }; return () => { ITEMS[id] = was; }; };
-  const unbench = (skill, rid) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const [row] = list.splice(at, 1); return () => list.splice(at, 0, row); };
   /* a rung's one door is its drop row since 2026-11-18. The Oak Wand's homes are read from the rows: the Sewer's slimes dropped it until
      the sweep put the Sewer on bronze and the wand on the Glade's vine (12-targets 8.3), and a named home stopped biting (2026-11-26) */
   const undrop = (mid, item) => { const m = MONSTERS[mid]; const was = m.drops; m.drops = was.filter((d) => d.id !== item); return () => { m.drops = was; }; };
@@ -223,8 +185,6 @@ function mutate() {
     return () => undo.reverse().forEach((u) => u());
   };
   run('the wand rung loses its drop (a style with no reachable upgrade)', 'SG-1', () => undropAll('oak_wand'));
-  /* a reforge's one door is its bench: the Steelgrate unbenched leaves the Kingsgrate's reforge with no source */
-  run('the Steelgrate loses its reforge (a made piece no bench makes)', 'SG-6', () => { const a = unbench('smithing', 'reforge_steelgrate'); return a; });
   /* every body that drops it, read from the rows (the Chief and his called copy, and now the Warlock and the Color
      Sergeant too): a named list of two stopped biting once a second home dropped it (2026-11-23) */
   run('the wand\'s tier-3 rung loses every drop', 'SG-1', () => {
@@ -236,14 +196,6 @@ function mutate() {
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));
   run('an adept robe worn from the old iron Level 15', 'SG-3', () => setField('adept_body', 'reqLv', 15));
   run('an adept robe that is plate', 'SG-3', () => setField('adept_body', 'armourClass', 'plate'));
-  /* worn gear sells by tier (loot-bands.js, tier 3 at 0.14): a 5,000 g Steelgrate sells for 700, over the 675 a Kingsgrate and three Steel Bars book at */
-  run('the Steelgrate at 5,000 g (it sells for more than its inputs)', 'SG-4', () => swap('steelgrate', { v: 5000 }));
-  run('a reforge worn before it opens (the Steelgrate at Level 20, reforged at Smithing 30)', 'SG-5', () => swap('steelgrate', { reqLv: 20 }));
-  run('a reforge from an input no player can reach', 'SG-5', () => {
-    const was = ITEMS.small_fang; delete ITEMS.small_fang;
-    return () => { ITEMS.small_fang = was; };
-  });
-  run('a reforge whose output type no Work-window tab claims', 'SG-6', () => swap('steelgrate', { type: 'trinket' }));
   /* the old cloth row on one piece: the Duskwood Robe Top at 0.4 of the Dawn Platebody's 90 (36, not 10) */
   run('the Duskwood Robe Top back at 0.4 of its plate twin\'s defence', 'SG-8', () => setField('duskweave_body', 'magicStrB', 36));
   /* past Dawnsteel (the retired weapon line's WL9 mutant "the wand line carries the Mage past the bar", on the ladder's own Wolfram wand) */
@@ -261,7 +213,8 @@ function mutate() {
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', ITEMS.iron_warhammer.atkB));
   run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 6));
   run('Klappa\'s Club borrows the Iron Warhammer\'s numbers again', 'SG-7', () => setField('klappas_club', 'statsAs', 'iron_warhammer'));
-  run('its fangs off the Cellar\'s rats', 'SG-7', () => undrop('rat', 'small_fang'));
+  /* (re-aimed by the bench cut: its door is the Gray Whelp's drop row, not the Cellar rats' fangs for a reforge) */
+  run('Klappa\'s Klub loses its Gray Whelp drop', 'SG-7', () => undrop('gray_whelp', 'klappas_club'));
 
   let bad = 0;
   for (const [name, hit] of results) { console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`); if (!hit) bad++; }
@@ -277,6 +230,6 @@ if (isEntryModule(import.meta.url)) {
     const fails = [...check(), ...club(), ...await hunted()];
     if (fails.length) { console.error('style-gear: RED'); fails.forEach((f) => console.error('  ✗ ' + f)); process.exit(1); }
     console.log(`style-gear: OK — ${Object.keys(STYLE_LADDER).length} styles each climb past the practice kit by Level 15 from a door a player can reach; `
-      + `the cloth line drops at tiers 1 and 2; ${Object.values(STYLE_GEAR_RECIPES).flat().length + SHIELD_RECIPES.length} reforges, none sells above its inputs' book`);
+      + 'the cloth line drops at tiers 1 and 2; Klappa\'s Klub drops in the Thicket between the kit and the Iron Warhammer');
   } catch (e) { console.error('style-gear: HARNESS ERROR — ' + (e && e.stack || e)); process.exit(2); }
 }

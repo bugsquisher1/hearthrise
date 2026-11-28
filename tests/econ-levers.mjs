@@ -39,8 +39,8 @@ import { STORE_KIT, storePrice } from '../src/data/store-kit.js';
 import { WAGE, wage } from '../src/data/wage.js';
 import { PAY } from '../src/data/danger.js';
 import { ITEMS } from '../src/data/items.js';
-import { DRINK_ITEMS, DRINK_RECIPES } from '../src/data/drinks.js';
-import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { DRINK_ITEMS } from '../src/data/drinks.js';
+import { KIT_RECIPES, faceOf, recipeLevel } from '../src/data/trades.js';
 import { RUNE_TIERS, isRune, runeTierOf, versionLevel } from '../src/data/runes.js';
 import { SHOP_BUYBACK_RATE } from '../supabase/functions/hr-accrue/catalogue.js';
 import { referenceReading, SINK_BAND, KEPT_READING, PRICING } from '../tools/balance-program/redesign/sinks/ledger.mjs';
@@ -62,8 +62,9 @@ function expectedPrice(b, kit) {
     return storePrice({ line: 'charge', step: rune ? versionLevel(runeTierOf(p)) : Number(p.reqLv) || 1, book: Number(p.v) || 0, rune, ammoPremium: BASIC_AMMO_PREMIUM }, kit);
   }
   const key = b.kind === 'heal' ? 'heals' : 'mana';
-  const recipe = b.kind === 'heal' ? Object.values(ARTISAN_RECIPES.cooking).find((r) => r.output === b.partner) : DRINK_RECIPES.find((r) => r.output === b.partner);
-  return recipe ? storePrice({ line: 'meal', step: recipe.req, amount: b[key], partnerAmount: Number(p[key]), book: Number(p.v) || 0 }, kit) : null;
+  /* a meal's or drink's made-at Level is its Cooking job's (the bench cut, 09-crafting 4.17): the lowest rung of a kit recipe whose face it is */
+  const steps = KIT_RECIPES.filter((r) => faceOf(r.kind, r.band) === b.partner).map((r) => recipeLevel(r.kind, r.band));
+  return steps.length ? storePrice({ line: 'meal', step: Math.min(...steps), amount: b[key], partnerAmount: Number(p[key]), book: Number(p.v) || 0 }, kit) : null;
 }
 
 /** Every arm's failures for the given rows, levers and report (the guard passes the shipped ones; --mutate passes planted copies). */

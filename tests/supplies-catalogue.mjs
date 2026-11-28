@@ -17,8 +17,8 @@
 //   S7 heal and buff values are the item's own, never a copy
 //   S8 every buff type is sorted into COMBAT or IDLE, and only once
 //   S9 HEAL_ORDER is every heal, cheapest first
-//   M1 every staged drink is a mana item with a Cooking recipe from one crop,
-//      a flavour line, and a batch that never vends for more than 5x its crop
+//   M1 every drink is a mana item a Cooking job makes from one crop (the bench cut: src/data/trades.js jobFaces),
+//      a flavour line, and one drink never vends for more than 5x its crop
 //   K1 heal, mana and ammo each have a shop supply paid per use
 //   B1 every shop supply is not an item, names a crafted partner of its kind,
 //      gives 3/4 of the partner's heal or mana (an arrow: 3/4 of its ammo bonus,
@@ -69,7 +69,8 @@ import {
 import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, NO_STORE_PARTNER, STORE_RUNE_PRICE } from '../src/data/supply-basics.js';
 import { isRune, runeTierOf } from '../src/data/runes.js';
 import { FOOD_HEAL_SCALE } from '../src/data/core-model.js';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
+import { DRINK_ITEMS, DRINK_DESC } from '../src/data/drinks.js';
+import { jobFaces } from '../src/data/trades.js';
 import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITY_LANES, ABILITIES } from '../src/data/abilities.js';
@@ -183,12 +184,13 @@ function checkDrinks(d, f) {
     if (kind !== 'mana' || supplyKindOf(it) !== 'mana' || essential !== false) f('M1', `'${id}' is not a non-essential mana supply`);
     if (staged.has(id) && own(ITEMS, id) && !d.rows.some((r) => r[1] === id)) f('M1', `'${id}' is in ITEMS but still staged: move it into SUPPLY_ROWS`);
     if (!own(DRINK_DESC, id)) f('M1', `'${id}' has no flavour line`);
-    const r = d.drinkRecipes.find((x) => x.output === id);
-    if (!r) { f('M1', `'${id}' has no Cooking recipe`); continue; }
-    const ins = Object.keys(r.inputs || {});
+    /* made by a Cooking job since the bench cut (09-crafting 4.17: src/data/trades.js jobFaces), one drink an attempt */
+    const r = d.drinkJobs.find((x) => x.output === id);
+    if (!r) { f('M1', `'${id}' has no Cooking job`); continue; }
+    const ins = r.inputs;
     if (ins.length !== 1 || !crops.has(ins[0])) f('M1', `'${id}' is not made from one Farming crop`);
-    const cropVendor = vendorPriceOf(ITEMS, ins[0]) * (r.inputs[ins[0]] || 0);
-    if (r.outputQty * it.v > BATCH_FAUCET_CAP * cropVendor) f('M1', `'${id}' vends ${r.outputQty * it.v} g a batch from a ${cropVendor} g crop (over ${BATCH_FAUCET_CAP}x)`);
+    const cropVendor = vendorPriceOf(ITEMS, ins[0]);
+    if (it.v > BATCH_FAUCET_CAP * cropVendor) f('M1', `'${id}' vends ${it.v} g a drink from a ${cropVendor} g crop (over ${BATCH_FAUCET_CAP}x)`);
   }
 }
 
@@ -366,7 +368,7 @@ export function check(d) {
 }
 
 const REAL = () => ({
-  rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
+  rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkJobs: jobFaces().filter((j) => j.trade === 'cooking'), basics: BASIC_SUPPLIES,
   combatBuffs: COMBAT_BUFF_TYPES, targets: TARGET_MODES, consumable: CONSUMABLE_RULES, supply: SUPPLY_SOURCE, onEmpty: ON_EMPTY,
   hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
   /* every rune of a family an active spell spends (a slot may name any tier of it): the ability row keys the Chalked one */
@@ -412,7 +414,7 @@ function selftest() {
     }],
     ['B3', 'a big shop heal cheaper per point than a small one (Lobster 3.3 g vs Trout 4.0 g)', (d) => { withBasic(d, 'salted_lobster', { price: 60 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
-    ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],
+    ['M1', 'a drink no Cooking job makes', (d) => { d.drinkJobs = d.drinkJobs.filter((r) => r.output !== 'pumpkin_cider'); }],
     ['L1', 'the food cooldown back at 1 s', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, laneMs: 1000 }); }],
     ['R1', 'a target-mode table left unfrozen', (d) => { d.targets = { ...TARGET_MODES }; }],
     ['R2', 'the default hero eats only under 30%', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, foodBelowPct: 30 }); }],

@@ -1,24 +1,26 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/job-counts.mjs — EVERY JOB TAKES A COUNT AND A "THEN", AND THE SERVER ENDS IT AT THE COUNT, WINDOW OPEN OR BROWSER
-//   CLOSED (plan L08, retention R3; supabase/migrations/1026-job-counts.sql + supabase/functions/hr-accrue).
+// tests/job-counts.mjs — A COUNTED RUN IS ENDED BY THE SERVER AT ITS COUNT, WINDOW OPEN OR BROWSER CLOSED
+//   (plan L08, retention R3; supabase/migrations/1026-job-counts.sql + supabase/functions/hr-accrue).
+//   Re-aimed at the Great Hearth's fuel run by lane/bench-cut-edge (09-crafting.md 4.17): the gathering job it drove left with the
+//   one-town-work cut, and `bench_run` stays as the hearth run's count. A fuel run takes no THEN.
 //
 //   node tests/job-counts.mjs            the guard (the whole replayed chain, the shipped edge modules)
 //   node tests/job-counts.mjs --mutate   every planted defect in the edge must turn its arm red
 //
-// mutant-anchors: supabase/functions/hr-accrue/accrue-gather.js, supabase/functions/hr-accrue/tick-shadow.js, supabase/functions/hr-accrue/set-activity.js
+// mutant-anchors: supabase/functions/hr-accrue/accrue-artisan.js, supabase/functions/hr-accrue/envelope.js, supabase/functions/hr-accrue/set-activity.js
 //
 // Every hero is made with hr_create_hero and set to work through the REAL set_activity intent (runSetActivity), as hr_engine.
 //   J-DATA     src/data/hunt-after.js JOB_NEXTS is valid and its ids are exactly the server's CHECK on active_next.
-//   J-REFUSE   the intent refuses a gathering job with no count, a forged count, a forged THEN and a THEN with no count, by
-//              name and before any write; a good one is stored and the envelope's bench_run says { left, count, next }.
-//   J-OPEN     WINDOW OPEN: a gathering job of 20, THEN wait, settled by the viewed hero's accrue-semantics settle
-//              (collectCurrentWindow with the pointer surviving: index.ts's computeAccrual literal, A14) every 20 s of
-//              server time: the job swings EXACTLY 20 times across the cut windows, ends itself, and its end says
-//              "count, 20 of 20, waited"; nothing pays after it. One ten-minute settle of a job of 20 also pays exactly 20.
+//   J-REFUSE   the intent refuses a forged count, any THEN and a count on idle, by name and before any write; a good one is
+//              stored and the envelope's bench_run says { left, count }.
+//   J-OPEN     WINDOW OPEN: a run of 60 settled by the viewed hero's accrue-semantics settle (collectCurrentWindow with the
+//              pointer surviving: index.ts's computeAccrual literal, A14) every 16 s of server time: it burns EXACTLY 60 across
+//              the cut windows, ends itself, and its end says "count, 60 of 60, waited"; nothing burns after it. One ten-minute
+//              settle of a run of 20 also burns exactly 20.
 //   J-CLOSED   BROWSER CLOSED: with the hero's last hunt behind it, a THEN of hunt is refused by name (FB-10's re-cut of 1026, D-11:
-//              no job's end starts a hunt); the job of 20, THEN wait, settled by the world tick (the shipped runTick, 10 s polls
-//              folded into a 90 s flush): EXACTLY 20 swings, the job ends, the hero waits in town, no hunt starts, no sweep exists.
+//              no job's end starts a hunt); a run of 200 settled by the world tick (the shipped runTick, one 90 s window a fire,
+//              140 actions): EXACTLY 200 over the fires, the run ends, the hero waits in town, no hunt starts, no sweep exists.
 //   J-ONCE     a second fire over the ended job writes nothing.
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -33,7 +35,7 @@ import { isMain } from './_is-main.mjs';
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FN = 'supabase/functions/hr-accrue';
-const NODE = 'normal_tree';
+const RUN = 'fuel_bones';
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
 
 let seq = 0;
@@ -66,6 +68,8 @@ async function makeHero(db) {
   const name = 'Counter' + String.fromCharCode(97 + (seq % 26)) + String.fromCharCode(97 + Math.floor(seq / 26) % 26);
   const h = await as(db, uid, 'select public.hr_create_hero(0, $1, $2::jsonb, $3::uuid)', [name, COLORS, idem()]);
   if (!h || h.ok !== true) throw Object.assign(new Error('hr_create_hero refused: ' + js(h)), { harness: true });
+  await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 1000)
+                  on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [uid]);
   return uid;
 }
 
@@ -84,11 +88,11 @@ async function huntBehind(db, uid) {
 const stateOf = async (db, uid) => (await db.query(
   `select ps.active_kind, ps.active_id, ps.active_left, ps.active_count, ps.active_next, ps.job_end, ps.accrued_to, ps.version,
           ps.last_activity_left,
-          coalesce((select qty from public.player_inventory i where i.user_id = ps.user_id and i.slot = 0 and i.item_id = 'normal_log'), 0)::int as logs
+          coalesce((select qty from public.player_inventory i where i.user_id = ps.user_id and i.slot = 0 and i.item_id = 'bones'), 0)::int as bones
      from public.player_state ps where ps.user_id = $1 and ps.slot = 0`, [uid])).rows[0];
-const gatherRows = async (db, uid) => (await db.query(
-  "select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'gather' and intent = 'accrue' order by id", [uid])).rows.map((r) => r.meta);
-const swings = (rows) => rows.reduce((a, m) => a + Number(m.ticks || 0), 0);
+const craftRows = async (db, uid) => (await db.query(
+  "select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'craft' and intent = 'accrue' order by id", [uid])).rows.map((r) => r.meta);
+const burns = (rows) => rows.reduce((a, m) => a + Number(m.ticks || 0), 0);
 
 /* Server time passes for this hero's town job: both watermarks move back together (local-world's WAIT). */
 async function passes(db, uid, s) {
@@ -143,10 +147,10 @@ async function arms(db, edge) {
   const r = await makeHero(db);
   const r0 = await stateOf(db, r);
   const bad = [
-    { kind: 'gather', id: NODE },
-    { kind: 'gather', id: NODE, count: null },
-    { kind: 'gather', id: NODE, count: 20, next: 'nap' },
-    { kind: 'gather', id: NODE, count: 20, next: null },
+    { kind: 'artisan', id: RUN, count: null },
+    { kind: 'artisan', id: RUN, count: 20, next: 'nap' },
+    { kind: 'artisan', id: RUN, count: 20, next: 'wait' },
+    { kind: 'artisan', id: RUN, count: 20, next: null },
     { kind: 'idle', id: null, count: 20 },
   ];
   const answers = [];
@@ -155,79 +159,78 @@ async function arms(db, edge) {
     answers.push([res.status, res.body && res.body.error]);
   }
   const r1 = await stateOf(db, r);
-  const good = await startJob(db, edge, r, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
+  const good = await startJob(db, edge, r, { kind: 'artisan', id: RUN, count: 20 });
   const r2 = await stateOf(db, r);
   const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [r]);
   const br = env && env.bench_run;
   arm('J-REFUSE', answers.every(([st, e]) => st === 400 && e === 'bad_activity') && r1.version === r0.version
-      && good.status === 200 && r2.active_kind === 'gather' && r2.active_left === 20 && r2.active_count === 20 && r2.active_next === 'wait'
-      && br && br.left === 20 && br.count === 20 && br.next === 'wait',
-    'no count, a forged count, a forged THEN and a count on idle are refused bad_activity before any write; "20, then wait" is stored and projected',
+      && good.status === 200 && r2.active_kind === 'artisan' && r2.active_left === 20 && r2.active_count === 20
+      && br && br.left === 20 && br.count === 20,
+    'a forged count, any THEN and a count on idle are refused bad_activity before any write; a run of 20 is stored and projected',
     `answers ${js(answers)}, version ${r0.version} -> ${r1.version}, good ${good.status} ${js(good.body && good.body.error)}, row ${js(r2)}, bench_run ${js(br)}`);
 
-  /* ── J-OPEN: window open, the viewed hero's settle every 20 s ── */
+  /* ── J-OPEN: window open, the viewed hero's settle every 16 s (25 actions; the town floor is 15 s) ── */
   const o = await makeHero(db);
-  const os = await startJob(db, edge, o, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
+  const os = await startJob(db, edge, o, { kind: 'artisan', id: RUN, count: 60 });
   if (os.status !== 200) throw Object.assign(new Error('J-OPEN start refused: ' + js(os.body)), { harness: true });
   let settles = 0;
   for (let i = 0; i < 12; i++) {
     const s = await stateOf(db, o);
-    if (s.active_kind !== 'gather') break;
-    await passes(db, o, 20);
+    if (s.active_kind !== 'artisan') break;
+    await passes(db, o, 16);
     await viewedSettle(db, edge, o);
     settles++;
   }
   const oa = await stateOf(db, o);
-  const orows = await gatherRows(db, o);
+  const orows = await craftRows(db, o);
   await passes(db, o, 300);
   await viewedSettle(db, edge, o).catch(() => null);
   const ob = await stateOf(db, o);
   const oe = oa.job_end || {};
-  arm('J-OPEN', oa.active_kind === 'idle' && swings(orows) === 20 && orows.length >= 2 && oa.logs >= 20
-      && oe.end === 'count' && oe.done === 20 && oe.count === 20 && oe.next === 'wait' && oe.next_state === 'waited'
+  arm('J-OPEN', oa.active_kind === 'idle' && burns(orows) === 60 && orows.length >= 2 && oa.bones === 940
+      && oe.end === 'count' && oe.done === 60 && oe.count === 60 && oe.next === 'wait' && oe.next_state === 'waited'
       && orows[orows.length - 1].stopped === 'count' && orows[orows.length - 1].left === 0
-      && ob.version === oa.version && ob.logs === oa.logs,
-    `window open: 20 swings exactly over ${orows.length} settles (${settles} asked), the job ended itself, "20 of 20, waited"; nothing paid after`,
-    `window open: ${swings(orows)} swings in ${orows.length} rows, row ${js(oa)}, last meta ${js(orows[orows.length - 1])}, after ${js({ v: ob.version, logs: ob.logs })}`);
-  /* ...and ONE settle that covers ten minutes (about 125 swings of time) still pays exactly 20: the count caps the span itself,
-     not only the cut of the windows (20 s windows of a 4.8 s swing can land on 20 by arithmetic alone). */
+      && ob.version === oa.version && ob.bones === oa.bones,
+    `window open: 60 burnt exactly over ${orows.length} settles (${settles} asked), the run ended itself, "60 of 60, waited"; nothing burnt after`,
+    `window open: ${burns(orows)} burnt in ${orows.length} rows, row ${js(oa)}, last meta ${js(orows[orows.length - 1])}, after ${js({ v: ob.version, bones: ob.bones })}`);
+  /* ...and ONE settle that covers ten minutes (about 937 actions of time) still burns exactly 20: the count caps the span itself. */
   const o2 = await makeHero(db);
-  const os2 = await startJob(db, edge, o2, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
+  const os2 = await startJob(db, edge, o2, { kind: 'artisan', id: RUN, count: 20 });
   if (os2.status !== 200) throw Object.assign(new Error('J-OPEN-ONE start refused: ' + js(os2.body)), { harness: true });
   await passes(db, o2, 600);
   await viewedSettle(db, edge, o2);
   const o2a = await stateOf(db, o2);
-  const o2rows = await gatherRows(db, o2);
-  arm('J-OPEN', o2a.active_kind === 'idle' && swings(o2rows) === 20 && o2rows.length === 1 && (o2a.job_end || {}).done === 20,
-    'window open: one ten-minute settle of a job of 20 swung exactly 20 and ended it',
-    `window open: one ten-minute settle swung ${swings(o2rows)} in ${o2rows.length} row(s), row ${js(o2a)}`);
+  const o2rows = await craftRows(db, o2);
+  arm('J-OPEN', o2a.active_kind === 'idle' && burns(o2rows) === 20 && o2a.bones === 980 && o2rows.length === 1 && (o2a.job_end || {}).done === 20,
+    'window open: one ten-minute settle of a run of 20 burnt exactly 20 and ended it',
+    `window open: one ten-minute settle burnt ${burns(o2rows)} in ${o2rows.length} row(s), row ${js(o2a)}`);
 
   /* ── J-CLOSED: browser closed, the world tick ── */
   const c = await makeHero(db);
   const hunt = await huntBehind(db, c);
   /* a THEN of hunt is refused by name since FB-10's re-cut (D-11: no job's end starts a hunt) */
-  const ch = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'hunt' });
-  const cs = await startJob(db, edge, c, { kind: 'gather', id: NODE, count: 20, next: 'wait' });
+  const ch = await startJob(db, edge, c, { kind: 'artisan', id: RUN, count: 200, next: 'hunt' });
+  const cs = await startJob(db, edge, c, { kind: 'artisan', id: RUN, count: 200 });
   if (cs.status !== 200) throw Object.assign(new Error('J-CLOSED start refused: ' + js(cs.body)), { harness: true });
   await db.query('update public.player_state set last_seen_at = null where user_id = $1 and slot = 0', [c]);
   await db.query('select public.hr_tick_enrol(200)');
   await passes(db, c, 600);
-  /* the tick settles one 90 s flush window a fire (artisan-tick A-RUNNING); a Level 1 hero with no axe swings about every 5 s */
+  /* the tick settles one 90 s flush window a fire (artisan-tick A-RUNNING): 140 actions, then what the count has left */
   let f1 = null;
   for (let i = 0; i < 6; i++) {
     f1 = await fire(db, edge, [c]);
-    if ((await stateOf(db, c)).active_kind !== 'gather') break;
+    if ((await stateOf(db, c)).active_kind !== 'artisan') break;
   }
   const ca = await stateOf(db, c);
-  const crows = await gatherRows(db, c);
+  const crows = await craftRows(db, c);
   const ce = ca.job_end || {};
-  const closedEnd = ca.active_kind === 'idle' && swings(crows) === 20 && crows.every((m) => m.src === 'tick')
-    && ce.end === 'count' && ce.done === 20 && ce.next === 'wait' && ce.next_state === 'waited';
+  const closedEnd = ca.active_kind === 'idle' && burns(crows) === 200 && ca.bones === 800 && crows.length >= 2 && crows.every((m) => m.src === 'tick')
+    && ce.end === 'count' && ce.done === 200 && ce.next === 'wait' && ce.next_state === 'waited';
   const open = await one(db, 'select hunt_id from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is null', [c]);
   const sweep = await one(db, "select to_regprocedure('public.hr_job_next_sweep(integer)')::text");
   arm('J-CLOSED', closedEnd && ch.status === 400 && ch.body && ch.body.error === 'bad_activity' && open === undefined && sweep === null,
-    `browser closed: a THEN of hunt is refused by name, the tick swung exactly 20 in ${crows.length} row(s) and ended the job, and the hero waits in town (no sweep, no hunt starts; its last was ${hunt})`,
-    `browser closed: then-hunt ${js([ch.status, ch.body && ch.body.error])}, fire ${js(f1).slice(0, 200)}, ${swings(crows)} swings, end ${js(ce)}, open hunt ${js(open)}, sweep ${js(sweep)}`);
+    `browser closed: a THEN of hunt is refused by name, the tick burnt exactly 200 in ${crows.length} row(s) and ended the run, and the hero waits in town (no sweep, no hunt starts; its last was ${hunt})`,
+    `browser closed: then-hunt ${js([ch.status, ch.body && ch.body.error])}, fire ${js(f1).slice(0, 200)}, ${burns(crows)} burnt, end ${js(ce)}, open hunt ${js(open)}, sweep ${js(sweep)}`);
 
   /* ── J-ONCE ── */
   const ledger0 = await one(db, 'select count(*)::int from public.player_ledger where user_id = $1', [c]);
@@ -252,19 +255,23 @@ async function loadEdge(dir) {
 async function prepare(db) {
   await db.query("insert into public.hr_flags (key, enabled, note) values ('town_presence', true, 'job-counts') on conflict (key) do update set enabled = true");
   await db.query('update public.hr_tick_config set enabled = true where id');
-  await db.query("update public.hr_tick_config set armed_channels = (select array_agg(distinct x) from unnest(armed_channels || 'gather'::text) x) where id");
 }
 
 const JS_MUTANTS = [
-  { id: 'no_cap', arm: 'J-OPEN', file: `${FN}/accrue-gather.js`, why: 'the job count does not cap the span (6,001 ore for 20)',
-    from: '    maxActions: left0,', to: '    maxActions: null,' },
-  { id: 'no_carry', arm: 'J-CLOSED', file: `${FN}/tick-shadow.js`, why: 'the tick forgets the count between its 10 s polls',
-    from: "  if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;", to: '' },
-  { id: 'no_end', arm: 'J-OPEN', file: `${FN}/accrue-gather.js`, why: 'the count reached does not end the job',
-    from: "  const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL || counted;",
-    to: "  const nodeStopped = summary.stoppedBy === STOP_REASON.LEVEL || summary.stoppedBy === STOP_REASON.BAG_FULL;" },
-  { id: 'uncounted_ok', arm: 'J-REFUSE', file: `${FN}/set-activity.js`, why: 'a gathering job with no count is accepted',
-    from: "  if (kind === 'gather' && a.count === undefined) {", to: '  if (false) {' },
+  { id: 'no_cap', arm: 'J-OPEN', file: `${FN}/accrue-artisan.js`, why: 'the run\'s count does not cap the span (937 bones for 20)',
+    from: '    maxActions: runCap(inp.actionBudget, left0),', to: '    maxActions: inp.actionBudget,' },
+  /* (no_carry, the count carried between a gather flush's 10 s polls, retired with the poll fold; what carries it across fires is
+     the countdown the window writes, and its mutant is no_countdown.) */
+  { id: 'no_countdown', arm: 'J-CLOSED', file: `${FN}/accrue-artisan.js`, why: 'a window short of the count writes no countdown: every fire burns the whole count again',
+    from: '|| (!runOver && left1 < left0)))', to: '|| false))' },
+  { id: 'no_end', arm: 'J-OPEN', file: `${FN}/accrue-artisan.js`, why: 'the count reached does not end the run',
+    from: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES || counted;', to: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES;' },
+  { id: 'count_unread', arm: 'J-CLOSED', file: `${FN}/envelope.js`, why: 'the envelope\'s count reaches no window',
+    from: '    activeLeft: (e.bench_run && Number.isInteger(e.bench_run.left) && e.bench_run.left > 0) ? e.bench_run.left : null,', to: '    activeLeft: null,' },
+  { id: 'count_dropped', arm: 'J-REFUSE', file: `${FN}/set-activity.js`, why: 'the statement hr_apply stores carries no count',
+    from: '      ...(n !== null ? { count: n } : {}),\n    },', to: '    },' },
+  { id: 'idle_counted', arm: 'J-REFUSE', file: `${FN}/set-activity.js`, why: 'an unreadable count is dropped instead of refused: the run burns the stack',
+    from: "  if (a.count !== undefined && (kind !== 'artisan' || a.count === null)) {", to: '  if (false) {' },
 ];
 
 async function main() {

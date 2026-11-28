@@ -45,6 +45,7 @@ import { ITEMS } from '../src/data/items.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { HEARTH_FUELS, fuelRecipeId } from '../src/data/hearth.js';
 import { simulateFuelSpan, indexFuelRuns } from '../src/core/artisan-sim.js';
+import { advance } from '../supabase/functions/hr-accrue/tick-shadow.js';
 import { isMain } from './_is-main.mjs';
 
 const problems = [];
@@ -222,6 +223,9 @@ function countGuard() {
   const both = call({ inventory: { [FUEL]: 1000 }, activeLeft: 50, jobEnds: true, actionBudget: 20 });
   ok(both.accrued && both.summary.ticks === 20 && !both.delta.activity && both.delta.active_left === 30,
     `T9: a budget of 20 under a count of 50 ran ${both.summary && both.summary.ticks} and answered ${JSON.stringify(both.delta && { activity: both.delta.activity, left: both.delta.active_left })}`);
+  /* THE CHAIN'S CARRIER (a shadow chain, where the database is not the carrier): the next window caps at what this one left. */
+  const carrier = (out) => { const c = { skills: {}, inventory: {}, activeLeft: 50 }; advance(c, out); return c.activeLeft; };
+  ok(carrier(both) === 30 && carrier(one) === null, `T9: the tick's carrier holds ${carrier(both)} then ${carrier(one)}, not 30 then no count`);
   /* What is not a whole positive number is no count. */
   const free = JSON.stringify(call({ inventory: { [FUEL]: 50 } }).delta);
   for (const bad of [null, undefined, 0, -1, 1.5, '3', NaN, {}]) {
@@ -307,6 +311,8 @@ export const MUTATIONS = [
     file: `${FN}/accrue-artisan.js`, from: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES || counted;', to: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES;' },
   { id: 'M15', arm: 'T9', why: 'a run short of its count proposes no countdown: every window burns the whole count',
     file: `${FN}/accrue-artisan.js`, from: 'if (left1 !== null && ((runOver && inp.jobEnds === true) || (!runOver && left1 < left0))) delta.active_left = left1;', to: ';' },
+  { id: 'M17', arm: 'T9', why: 'the tick\'s carrier forgets the count: a chained window burns the whole count again',
+    file: `${FN}/tick-shadow.js`, from: "  if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;\n", to: '' },
   { id: 'M16', arm: 'T9', why: 'the job end is proposed to a database that refuses it (hr_apply: bad_delta, the window is lost)',
     file: `${FN}/accrue-artisan.js`, from: '((runOver && inp.jobEnds === true) ||', to: '(runOver ||' },
   /* The door's catalogue answer and the accruer's own are one rule in two layers (either alone refuses): the mutant

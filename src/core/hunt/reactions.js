@@ -28,7 +28,7 @@
 //   ready   `move` ready now; pass  what the fallen carried moves on; boon  `status` on the moment's hero, `ms` long, at `pw` permille of
 //           its strength when named (a branch's status strength, status-effects.js)
 //   taunt   the moment's monster, if it is on another hero of the wearer's side and held by no Challenge, turns on the wearer, held `ms`
-//           (lane/signatures-batch-4, targeting.js tauntOne: Teamster's Mitts on Power Strike)
+//           (lane/signatures-batch-4, tauntOne below: Teamster's Mitts on Power Strike)
 // BATCH 4 (lane/signatures-batch-4): the filter `role` (the moment's monster plays that role: its striker, else the monster it names), a
 // status `at: 'lowest'` (on the monster attacking the lowest hero of the party), and a broken shell's moment carries its breaker (`src`).
 // WHERE IT LANDS (`to`, lane/signatures-batch-3): a heal to the moment's hero ('target', pm of its max health) or each living hero of the
@@ -50,9 +50,11 @@ import { healIn } from './heal-cut.js';
 import { offerShield } from './shields.js';
 import { makeEvent } from './events.js';
 import { rowOf as standsIn, roleIdOf } from './monster-roles.js';
-import { tauntOne } from './targeting.js';
+import { retarget } from './targeting.js';
+import { unitById } from './movement.js';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js';
 import { cheb } from './grid.js';
-import { isAlly, isMonster } from './sides.js';
+import { isAlly, isHero, isMonster } from './sides.js';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 const readyAt = (o, k) => (o && typeof o === 'object' && Number.isInteger(o[k]) ? o[k] : 0);
@@ -224,7 +226,7 @@ const DO = Object.freeze({
     return !!m && m.alive === true && isMonster(m) && n > 0 && landHit(inst, sc, u, m, n, null, { id: 'reflect', dot: true, exact: true }).dmg > 0;
   },
   ready: (inst, sc, u, row) => readyNow(u, row.move, sc.atMs),
-  /* (lane/signatures-batch-4) the moment's monster, on another hero of the wearer's side, turns on the wearer, held `ms` (targeting.js tauntOne) */
+  /* (lane/signatures-batch-4) the moment's monster, on another hero of the wearer's side, turns on the wearer, held `ms` (tauntOne) */
   taunt: (inst, sc, u, row, ctx) => tauntOne(inst, sc, u, ctx.t, row.ms),
   pass: (inst, sc, u, row, ctx) => passOn(inst, sc, u, row.what, ctx),
   boon: (inst, sc, u, row, ctx) => {
@@ -268,6 +270,24 @@ function nearestEngaged(inst, from, r, ok) {
     if (!m || cheb(o, from) < cheb(m, from) || (cheb(o, from) === cheb(m, from) && o.id < m.id)) m = o;
   }
   return m;
+}
+
+const STEP = HUNT_TUNING.stepMs;
+/**
+ * A ONE-MONSTER TAUNT (a reaction's `taunt`, lane/signatures-batch-4: Teamster's Mitts, "Power Strike on a monster attacking an ally: it
+ * turns on you for 4 s"): monster `m`, engaged on another living hero of `u`'s side and held by no Challenge (the Challenge's own rule:
+ * targeting.js challengeable takes none that is held), turns on `u`, leaves its queue and is held `ms`, on the step grid. Hold Fast keeps it
+ * where it is (targeting.js retarget). Answers whether it turned. Here, not in targeting.js, so it loads on need (the town reads that).
+ */
+export function tauntOne(inst, sc, u, m, ms) {
+  if (!m || m.alive !== true || !isMonster(m) || !u || u.alive !== true || !isHero(u) || m.holdMs > 0) return false;
+  const on = Number.isInteger(m.target) && m.target !== u.id ? unitById(inst, m.target) : null;
+  if (!on || on.alive !== true || !isHero(on) || !isAlly(u, on)) return false;
+  retarget(inst, m, u.id, sc);
+  if (m.target !== u.id) return false;
+  m.queued = false;
+  m.holdMs = Math.max(STEP, Math.floor(ms / STEP) * STEP);
+  return true;
 }
 
 /** `move` READY NOW on hero `u` at `atMs` (a `ready` reaction: The Wood Book's Hoarfrost): its cooldown ends now. Answers whether it was

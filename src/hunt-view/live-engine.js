@@ -49,6 +49,8 @@ import { aloneIn } from '../core/hunt/abilities.js';
 import { xpMultFor } from '../core/live-events.js';
 import { towerOf, towerEndsAt } from '../core/hunt/tower.js';
 import { noteGains, hudGainsSince } from './hud-ledger.js';
+/* what a diverged start point differs in: the link reads it only from a running prediction, so it loads with the engine */
+export { worldDiff } from './live-diff.js';
 import { dangerOn, dangerDial } from '../core/hunt/danger.js';
 
 /* How many swings of world hashes are kept to judge a server commit against. */

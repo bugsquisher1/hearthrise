@@ -35,7 +35,6 @@
 // session's `live`, src/shell/hud-predict.js and the scene hold it): the engine's methods are copied onto it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldDiff } from '../hunt-view/live-diff.js';
 import { ITEMS } from '../data/items.js';
 import { MONSTERS } from '../data/monsters.js';
 import { SESSION_CONFIG } from './config.js';
@@ -46,9 +45,11 @@ const ENGINE_URL = new URL('../hunt-view/live-engine.js', import.meta.url).href 
 /* After a fetch that failed, the next viewed answer tries again at most this often (ms): a lost file never becomes a request a poll. */
 const ENGINE_RETRY_MS = 30000;
 /* Types only (no load): the engine and its stand-in share live-engine.js's LiveEngine, so the loaded engine is checked against it. */
-/** @import { LiveEngine, createLiveEngine } from '../hunt-view/live-engine.js' */
+/** @import { LiveEngine, createLiveEngine, worldDiff } from '../hunt-view/live-engine.js' */
 /** @type {null | ((o: {items: object, monsters: object}) => LiveEngine)} */
 let createEngine = null;
+/** What a diverged start point differs in (live-diff.js, loaded with the engine): only a running prediction asks. @type {null | typeof worldDiff} */
+let diffOf = null;
 let engineLoad = null;
 let engineFailedAt = -Infinity;
 
@@ -60,7 +61,9 @@ let engineFailedAt = -Infinity;
 export function loadLiveEngine() {
   if (createEngine) return Promise.resolve(true);
   if (!engineLoad && Date.now() - engineFailedAt >= ENGINE_RETRY_MS) {
-    engineLoad = import(ENGINE_URL).then((/** @type {{ createLiveEngine: typeof createLiveEngine }} */ m) => { createEngine = m.createLiveEngine; return true; },
+    engineLoad = import(ENGINE_URL).then((/** @type {{ createLiveEngine: typeof createLiveEngine, worldDiff: typeof worldDiff }} */ m) => {
+      createEngine = m.createLiveEngine; diffOf = m.worldDiff; return true;
+    },
       () => { engineLoad = null; engineFailedAt = Date.now(); return false; });
   }
   return engineLoad || Promise.resolve(false);
@@ -287,7 +290,7 @@ export class LiveLink {
   /* A start point the prediction differs from: name what differs while it still holds that swing (live-diff.js). */
   _noteDiff(i) {
     const mine = this.engine.worldAt(i.world_swing);
-    const diff = mine && typeof i.world === 'string' ? worldDiff(mine, i.world, this.engine.selfUnit()) : null;
+    const diff = mine && diffOf && typeof i.world === 'string' ? diffOf(mine, i.world, this.engine.selfUnit()) : null;
     if (diff) { this.lastDiff = Object.assign({ swing: i.world_swing, hunt: i.hunt }, diff); this._diffOut = true; }
   }
 

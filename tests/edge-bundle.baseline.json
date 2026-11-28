@@ -663,6 +663,11 @@
         "bytes": 3999907,
         "on": "2026-11-28",
         "why": "designer-imbue-calls: imbue-rules.js fire sizes, fireMax and validator; power-ledger.js consumable slice unramped (21 D-16/D-17)"
+      },
+      {
+        "bytes": 4009580,
+        "on": "2026-11-28",
+        "why": "lane/imbue-engine (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
       }
     ]
   }

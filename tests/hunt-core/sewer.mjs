@@ -381,7 +381,7 @@ const cases = {
       ['out of stamina, gold in hand', 20, { gold: BLOCK.price + 3000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: BLOCK }, TOP_UP],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Take a task on Tamsin\'s tally (Q)'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
-      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak, made in Crafting'],
+      ['nothing to buy: the gear', 21, { inParty: true, gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), land: null }, 'Next gear at Level 22: Houndskin Cloak'],
     ];
     for (const [what, lv, more, want] of walk) {
       const g = at(lv, more);
@@ -1045,7 +1045,7 @@ const cases = {
     const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
     if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);
     const cook = said('cook_catch');
-    if (!cook || cook.textIn !== 'Press Cooking, then Start on Cook Shrimp' || /\{slot:/.test(cook.text + cook.textIn)) return 'the cooking card inside its window reads ' + JSON.stringify(cook && cook.textIn);
+    if (!cook || cook.textIn !== 'Press Jobs, then Start on Cook Shrimp' || /\{slot:/.test(cook.text + cook.textIn)) return 'the cooking card inside its window reads ' + JSON.stringify(cook && cook.textIn);
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const w = M.tut.WEIGHT_FOR_ROLE[role];
       const piece = Object.entries(M.items.ITEMS).find(([, it]) => it.slot === 'helmet' && M.coreModel.ARMOUR_WEIGHT[it.armourClass] === w && it.reqLv <= 5);
@@ -1211,7 +1211,7 @@ const cases = {
     /* PLAN L08: the rune card, a day-one town card, waits for the stamina end too */
     if ((say(R(juiced)) || {}).id === 'own_runes') return 'the rune card spoke before the stamina ran out';
     const runes = say(R({ ...juiced, endReason: 'stamina' }));
-    if (!runes || runes.id !== 'own_runes' || runes.text !== 'Mine Rune Essence, then bind runes in Runecrafting') return 'the rune card reads ' + JSON.stringify(runes && runes.text);
+    if (!runes || runes.id !== 'own_runes' || runes.text !== 'Work → Jobs → Mine Rune Essence, then cut Blank Runes and your runes') return 'the rune card reads ' + JSON.stringify(runes && runes.text);
     if (say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } }))) return 'with own runes the coach still asks: ' + say(R({ ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45 } })).id;
     /* THE FIRST HOUR (lane/b-first-hour, designer 2026-10-28). The day-one goals open at Level 7, the Thicket's first half hour. */
     /* ...once the stamina has run out (plan L08) */
@@ -1816,7 +1816,7 @@ const cases = {
       ['plant_land', at(null), '.hs-launchers [data-hs-open="farm"]'],
       ['plant_land', at('farm'), '[data-crop="turnip"] [data-hs-act="sow"]'],
       ['cook_catch', at(null), '.hs-launchers [data-hs-open="skills-trade"]'],
-      ['cook_catch', at('skills-trade'), '.hw-work-row[data-id="cook_shrimp"] [data-hs-act="work-go"]'],
+      ['cook_catch', at('skills-trade'), '.hw-work-row[data-id="meal_b0"] [data-hs-act="work-go"]'],   // ring.job, the Jobs row's id (the bench cut: the client's ringPlan reads it)
       ['tamsins_task', at(null), '.hs-launchers [data-hs-open="tally"]'],
       /* a first Take asks for the weight that suits, so it is rung; the picker only while the Take is off */
       ['tamsins_task', at('tally', { weight: false }), '[data-hs-act="take"][data-task="thicket_gray_wolves"]'],
@@ -2390,7 +2390,7 @@ const mutants = [
   { name: 'the party card meets a party below the Sewer floor', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!(f.inParty === true)) return false;']] },
   { name: 'cooking is not asked for (the town half is untaught)', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', '  skill_xp: (p, f) => known(xpIn(f, p.skill), (xp) => xp > 0),', '  skill_xp: () => true,']] },
+    edits: [['src/data/hunt-tutorial.js', '  trade_xp: (p, f) => known(tradeXpIn(f, p.trade), (xp) => xp > 0),', '  trade_xp: () => true,']] },
   { name: 'a town section the server never sent walls the coach', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', '  tally_paid: (p, f) => !f.tally || ', '  tally_paid: (p, f) => !!f.tally && ']] },
   { name: 'a harvest brings "Plant your land" back (the land alone judges it)', case: 'tutorial-plant-every-plot',

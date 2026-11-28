@@ -25,7 +25,6 @@
     "src/render/outfit-sprite.js -> src/world/atlas.js",
     "src/render/outfit-sprite.js -> src/world/hero-dye.js",
     "src/session/character-session.js -> src/hunt-view/timeline.js",
-    "src/session/live-link.js -> src/hunt-view/live-diff.js",
     "src/session/live-link.js -> src/hunt-view/live-engine.js",
     "src/world/world-boot.js -> src/hunt-view/scene.js"
   ]

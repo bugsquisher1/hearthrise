@@ -22,7 +22,8 @@ let loading = null;
 function sheet() {
   const doc = globalThis.document;
   if (!doc || !doc.head) return Promise.resolve();
-  let link = doc.querySelector('link[data-rd-sheet]');
+  /* the selector names a <link>: a stylesheet link, not the page's generic element */
+  let link = /** @type {HTMLLinkElement | null} */ (/** @type {unknown} */ (doc.querySelector('link[data-rd-sheet]')));
   if (link && link.sheet) return Promise.resolve();
   if (!link) {
     link = doc.createElement('link');

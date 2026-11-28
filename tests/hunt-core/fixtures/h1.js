@@ -49,10 +49,9 @@ export async function loadCore(root) {
   return M;
 }
 
-/* ONE MODULE GRAPH A BATCH (lane/nightly-red-1128, tests/_mutant-batch.mjs): every hunt-core runner judges its mutants through
-   judgeMutants, a batch a child process, since a planted copy of src is a module graph that never unloads; one process held
-   abilities 1,509 MB, conditions 1,254, signature-rules 1,120, danger 1,035, first-week-bands 954 (set/v0.2.144 26962cd28, Node 26).
-   run-all.mjs holds every file to a heap budget, so the next runner that grows is red first. */
+/* ONE MODULE GRAPH A BATCH (lane/nightly-red-1128, tests/_mutant-batch.mjs): the h1, h2, h4 and h35 suites and the largest
+   hand-written loops judge their mutants through judgeMutants, a batch a child process, since a planted copy of src is a module graph
+   that never unloads. The smaller loops still load every copy in one process; run-all.mjs's heap budget is what turns one red. */
 export { judgeMutants, inMutantBatch };
 
 /**

@@ -46,11 +46,10 @@ export async function pool(items, size, work) {
 }
 
 /* EVERY FILE UNDER A HEAP BUDGET (lane/nightly-red-1128). A file that imports a planted copy of src per mutant keeps every copy (ES
-   modules never unload): abilities reached 1,509 MB, conditions 1,254, signature-rules 1,120, danger 1,035 and first-week-bands 954 in
-   one process (set/v0.2.144 26962cd28, Node 26, heap at exit), each now judged in batches, against the ~2,048 MB
-   heap of GitHub's Node 20 that killed alpha-windows-pure the same way (nightly 46142108500). Each process here (and each mutant batch
-   it spawns, fixtures/h1.js judgeMutants) writes its heap at exit (fixtures/heap-report.mjs); a file over HEAP_BUDGET_MB, half that
-   heap, is RED while it still runs, never an out-of-memory crash a night later. pool.mjs proves the budget bites. */
+   modules never unload; tests/_mutant-batch.mjs), against the ~2,048 MB heap of GitHub's Node 20 that killed alpha-windows-pure (nightly
+   46142108500). Each process here, and each mutant batch it spawns, writes its heap AT EXIT (fixtures/heap-report.mjs), garbage included:
+   it reads the growth of a runner that keeps its copies, not a mid-run peak. A file over HEAP_BUDGET_MB, half that heap, is RED before
+   it is an out-of-memory crash; a file no process measured is RED too, never green by silence. pool.mjs proves both bite. */
 export const HEAP_BUDGET_MB = 1024;
 const HEAP_REPORT = pathToFileURL(join(DIR, 'fixtures', 'heap-report.mjs')).href;
 
@@ -65,7 +64,8 @@ export function heapOf(text) {
 
 /** A file's verdict under its heap budget: its exit code, or 1 with the reason when its heap went over. */
 export function underBudget(r, budgetMB = HEAP_BUDGET_MB) {
-  if (!r.heap || r.heap.heapMB <= budgetMB) return r;
+  if (!r.heap) return r.code === 0 ? { ...r, code: 1, out: r.out + '\nHEAP  ' + r.f + ' wrote no heap line: its budget was not judged (fixtures/heap-report.mjs)' } : r;
+  if (r.heap.heapMB <= budgetMB) return r;
   return { ...r, code: r.code || 1, out: r.out + '\nHEAP  ' + r.f + ' held ' + r.heap.heapMB + ' MB of heap, over its ' + budgetMB
     + ' MB budget (GitHub\'s Node 20 stops near 2,048): judge its mutants in batches (fixtures/h1.js judgeMutants)' };
 }

@@ -4,14 +4,14 @@
 //
 // THE INCIDENT (lane/nightly-red-1128). ES modules never unload, so a runner that imports a planted copy of src per mutant keeps every
 // copy until it exits. On GitHub's Node 20 (heap ~2,048 MB) that killed alpha-windows-pure (nightly 46142108500, 149 mutants, 45 s)
-// and hunt-scene-live (next 46158422801, ~30 MB a mutant, 611 s in), and on set/v0.2.144 26962cd28 (Node 26, heap at exit) one process
-// held abilities 1,509 MB, conditions 1,254, signature-rules 1,120, danger 1,035 and first-week-bands 954.
+// and hunt-scene-live (next 46158422801, ~30 MB a mutant, 611 s in). On set/v0.2.144 26962cd28 (Node 26) signature-rules RETAINED 1,120 MB
+// after its last full GC; heap at exit, garbage included, read abilities 1,509 MB, conditions 1,254, danger 1,035, first-week-bands 954.
 //
 // judgeMutants(mutants, judge) answers judge(mu) for every mutant, in their order: a batch of `per` runs in a child (this same script,
 // run again with `--mutant-batch=a:b`), which writes each answer as one JSON line and exits with its copies. An answer is whatever
 // judge returned (JSON); a throw answers 'threw <message>'; a mutant whose batch died answers 'HARNESS: ...', never a catch. A runner
 // skips its own clean run in a batch child (inMutantBatch): the parent ran it. tests/hunt-core/run-all.mjs holds every hunt-core file
-// and batch to a heap budget; tests/hunt-core/pool.mjs proves the round trip (HB-4) and the budget.
+// and batch to a heap budget; tests/hunt-core/pool.mjs proves the round trip (HB-4, with planted copies of this file) and the budget.
 // ════════════════════════════════════════════════════════════════════════
 import { writeSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';

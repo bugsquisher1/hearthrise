@@ -71,8 +71,8 @@ const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_ea
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 
 /* The shop's bid, as the engine prices it; --mutate may plant one item's bid in BID (empty on a plain run). A rune's book no longer
-   moves its bid: the store's buy-back caps it (catalogue.js SHOP_UNIT_PRICE, at most half the store row, re-priced by prices-wage-hours),
-   so a plant on its `v` was a no-op, hidden behind the ladder's throw below. */
+   moves its bid: the store's buy-back caps it at half the store row (catalogue.js SHOP_UNIT_PRICE), and lane/econ-levers (f4457ee4d,
+   2026-11-22) took the rune rows from 1/8/12/28/44 g to wage prices, so three plants on a rune's `v` and one on a yield stopped biting. */
 const BID = {};
 const bid = (id) => (Object.prototype.hasOwnProperty.call(BID, id) ? BID[id] : vendorPriceOf(ITEMS, id));
 /* The rows this guard judges, as a mutable copy so --mutate can plant a rate on it (the data rows are frozen). */

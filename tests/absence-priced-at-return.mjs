@@ -41,8 +41,10 @@
 // ── THE CLAIMS ─────────────────────────────────────────────────────────────
 //   R1   RETIRED 2026-10-19 with the market's edge verbs (a pickaxe bought from another player at
 //        return): no verb puts a tool in the bag at return now. R2 and S2/S3 keep the order proven.
-//   R2   eat a gather-speed roast then settle a mining night == settle then eat
-//        (ore, XP), and the live buff keeps its full duration. (A combat night
+//   R2   eat an all-XP meal then settle a Hearth night == settle then eat
+//        (fuel burnt, XP), and the live buff keeps its full duration. (A gather-speed
+//        roast over a mining night until the one-town-work cut retired gathering;
+//        the town night the settle prices now is the Hearth's fuel run.) (A combat night
 //        outside a hunt session no longer exists, lane C2: the hunt prices its
 //        own buffs from each segment's `from`, tests/buff-queue.mjs R6.)
 //        THE CLOCK RULE: each order runs in ONE transaction, so now() is one
@@ -130,9 +132,15 @@ const argOf = (n) => {
 
 const SEED = 0x5eed1e55;                         // the one harness privilege
 const HOURS = 7.25;
-const NODE = 'mithril_rock';
-const ORE = 'mithril_ore';
-const FEAST = 'goldenroot_roast';   // gather_speed, 6 min
+/* The Hearth's Bones run: the town pointer since the one-town-work cut (a mithril miner before it). */
+const NODE = 'fuel_bones';
+const ORE = 'bones';                 // the fuel the night burns (named ORE since the mining night)
+const STOCK = 1000000;
+const FEAST = 'cooked_trout';       // all_xp, 3 min: a buff the Hearth night's XP reads
+const FEAST_BUFF = 'all_xp';
+const FEAST_MS = 180000;
+/* A Shop row that survives the cut (the gathering tools left with it): any buy settles first. */
+const OFFER = 'supply.leather_gloves';
 
 const U = {
   e: '00000000-0000-4000-bf1a-00000000000e',      // R2 order A: eat, then settle
@@ -231,21 +239,20 @@ async function run(mutate) {
             coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)::text g, buffs
        from public.player_state where user_id=$1 and slot=$2`, [uid, slot]))[0];
 
-  /** A miner at the production shape: Mining 61, no pickaxe anywhere, on
-      mithril_rock, with the window open for 7.25 h. */
+  /** A Hearth hero at the production shape: Inner Flame 61, a bag of Bones far past what a night burns, on
+      fuel_bones, with the window open for 7.25 h. */
   const miner = async (uid, slot = 0) => {
     await q(
-      `insert into public.player_skills (user_id, slot, skill_id, xp) values ($1,$2,'mining',$3)
+      `insert into public.player_skills (user_id, slot, skill_id, xp) values ($1,$2,'inner_flame',$3)
        on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`,
       [uid, slot, xpForLevel(61)]);
-    await q(`delete from public.player_inventory where user_id=$1 and slot=$2 and item_id like '%pickaxe'`,
-      [uid, slot]);
+    await give(uid, ORE, STOCK, slot);
     await setGold(q, uid, slot, 100000);   // the ACCOUNT purse (2026-12-15-account-gold.sql)
     /* A FRESH ABSENCE, so a FRESH WORK DAY (1059-company-trades.sql): the fixture rewinds the watermarks for each arm on one real
        day, and the work an earlier arm's absence spent would otherwise count against this one's (8 h a day: the second absence
        would pay nothing). */
     await q(`update public.player_state set buffs = '[]'::jsonb,
-               active_kind = 'gather', active_id = $3,
+               active_kind = 'artisan', active_id = $3,
                active_since = now() - make_interval(secs => $4),
                accrued_to   = now() - make_interval(secs => $4),
                work_day = null, work_ms = 0
@@ -277,21 +284,29 @@ async function run(mutate) {
     //    feast eaten at return) and S2/S3 (a shop purchase settles first and reports what it paid).
 
     // ══ S2 — THE SETTLE DEFERS ITS REMAINDER ═════════════════════════════
-    //    A window of 1 h + 6.4 s at 12.80 s leaves 281 actions and a 9.6 s
-    //    remainder. The pointer survives a purchase, so that remainder stays OPEN
-    //    (accrued_to lands ~9.6 s before the commit's now); a switch's collect
-    //    would stamp now() and forfeit it.
+    //    A Dragon Bones run (2,000 ms authored, 3,200 ms an action): a window of 1 h + 2.4 s leaves 1,125 actions and a
+    //    2.4 s remainder, far past the edge's read-to-apply latency, so a stamped now() cannot pass for it. The pointer
+    //    survives a purchase, so that remainder stays OPEN (accrued_to lands ~2.4 s before the settle's own now); a
+    //    switch's collect would stamp now() and forfeit it.
     {
       await miner(U.g);
+      await give(U.g, 'dragon_bones', STOCK);
       await q(`update public.player_state
-                  set accrued_to = now() - interval '3606.4 seconds', active_since = now() - interval '3606.4 seconds'
+                  set active_id = 'fuel_dragon_bones',
+                      accrued_to = now() - interval '3602.4 seconds', active_since = now() - interval '3602.4 seconds'
                 where user_id=$1 and slot=0`, [U.g]);
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: OFFER, qty: 1 });
       ok(r.status === 200 && r.body.ok === true, `S2-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);
-      const lag = Date.parse(r.body.now) - Number((await row(U.g)).at_ms);
-      ok(lag > 6000 && lag < 12800,
-        `S2: after the buy's settle, commit-now − accrued_to = ${lag.toFixed(0)} ms (expected ~9,600). `
+      /* The settle's OWN clock, not the commit's: the settle's ledger row is stamped by its apply's now(), so the gap
+         between it and the watermark is the deferred remainder plus the edge's read-to-apply latency, never the commit's
+         wall time. */
+      const settledAt = Number((await q(
+        "select extract(epoch from at)*1000 as ms from public.player_ledger where user_id=$1 and slot=0 and kind = 'craft' order by at desc limit 1",
+        [U.g]))[0]?.ms);
+      const lag = settledAt - Number((await row(U.g)).at_ms);
+      ok(lag > 1500 && lag < 4200,
+        `S2: after the buy's settle, settle-now − accrued_to = ${lag.toFixed(0)} ms (expected ~2,400 plus the read-to-apply latency). `
         + 'A settle whose pointer survives must DEFER the sub-action remainder; ~0 means it stamped '
         + 'now() and forfeited the partial action on every purchase, > one action means it did not settle.');
     }
@@ -301,11 +316,11 @@ async function run(mutate) {
       await miner(U.g);
       const ore0 = await qty(U.g, ORE);
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: OFFER, qty: 1 });
       const moved = (await qty(U.g, ORE)) - ore0;
       ok(r.status === 200 && r.body.ok === true, `S3-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);
       const c = r.body.collected;
-      ok(moved > 0 && c && c.items && Number(c.items[ORE]) === moved,
+      ok(moved < 0 && c && c.items && Number(c.items[ORE]) === moved,
         `S3: the buy's body reports collected=${JSON.stringify(c && c.items)} but the database moved `
         + `${moved} ${ORE}. Render it, do not recompute it — and it must be the server's number.`);
       const envOre = r.body.inventory && Number(r.body.inventory[ORE]);
@@ -318,19 +333,19 @@ async function run(mutate) {
       await setGold(q, U.g, 0, 0);
       const ore1 = await qty(U.g, ORE);
       await clearGate();
-      const poor = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
+      const poor = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: OFFER, qty: 1 });
       const moved1 = (await qty(U.g, ORE)) - ore1;
       ok(poor.status === 409 && poor.body.ok === false,
         `S3-CONTROL: a buy with an empty purse answered ${poor.status}`);
-      ok(poor.body.collected && Number(poor.body.collected.items[ORE]) === moved1 && moved1 > 0,
-        `S3: the settle paid ${moved1} ${ORE} and the refused buy reported `
+      ok(poor.body.collected && Number(poor.body.collected.items[ORE]) === moved1 && moved1 < 0,
+        `S3: the settle burnt ${-moved1} ${ORE} and the refused buy reported `
         + `collected=${JSON.stringify(poor.body.collected)}. The settle is its own apply and stays `
         + 'paid — the body has to be able to say so (set_activity\'s C5).');
     }
 
     // ══ R2 — A FEAST EATEN AT RETURN ═════════════════════════════════════
     {
-      /* A miner on a two-hour night with a gather-speed roast in the bag. */
+      /* A Hearth hero on a two-hour night with an all-XP meal in the bag. */
       const fighter = async (uid) => {
         await miner(uid);
         await give(uid, FEAST, 1);
@@ -400,19 +415,19 @@ async function run(mutate) {
       notes.push(`R2: eat→settle ${JSON.stringify(dE)}`);
       notes.push(`R2: settle→eat ${JSON.stringify(dF)}`);
       ok(Object.keys(dF).length > 2 && (dF['inv.' + FEAST] === -1),
-        `R2-CONTROL: the settle-first night moved ${JSON.stringify(dF)} — no ore was mined, or the `
+        `R2-CONTROL: the settle-first night moved ${JSON.stringify(dF)} — no fuel was burnt, or the `
         + 'feast was not eaten, so an equality would be vacuous');
       const differ = [...new Set([...Object.keys(dE), ...Object.keys(dF)])]
         .filter((k) => dE[k] !== dF[k]).map((k) => `${k} ${dE[k] ?? 0} vs ${dF[k] ?? 0}`).join(', ');
       ok(JSON.stringify(Object.entries(dE).sort()) === JSON.stringify(Object.entries(dF).sort()),
         `${R2_EQ} — eat→settle vs settle→eat differ on ${differ}. eat→settle `
-        + `moved ${JSON.stringify(dE)}, settle→eat moved ${JSON.stringify(dF)}. A six-minute food `
-        + 'must never buy a night of faster mining.');
+        + `moved ${JSON.stringify(dE)}, settle→eat moved ${JSON.stringify(dF)}. A three-minute food `
+        + 'must never buy a night of extra XP.');
       const buffs = (await row(U.e)).buffs || [];
-      const drop = buffs.find((b) => b && b.type === 'gather_speed');
+      const drop = buffs.find((b) => b && b.type === FEAST_BUFF);
       const left = drop ? Date.parse(drop.until) - eatAt : -1;
-      ok(drop && left >= 360000 - 5000,
-        `R2: after eat→settle the gather_speed buff has ${left} ms left of its 360,000 — the live `
+      ok(drop && left >= FEAST_MS - 5000,
+        `R2: after eat→settle the ${FEAST_BUFF} buff has ${left} ms left of its ${FEAST_MS} — the live `
         + `buff must keep its full duration (${JSON.stringify(buffs)})`);
     }
 
@@ -428,7 +443,7 @@ async function run(mutate) {
           where user_id=$1 and kind in ('accrue','gather','combat','craft')`, [U.s]))[0].n);
       const ledger0 = await settleRows();
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.s, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.s, slot: 0, intentId: uuid(), offer: OFFER, qty: 1 });
       const after = await row(U.s);
       const ledger1 = await settleRows();
       ok(r.status === 200 && r.body.ok === true, `S1-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);

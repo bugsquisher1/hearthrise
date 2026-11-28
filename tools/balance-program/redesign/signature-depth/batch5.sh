@@ -146,5 +146,6 @@ SEEDS=36 run b5w-carters-maul40     carters_rest 117 $X --add-moves stagger@t,-,
 run b5w-muster-hooks2       muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks2,-,-,-
 # (a scratch status zz_whetted100 beside Whetted: the next Rend doubled)
 run b5w-muster-hooks100     muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks100,-,-,-
+run b5w-muster-ring100      muster_barrows 60 $X --signatures -,-,-,zz_ring100
 run b5w-muster-signet-sick  muster_barrows 60 $X --signatures -,zz_signet_sick,-,-
 run b5w-muster-signet-armor muster_barrows 60 $X --signatures -,zz_signet_armor,-,-

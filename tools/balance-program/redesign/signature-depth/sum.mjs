@@ -447,6 +447,7 @@ const VARIANTS5S = [
   ["#8 Stable Troll's Maul, 40% a wind-up (Carter's Rest, 36 seeds)", 'pace', 'b5s-carters-stagger36', 'b5w-carters-maul40'],
   ["#48 Troll Picker's Hooks, Gash hits 2 or more (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks2'],
   ["#48 Troll Picker's Hooks, Gash hits 3 or more: the next Rend doubled (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks100'],
+  ["#26 Thrower's Ring, Earth rune shields 100% stronger (Muster, the healer)", 'pace', 'b3-muster-mixed', 'b5w-muster-ring100'],
   ['#38 Drowned Signet, a monster hits an ally under 45%: Sickened (takes 10% more, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-sick'],
   ['#38 Drowned Signet, the same: its armor a quarter less (Armor Break, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-armor'],
 ];

@@ -158,6 +158,12 @@
         "gzipBytes": 202022,
         "on": "2026-11-28",
         "why": "a cut locked in"
+      },
+      {
+        "modules": 10,
+        "gzipBytes": 138020,
+        "on": "2026-11-28",
+        "why": "a cut locked in"
       }
     ],
     "town": [
@@ -674,6 +680,12 @@
       {
         "modules": 18,
         "gzipBytes": 962290,
+        "on": "2026-11-28",
+        "why": "a cut locked in"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 898268,
         "on": "2026-11-28",
         "why": "a cut locked in"
       }

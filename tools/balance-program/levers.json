@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "4b13697f1b426b15",
+ "authored": "cccd08566ad0c7ee",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 758,
-  "typed": 17561,
+  "typed": 17591,
   "files": 263,
   "lever": 324,
   "notLever": 434,
@@ -3309,9 +3309,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3413,9 +3413,15 @@
      "line": 183,
      "text": "kindled: Object.freeze({ id: 'kindled', name: 'Kindled', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
      "binding": "STATUSES"
+    },
+    {
+     "file": "src/data/statuses.js",
+     "line": 187,
+     "text": "steeped: Object.freeze({ id: 'steeped', name: 'Steeped', key: 'kindled', hidden: true, durationMs: 30000, maxStacks: 1, castPm: 300,",
+     "binding": "STATUSES"
     }
    ],
-   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16), each for durationMs",
+   "definition": "status rows no move lands yet: a tick (blowPm of the source's blow x the tier, Poison 20, Burning Ground 100 on every enemy within r of its tile, Renewing 150 healed; Mending and Echo tick a fixed share of the heal or blow that laid them, src/core/hunt/status.js layStack; Frozen Ground lays Chill on every enemy in it each second), takenPm / dealtPm (Weakened -80, Sapped -60, Guarded -100, Emboldened +100, Blunted -500 for one blow: `once`, spent on it, 15 #1), armorPm (Armor Break -250 of a monster's defence), silence (Silenced 3 s), castPm (Kindled +300 on the next cast of a move in castOf, spent on it, 15 #16; Steeped +300 on the next Greater Mend, Kindled's key, 15 #20, lane/signatures-batch-3), each for durationMs",
    "range": "permille: takenPm, dealtPm, armorPm non-zero -999..1000; blowPm 1..1000; durations whole sub-steps (validate). PROVISIONAL, 15, 22 and 23's numbers",
    "touches": "nothing while hidden; then the party's damage (Poison, Burning Ground, Armor Break, Emboldened), blows taken (Weakened, Guarded), monster spells (Silenced) and healing (Renewing)",
    "outcomes": [
@@ -3481,9 +3487,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "asserted"
    },
    "perturb": {
@@ -3615,9 +3621,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -3692,9 +3698,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/silent-triggers.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "asserted"
    },
    "perturb": {
@@ -4557,9 +4563,9 @@
      "tests/hunt-core/monster-formula.mjs",
      "tests/hunt-core/monster-spells.mjs",
      "tests/hunt-core/necrotic-storm.mjs",
-     "tests/hunt-core/spell-rule.mjs"
+     "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 11,
+    "mentionCount": 12,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -11508,7 +11514,7 @@
    "category": "equipment",
    "name": "Signatures: each named piece's one rule, as reaction rows",
    "sites": [],
-   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw), a status (its reach r, a fixed tick pm of the moment's damage), a free cast again, a burst (pm of the fallen's health within r) or a reflect (src/core/hunt/signature-rules.js, reactions.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
+   "definition": "a Signature is one fixed rule nothing else gives: reaction rows on a moment (hp_below, hit, kill, death, heal, taunt, shield_break, cast, absorb, pull) doing a shield (pm, capped at capPm), a ready, a reset (ms off, capMs a cycle), a pass, a boon (its time ms and strength pw, on the moment's hero, the wearer or the party), a status (its reach r, a fixed tick pm of the moment's damage, or the moment's monsters), a heal (pm of a hero's max health, or of the moment's amount), mana (pm), a free cast again, a burst (pm of the fallen's health within r), a carried overkill (pm, capped at capPm, within r) or a reflect, once every `every` moments (src/core/hunt/signature-rules.js, reactions.js); or no reaction: a rune saved every `saves.every` casts (abilities.js fire), a stack cap raised by `stackPlus.n` (status.js); a hero plays the first it equipped; `n` is the row's number in 15-signature-candidates.md, an id",
    "range": "each Signature about 10 steps (half a gear tier) on its best cell, inside the gear slice with Traits (conditionalStepsMax 20), measured on the dominance check (29 section 3.8)",
    "touches": "which hero wants which Signature on which ground, and how far a lucky kit runs from an unlucky one (dark until wave 4)",
    "outcomes": [
@@ -11560,7 +11566,7 @@
     "existingPatches": []
    },
    "rows": {
-    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut; lane/signatures-sample, lane/signatures-batch-2)",
+    "what": "the Signatures (a reaction row each: its line, size, clock, boon time and strength, cap, reach and cut, its count of moments `every`; a rune it saves every `saves.every` casts; a stack cap raised by `stackPlus.n`; lane/signatures-sample, lane/signatures-batch-2, lane/signatures-batch-3)",
     "homes": [
      "src/data/signatures.js#SIGNATURES"
     ]
@@ -12062,13 +12068,13 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 71,
+     "line": 72,
      "text": "pointSharePm: 333,",
      "binding": "TALENT_RULES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 77,
+     "line": 78,
      "text": "healInCapPm: 300,",
      "binding": "TALENT_RULES"
     }
@@ -12138,25 +12144,25 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 88,
+     "line": 89,
      "text": "Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 89,
+     "line": 90,
      "text": "Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 93,
+     "line": 94,
      "text": "export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });",
      "binding": "BORROW_OPEN"
     },
     {
      "file": "src/data/talents.js",
-     "line": 117,
+     "line": 118,
      "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
@@ -12224,85 +12230,85 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 210,
+     "line": 211,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 272,
+     "line": 273,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 331,
+     "line": 332,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 614,
+     "line": 615,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 609,
+     "line": 610,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 345,
+     "line": 346,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 397,
+     "line": 398,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 438,
+     "line": 439,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 481,
+     "line": 482,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 546,
+     "line": 547,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 635,
+     "line": 636,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 372,
+     "line": 373,
      "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 411,
+     "line": 412,
      "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 455,
+     "line": 456,
      "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     }
@@ -17879,10 +17885,12 @@
     "belowPm",
     "capMs",
     "clockMs",
+    "every",
     "ms",
     "n",
     "pm",
-    "pw"
+    "pw",
+    "r"
    ],
    "bindings": 1
   },
@@ -18778,7 +18786,7 @@
     "tick",
     "tierPermille"
    ],
-   "typed": 41,
+   "typed": 43,
    "bindings": 1
   },
   "src/data/statuses.js#TIERS": {

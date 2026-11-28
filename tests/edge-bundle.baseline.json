@@ -663,6 +663,11 @@
         "bytes": 3999907,
         "on": "2026-11-28",
         "why": "designer-imbue-calls: imbue-rules.js fire sizes, fireMax and validator; power-ledger.js consumable slice unramped (21 D-16/D-17)"
+      },
+      {
+        "bytes": 4018856,
+        "on": "2026-11-28",
+        "why": "signatures-batch-3 on the set with designer-imbue-calls: 15 Signature rules (signature-rules.js, reactions.js, abilities.js) plus their data"
       }
     ]
   }

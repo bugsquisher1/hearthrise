@@ -42,8 +42,24 @@ import { traitsField } from './trait-rules.js';
 import { healIn } from './heal-cut.js';
 import { isHero, isEnemy } from './sides.js';
 import { cheb } from './grid.js';
+import { SIGNATURES } from '../../data/signatures.js';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]), world: Object.freeze([]), pack: Object.freeze([]) });
+
+/* A WORN SIGNATURE'S RAISED STACK CAP (src/data/signatures.js `stackPlus`, lane/signatures-batch-3; 15 #29 Fledgling Claw: "Bleed on the
+   target can stack to 6 instead of 5"): a stack of `row` that a hero wearing one lays may land `n` past the row's maxStacks (a landing of
+   any other source still stops at maxStacks, and refreshes the stacks there). 0 for every row no Signature names: one Map read */
+const PLUS = (() => {
+  const m = new Map();
+  for (const s of Object.values(SIGNATURES)) if (s.stackPlus) (m.get(s.stackPlus.status) || m.set(s.stackPlus.status, new Map()).get(s.stackPlus.status)).set(s.id, s.stackPlus.n);
+  return m;
+})();
+function stackPlus(inst, row, src) {
+  const by = PLUS.get(row.id);
+  if (!by || src === null || !inst || !inst.world) return 0;
+  const u = inst.world.units.find((x) => x.id === src);
+  return u && u.alive === true && typeof u.signature === 'string' && by.has(u.signature) ? by.get(u.signature) : 0;
+}
 
 /** The status row of `id` (throws on an unknown id: a stack never outlives its row). */
 export function statusRow(id) {
@@ -162,6 +178,7 @@ export function applyStatus(inst, unit, row, source, sc) {
     if (!ticks(row)) for (const st of list) if (st.s === row.id && scale > st.scale) st.scale = scale;
     const before = list.filter(mine).length;
     if (before < row.maxStacks) list.push(fresh());
+    else if (before < row.maxStacks + stackPlus(inst, row, src)) list.push(fresh());
     else {
       /* AT maxStacks: the weakest stack of ANOTHER row of the key gives way to a stronger landing (15: "the stronger one replaces") */
       let weak = null;

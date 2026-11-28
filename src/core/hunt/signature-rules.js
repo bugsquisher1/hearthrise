@@ -45,6 +45,8 @@ export function syncSignature(u, hero) {
   if (id) {
     u.signature = id;
     u.reacts = rest && rest.length ? rest.concat(signatureReacts(id)) : signatureReacts(id);
+    /* (a Signature whose rule is no reaction, a rune it saves or a stack cap it raises: abilities.js, status.js read `signature`) */
+    if (!u.reacts.length) delete u.reacts;
     return;
   }
   if (u.signature !== undefined) delete u.signature;

@@ -1,0 +1,31 @@
+
+V1 on muster_barrows (12 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady         605 +- 5.9      2.9  67.1  97.1   12.1    0.8       3     65.9      0     0  0 (0/0/0)                       4  {"hold":4213,"climb":2056,"fall":43}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady       0.8783x  sd 0.0193  n 12  window 4 h  seeds 0.8559 0.8591 0.8852 0.8626 0.8816 0.8763 0.8905 0.8686 0.8837 0.8739 0.873 0.9292
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L60  coin 14358 +- 245  income 16514 +- 252  store 4576  kit share 0.28 (meal 218, drink 1760, charge 1018, shot 1579)  loot by band: common 284, uncommon 140, scarce 1731, other 0  n 12
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.754  bow 0.197  mage 0.045  healer 0.004
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 16.94 land 65.96% hit 32.71 (4421.83/h) | bow dps 18.44 land 81.09% hit 21.42 (1759.83/h) | mage dps 22.83 land 77.93% hit 30.88 (281.58/h) | healer dps 10.15 land 100% hit 99.32 (7.17/h)
+                    barrow_pikeman(swarm) 236.2/h 21.5 s 362 | cairn_wight(stalker) 112.7/h 35.8 s 232 | muster_knight(brute) 112.1/h 33.6 s 558 | captain_hask(brute) 9.3/h 110.5 s 1889
+                    broke off by: fall:barrow_pikeman@0 26, fall:muster_knight@0 13, fall:captain_hask@0 4
+
+what an imbuement's condition touches (lane/designer-imbue-calls, 21 section 3.2): per seat, damage dealt by the struck monster's role and taken by the blow's element, thousandths
+  base:steady       hammer dealt {"brute":444,"swarm":418,"stalker":138} taken {"none":1000} | bow dealt {"stalker":396,"swarm":310,"brute":294} taken {"none":1000} | mage dealt {"swarm":391,"brute":348,"stalker":261} taken {"none":1000} | healer dealt {"brute":490,"swarm":303,"stalker":207} taken {"none":1000}
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 60 (depth 10)  free 126  spell 836  food 38  taken 16.82 pm/s
+
+wall 438 s

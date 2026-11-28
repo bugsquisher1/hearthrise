@@ -6,6 +6,8 @@
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 2  batch 2 (batch2.sh): the size bar and the spread bar a row
 //   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 3  batch 3 (batch3.sh, lane/signatures-batch-3): the same bars, the
 //                                                                           coin pieces' coin a hero-hour, the shapes tried
+//   node tools/balance-program/redesign/signature-depth/sum.mjs --batch 4  batch 4 (batch4.sh, lane/designer-sig-batch4): batch 3's under
+//                                                                           rows reshaped, fight rows on pace steps, coin rows on coin steps
 //
 // For each Signature: its four with none against the same four wearing it, on the same seeds. The held step's paired delta (mean and its
 // standard error over the seeds), and Level XP, coin and kills a hero-hour as a share of the plain four's. Batch 2 reads each row on its
@@ -193,6 +195,45 @@ if (BATCH === '3') {
   for (const [name, a, b] of VARIANTS3) {
     const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
     console.log('| ' + [name, h ? show(h, true) : 'owed', q ? show(q) : p && s ? 'no pay window' : 'owed', q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
+  }
+  process.exit(0);
+}
+
+/* BATCH 4 (game designer, lane/designer-sig-batch4, batch4.sh): batch 3's under rows reshaped, against batch 3's plain fours (the tree
+   replays them exactly). A FIGHT row reads the size bar in pace steps, as batch 3. A COIN row (15 "Coin pieces: the bar") reads COIN STEPS:
+   the store bill its four saves a hero-hour, x 4 (the whole saving is the wearer's own: it pays its own runes, drinks and arrows), over the
+   plain four's net coin a hero-hour (coin and loot at the store's price, less the store bill), in PACE_STEP_PCT steps. The coin bar is 20 +- 6
+   coin steps: a coin piece pays in coin alone, so it is sized on what a fight row in band pays its wearer in pace and coin together (the Chain
+   12.0 pace and 9.9 coin, the Hat 9.2 and 16.9). The fight's own change (a coin row's pace) is printed beside it, never added.
+   [name, kind, [best ground, plain, worn], [second ground, plain, worn] | null] */
+const COIN_LO = 14, COIN_HI = 26;
+const ROWS4 = [];
+/* THE SHAPES TRIED (b4v-*: a temporary id on a scratch copy, ROOT=<copy>): [label, kind, plain, worn] */
+const VARIANTS4 = [];
+if (BATCH === '4') {
+  const net = (c) => c.gold.incomePerHeroH.mean - c.gold.storePerHeroH.mean;
+  const coinSteps = (p, s) => ((p.gold.storePerHeroH.mean - s.gold.storePerHeroH.mean) * 4 * 100) / net(p) / PACE_STEP_PCT;
+  const coinBar = (x) => (x > COIN_HI ? 'OVER (cut its number)' : x < COIN_LO ? 'UNDER (raise or reshape)' : 'in band');
+  const read = (x) => { if (!x) return { none: true }; const [g, a, b] = x; const p = cellOf(a), s = cellOf(b); return p && s ? { g, p, s, h: heldOf(p, s), q: paceOf(p, s) } : { g, owed: true }; };
+  console.log('| Signature | Kind | Best cell | Held delta (se, seeds) | Pace steps (se) | Coin steps | Kills/h | Second ground | Its pace steps (se) | Bar | Spread bar (second <= half the best) |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const [name, kind, best, other] of ROWS4) {
+    const B = read(best), O = read(other);
+    if (B.owed) { console.log('| ' + [name, kind, best[0], 'owed', '', '', '', '', '', '', ''].join(' | ') + ' |'); continue; }
+    const coin = coinSteps(B.p, B.s);
+    const bar = kind === 'coin' ? coinBar(coin) + ' (coin bar 20 +- 6)' : sizeOf(B.q);
+    const under = kind === 'pace' && !!B.q && B.q.m < LO;
+    const spread = kind === 'coin' ? 'n/a (the coin bar)' : under ? 'n/a (under its size)' : O.none ? 'no second cell' : O.owed || !O.q ? 'not read'
+      : O.q.m <= B.q.m / 2 ? 'holds' : O.q.m - O.q.se <= B.q.m / 2 ? 'holds within its se' : 'FAILS (big everywhere: reshape)';
+    console.log('| ' + [name, kind, B.g, show(B.h, true), show(B.q), sgn(coin), pct(B.s.killsPerH, B.p.killsPerH), O.none ? '' : O.g,
+      O.none ? '' : O.owed ? 'owed' : show(O.q), bar, spread].join(' | ') + ' |');
+  }
+  console.log('\n| Shape tried | Kind | Held delta (se, seeds) | Pace steps (se) | Coin steps | Bar | Kills/h |\n|---|---|---|---|---|---|---|');
+  for (const [name, kind, a, b] of VARIANTS4) {
+    const p = cellOf(a), s = cellOf(b), h = p && s ? heldOf(p, s) : null, q = p && s ? paceOf(p, s) : null;
+    const coin = p && s ? coinSteps(p, s) : null;
+    console.log('| ' + [name, kind, h ? show(h, true) : 'owed', q ? show(q) : 'owed', coin === null ? 'owed' : sgn(coin),
+      !p || !s ? '' : kind === 'coin' ? coinBar(coin) : q ? sizeOf(q) : '', p && s ? pct(s.killsPerH, p.killsPerH) : ''].join(' | ') + ' |');
   }
   process.exit(0);
 }

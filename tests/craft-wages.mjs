@@ -32,7 +32,7 @@
 //             and every deeper rune has a store row and bids under its price, so a crafter can list under the store
 //
 //   node tests/craft-wages.mjs            the shipped data
-//   node tests/craft-wages.mjs --mutate   each arm driven red by a planted defect on the live objects
+//   node tests/craft-wages.mjs --mutate   each arm driven red by a planted defect on the live objects (a frozen table through the copy it reads: TAX, LADDER)
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -70,9 +70,16 @@ const TIER_3_USE = Object.freeze({ reforge_steelgrate: 'a Rare Kingsgrate reforg
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 
-const bid = (id) => vendorPriceOf(ITEMS, id);
+/* The shop's bid, as the engine prices it; --mutate may plant one item's bid in BID (empty on a plain run). A rune's book no longer
+   moves its bid: the store's buy-back caps it (catalogue.js SHOP_UNIT_PRICE, at most half the store row, re-priced by prices-wage-hours),
+   so a plant on its `v` was a no-op, hidden behind the ladder's throw below. */
+const BID = {};
+const bid = (id) => (Object.prototype.hasOwnProperty.call(BID, id) ? BID[id] : vendorPriceOf(ITEMS, id));
 /* The rows this guard judges, as a mutable copy so --mutate can plant a rate on it (the data rows are frozen). */
 const TAX = { permille: { ...BENCH_TAX }, freeUnderMg: BENCH_TAX_FREE_UNDER_MG };
+/* The room ladder W-BENCH reads: the shipped ROOM_RUNGS itself, swapped whole for a planted ladder by --mutate. Its rungs are frozen
+   (lane prices-wage-hours), so a plant written into them threw in strict mode and a swallowed throw left it a no-op. */
+const LADDER = { rungs: ROOM_RUNGS };
 /* One job's fee at a public bench, in gold (exact, the carry makes it so). 0: no fee. */
 const feeG = (r) => feeMgOf(TAX.permille[r.skill] || 0, bid(r.output), r.outputQty || 1, TAX.freeUnderMg) / 1000;
 /* The rooms that free their skill from the public bench's tax, and the least their first rung may cost: about 17 h of hunting at the
@@ -207,7 +214,7 @@ export function check() {
   }
   for (const id of SELF_USE) if (bid(id) !== 0) fails.push(`W-USE ${id}: the shop bids ${bid(id)} g; it is made for your own use (the recipe says so)`);
   for (const [room, least] of Object.entries(BENCH_ROOMS)) {
-    const rungs = ROOM_RUNGS[room];
+    const rungs = LADDER.rungs[room];
     if (rungs[0].cost.gold < least) fails.push(`W-BENCH ${room}: the first rung costs ${rungs[0].cost.gold} g, under ${least} g`);
     rungs.forEach((r, i) => {
       if (i && r.cost.gold <= rungs[i - 1].cost.gold) fails.push(`W-BENCH ${room} rung ${i + 1} costs no more than the one below it`);
@@ -242,10 +249,17 @@ function mutate() {
   run('the Iron Bar off the bulk list (the shop pays its whole book)', 'W-CHAIN', () => setField('iron_bar', 'raw', false));
   run('the Oak Plank off the bulk list', 'W-CHAIN', () => setField('oak_plank', 'raw', false));
   run('Cooked Herring back at 40', 'W-CHAIN', () => setField('cooked_herring', 'v', 40));
-  run('Scored Runes at 4 g a rune on the cut yield', 'W-CHAIN', () => setField('scored_earth_rune', 'v', 4));
-  run('Carved Runes bid past their inputs (a job a faucet)', 'W-RUNE', () => setField('carved_fire_rune', 'v', 9));
-  run('Graven Runes bid at their store price (no room to list under it)', 'W-RUNE', () => setField('graven_ice_rune', 'v', 24));
-  run('Etched Runes back at the old yield of 36 (a job a faucet)', 'W-RUNE', () => { const list = ARTISAN_RECIPES.runecrafting; const at = list.findIndex((x) => x.id === 'bind_etched_water_runes'); const was = list[at]; list[at] = { ...was, outputQty: 36 }; return () => { list[at] = was; }; });
+  /* a rune's bid planted where the check reads it (BID): its book is under the store's buy-back cap, so `v` no longer moves it */
+  const price = (id, g) => () => { BID[id] = g; return () => { delete BID[id]; }; };
+  run('the shop bids 4 g a Scored Rune on the cut yield', 'W-CHAIN bind_scored_earth_runes', price('scored_earth_rune', 4));
+  run('the shop bids 9 g a Carved Rune, past its blanks (a job a faucet)', 'W-RUNE bind_carved_fire_runes: a job sells', price('carved_fire_rune', 9));
+  run('the shop bids a Graven Rune at its store price (no room to list under it)', 'W-RUNE graven_ice_rune: the shop bids', price('graven_ice_rune', BASIC_SUPPLIES.find((b) => b.partner === 'graven_ice_rune').price));
+  /* the yield at which one job's runes sell for the book of its blanks, read off the data so a re-price cannot leave it short */
+  run('Etched Runes at a yield that sells for their blanks\' book (a faucet)', 'W-RUNE bind_etched_water_runes: a job sells', () => {
+    const list = ARTISAN_RECIPES.runecrafting; const at = list.findIndex((x) => x.id === 'bind_etched_water_runes'); const was = list[at];
+    const book = Object.entries(recipeInputs(was)).reduce((s, [id, n]) => s + n * Number(ITEMS[id].v), 0);
+    list[at] = { ...was, outputQty: Math.ceil(book / Math.max(1, bid(was.output))) }; return () => { list[at] = was; };
+  });
   run('the Steel Axe back at book 900', 'W-CHAIN', () => setField('steel_axe', 'v', 900));
   run('an Oak Plank that pays less than the log time it takes', 'W-STEP', () => setField('oak_plank', 'v', 5));
   run("Klappa's Club that sells below its metal", 'W-FORGE', () => inputs('smithing', 'reforge_klappas_club', { practice_club: 1, bronze_bar: 60, small_fang: 3 }));
@@ -258,9 +272,14 @@ function mutate() {
   run('the cheap goods line raised until the free rows out-earn the taxed ones', 'W-TAX', rate('freeUnderMg', 6000));
   run('Bronze Arrows priced', 'W-USE', () => setField('bronze_arrows', 'v', 1));
   run('Chalked Runes priced', 'W-USE', () => setField('chalked_earth_rune', 'v', 1));
-  const rung = (room, i, gold) => { const c = ROOM_RUNGS[room][i].cost; const was = c.gold; try { c.gold = gold; } catch { /* frozen below */ } return () => { c.gold = was; }; };
-  run('the Forge back at 800 g', 'W-BENCH', () => rung('forge', 0, 800));
-  run('a Kitchen rung cheaper than the one below it', 'W-BENCH', () => rung('kitchen', 2, 50000));
+  /* a planted ladder: the shipped one with one rung's gold moved, swapped in whole (never written into the frozen rows); each is judged by its own rule */
+  const rung = (room, i, gold) => {
+    LADDER.rungs = { ...ROOM_RUNGS, [room]: ROOM_RUNGS[room].map((r, j) => (j === i ? { ...r, cost: { ...r.cost, gold } } : r)) };
+    return () => { LADDER.rungs = ROOM_RUNGS; };
+  };
+  run('the Forge back at 800 g', 'W-BENCH forge: the first rung costs', () => rung('forge', 0, 800));
+  run('a Kitchen rung cheaper than the one below it', 'W-BENCH kitchen rung 3 costs no more', () => rung('kitchen', 2, 50000));
+  run('a Workshop rung the shop sells at another price', 'W-BENCH workshop rung 2: the shop row says', () => rung('workshop', 1, 120000));
   let bad = 0;
   for (const [name, hit] of results) { console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`); if (!hit) bad++; }
   const after = check();

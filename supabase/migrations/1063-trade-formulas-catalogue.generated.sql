@@ -15,11 +15,11 @@
 --   twins (internal)  the curve (yield, Fine, Master, speed, XP factor), the Level from XP, V and the job fee, the store's step, ask and bid,
 --                     the contest curve behind a band, a tool's speed, life and rent, and the job's bound; each pinned to the JS (§4).
 --   THE JOB SLICE (lane/k1-job-slice, 2026-11-26; 09 sections 4.9 and 6):
---   hr_trade_recipes  131 recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
+--   hr_trade_recipes  129 recipes a job may run (src/core/trades.js jobRecipes: the named kit recipes and the imbuement jobs): kind,
 --                     trade, band, rung, opening Level, face, and inputs as whole goods a set. A recipe not here is refused bad_recipe.
 --   hr_trade_ground_bands  16 Danger scale grounds and their band (gearLevel / tierSteps): a depth record there opens its band.
 --   twins (internal)  hr_trade_band_rung (bandRung), hr_trade_mulberry (src/core/rng.js mulberry32's draw) and hr_trade_roll (settleJob, line
---                     for line), pinned EXACTLY at 537 jobs, so the server settles a job from its stored seed itself.
+--                     for line), pinned EXACTLY at 529 jobs, so the server settles a job from its stored seed itself.
 -- READERS: 1073-k1-job-slice.sql (hr_trade_job_start, its settle and the `trade_jobs` section). The live town work (hr_activities, the old
 -- rows) is untouched.
 -- ORDER: 1063 in its name, after 1058-hunting-blocks-catalogue.generated.sql (hr_wage, which V reads). Idempotent: the tables are made if
@@ -163,7 +163,7 @@ insert into public.hr_trade_kinds (kind, trade, stage, line, opens, ships, rolls
 on conflict (kind) do update set trade = excluded.trade, stage = excluded.stage, line = excluded.line, opens = excluded.opens,
   ships = excluded.ships, rolls = excluded.rolls, life_pm = excluded.life_pm, final = excluded.final, work_uh = excluded.work_uh, own_uh = excluded.own_uh,
   inputs = excluded.inputs, hunted = excluded.hunted;
-delete from public.hr_trade_recipes where recipe <> all (array['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'log_b0', 'fish_b0', 'rune_stone_b0', 'grain_b0', 'bar_b0', 'shaft_b0', 'cut_stone_b0', 'honing_stone_b0', 'drink_b0', 'temper_kit_b1', 'temper_kit_b2', 'temper_kit_b3', 'temper_kit_b4', 'temper_kit_b5', 'temper_kit_b6', 'rune_earth_b0', 'rune_water_b0', 'rune_ice_b0', 'rune_poison_b0', 'rune_rupture_b0', 'ore_b1', 'log_b1', 'fish_b1', 'grain_b1', 'bar_b1', 'shaft_b1', 'meal_b1', 'drink_b1', 'honing_stone_b1', 'arrowhead_b1', 'arrow_b1', 'bolt_b1', 'rune_earth_b1', 'rune_water_b1', 'rune_fire_b1', 'rune_ice_b1', 'rune_poison_b1', 'rune_rupture_b1', 'ore_b2', 'log_b2', 'fish_b2', 'grain_b2', 'bar_b2', 'shaft_b2', 'meal_b2', 'drink_b2', 'honing_stone_b2', 'arrowhead_b2', 'arrow_b2', 'rune_earth_b2', 'rune_water_b2', 'rune_fire_b2', 'rune_ice_b2', 'rune_poison_b2', 'rune_rupture_b2', 'ore_b3', 'log_b3', 'fish_b3', 'grain_b3', 'bar_b3', 'shaft_b3', 'meal_b3', 'drink_b3', 'honing_stone_b3', 'arrowhead_b3', 'arrow_b3', 'rune_earth_b3', 'rune_water_b3', 'rune_fire_b3', 'rune_ice_b3', 'rune_poison_b3', 'rune_rupture_b3', 'ore_b4', 'log_b4', 'fish_b4', 'grain_b4', 'bar_b4', 'shaft_b4', 'meal_b4', 'drink_b4', 'honing_stone_b4', 'arrowhead_b4', 'arrow_b4', 'rune_earth_b4', 'rune_water_b4', 'rune_fire_b4', 'rune_ice_b4', 'rune_poison_b4', 'rune_rupture_b4', 'ore_b5', 'log_b5', 'fish_b5', 'grain_b5', 'bar_b5', 'shaft_b5', 'meal_b5', 'drink_b5', 'arrowhead_b5', 'arrow_b5', 'honing_stone_b5', 'ore_b6', 'log_b6', 'fish_b6', 'grain_b6', 'bar_b6', 'shaft_b6', 'meal_b6', 'drink_b6', 'honing_stone_b6', 'arrowhead_b6', 'arrow_b6', 'ore_b7', 'bar_b7', 'temper_kit_b7', 'fish_b7', 'meal_b7', 'ore_b8', 'bar_b8', 'temper_kit_b8', 'fish_b8', 'meal_b8', 'imbuement_fire_ward', 'imbuement_fire_edge', 'imbuement_brute_edge', 'imbuement_life_leech', 'imbuement_mana_leech']);
+delete from public.hr_trade_recipes where recipe <> all (array['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'log_b0', 'fish_b0', 'rune_stone_b0', 'grain_b0', 'bar_b0', 'shaft_b0', 'cut_stone_b0', 'honing_stone_b0', 'drink_b0', 'temper_kit_b1', 'temper_kit_b2', 'temper_kit_b3', 'temper_kit_b4', 'temper_kit_b5', 'temper_kit_b6', 'rune_earth_b0', 'rune_water_b0', 'rune_ice_b0', 'rune_poison_b0', 'rune_rupture_b0', 'ore_b1', 'log_b1', 'fish_b1', 'grain_b1', 'bar_b1', 'shaft_b1', 'meal_b1', 'drink_b1', 'honing_stone_b1', 'arrowhead_b1', 'arrow_b1', 'bolt_b1', 'rune_earth_b1', 'rune_water_b1', 'rune_fire_b1', 'rune_ice_b1', 'rune_poison_b1', 'rune_rupture_b1', 'ore_b2', 'log_b2', 'fish_b2', 'grain_b2', 'bar_b2', 'shaft_b2', 'meal_b2', 'drink_b2', 'honing_stone_b2', 'arrowhead_b2', 'arrow_b2', 'rune_earth_b2', 'rune_water_b2', 'rune_fire_b2', 'rune_ice_b2', 'rune_poison_b2', 'rune_rupture_b2', 'ore_b3', 'log_b3', 'fish_b3', 'grain_b3', 'bar_b3', 'shaft_b3', 'meal_b3', 'drink_b3', 'honing_stone_b3', 'arrowhead_b3', 'arrow_b3', 'rune_earth_b3', 'rune_water_b3', 'rune_fire_b3', 'rune_ice_b3', 'rune_poison_b3', 'rune_rupture_b3', 'ore_b4', 'log_b4', 'fish_b4', 'grain_b4', 'bar_b4', 'shaft_b4', 'meal_b4', 'drink_b4', 'honing_stone_b4', 'arrowhead_b4', 'arrow_b4', 'rune_earth_b4', 'rune_water_b4', 'rune_fire_b4', 'rune_ice_b4', 'rune_poison_b4', 'rune_rupture_b4', 'ore_b5', 'log_b5', 'fish_b5', 'grain_b5', 'bar_b5', 'shaft_b5', 'meal_b5', 'drink_b5', 'arrowhead_b5', 'arrow_b5', 'honing_stone_b5', 'ore_b6', 'log_b6', 'fish_b6', 'bar_b6', 'shaft_b6', 'meal_b6', 'honing_stone_b6', 'arrowhead_b6', 'arrow_b6', 'ore_b7', 'bar_b7', 'temper_kit_b7', 'fish_b7', 'meal_b7', 'ore_b8', 'bar_b8', 'temper_kit_b8', 'fish_b8', 'meal_b8', 'imbuement_fire_ward', 'imbuement_fire_edge', 'imbuement_brute_edge', 'imbuement_life_leech', 'imbuement_mana_leech']);
 insert into public.hr_trade_recipes (recipe, kind, trade, band, rung, r_level, face, name, inputs, imbue) values
   ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', 'Mine Copper Ore', '{}'::jsonb, null),
   ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', 'Forge Bronze Arrowheads', '{"bronze_bar":1}'::jsonb, null),
@@ -273,11 +273,9 @@ insert into public.hr_trade_recipes (recipe, kind, trade, band, rung, r_level, f
   ('ore_b6', 'ore', 'mining', 6, 7, 61, 'dawnstone_ore', 'Mine Dawnstone Ore', '{}'::jsonb, null),
   ('log_b6', 'log', 'woodcutting', 6, 7, 61, 'duskwood_log', 'Chop Duskwood Logs', '{}'::jsonb, null),
   ('fish_b6', 'fish', 'fishing', 6, 7, 61, 'frostfin', 'Catch Frostfin', '{}'::jsonb, null),
-  ('grain_b6', 'grain', 'farming', 6, 7, 61, 'moonbloom', 'Pull Moonbloom', '{}'::jsonb, null),
   ('bar_b6', 'bar', 'smithing', 6, 7, 61, 'dawn_bar', 'Smelt Dawnsteel Bars', '{"dawnstone_ore":1}'::jsonb, null),
   ('shaft_b6', 'shaft', 'woodcrafting', 6, 7, 61, 'duskwood_plank', 'Saw Duskwood Planks', '{"duskwood_log":1}'::jsonb, null),
   ('meal_b6', 'meal', 'cooking', 6, 7, 61, 'cooked_frostfin', 'Cook Frostfin', '{"frostfin":1}'::jsonb, null),
-  ('drink_b6', 'drink', 'cooking', 6, 7, 61, 'moonbloom_wine', 'Brew Moonbloom Wine', '{"moonbloom":1}'::jsonb, null),
   ('honing_stone_b6', 'honing_stone', 'smithing', 6, 7, 61, 'dawn_whetstone', 'Grind Dawnsteel Whetstones', '{"dawn_bar":2}'::jsonb, null),
   ('arrowhead_b6', 'arrowhead', 'smithing', 6, 7, 61, 'dawn_arrowheads', 'Forge Dawnsteel Arrowheads', '{"dawn_bar":1}'::jsonb, null),
   ('arrow_b6', 'arrow', 'woodcrafting', 6, 7, 61, 'dawnpoint_arrows', 'Fletch Dawnpoint Arrows', '{"dawn_arrowheads":1,"duskwood_plank":1}'::jsonb, null),
@@ -1723,9 +1721,9 @@ begin
       raise exception 'VERIFY(h): the bound admits % on rung % at Level %', v_r.k, v_r.rung, v_r.l; end if;
   end loop;
   -- (i) THE JOB SLICE'S ROWS: every recipe the data's, inputs as whole goods; every ground's band
-  if (select count(*) from public.hr_trade_recipes) <> 131 or (select count(*) from public.hr_trade_ground_bands) <> 16 then
+  if (select count(*) from public.hr_trade_recipes) <> 129 or (select count(*) from public.hr_trade_ground_bands) <> 16 then
     raise exception 'VERIFY(i): % recipes and % ground bands, not % and %', (select count(*) from public.hr_trade_recipes),
-      (select count(*) from public.hr_trade_ground_bands), 131, 16; end if;
+      (select count(*) from public.hr_trade_ground_bands), 129, 16; end if;
   for v_r in select * from (values
     ('ore_b0', 'ore', 'mining', 0, 1, 1, 'copper_ore', '{}'::jsonb),
     ('arrowhead_b0', 'arrowhead', 'smithing', 0, 1, 1, 'bronze_arrowheads', '{"bronze_bar":1}'::jsonb),
@@ -1835,11 +1833,9 @@ begin
     ('ore_b6', 'ore', 'mining', 6, 7, 61, 'dawnstone_ore', '{}'::jsonb),
     ('log_b6', 'log', 'woodcutting', 6, 7, 61, 'duskwood_log', '{}'::jsonb),
     ('fish_b6', 'fish', 'fishing', 6, 7, 61, 'frostfin', '{}'::jsonb),
-    ('grain_b6', 'grain', 'farming', 6, 7, 61, 'moonbloom', '{}'::jsonb),
     ('bar_b6', 'bar', 'smithing', 6, 7, 61, 'dawn_bar', '{"dawnstone_ore":1}'::jsonb),
     ('shaft_b6', 'shaft', 'woodcrafting', 6, 7, 61, 'duskwood_plank', '{"duskwood_log":1}'::jsonb),
     ('meal_b6', 'meal', 'cooking', 6, 7, 61, 'cooked_frostfin', '{"frostfin":1}'::jsonb),
-    ('drink_b6', 'drink', 'cooking', 6, 7, 61, 'moonbloom_wine', '{"moonbloom":1}'::jsonb),
     ('honing_stone_b6', 'honing_stone', 'smithing', 6, 7, 61, 'dawn_whetstone', '{"dawn_bar":2}'::jsonb),
     ('arrowhead_b6', 'arrowhead', 'smithing', 6, 7, 61, 'dawn_arrowheads', '{"dawn_bar":1}'::jsonb),
     ('arrow_b6', 'arrow', 'woodcrafting', 6, 7, 61, 'dawnpoint_arrows', '{"dawn_arrowheads":1,"duskwood_plank":1}'::jsonb),
@@ -2645,10 +2641,6 @@ begin
     ('fish', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 131::bigint, 98::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
     ('fish', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
     ('fish', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
-    ('grain', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 131::bigint, 96::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
-    ('grain', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 131::bigint, 98::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
-    ('grain', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
-    ('grain', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
     ('bar', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 329::bigint, 248::bigint, 0::bigint, 0::bigint, 0::bigint, 28737::bigint, 28737609::bigint),
     ('bar', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 329::bigint, 253::bigint, 0::bigint, 0::bigint, 0::bigint, 28737::bigint, 28737609::bigint),
     ('bar', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 340::bigint, 340::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
@@ -2661,10 +2653,6 @@ begin
     ('meal', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 131::bigint, 98::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
     ('meal', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
     ('meal', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
-    ('drink', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 131::bigint, 96::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
-    ('drink', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 131::bigint, 98::bigint, 0::bigint, 0::bigint, 0::bigint, 28606::bigint, 28606586::bigint),
-    ('drink', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
-    ('drink', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 136::bigint, 136::bigint, 0::bigint, 0::bigint, 0::bigint, 28775::bigint, 28775819::bigint),
     ('honing_stone', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 109::bigint, 82::bigint, 0::bigint, 0::bigint, 0::bigint, 28562::bigint, 28562912::bigint),
     ('honing_stone', 7, 61, false, 0, 1000, 1000, 28800000::bigint, 4294967295::bigint, 109::bigint, 78::bigint, 0::bigint, 0::bigint, 0::bigint, 28562::bigint, 28562912::bigint),
     ('honing_stone', 7, 76, false, 0, 1000, 1000, 28800000::bigint, 1::bigint, 113::bigint, 113::bigint, 0::bigint, 0::bigint, 0::bigint, 28691::bigint, 28691184::bigint),
@@ -2770,5 +2758,5 @@ begin
   update public.hr_trade_levers set quality_live = 0;
   if (select quality_live from public.hr_trade_levers) <> 0 then raise exception 'VERIFY(m): the quality switch was not put back'; end if;
   raise notice 'gen-trades: % kinds, % Levels, % recipes, the twins pinned at % points, % settles admitted, % rolled exactly; all green', 37, 99,
-    131, 1288, 13, 537;
+    129, 1288, 13, 529;
 end $mig$;

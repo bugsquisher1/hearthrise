@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 755,
-  "typed": 17628,
+  "typed": 17625,
   "files": 263,
   "lever": 321,
   "notLever": 434,
@@ -983,7 +983,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 46,
       "distinct": 7,
       "low": 1,
@@ -11062,7 +11062,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 16,
       "distinct": 4,
       "low": 1,
@@ -11070,7 +11070,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 0,
       "distinct": 0,
       "low": null,
@@ -11163,7 +11163,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 448,
       "distinct": 35,
       "low": 1,
@@ -11171,7 +11171,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 229,
       "distinct": 63,
       "low": 1,
@@ -13328,7 +13328,7 @@
     "today": [
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 27,
       "distinct": 5,
       "low": 1,
@@ -13336,7 +13336,7 @@
      },
      {
       "table": "src/data/items.js ITEMS",
-      "rows": 799,
+      "rows": 798,
       "carrying": 27,
       "distinct": 9,
       "low": 120000,
@@ -13370,13 +13370,13 @@
    "sites": [
     {
      "file": "src/data/supplies.js",
-     "line": 163,
+     "line": 162,
      "text": "export const BAG_TARGET_HOURS = 3;",
      "binding": "BAG_TARGET_HOURS"
     },
     {
      "file": "src/data/supplies.js",
-     "line": 171,
+     "line": 170,
      "text": "const BASE_BAG_GUIDES = Object.freeze({",
      "binding": "BASE_BAG_GUIDES"
     }

@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 0fccc244b278a32c51f1b8745be3f004ffa8e3554f8bd3d1f5f525c156a2c29f
---   81 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   729 vendor values, 49 store supplies paid per use, 5 target modes,
+--   digest: 2b0d655ea4de3bebbcc9ca67c99b28d7a6ee0942a11ad0ff8a3948402c937b28
+--   80 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
+--   728 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -758,7 +758,6 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('mithril_arrows', 'ammo', true, 0, null),
   ('mithril_whetstone', 'ammo', false, 0, null),
   ('moonbloom_elixir', 'buff', false, 0, 'all_xp'),
-  ('moonbloom_wine', 'mana', false, 0, null),
   ('pumpkin_cider', 'mana', false, 0, null),
   ('pumpkin_pie', 'buff', false, 0, 'all_xp'),
   ('river_chowder', 'heal', true, 360, null),
@@ -1537,7 +1536,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('density_min', 0),
   ('distance_max', 8),
   ('distance_min', 1),
-  ('drink_mana_per_min_max', 23040),
+  ('drink_mana_per_min_max', 19440),
   ('flame_regen_k', 50),
   ('flame_regen_max_permille', 1000),
   ('gather_share_max', 100),
@@ -2041,10 +2040,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('mithril_temper_salts', 20),
   ('mithril_warhammer', 86),
   ('mithril_whetstone', 12),
-  ('moonbloom', 145),
+  ('moonbloom', 170),
   ('moonbloom_elixir', 2600),
   ('moonbloom_seed', 210),
-  ('moonbloom_wine', 280),
   ('moonfish', 22),
   ('mosslight_clump', 126),
   ('mosslight_tendril', 5),
@@ -2410,11 +2408,11 @@ insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 81
+  if (select count(*) from public.hr_hunt_supplies) <> 80
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 729
+     or (select count(*) from public.hr_hunt_vendor_value) <> 728
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

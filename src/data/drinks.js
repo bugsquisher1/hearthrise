@@ -29,10 +29,6 @@ export const DRINK_ITEMS = Object.freeze({
   pumpkin_cider: Object.freeze({ n: 'Pumpkin Cider', icon: '🎃', v: 50, mana: 384 }),
   goldenroot_tea: Object.freeze({ n: 'Goldenroot Tea', icon: '🍵', v: 86, mana: 528 }),
   emberfruit_cordial: Object.freeze({ n: 'Emberfruit Cordial', icon: '🍷', v: 160, mana: 648 }),
-  /* band 6's drink (the designer, lane/kit-bands-6-9, 09 4.16): Moonbloom is the last crop in the farm's order, so its press is the
-     Dawnsteel band's mana drink. A job makes it (src/data/trades.js drink_b6, one moonbloom), never the bench, so it has no press row
-     below. Mana climbs the ladder's last step again (+120), booked a third of its crop as the cordial is */
-  moonbloom_wine: Object.freeze({ n: 'Moonbloom Wine', icon: '🍷', v: 280, mana: 768 }),
 });
 
 export const DRINK_RECIPES = Object.freeze([
@@ -51,6 +47,5 @@ export const DRINK_DESC = Object.freeze({
   tomato_juice: 'Rich tomato juice, a caster\'s favorite on a long hunt',
   pumpkin_cider: 'Spiced pumpkin cider that warms you up and brings back a good chunk of mana',
   goldenroot_tea: 'A slow-brewed tea of goldenroot. It\'s bright gold and brings back a lot of mana',
-  emberfruit_cordial: 'A strong emberfruit drink for casters on a hard hunt. It brings back a lot of mana in one go',
-  moonbloom_wine: 'Pale wine pressed from moonbloom petals. Casters save it for the deepest hunts, and it brings back the most mana',
+  emberfruit_cordial: 'A strong emberfruit drink for casters fighting the toughest monsters. It brings back the most mana',
 });

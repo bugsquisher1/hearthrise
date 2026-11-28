@@ -16,10 +16,11 @@
 //   KR-ROWS    band 0 is the first day whole (09 4.11 row 1b, 4.13): the sample's five, batch 2 (the gather rows, the refine rows, the
 //              honing stone and the drink) and every rune family; band 1 (iron, 09 4.13) is the same kinds at iron and oak, the first bolt
 //              and the Temper kit, with no stone of its own; bands 2 to 4 (steel, mithril and rune, 09 4.14, 4.15) are band 1's kinds but
-//              the bolt; bands 5 and 6 (Emberforged and Dawnsteel, 09 4.15, 4.16) are band 4's but the runes, whose ladder ends at Graven;
+//              the bolt; bands 5 and 6 (Emberforged and Dawnsteel, 09 4.15, 4.16) are band 4's but the runes, whose ladder ends at Graven,
+//              and band 6 has no crop or drink (no mana drink past Emberfruit Cordial yet);
 //              bands 7 and 8 (Cobalt and Wolfram, 09 4.16) are the rock, the bar, the Temper kit and the fish and meal; one row a kind,
-//              every v0.3.0 gathering and making trade with a job at each band (Runecutting while a rune tier is left, Woodcutting,
-//              Woodcrafting and Farming while an arrow rung is); nothing past band 8 (band 9 has no gear tier and no ground); one good,
+//              every v0.3.0 gathering and making trade with a job at each band (Runecutting while a rune tier is left, Woodcutting and
+//              Woodcrafting while an arrow rung is, Farming while a mana drink is); nothing past band 8 (band 9 has no gear tier and no ground); one good,
 //              one recipe; a row holds only its kind, band, derived id and a short label (no time, count, XP or price); validate() is clean
 //   KR-BATCH   a batch of 20 or fewer, each batch on its own (09 4.13): two batches of 15 pass, one of 21 is refused, and KIT_RECIPES is
 //              the batches end to end, so a band past 0 lands as its own batch
@@ -63,10 +64,11 @@ async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const [T, D, CC, IT, SK, HG, MO, DG, RU] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js'),
     imp('src/data/hunt-grounds.js'), imp('src/data/monsters.js'), imp('src/data/danger.js'), imp('src/data/runes.js')]);
+  const drinkRungs = Object.keys((await imp('src/data/drinks.js')).DRINK_ITEMS).length;
   /* the arrow ladder's rungs (slot-ladders.js: the Ranged ammo's tiers, Bronze to Dawnpoint): band b fletches rung b + 1, so Woodcutting and
      Woodcrafting have a job at every band an arrow rung is left for, as Runecutting has at every band a rune tier is left for */
   const arrowRungs = Math.max(...Object.values(IT.ITEMS).filter((i) => i && i.slot === 'ammo' && i.reqSkill === 'ranged' && Number.isInteger(i.tier)).map((i) => i.tier));
-  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, runeTiers: RU.RUNE_TIERS.length, arrowRungs,
+  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, runeTiers: RU.RUNE_TIERS.length, arrowRungs, drinkRungs,
     bandDrops: bandDropsOf(HG, MO, DG, HG.OPEN_GROUNDS), anyBandDrops: bandDropsOf(HG, MO, DG, HG.HUNT_GROUNDS), ...catalogueOf(T) };
 }
 
@@ -96,7 +98,7 @@ function catalogueOf(T) {
 const has = (m, id) => (m.get(id) || []).length > 0;
 
 const ARMS = {
-  'KR-ROWS'({ KR, cat, refused, runeTiers, arrowRungs }) {
+  'KR-ROWS'({ KR, cat, refused, runeTiers, arrowRungs, drinkRungs }) {
     const out = [];
     if (refused) return ['KR-ROWS the catalogue refuses the rows: ' + refused];
     for (const p of KR.validateKitRecipes()) out.push('KR-ROWS ' + p);
@@ -108,7 +110,8 @@ const ARMS = {
        BAND 1, IRON (09 4.13): the same kinds at iron and oak, the first bolt and the Temper kit, and no stone of its own (the rune's stone
        has no metal). BANDS 2 TO 4, STEEL, MITHRIL AND RUNE (09 4.14, 4.15): band 1's kinds but the bolt (past iron a crossbow shoots its
        band's arrows). BAND 5, EMBERFORGED (09 4.15, 4.16): band 4's but the runes (the ladder ends at Graven). BAND 6, DAWNSTEEL (09
-       4.16): band 5's kinds, every ladder's last rung but the runes'. BANDS 7 AND 8, COBALT AND WOLFRAM (09 4.16): the rock, the bar, the
+       4.16): band 5's kinds but the crop and drink (no mana drink past Emberfruit Cordial yet), every ladder's last rung but the runes'.
+       BANDS 7 AND 8, COBALT AND WOLFRAM (09 4.16): the rock, the bar, the
        Temper kit and the fish and meal; their charge goods, wood, crop and drink wait for the ladders' next rung. Nothing past band 8: band
        9 has no gear tier and no ground */
     const later3 = ['ore', 'arrowhead', 'arrow', 'meal', 'log', 'fish', 'grain', 'bar', 'shaft', 'honing_stone', 'drink', 'temper_kit', ...runes];
@@ -121,7 +124,7 @@ const ARMS = {
       3: later3,
       4: later3,
       5: noRune,
-      6: noRune,
+      6: noRune.filter((k) => k !== 'grain' && k !== 'drink'),
       7: metal,
       8: metal,
     };
@@ -129,9 +132,9 @@ const ARMS = {
       const rows = all.filter((r) => r.band === b), kinds = rows.map((r) => r.kind);
       if (kinds.slice().sort().join() !== want[b].slice().sort().join()) out.push('KR-ROWS band ' + b + ' is ' + kinds.join(', ') + ', not its whole (' + want[b].join(', ') + ')');
       /* Runecutting has a job at every band a rune tier is left for (runes.js RUNE_TIERS: band b cuts tier b + 1), Woodcutting and
-         Woodcrafting at every band an arrow rung is left for, and Farming (whose crop is a drink's) with them: the farm's crops end at
-         Moonbloom, band 6's (09 4.16) */
-      const wood = b < arrowRungs ? ['woodcutting', 'woodcrafting', 'farming'] : [];
+         Woodcrafting at every band an arrow rung is left for, and Farming at every band a mana drink is (drinks.js DRINK_ITEMS: a crop's use
+         is its band's drink, Turnip Juice to Emberfruit Cordial, 09 4.16) */
+      const wood = [...(b < arrowRungs ? ['woodcutting', 'woodcrafting'] : []), ...(b < drinkRungs ? ['farming'] : [])];
       for (const t of ['mining', 'fishing', 'cooking', 'smithing', ...wood, ...(b < runeTiers ? ['runecutting'] : [])]) {
         if (!rows.some((r) => cat.kinds[r.kind] && cat.kinds[r.kind].trade === t)) out.push('KR-ROWS band ' + b + ' has no ' + t + ' row: the trade has no job at the band');
       }
@@ -245,7 +248,7 @@ const ARMS = {
     }
     const ids = new Set(all.map((r) => r.id));
     for (const id of ['ore_b0', 'arrowhead_b0', 'arrow_b0', 'meal_b0', 'rune_fire_b0', 'arrow_b1', 'bolt_b1', 'rune_fire_b1', 'meal_b1', 'arrow_b2', 'rune_fire_b2', 'meal_b2', 'arrow_b3', 'rune_fire_b3', 'meal_b3', 'arrow_b4', 'rune_fire_b4', 'meal_b4', 'arrow_b5', 'meal_b5', 'drink_b5',
-      'honing_stone_b5', 'arrow_b6', 'honing_stone_b6', 'meal_b6', 'drink_b6', 'temper_kit_b6', 'temper_kit_b7', 'meal_b7', 'temper_kit_b8', 'meal_b8']) if (!ids.has(id)) out.push(`KR-CLOSED ${id} is not a job`);
+      'honing_stone_b5', 'arrow_b6', 'honing_stone_b6', 'meal_b6', 'temper_kit_b6', 'temper_kit_b7', 'meal_b7', 'temper_kit_b8', 'meal_b8']) if (!ids.has(id)) out.push(`KR-CLOSED ${id} is not a job`);
     return out;
   },
   /* EACH BAND'S BINDER DROPS ON A GROUND OF THAT BAND (09 4.14, 4.16): every band with a ground (open or staged) names its Remains, and a
@@ -327,7 +330,8 @@ const MUTANTS = [
   ['band 5 without its stone (the Emberforged Whetstone has no job)', 'KR-ROWS', 'src/data/trades.js', "    kitRow('honing_stone', 5, 'Grind Emberforged Whetstones'),\n", ''],
   ['band 6 without its dawnsteel bars (its head, stone and Temper kit have no metal)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('bar', 6, 'Smelt Dawnsteel Bars'),\n", ''],
   ['band 6 without its duskwood planks (Dawnpoint Arrows have no shaft)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('shaft', 6, 'Saw Duskwood Planks'),\n", ''],
-  ['band 6 without its crop (Moonbloom Wine has no moonbloom from a job)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('grain', 6, 'Pull Moonbloom'),\n", ''],
+  ['band 6 pulls a crop no drink presses (no band 6 drink yet)', 'KR-ROWS', 'src/data/trades.js',
+    "    kitRow('meal', 6, 'Cook Frostfin'),\n", "    kitRow('meal', 6, 'Cook Frostfin'),\n    kitRow('grain', 6, 'Pull Moonbloom'),\n"],
   ['band 6 cuts a rune past the last tier', 'KR-ROWS', 'src/data/trades.js',
     "    kitRow('arrow', 6, 'Fletch Dawnpoint Arrows'),\n", "    kitRow('arrow', 6, 'Fletch Dawnpoint Arrows'),\n    kitRow('rune_fire', 6, 'Cut Dawn Fire Runes'),\n"],
   ['band 7 without its rock (Cobalt Bars have no ore)', 'KR-CLOSED', 'src/data/trades.js', "    kitRow('ore', 7, 'Mine Cobalt Ore'),\n", ''],

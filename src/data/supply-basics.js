@@ -163,7 +163,7 @@ const HONE = 'a whetstone raises melee\'s ceiling, never its swing';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,
-  cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT, moonbloom_wine: BY_SLOT,
+  cooked_bear_meat: BY_SLOT, river_chowder: BY_SLOT, cooked_frostfin: BY_SLOT, cooked_moonfish: BY_SLOT,
   bronze_arrows: FREE_RUNG,
   coarse_whetstone: HONE, copper_whetstone: HONE, iron_whetstone: HONE, steel_whetstone: HONE, mithril_whetstone: HONE,
   rune_whetstone: HONE, ember_whetstone: HONE, dawn_whetstone: HONE,

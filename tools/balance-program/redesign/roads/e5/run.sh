@@ -38,3 +38,8 @@ run n-cr hammer,bow,mage,sword --borrowed -,-,-,circle_of_renewal
 # designer's call (Greater Mend's V0 is past the last band, so no price offers it by the rule; the M cell is already in band at full power)
 run n-gm-500 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@500
 run n-gm-300 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@300
+# the designer's fourth band (lane/designer-greater-mend, 2026-11-27; 19 L6): V0 20 to 50 at -80% at a border town, not offered at Havora;
+# -75% beside it for the curve, and the -80% price beside a healer (the M cell: what it is worth where a healer already stands)
+run n-gm-200 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@800
+run n-gm-250 hammer,bow,mage,sword --borrowed -,-,-,greater_mend@750
+run m-gm-200 hammer,bow,mage,healer --borrowed greater_mend@800,-,-,-

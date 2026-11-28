@@ -24,6 +24,9 @@ const PAIRS = [
   ['Circle of Renewal on the sword, no healer (N)', 'n-plain', 'n-cr', 3, 'circle_of_renewal'],
   ['Greater Mend on the sword at -50% (N)', 'n-plain', 'n-gm-500', 3, 'greater_mend'],
   ['Greater Mend on the sword at -30% (N)', 'n-plain', 'n-gm-300', 3, 'greater_mend'],
+  ['Greater Mend on the sword at -75% (N)', 'n-plain', 'n-gm-250', 3, 'greater_mend'],
+  ['Greater Mend on the sword at -80% (N, the fourth band)', 'n-plain', 'n-gm-200', 3, 'greater_mend'],
+  ['Greater Mend on the hammer at -80%, beside a healer (M)', 'm-plain', 'm-gm-200', 0, 'greater_mend'],
 ];
 const cellOf = (name) => {
   const f = join(HERE, name + '.json');

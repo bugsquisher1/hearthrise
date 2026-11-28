@@ -1,5 +1,5 @@
-// tests/hunt-core/signature-rules.mjs — A WORN SIGNATURE IN THE FIGHT: the sample of 5 and batch 2 play their rules as reactions, dark for
-// players (lane/signatures-sample and lane/signatures-batch-2, systems, 2026-11-26; src/core/hunt/signature-rules.js, src/data/signatures.js,
+// tests/hunt-core/signature-rules.mjs — A WORN SIGNATURE IN THE FIGHT: the sample of 5 and batches 2 and 3 play their rules, dark for
+// players (lane/signatures-sample, lane/signatures-batch-2 and lane/signatures-batch-3, systems, 2026-11-26 and 27; src/core/hunt/signature-rules.js, src/data/signatures.js,
 // src/core/hunt/reactions.js, docs/design/redesign/15-signature-candidates.md "Decision: count and size"). Run by run-all.mjs.
 //
 //   worn-signature    the id the engine plays: an unknown id dropped, a list plays its first known one; heroSetup and the frozen peer carry it;
@@ -47,9 +47,29 @@
 //                     hit on a chilled one, nothing; the chill is read as the hit lands
 //   heal-boon         Brewer's Apron: a Circle of Renewal landing on a hero gives it Emboldened for 4 s (+10% dealt), once a hero a cast;
 //                     another heal gives nothing
-//   real-settle       THE BOTH PATHS (CLAUDE.md section 4): a Muster four each playing a Signature (the sample's, then batch 2's) plays a
-//                     different hunt from the same four with none, the boon, the Collar's Bleed, the Pavise's Blunted and the Hat's reflected
-//                     blows show on its events, and each settles the same in 10-minute and 100-second windows
+// BATCH 3 (lane/signatures-batch-3, 2026-11-27; one case a row, each with its mutant, a new piece's seam or filter where it has one):
+//   taunt-armor-break #1 Bannerman's Pavise: the monsters a Challenge takes off an ally lose a quarter of their armor; one already on the
+//                     tank is not taunted (the taunt names its monsters: `list`)
+//   near-fall-ready   #19 Lock-Keeper's Chain: an ally crossing its near-fall line readies Spring Tide, once a 30 s clock
+//   cast-steeped      #20 Greened Bracers: a Green Sickness cast Steeps its caster (not its monster: `to: 'self'`), its next Greater Mend
+//                     casts 30% stronger and spends it
+//   alone-kill-heal   #22 Slake Waders: a kill heals a hero hunting alone 4%; the same kill with an ally in the world nothing
+//   fire-on-chill     #24 Stoker's Ring: a Fire rune spell's hit on a chilled monster echoes 20%; an Ice spell's, or one on an unchilled monster, nothing
+//   rune-save         #25 The Cold Candle: every third Ice rune spell buys no rune (gold 0, the purse unmoved, the cast names the rune saved)
+//   shell-break-heal  #26 Thrower's Ring: the wearer's shell breaking heals its hero 6% of that hero's max; another hero's shell nothing
+//   heal-mana         #27 Riverstone Earrings: a Water rune heal gives the hero healed mana of 10% of the HP it landed; Mend none
+//   sickness-passes   #28 Vault Leech Ring: a monster dying with the wearer's Sickness passes it, time left, to the nearest monster
+//   bleed-six         #29 Fledgling Claw: the wearer's sixth Bleed lands on a monster at five; a plain hero's stays at five; never past six
+//   every-fifth-death #31 The Cellar Key: the fifth death (whoever's blow) heals each hero of the party 3% of its own max, the first four nothing
+//   kill-mana         #33 Teamster's Mitts: a kill gives 2% of max mana, a hit that does not kill nothing
+//   boss-low-party    #38 Drowned Signet: a boss left under 25% Emboldens every living hero of the party (1.5 times its row, 10 s), once a
+//                     boss; a monster that is no boss nothing; a fallen hero nothing
+//   pull-chill        #42 Night Carter's Boots: a pull's start Chills its pack 3 s, none outside it (the seam is real-settle's)
+//   single-carry      #43 Bull's Tooth: a single-target move's kill carries its overkill to the nearest monster; a line move's nothing
+//   real-settle       THE BOTH PATHS (CLAUDE.md section 4): a Muster four each playing a Signature (the sample's, then batch 2's, then batch
+//                     3's) plays a different hunt from the same four with none, the boon, the Collar's Bleed, the Pavise's Blunted, the Hat's
+//                     reflected blows, the Boots' Chill at a pull's own instant, the Tooth's carried overkill, the Ring's echo and the Key's
+//                     party heal show on its events, and each settles the same in 10-minute and 100-second windows
 //   dark              SIGNATURE_RULES.live is false and no src or server file but the engine's three readers names `wornSignature`; a hero
 //                     with none writes no field (the switch off plays as before: engine-parity holds with no re-pin)
 //

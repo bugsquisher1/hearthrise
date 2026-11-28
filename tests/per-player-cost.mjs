@@ -18,8 +18,9 @@
 //
 // mutant-anchors: none — --selftest plants a journal row a kill (a trigger on the tally and the bag), one more statement a settle
 //   (this file's own counting exec), a settle four times slower (a burn inside the timed settle), an index.ts that lost its marker
-//   (an in-memory copy), drifted budgets and a calibration part free after its first reading, all in memory or in the rolled-back
-//   replay; no tracked file is patched
+//   (an in-memory copy), drifted budgets, a calibration part free after its first reading, and dice events on the watched door (a
+//   poll that saves as a Rare's would: once a span, and every third poll), all in memory or in the rolled-back replay; no tracked
+//   file is patched
 //
 // ── WHY ────────────────────────────────────────────────────────────────────
 // The 2026-11-19 server audit (tools/qa/audit-2026-11-19-server/findings.md) put the ceiling at about 110-130 accounts online and
@@ -41,7 +42,9 @@
 //                                  water runes; the played bars (tools/balance-sim/played.mjs). Its tab open, as 87% of the real hunt
 //                                  was: a poll every 16 s and 0.6 early asks a poll (the client's cadence, tools/beta-load.mjs C). THE FLUSH
 //                                  (lane/c-settle-flush, 30-plan L12): the poll of a running prediction CONFIRMS (hunt-ask.js confirm)
-//                                  and saves only at the 90 s flush or at once on a death, a Level or a rare drop (hunt-settle.js flushDue)
+//                                  and saves only at the 90 s flush or at once on a death, a Level or a rare drop (hunt-settle.js flushDue).
+//                                  READ AT ITS LAST SAVE, ON THREE DICE (lane/rel-cost-lt): every number over the span's complete flush
+//                                  cycles, the median of WATCHED_DICE, so one dice event in 6.4 minutes is not read as a cost (measure)
 //   krell4_L80_deadly_closed       the same four, browser closed (its away hours; with the watched row, the nightly's band, below)
 //   tower4_L80_climb               the same four climbing the Burning Tower from floor 1 (a party climbs as one instance), closed, to
 //                                  its first death or 12 windows. From floor 1, not landing 30, since the Tower's floors are formulas
@@ -508,9 +511,10 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
    span's dice event is outvoted, a cost every span pays (a row, a statement, a save more a flush) is in all three. The closed doors
    save every window, so a dice event moves no save there: one reading. */
 export const WATCHED_DICE = Object.freeze([0, 1, 2]);
-/* --selftest's line between a dice event read as its rate (+4%, MEASURED: the late event, cut at the last save) and one read as a
-   whole save (+16% to +24%: the same event with its unsaved poll counted, or one poll after a save on its own dice) */
-const EVENT_BAND = 0.1;
+/* --selftest's line between a dice event read as its rate and one read as a save's fixed rows (MEASURED 2026-11-27 on the dark
+   chain: the planted events' median +3.9%; the late event with its unsaved poll saved and counted +11.7%, the save's fixed rows over
+   24 polls; the event one poll after a save on its own dice +16.1%) */
+const EVENT_BAND = 0.08;
 /* THE PLANTED DICE EVENTS (--selftest): a poll that saves as a Rare's would (no `confirm`, so it saves whatever the flush says).
    'dice_event' plants the worst place (one poll after a flush save, n - 5) on the first dice and the place that turned the Krell four
    red (n - 1) on the others; 'event_often' an event every third poll on every dice (saves twice as often: a real cost, red). */

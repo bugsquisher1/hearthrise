@@ -85,7 +85,8 @@ export const FIRST = new Set(['node tests/module-preload.mjs', 'node tests/comme
 /* Measured 13-120 s here, the rest under 10 s. They go last so a busy machine judges the most commands inside the limit: 124 s for all 71
    at 54% CPU, but 45 of 72 at the limit on a busier one, when two of these ate a slot each. */
 export const LATE = new Set(['node tests/w0e-ammo-runecraft-prayer.mjs', 'node tests/selfcheck-no-global-dml.bypass.mjs', 'node tests/world-assets.mjs',
-  'node tests/world-town-home.mjs', 'node tests/parse-check.mjs', 'node tests/restore-census.mjs', 'node tests/rpc-resolution.mjs', 'node tests/level-curve.mjs',
+  'node tests/world-town-home.mjs', 'node tests/parse-check.mjs', 'node tests/restore-census.mjs', 'node tests/rpc-resolution.mjs', 'node tests/level-curve.mjs --shard=1/3 --keep-world',
+  'node tests/level-curve.mjs --shard=2/3 --keep-world', 'node tests/level-curve.mjs --shard=3/3 --keep-world',
   'node tests/core-curves.mjs', 'node tests/lucky-finds.mjs']);
 
 /* From the jobs that replay the chain, when their inputs moved: each was a red in the last 30 runs. */
@@ -103,7 +104,10 @@ export const EXTRAS = [
   ['node tests/settle-budget.mjs', (f) => CHAIN(f) || f.startsWith('src/core/'), 'a SQL function in the settle path, or a settle over budget'],
   ['node tests/say-why.mjs', (f) => f.startsWith('src/shell/') || f.startsWith('src/app/'), 'a control off for a rule with no reason on screen (41973095820)'],
   ['bash bump-version.sh --check', () => true, 'the three version strings agree'],
-  ['node tests/level-curve.mjs', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
+  /* level-curve's C7 cells run as three shards (lane/ci-db-replay-8): all three, so a local run judges every cell */
+  ['node tests/level-curve.mjs --shard=1/3 --keep-world', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
+  ['node tests/level-curve.mjs --shard=2/3 --keep-world', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
+  ['node tests/level-curve.mjs --shard=3/3 --keep-world', (f) => /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a ground or a monster moved: the curve is re-measured (40772818413)'],
   /* v0.2.89 and v0.2.99: the pace was not re-measured, then four called monsters had no SQL row; 2-4 s on GitHub, found 7-13 min in. */
   ['node tests/core-curves.mjs', (f) => CHAIN(f) || /^src\/data\/(monsters|hunts|core-model|level)/.test(f), 'a monster or ground moved and SQL or the pace did not follow (41922216241, 42146852443)'],
   ['node tests/lucky-finds.mjs', (f) => CHAIN(f) || /^src\/data\/(monsters|items|bosses|hearthfind|shops)\.js$/.test(f), 'a tier\'s lucky rows (42146852443)'],

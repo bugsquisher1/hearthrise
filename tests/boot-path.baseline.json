@@ -128,6 +128,24 @@
         "gzipBytes": 206861,
         "on": "2026-11-27",
         "why": "lane/no-named-trait-bases: the plain-ladder tables (PLAIN_PIECES, SHIELD_LADDER) in the game half"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206926,
+        "on": "2026-11-28",
+        "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206932,
+        "on": "2026-11-28",
+        "why": "worn-imbues: src/core/imbue.js imbuesAt/untilMs (the client shows worn imbuements running out at the server's instant)"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206933,
+        "on": "2026-11-28",
+        "why": "refusal verb words (refusal-words.js, talent-intents.js) + dealt guarantees (drops.js, hunt-rewards.js on the client's hunt view)"
       }
     ],
     "town": [
@@ -592,6 +610,36 @@
         "gzipBytes": 984518,
         "on": "2026-11-28",
         "why": "kit-bands-2-3: band 2-3 job recipes and faces in trades.js and job-faces.js, read by the town work window"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985112,
+        "on": "2026-11-28",
+        "why": "e5-borrowing: talent-rows borrow list and grantsOf read by the Talents window and town pick (+0.6 KB)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985124,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend: the fourth borrow band in talents.js, read by the Talents window"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985213,
+        "on": "2026-11-28",
+        "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985336,
+        "on": "2026-11-28",
+        "why": "worn-imbues: src/core/imbue.js imbuesAt/untilMs (the client shows worn imbuements running out at the server's instant)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985529,
+        "on": "2026-11-28",
+        "why": "refusal verb words (refusal-words.js, talent-intents.js) + dealt guarantees (drops.js, hunt-rewards.js on the client's hunt view)"
       }
     ]
   }

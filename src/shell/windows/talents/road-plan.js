@@ -21,14 +21,16 @@ import { buildProblems } from '../../../core/talents.js';
 import { planRoute, planLeft, plannedOf, nextPlanStep } from '../../../core/talent-route.js';
 import { planGroundOf } from '../../../session/company-sections.js';
 import { saveBuild, spendPlan } from '../../../session/talent-intents.js';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js';
+import { REFUSAL_WORDS, REFUSAL_VERB_WORDS } from '../../../data/refusal-words.js';
 import { text, prop, attr } from '../../../render/paint.js';
 import { whole } from '../../../render/format.js';
-import { runIntent } from '../../intent-words.js';
+import { runIntent, refusalWords } from '../../intent-words.js';
 import { t } from '../../../render/player-text.js';
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
-const words = (code) => (!code ? '' : own(REFUSAL_WORDS, code) ? REFUSAL_WORDS[code] : t('talents.locked'));
+/** A spend problem's words, as the press's refusal says them (the Talents verb's own line first: a town pick's not_offered is not the shop's) */
+export const talentWords = (code) => (!code ? '' : own(REFUSAL_VERB_WORDS.talent_spend, code) || own(REFUSAL_WORDS, code) ? refusalWords(code, 'talent_spend') : t('talents.locked'));
+const words = talentWords;
 const NONE = Object.freeze(new Set());
 
 /**

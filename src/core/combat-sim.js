@@ -66,7 +66,7 @@ import { isHero } from './hunt/sides.js';
 import { borrowBlowsOf } from './borrow-blow.js';
 import { syncTalents } from './hunt/talent-rows.js';
 import { syncTraits } from './hunt/trait-rules.js';
-import { wornImbuesOf } from './imbue.js';
+import { imbuesAt } from './imbue.js';
 import { syncSignature } from './hunt/signature-rules.js';
 import { traitSwing } from './trait-roll.js';
 import { scaleItems } from './gear-stats.js';
@@ -151,9 +151,9 @@ const rolesOf = (ms) => ms.map((m) => m.hero.role);
    from the next swing however the window was cut. Max HP and max mana are
    raise-only inside a hunt (a Level is never lost in one: a death ends it).
    `roles`: the party standing in the world at this instant (inWorld), whose
-   make-up decides a setting the player left unset (roles.settingsOf). */
+   make-up decides a setting the player left unset (roles.settingsOf). `atMs`: the boundary (an imbuement's run-out reads it). */
 const PIPELINE_SNAP = Object.freeze(['armorGearPm', 'wardPm', 'blowBp', 'critPm', 'buffDmgPm']);
-function syncUnit(u, m, roles) {
+function syncUnit(u, m, roles, atMs) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
   /* THE LEVEL, for the party's level share (xp-share.js) and nothing else: a level gained mid-window counts from the next kill, never persisted, like `mit`. */
@@ -182,8 +182,8 @@ function syncUnit(u, m, roles) {
   if (bb) u.borrowBlows = bb; else if (u.borrowBlows) delete u.borrowBlows;
   syncTalents(u, m.hero, snap.level);   // THE ROADS' grants at the Level now, the same (talent-rows.js syncTalents): none with no build
   syncTraits(u, m.hero);                // THE TRAITS it wears, the same (trait-rules.js syncTraits): none while Traits are dark
-  /* THE IMBUEMENTS it wears, the same (src/core/imbue.js: amount.js reads them as consumable rows): never persisted, none while dark */
-  const imb = wornImbuesOf(m.hero.wornImbues);
+  /* THE IMBUEMENTS it wears, the same (imbue.js imbuesAt: each to its run-out instant; amount.js consumable rows): none while dark */
+  const imb = imbuesAt(m.hero.wornImbues, atMs);
   if (imb) u.imbues = imb; else if (u.imbues !== undefined) delete u.imbues;
   syncSignature(u, m.hero);             // THE SIGNATURE it plays, after the Roads' reactions (signature-rules.js): none while dark
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
@@ -391,7 +391,7 @@ export function simulateHuntInstance(inst, ctx) {
   const roles0 = rolesOf(inWorld(members));
   for (const m of members) {
     const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
-    if (u) syncUnit(u, m, roles0);
+    if (u) syncUnit(u, m, roles0, atMs);
   }
   /* A HERO WITH NO MEMBER walks out first: a session the database closed between
      settles (a kick, a leave at once — hr_hunt_close clears unit_id, not the world)
@@ -480,7 +480,7 @@ export function simulateHuntInstance(inst, ctx) {
       if (train) trainingTick(m, train, tick);
       /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
       if (typeof m.wear === 'function') m.wear(atMs);
-      if (u) syncUnit(u, m, roles);
+      if (u) syncUnit(u, m, roles, atMs);
       byUnit.set(m.unitId, m);
     }
     // (2) ONE world swing for the whole instance, then what it paid each member.

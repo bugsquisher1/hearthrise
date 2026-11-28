@@ -133,9 +133,9 @@ export async function loadPlay(root) {
         /* opts.roads ((role, seat) -> { nodeId: value } | null): the hero's Roads build as hr_talents_view projects it and the settle hands
            it to heroSetup (hunt-settle.js memberInput `_talents`), at the hero's Level */
         ...(roads ? { talents: roads(role, i), level: XP.charLevelFromXp(Number.isInteger(st.levelXp) ? st.levelXp : XP.charXpForLevel(L)) } : {}),
-        /* opts.borrowed ((role, seat) -> [ability id] | null): moves of another weapon on the hero's own borrow list (heroSetup `borrowed`,
-           the engine's path a lent move plays: its native row and its native weapon's blow, src/core/borrow-blow.js), with no build and so
-           no penalty (lane/roads-borrow-values: a town move's V0 at full power) */
+        /* opts.borrowed ((role, seat) -> [ability id | { move, penaltyPm }] | null): moves of another weapon on the hero's own borrow list
+           (heroSetup `borrowed`, the engine's path a lent move plays: its native weapon's blow, src/core/borrow-blow.js, and 17 section 3's
+           rules, talent-rows.js lend), with no build: at full power (a town move's V0) or at the price handed */
         ...(borrowed && borrowed(role, i) ? { borrowed: borrowed(role, i) } : {}),
         /* opts.traits ((role, seat) -> [{ id, rank }] | null): the Traits the hero's pieces carry, as the server would project them
            (src/core/hunt/trait-rules.js; DARK in the game: only the Lab and the tests hand them) */

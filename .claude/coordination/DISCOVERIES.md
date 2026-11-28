@@ -4,6 +4,11 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-27 · game-designer (lane/designer-greater-mend) · a town's borrow card says when a move opens, never what it costs
+- **DISCOVERY:** the Talents window's town and Havora options (`src/shell/windows/talents/card.js`, the `.rdw-opt-at` line) show "Opens at Level N" from `borrowBand`, but not the band's price. A hero reads "Use Greater Mend with any weapon" and gets a fifth of its heal (the fourth band, −80%), or −30% / −50% on other moves, with nothing on the card to say so. A good mechanic that reads badly: the price is the decision.
+- **AFFECTED:** the Talents window (R-UI), every border town and the Havora crossing.
+- **REQUIRED ACTION:** Art Director with Systems (client): show the band's price on the option beside its opening Level, one short genre label from `borrowBand(...).penaltyPm` (for example "−80% power"), a text row not a code string. No data change needed.
+
 ## 2026-11-26 · art-director (lane/a1-rare-frame) · where a Rare or Signature renders a placeholder today (v0.3.0 gate 12)
 
 No emoji is rendered anywhere for an item: the `icon:` emoji fields in `src/data/items.js` are data no screen reads. The placeholders are:

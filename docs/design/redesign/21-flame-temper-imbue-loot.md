@@ -401,6 +401,7 @@ Step 1 is above Muster's band (70 to 80 against 57 to 75), so a Muster company u
 
 - **At the kill.** A hero is at a kill when it stands in the instance alive at that kill, the same rule as the XP share (CODE: `src/core/hunt/xp-share.js`, heroes alive at the kill). A hero who left or died rolls nothing on it.
 - **The roll.** For each drop row, each hero at the kill rolls once at `ch / n`, n the heroes at the kill. Expected drops a kill are the row's, so rates authored "one in about N hunted hours for a hero" (`04` 11) hold in any party size.
+- **Amended (12-targets 8.11, 2026-11-27).** A hero rolls a kill it is alive at AND took part in (struck, healed or shielded in its pull; every living hero when none did). A guaranteed row is dealt, one unit a kill to one roller by turns, never rolled at 1 / n. The flame reads only the Trait roll, never a drop row. The rule is frozen per hunt instance.
 - **Rares.** The same roll. The roller adds per hero: depth (x1 to x3, `12-targets` 3.3), the hero's company flame (`luckPm`), then pity.
 - **Pity, per hero.** `pityStepPm` added to a hero's Rare chance after each kill it rolled and missed, reset on a hit, so the long-run rate is the stated one (`04` guard 5, `GEAR_STEPS.pity.rare`). Per hero, so a seat that never finds anything catches up and nobody's luck is shared.
 - **The Trait.** Rolled per hero from the ground's pool (`traitPool`), rank by depth and the hero's flame (D-4).
@@ -615,3 +616,31 @@ Off (the switch as applied), every hunt plays its party roll byte for byte: `tes
 ### 9.3 Readings
 
 MEASURED, one seed, `tests/personal-loot-play.mjs` PLP-4: a Level 60 four in steel on Muster Barrows on Steady, 10 minutes, 87 kills. Personal loot hands the seats 26 / 42 / 41 / 31 units (140), the party roll 42 / 34 / 35 / 39 (150). Every seat finds something, and the watched cut (twenty 30 s windows) and the closed one (one 10-minute window) store the same bags. The "no flood" verdict is Lab run L1 (section 4.7), still owed: this is one sample, not a rate. The calls the spec left open are CONFLICTS 2026-11-27 personal loot, the designer's to re-rule.
+
+
+## 10. The worn imbuements in the settle (2026-11-27, backend architect, `lane/worn-imbues`; STAGED in `1077-worn-imbues.sql`, dark)
+
+### 10.1 How it plays
+
+- The imbuements a hero wears fight with it on every hunt, viewed or not. An Edge counts on its target's role, a Ward on the blow's element, and a Leech takes its room in the consumable slice.
+- Each one runs out at its hour, to the second, whether the hunt is on screen or not. A Brute Edge with 2 hours left plays exactly 2 more hunted hours, then stops mid-pull.
+- Imbuements are put on in town. Pressing Imbue while the hero hunts answers `hunt_open`.
+
+### 10.2 What is built
+
+| Piece | Where | Test |
+|---|---|---|
+| The projection: the hero's own `hero_worn_imbue` rows on a worn piece, in their kind's slot, with time left, `[{ id, band, msLeft }]`, null while the switch is off | `hr_worn_imbues_of`, `hr_hunt_instance_read` member `worn_imbues` (restated whole) | `tests/worn-imbues-db.mjs` WI-1, WI-3; the file's §5 (b), (c) |
+| The run-out instant: msLeft counts from the session's settled_to, and the timer (1074) takes every settled millisecond off it, so settled_to + msLeft is one instant for the whole hunt. The engine drops the imbuement at its first boundary at or after it | `hunt-settle.js` memberInput, `src/core/imbue.js` wornImbuesOf (untilMs) and imbuesAt, `hunt-spawn.js` heroSetup readAtMs, `combat-sim.js` syncUnit | `tests/imbue.mjs` IM-8 (23 mutants); WI-2 (a closed hunt in 90 s windows and a viewed one in 30 s windows, the Edges running out inside a window on both, store one world, one tally a hero and one set of worn rows; 8 mutants); the file's §5 (d) |
+| In town only: an open hunt refuses the apply | `hr_imbue_apply` restated whole, `hunt_open` after `no_character` | WI-4; the file's §5 (e) |
+
+Found and fixed on the way: before this lane, an imbuement handed through heroSetup never reached a blow. heroSetup kept `{ id, band, kind }`, and the engine's re-read at every boundary dropped each one for having no msLeft. The tests had handed the engine the server's raw list directly, past heroSetup. IM-8 now plays the settle's own door.
+
+### 10.3 Readings
+
+| Reading | Value | Kind |
+|---|---|---|
+| Four Brute Edges on a Level 60 four for 120 s, the damage each hero dealt with and without (Hask's Ford, the play-ground kit, step 570) | 738 / 1712 / 1610 / 1586 against 737 / 1709 / 1611 / 1585; kills 10 each both ways | MEASURED, one seed (`proposeHuntSettle` on the replay) |
+| The same on Muster in steel | the first blow it changes is the 132nd; the stored world after 270 s is the same | MEASURED, one seed |
+
+At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are rounded whole (`amount.js blowAmount`), so on these fixtures a full set moves a hunt by a few hit points. That is I3's question (section 3.8, "felt"), still owed and the designer's: CONFLICTS 2026-11-27 worn imbuements. The Leech and Fire Edge's conversion still only take room (section 3.9 items 2 and 3), and Mana Leech's `mana` is no ledger channel, so it takes none.

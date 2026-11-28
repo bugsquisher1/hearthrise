@@ -2,6 +2,26 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 · lane/p1-dealt-rows (12-targets 8.11 item 2: a guarantee is dealt under personal loot)
+1. *A deterministic deal is only as fair as its key is mixed.* (monster unit + swing) mod n: my first synthetic test fed arithmetic sequences (unit +1, swing every 7th kill) and read 29/29/29/14%; real play is mixed by the fight's dice. Measured on the real settle (Muster four, 3 secrets x 4 h): 975 Big Bones for 975 kills carrying it, seats 24.7/27.0/23.4/24.9%. Test with seeded gaps, and measure the real engine before trusting a rotation.
+2. *Move an event's shape into one exported function, keep the old anchor.* `drops.js dropEvent` now builds the drop event for a rolled and a dealt unit; returning `({ ... })` kept drop-tables.mjs's "the roller reveals nothing" anchor live without editing that slow guard, and the mutant now bites both paths.
+3. *A new divisor needs an empty-set guard.* `itemOwner(j, 0, …)` throws, so the "rollers of nobody" mutant became a HARNESS throw, not a catch; `if (!by.length) return;` makes the kill fail safe and the mutant is caught by PLP-1 again.
+4. *A dealt rule gives Security an exact bound.* Sum over seats of a guarantee's units = the window's kills of the monsters carrying it; PLP-4 asserts it on both doors (S-31's row).
+
+## 2026-11-27 · lane/job-goods-vendor (HANDOFFS kit-bands-2-3 item 5: a job good never sells past its inputs plus its work, S-33)
+1. *Measure the sale, not the book.* The handoff priced Steel Bars at book 125; the vendor pays 25 (BULK_GOODS sell at the raw fifth). Read `vendorPriceOf` and the generated table before believing a faucet, and before choosing a fix that moves prices.
+2. *A proposed floor can be the faucet.* Pricing every job good at its store bid lifted dropped Coal 2 -> 105 and the start kit's arrows 0 -> 362. A cap that only lowers kills the class without opening a free-source faucet.
+3. *A bound that binds nothing today still needs a test that bites.* No job good breaks the bound on this tree, so the arm also plants each good's book at 10,000,000: without the cap 46 of 82 go red, with it none.
+4. *Comment bytes are edge bytes.* An 11-byte comment edit after `--raise` put hr-accrue over its ceiling: trim, never raise twice.
+## 2026-11-27 · lane/e5-borrowing (v0.3.0 E5, 19 L6: the borrow engine and the heal rule)
+1. *Reuse the mechanism that already means the rule.* "A borrowed heal shares Mend's clock, casting either starts it" is exactly `replaces: ['mend']` (clockOf: fire only while Mend's cooldown is up, the cast starts it). 19's proposed `clock: 'mend'` field would have been a second mechanism with the same meaning.
+2. *Put a lent rule on the row as the hero casts it, keyed on the one borrow list.* lentModsOf marks every id of heroSetup's `borrowed` (build grants and the Lab's handed seam alike) as a `lent` mod, so moddedRow applies the rules once and rowsFor caches on one object. A rule keyed only on the talents path would have left every Lab measurement playing the old engine.
+3. *Two docs, two cells, two verdicts.* 19 V4 sizes the borrowed heal on the hammer beside a healer (7.5, passes); 17's band reads "a four that lacks it", no healer (40.3, fails). Measure both before calling done, and report the one the band rule actually reads.
+4. *A rule that caps a count makes the value follow power.* Before the heal rule the penalty barely bit (cast count drove it); after it, 100/70/50% power read 40/31/18. The penalty is a lever again, which the designer's menu can use.
+5. *Run measurements from a git-archived snapshot (with package.json for ESM).* The live tree kept changing under the engine edits; the snapshot's run.sh with OUT pointed back kept every cell on one commit.
+6. *An anchor in four test files is the cost of a new call argument.* Passing `row` to challengeable/challengeFrom staled five mutant anchors across targeting, talent-effects, abilities and talents; re-aimed each and ran its file's inline mutants (all caught). A fix outside the brief (the replaced row's modded cooldown) staled two more, so it was reverted and handed on.
+7. *A typed number in engine code is a lever claim.* A memo bound needs a NOT_LEVERS reason, and a step-grid literal is HUNT_TUNING.stepMs; `levers --write` then re-reads the moved lines.
+
 ## 2026-11-27 · lane/refhero-recut (12-targets 8.5 item 2: REF_HERO from the clock's careers, 72 formula rows, 16 bands re-cut)
 1. *A formula ground plays REF_HERO live.* monster-formula.js reads aim and evasion from to-hit.js at the ground's refLevel, so the generated rows' aim/evasion are what off-scale fights and the print read, not what the scale plays. The cells do not wait on the rows: measure first, write rows before the write that pins the print.
 2. *The coin level needs two passes.* The first cut's coin is derived on the old refStep; the pay reads refStep, so a moved refStep moves the coin a kill. Write, replay the reference cell on the written row, read again (finish2: until "as played" and the band unchanged).

@@ -123,8 +123,8 @@ function targetFor(inst, hero, h, row, sc, cx) {
   const near = mons.filter((m) => inReach(inst, hero, h.range, m) && !ignores(cx && cx.slot, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
-    /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank. */
-    case 'taunt': return challengeable(inst, hero).length ? hero : null;
+    /* The Challenge (targeting.js challengeable): a target only while a monster in its reach is off the tank (a borrowed one, from any seat). */
+    case 'taunt': return challengeable(inst, hero, row).length ? hero : null;
     /* THE MARK (23-spell-audit.md section 4): the hero's own target while it is unmarked, so the party's blows land on it; else the
        healthiest in reach (a pull just begun), never one already marked */
     case 'mark': {
@@ -535,7 +535,7 @@ function effect(inst, u, row, t, sc, v) {
   const fx = row.fx || null;
   const cast = (v && v.cast) || { inst, fx, spent: 0, near: false };
   switch (row.target) {
-    case 'taunt': challengeFrom(inst, sc, u); break;
+    case 'taunt': challengeFrom(inst, sc, u, row); break;
     case 'mark':
       /* The marked target takes bonusPct more damage from every blow until markUntil (damage.landHit). */
       t.markPm = row.bonusPct * 10; t.markUntil = sc.atMs + row.durMs;

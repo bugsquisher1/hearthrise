@@ -27,8 +27,8 @@
 //          PERSONAL LOOT (ctx.personal: the instance's frozen `personal_loot`,
 //          lane/p1-personal-loot): the drops are each hero's own instead, rolled
 //          by every hero that took part in the kill (./hunt/took-part.js) on its
-//          own loot stream (payPersonal); the gold, the counters and the
-//          Hearthfind are unchanged
+//          own loot stream (payPersonal), each guaranteed row dealt to one of
+//          them by turns; the gold, the counters and the Hearthfind are unchanged
 //   kill   of a HERO: a death, answered to the caller (the span ends that
 //          hero's hunt and prices the death)
 //
@@ -39,9 +39,9 @@
 // more heroes, in drop order), the Hearthfind. The `r` stream is the server's
 // alone: the browser's prediction runs it on a constant (live-engine.js).
 // With personal loot a kill draws on `r` only its gold and the Hearthfind: each
-// roller draws its drop rows on its OWN stream (seed domain `l:<unit>`, one a
-// swing, ctx.lootRngOf), so what a hero finds never depends on who else stood
-// there or in which order they rolled.
+// roller draws its drop rows under 1 on its OWN stream (seed domain `l:<unit>`,
+// one a swing, ctx.lootRngOf), so what a hero finds never depends on who else
+// stood there or in which order they rolled; a guaranteed row draws nothing.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -49,7 +49,7 @@
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js';
 import { BOSS_CALL_RULES } from '../data/boss-calls.js';
 import { levelAtTier } from './hunt/dial.js';
-import { rollDropTable, rollPrize } from './drops.js';
+import { rollDropTable, rollPrize, dropEvent } from './drops.js';
 import { applyGoldFind } from './pacing.js';
 import { COMBAT_XP } from '../data/core-model.js';
 import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js';
@@ -159,7 +159,7 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
      never the shared table. Every other kill, his adds' included, rolls as it always did, draw for draw. */
   if (ctx.prize === kind) payPrize(present, ids, row, ctx, atMs);
   else {
-    payDrops(present, ids, lead, row, ctx, world, atMs);
+    payDrops(present, ids, lead, row, ctx, world, atMs, monId);
     /* THE TRAIT ROLL (src/core/trait-roll.js; DARK: only when the server hands the window one, which no caller does while
        GEAR_STEPS.traitsLive is false). Each hero at the kill, in unit-id order, on its OWN `t:<unit>` stream: no draw above moves.
        With personal loot, each hero that took part in the kill (took-part.js), one in (how many of them): the drops' own rule. */
@@ -181,8 +181,8 @@ const unitIn = (world) => (id) => world.units.find((u) => u.id === id) || null;
 
 /* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. With personal
    loot (ctx.personal), each roller's own roll instead (payPersonal). */
-function payDrops(present, ids, lead, row, ctx, world, atMs) {
-  if (ctx.personal) { payPersonal(present, ids, row, ctx, world, atMs); return; }
+function payDrops(present, ids, lead, row, ctx, world, atMs, monId) {
+  if (ctx.personal) { payPersonal(present, ids, row, ctx, world, atMs, monId); return; }
   const rng = ctx.rng;
   /* ON THE DANGER SCALE the swing's dial carries the depth's share of the table (danger.js dangerDial dropPm: loot follows depth); off it none */
   const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
@@ -207,21 +207,36 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
 
 /* PERSONAL LOOT (src/data/party.js PERSONAL_LOOT; 21-flame-temper-imbue-loot.md section 4; the hr_flags switch `personal_loot`, frozen on
    the instance when its hunt starts, 1076-personal-loot.sql): EVERY HERO THAT TOOK PART in the kill (took-part.js rollersOf: alive at it and
-   struck at a monster or healed a hero in its pull) rolls the kill's whole table itself, in unit-id order, each row at 1 / (the heroes
+   struck at a monster or healed a hero in its pull) rolls the kill's table itself, in unit-id order, each row under 1 at 1 / (the heroes
    rolling) of its chance (drops.js effectiveDropChance `share`), on ITS OWN odds (its weakness and drop buff, never the killer's), on ITS
    OWN loot stream (ctx.lootRngOf(unit): seed domain l:<unit>, one a swing). What it finds goes to its own bag and only its own: there is
    no round-robin, no rare roll and no rotation (`rareWon` is never touched), and a Rare's moment names its finder. The kill's expected
-   drops are the row's in any party, so a party never drops more than its heroes would apart. Not a die is drawn on `r`. */
-function payPersonal(present, ids, row, ctx, world, atMs) {
+   drops are the row's in any party, so a party never drops more than its heroes would apart. Not a die is drawn on `r`.
+   A GUARANTEE IS DEALT, NOT ROLLED (12-targets 8.11 item 2): a row at ch >= 1 draws no die. Exactly one unit of it a kill goes to one
+   roller, row j of the kill's guaranteed rows (in table order) to by[(start + j) mod by.length], `start` the dead monster's unit + the
+   swing (payKill's coin remainder starts there), so the turns move kill by kill, two guarantees land on two seats, and any cut of the
+   windows deals the same. Each roller takes its dealt units first, then rolls its other rows; its stream draws only for those. */
+function payPersonal(present, ids, row, ctx, world, atMs, monId) {
   /* a table with no row (an add, a mode that pays no drops) rolls nothing, and so seeds no roller's stream */
   if (!Array.isArray(row.drops) || !row.drops.length) return;
   const by = rollersOf(ids, unitIn(world));
+  if (!by.length) return;
   const depthPm = ctx.tier && Number.isFinite(ctx.tier.dropPm) ? ctx.tier.dropPm : undefined;
+  const start = (Number(monId) || 0) + (Number(world.swing) || 0);
+  const dealt = new Map(), rolled = [];
+  let j = 0;
+  for (const d of row.drops) {
+    if (!(d.ch >= 1)) { rolled.push(d); continue; }
+    const seat = by[itemOwner(j++, by.length, start)];
+    dealt.set(seat, [...(dealt.get(seat) || []), d]);
+  }
   for (const id of by) {
     const m = present[ids.indexOf(id)];
+    for (const d of dealt.get(id) || []) giveDrop(m, id, dropEvent(d), ctx, atMs);
+    if (!rolled.length) continue;
     /* the roller's own odds: the depth's share of the table, its weakness and its drop buff, at 1 / (the rollers) */
     const own = { depthPm, dropMult: m.weakness(row).dropMult, dropBuff: m.bonus('dropRate'), share: by.length };
-    for (const ev of rollDropTable(row.drops, own, ctx.lootRngOf(id)).events) giveDrop(m, id, ev, ctx, atMs);
+    for (const ev of rollDropTable(rolled, own, ctx.lootRngOf(id)).events) giveDrop(m, id, ev, ctx, atMs);
   }
 }
 
@@ -253,7 +268,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
     if (isMonster(t) && t.kind === boss) {
       const ids = livingAt(world, members, fell, i);
       const row = (ctx.monsters || MONSTERS)[boss];
-      if (BOSS_CALL_RULES.dropsLive === true && ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
+      if (BOSS_CALL_RULES.dropsLive === true && ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs, ev.t); }
       for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
     } else if (members.has(ev.t)) {
       const k = unitOf(ev.u);

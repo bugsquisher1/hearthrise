@@ -417,7 +417,8 @@ function capacityLine(row) {
   if (readMs !== null && readMs > Number(row.settle_read_alarm_ms ?? 40)) over.push('settle-read');
   const stale = Number(row.age_s) > 180 ? ` STALE (${row.age_s} s old: is the job running?)` : '';
   return `capacity: ${over.length ? `AT THE WALL ${over.join(' ')}` : 'OK'} — db ${pct(row.db_pct)} (settle read ${readMs === null ? 'n/a' : `${readMs} ms`}), tick ${pct(row.tick_pct)} `
-    + `(${row.tick_open ?? '?'}/${row.tick_capacity ?? '?'} open, worst lag ${row.worst_lag_s ?? '?'} s), edge ${pct(row.edge_pct)}`
+    /* 1077-tick-dials.sql: the wall is read in HEROES (open hunt sessions over what a settle window leases); a sample before it, instances */
+    + `(${row.tick_open ?? '?'}/${row.tick_capacity ?? '?'} ${row.tick_unit === 'heroes' ? 'heroes' : 'instances'} open, worst lag ${row.worst_lag_s ?? '?'} s), edge ${pct(row.edge_pct)}`
     + `${Number(row.edge_deferred) ? ` (${row.edge_deferred} deferred)` : ''}, ledger ${pct(row.ledger_pct)}`
     + ` (${row.ledger_rows_day ?? '?'} rows/day); alarm at ${row.alarm_pct ?? 70}%`
     + `${(row.open_walls || []).length ? `, open episodes ${row.open_walls.join(' ')}` : ''}${stale}`;
@@ -461,7 +462,7 @@ const ALERT_RELAY = `select exists (select 1 from vault.secrets where name = 'hr
 /* THE FOUR WALLS (supabase/migrations/1002-ops-capacity-sample.sql): the latest minute's sample, each wall as a % of
    its ceiling (null = not measurable), the alarm line, and which capacity episodes are open. */
 const CAPACITY = `select s.at, round(extract(epoch from now() - s.at)) as age_s, s.db_pct, s.tick_pct, s.edge_pct, s.ledger_pct,
-    s.detail->>'tick_open' as tick_open, s.detail->>'tick_capacity' as tick_capacity, s.detail->>'tick_worst_lag_s' as worst_lag_s,
+    s.detail->>'tick_open' as tick_open, s.detail->>'tick_capacity' as tick_capacity, s.detail->>'tick_unit' as tick_unit, s.detail->>'tick_worst_lag_s' as worst_lag_s,
     s.detail->>'ledger_rows_day' as ledger_rows_day, s.detail->>'edge_deferred' as edge_deferred,
     to_jsonb(s)->>'settle_read_ms' as settle_read_ms,
     (select to_jsonb(c)->>'settle_read_alarm_ms' from hr_ops.capacity_config c where c.id) as settle_read_alarm_ms,
@@ -778,6 +779,8 @@ async function selftest() {
     t('K6 the settle read over 40 ms (a string) -> AT THE WALL settle-read', head(K({ settle_read_ms: '41.5', settle_read_alarm_ms: '40' })), 'capacity: AT THE WALL settle-read');
     t('K7 the settle read unread (null, before 1046) is never AT THE WALL', head(K({ settle_read_ms: null })), 'capacity: OK');
     t('K8 the settle read at 40 ms is OK (red OVER the line)', head(K({ settle_read_ms: 40, settle_read_alarm_ms: 40 })), 'capacity: OK');
+    t('K9 the tick wall in heroes (1077) says heroes; a sample before it says instances', [K({ tick_open: '900', tick_capacity: '6480', tick_unit: 'heroes' }).includes('(900/6480 heroes open'),
+      K({ tick_open: '300', tick_capacity: '5120' }).includes('(300/5120 instances open')].join(), 'true,true');
     const J = (s, c = { hourly: true, detail_minutes: 180 }) => L.journalFoldLine(s === null ? null
       : { now: '2026-11-21T12:00:00Z', c, s: { hour: '2026-11-21T08:00:00Z', rows_in: 900, rows_out: 30, last: { rows_in: 90, rows_out: 3, errors: 0 }, ...s } });
     t('J1 the fold at its line (4 h behind, detail 3 h) -> OK', head(J({})), 'journal fold: OK');
@@ -835,6 +838,7 @@ async function selftest() {
     { name: 'settleReadIgnored', find: "if (readMs !== null && readMs > Number(row.settle_read_alarm_ms ?? 40)) over.push('settle-read');", repl: '' },
     { name: 'settleReadNullFires', find: 'const readMs = row.settle_read_ms === null || row.settle_read_ms === undefined ? null : Number(row.settle_read_ms);', repl: 'const readMs = Number(row.settle_read_ms ?? 1e9);' },
     { name: 'lagUnreadIsOk', find:"if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
+    { name: 'tickUnitIgnored', find: "row.tick_unit === 'heroes' ? 'heroes' : 'instances'", repl: "'open'" },
   ];
   let missed = 0;
   for (const m of MUTANTS) {

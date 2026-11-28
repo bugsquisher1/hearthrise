@@ -79,21 +79,32 @@ export const TALENT_RULES = Object.freeze({
 });
 
 /* THE BORROW BANDS (17 section 3, priced by value): V0 at full power (held steps), the penalty in permille at a border town and at the
-   Havora crossing (null: not offered there). A move whose V0 is past the last band is re-driven and measured again, never offered. */
+   Havora crossing (null: not offered there). A move whose V0 is past the last band is re-driven and measured again, never offered.
+   Each band's top lands at or under its cap after its price (4, 7, 10, 10). THE FOURTH BAND (game designer, lane/designer-greater-mend,
+   2026-11-27; 19 L6): V0 20 to 50 lends at a fifth of its power at a border town and never at Havora. It holds Greater Mend (40.3 on 17's
+   cell, a four with no healer): measured at -80% it adds +6.0 held there (roads/e5 n-gm-200) and costs 9.3 beside a healer (m-gm-200: the hammer gives up its Mends) */
 export const BORROW_BANDS = Object.freeze([
   Object.freeze({ upTo: 4, borderPm: 0, havoraPm: 300 }),
   Object.freeze({ upTo: 10, borderPm: 300, havoraPm: 500 }),
   Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),
+  Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),
 ]);
 /* A borrow opens at max(openFloor, openLevel x V / buildStepsMax), rounded up to openRound (17 section 3: "a borrow is never bigger than
    the build slice allows at that Level"; V after the penalty) */
 export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });
+/* THE RULES OF A BORROWED MOVE (17 section 3 "Rules for a borrowed move", 19 L6; src/core/hunt/talent-rows.js plays them on the move as
+   its borrower casts it, both paths alike):
+     clock   THE HEAL RULE: a borrowed heal shares this move's clock (Mend's: one 6 s cooldown for both, casting either starts it)
+     rate    TRAINING: a borrowed spell pays Magic at this move's rate (Mend's magicXpMult), never its native row's
+   The rest are rules, not numbers: its blow is the native weapon's (src/core/borrow-blow.js), an ally heal or ward reaches as far as its
+   native weapon's role does (the healer's 7 tiles), and its opening Level (borrowBand opensAt) is its gate, never its native skill's unlock. */
+export const BORROW_RULES = Object.freeze({ clock: 'mend', rate: 'mend' });
 
 /* THE MEASURED VALUES (17 section 3's table, 18-roads-review-measured.md, 23-spell-audit.md): V0 in held steps at full power (an offense
    move: its pace gain / PAY.payStepXp). EVERY ROW IS MEASURED: validate refuses a row that is not a number, so a town never lends a move
    the Lab has not sized (lane/roads-borrow-values). A move past the last band is measured and never offered (borrowBand null): the town's
-   pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). Greater Mend is past it until V4, the heal
-   rule (19 bottom line (3)). */
+   pick is refused `not_offered` (src/core/talents.js spendProblem, hr_talent_spend_problem). No measured move is
+   past it since the fourth band (lane/designer-greater-mend); the refusal stays for a move measured past 50. */
 /* ONE METHOD FOR EVERY ROW (lane/roads-v0-remeasure, 18-roads-review-measured.md section 7): each move at full power in a four that lacks
    it, lent by the engine's own borrow (heroSetup `borrowed`: its native weapon's blow), Muster Barrows L60 Steady, held start, 8 seeds x
    8 h, paired against its base (tools/balance-program/redesign/roads/v0.mjs); where the engine lacks 17's rule the move is measured with
@@ -107,15 +118,18 @@ export const BORROW_VALUES = Object.freeze({
   shelter: 1.4,
   hoarfrost: 2.7,
   protective_ward: 18.4,
-  /* +97.4 held, a sword in a four with no healer, at 17's 7-tile reach (the engine's 1 tile: +20.2), before the heal rule. Past the last
-     band: not offered until V4 */
-  greater_mend: 97.4,
+  /* UNDER THE HEAL RULE (lane/e5-borrowing, the engine's own borrow on Mend's clock at the healer's 7 tiles; roads/e5/run.sh, v1-climb's
+     base cell, 12 seeds x 8 h): a sword in a four with no healer +40.3 held (pace +29.0 pace steps), was +97.4 before the rule; beside a
+     healer (19 V4's hammer) +7.5. In the fourth band: a fifth of its power at a border, never at Havora (the designer, 19 L6) */
+  greater_mend: 40.3,
   power_strike: 4.2,
   flame_strike: 6.3,
   turning_cut: 11,
   rend: 7.1,
   raking_shot: 0,
-  circle_of_renewal: 7.1,
+  /* under the heal rule (lane/e5-borrowing, as Greater Mend's above): the sword in a four with no healer +2.0 held (+1.8 pace steps) on
+     Mend's clock, 214 casts an hour; was 7.1 before the rule */
+  circle_of_renewal: 2,
   /* wave 3 (lane/roads-wave3, roads-run.mjs --plan v0w3: same method, 8 seeds x 8 h): Stagger on the sword in S +5.8 held (+2.9% XP, 4.2
      pace steps, 98.6 casts an hour on Muster's Brutes); Gash on the hammer in M +6.2 held, +11.4% XP = 16.2 pace steps */
   stagger: 5.8,

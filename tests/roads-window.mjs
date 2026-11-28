@@ -55,6 +55,9 @@
 //         Open road once (its kind line) and names the stone by its move
 //   RW-17 ROAD VIEW'S COUNTRY NAMES (visual read: "CLUB" under "STAGGER", "AL AXE" cut at the edge): every one shown lies whole on the
 //         stage, under no other label and over no stone, where the map opens and after drags across it, desktop and phone
+//   RW-18 A LENT MOVE'S PRICE (DISCOVERIES 2026-11-27, lane/borrow-price-card): a border town's card says each lent move's opening
+//         Level and its price from its band (src/core/talents.js borrowBand, the engine's own): Greater Mend "Opens at Level 120 ·
+//         −80% power", Shelter "Full power"; on the phone the line lies whole on the town's sheet
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -67,7 +70,7 @@ import { pinFonts } from './_test-fonts.mjs';
 import { judgePlanted, report, exitOf, cleanControl, harnessFail } from './_mutant-verdict.mjs';
 import { roadsLayout, D } from '../src/render/roads-layout.js';
 import { nodeStates, routeTo, nextSuggested, planRoute, planLeft, plannedOf, nextPlanStep } from '../src/core/talent-route.js';
-import { spend, pointsAt, buildProblems, suggestedPick } from '../src/core/talents.js';
+import { spend, pointsAt, buildProblems, suggestedPick, borrowBand } from '../src/core/talents.js';
 import { tierOf, stepScale, zoomAbout, toMap, TIER_SCALE } from '../src/shell/windows/talents/camera.js';
 import { findTalents, stoneToward } from '../src/shell/windows/talents/find.js';
 import { talentsSectionOf } from '../src/session/talent-sections.js';
@@ -262,6 +265,26 @@ const look = (page) => page.evaluate(({ W }) => {
     rankShown: getComputedStyle(win.querySelector('.rdm-n.is-rank')).display !== 'none',
     postShown: getComputedStyle(win.querySelector('.rdm-post')).display !== 'none' };
 }, { W });
+/* RW-18: the border town that lends Greater Mend (its fourth band, lane/designer-greater-mend), picked by the card's own Next-step press;
+   each option's band line as the page reads it, keyed by option, with the line's box and the card's (the phone's sheet holds it) */
+const GM_TOWN = 'border.shield_restoration.town';
+const GM_LINE = () => { const b = borrowBand('greater_mend', 'border'); return b && b.penaltyPm > 0 ? 'Opens at Level ' + b.opensAt + ' · −' + b.penaltyPm / 10 + '% power' : 'no price'; };
+const townLines = async (page, boxes = false) => {
+  await page.evaluate(({ W, id }) => { const b = document.querySelector(W + ' .rdw-step'); b.setAttribute('data-node', id); b.click(); }, { W, id: GM_TOWN });
+  await wait(page, ({ W }) => document.querySelectorAll(W + ' .rdw-opt').length > 0, { W }, 3000);
+  await page.waitForTimeout(300);
+  return page.evaluate(({ W, boxes }) => {
+    const out = {};
+    for (const li of document.querySelectorAll(W + ' .rdw-opt')) {
+      const at = li.querySelector('.rdw-opt-at'), id = li.querySelector('[data-pick]').getAttribute('data-pick');
+      const shown = at.offsetParent !== null ? at.innerText.replace(/\s+/g, ' ').trim() : null;
+      if (!boxes) { out[id] = shown; continue; }
+      const r = at.getBoundingClientRect(), c = document.querySelector(W + ' .rdw-card').getBoundingClientRect();
+      out[id] = { shown, inside: r.width > 0 && r.left >= c.left - 1 && r.right <= c.right + 1 && r.bottom <= c.bottom + 1 && r.right <= window.innerWidth + 1 };
+    }
+    return out;
+  }, { W, boxes });
+};
 /* RW-17: every country name Road view shows lies whole on the stage and under no other label, where the map opens and after a drag in
    each direction across the map (the stage dragged, never the camera set) */
 const marksNow = (page) => page.evaluate(({ W }) => {
@@ -560,6 +583,11 @@ async function checks(overrides, opts = {}) {
       await page.waitForTimeout(200);
       if (await selOf()) fails.push('RW-15 Escape did not let go of the stone');
       if (!await page.evaluate(({ W }) => !!document.querySelector(W), { W })) fails.push('RW-15 Escape on a picked stone closed the window');
+      /* RW-18: a border town's card says each lent move's opening Level and its price (borrowBand: Greater Mend's fourth band) */
+      const lent = await townLines(page);
+      if (lent.use_greater_mend !== GM_LINE() || lent.use_shelter !== 'Opens at Level ' + borrowBand('shelter', 'border').opensAt + ' · Full power') {
+        fails.push('RW-18 the border town\'s options read ' + JSON.stringify(lent));
+      }
       if (errors.length) fails.push('RW-12 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -662,6 +690,11 @@ async function checks(overrides, opts = {}) {
       const sheet = await page.evaluate(({ W }) => { const r = document.querySelector(W + ' .rdw-card').getBoundingClientRect(), b = document.querySelector(W + ' [data-hs-act="rd-plan-pay"]').getBoundingClientRect();
         return { left: r.left, pay: b.width > 0 && b.left >= r.left && b.right <= 923 }; }, { W });
       if (!(sheet.left < 922 - 200) || !sheet.pay) fails.push('RW-10 the band\'s Plan does not open the sheet with the plan on it: ' + JSON.stringify(sheet));
+      /* RW-18 on the phone: the town's sheet holds Greater Mend's opening Level and price whole */
+      await page.click(W + ' [data-hs-act="rd-sheet"]');
+      await page.waitForTimeout(300);
+      const gm = (await townLines(page, true)).use_greater_mend;
+      if (!gm || gm.shown !== GM_LINE() || !gm.inside) fails.push('RW-18 on the phone Greater Mend\'s line reads ' + JSON.stringify(gm));
       if (errors.length) fails.push('RW-10 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -718,6 +751,11 @@ const MUTANTS = [
   { name: 'a country\'s name lies under a stone\'s label again', file: 'src/shell/windows/talents/map.js', from: 'M.marksGot = placeLabels(want, plate.concat(M.stones.boxes), (M.boxes || []).slice());',
     to: 'M.marksGot = placeLabels(want.map((x) => ({ ...x, block: false, within: null, tries: x.tries.slice(0, 1) })), [], []);', want: /RW-17/ },
   { name: 'a country\'s name over a rank stone or a waystone', file: 'src/shell/windows/talents/map.js', from: 'plate.concat(M.stones.boxes)', to: 'plate', want: /RW-17/ },
+  /* lane/borrow-price-card (DISCOVERIES 2026-11-27): the price is the choice */
+  { name: 'a lent move\'s price not said', file: 'src/shell/windows/talents/card.js', from: "band.penaltyPm > 0 ? t('talents.price', { pct: whole(band.penaltyPm / 10) }) : t('talents.full_power')",
+    to: "''", want: /RW-18/ },
+  { name: 'the opening Level said only by the old rule', file: 'src/shell/windows/talents/card.js', from: "t(band.opensAt > level ? 'talents.opens_at' : 'talents.open_from'", to: "t('talents.open_from'", want: /RW-18/ },
+  { name: 'a lent move\'s band line hidden', file: 'src/shell/windows/talents/card.js', from: "attr(at, 'hidden', lend ? null : '');", to: "attr(at, 'hidden', '');", want: /RW-18/ },
   { name: 'a country\'s name cut at the stage\'s edge', file: 'src/shell/windows/talents/map.js', from: 'tries: MARK_TRIES, pri: 0, within }));', to: 'tries: MARK_TRIES, pri: 0, within: null }));', want: /RW-17/ },
 ];
 
@@ -743,7 +781,7 @@ async function main() {
   }
   const fails = [...pure(), ...await checks()];
   for (const f of fails) console.log('FAIL  ' + f);
-  console.log(fails.length ? 'roads-window: ' + fails.length + ' FAILED' : 'roads-window: green (the layout, the route, the camera, the tiers, the route preview, one spend from the server\'s state, the phone, the section\'s shape, the standing rule, the plan, find and filters, the keys, the card with nothing picked, the country names)');
+  console.log(fails.length ? 'roads-window: ' + fails.length + ' FAILED' : 'roads-window: green (the layout, the route, the camera, the tiers, the route preview, one spend from the server\'s state, the phone, the section\'s shape, the standing rule, the plan, find and filters, the keys, the card with nothing picked, the country names, a lent move\'s price)');
   process.exit(fails.length ? 1 : 0);
 }
 

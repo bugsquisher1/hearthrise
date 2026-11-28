@@ -524,8 +524,9 @@ export async function loadCellRunner(root) {
         /* cell.roadsBySeat [{ nodeId: value } | null]: each seat's Roads build (src/core/talents.js; tools/balance-program/redesign/roads/
            alloc-run.mjs), handed to heroSetup as the settle hands hr_talents_view's nodes (play-ground.mjs opts.roads) */
         if (Array.isArray(cell.roadsBySeat)) opts.roads = (role, i) => cell.roadsBySeat[i] || null;
-        /* cell.borrowedBySeat [[ability id] | null]: each seat's own borrow list (heroSetup `borrowed`: the native row on the native weapon's
-           blow, no penalty; lane/roads-borrow-values measures a town move's V0 on it), handed as play-ground.mjs opts.borrowed */
+        /* cell.borrowedBySeat [[ability id | { move, penaltyPm }] | null]: each seat's own borrow list (heroSetup `borrowed`: the native
+           weapon's blow and 17 section 3's rules, talent-rows.js lend; at full power, or at the price handed: lane/e5-borrowing), handed as
+           play-ground.mjs opts.borrowed */
         if (Array.isArray(cell.borrowedBySeat)) opts.borrowed = (role, i) => cell.borrowedBySeat[i] || null;
         /* cell.traitsBySeat [[{ id, rank }] | null]: the Traits each seat's pieces carry (tools/balance-program/trait-kits.mjs; the engine plays them,
            src/core/hunt/trait-rules.js, dark in the game), handed as play-ground.mjs opts.traits */

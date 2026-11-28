@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "bb35ad831c4539c3",
+ "authored": "26fb5d85af54a0b1",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -117,11 +117,11 @@
   }
  },
  "census": {
-  "bindings": 757,
-  "typed": 17586,
+  "bindings": 758,
+  "typed": 17588,
   "files": 263,
   "lever": 324,
-  "notLever": 433,
+  "notLever": 434,
   "unclaimed": 0
  },
  "problems": [],
@@ -1259,7 +1259,7 @@
      "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -2608,7 +2608,7 @@
      "tests/hunt-core/sewer.mjs",
      "tests/hunt-core/signature-rules.mjs"
     ],
-    "mentionCount": 12,
+    "mentionCount": 13,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -6249,7 +6249,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -6635,7 +6635,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9762,7 +9762,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9832,7 +9832,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -9946,7 +9946,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -10065,7 +10065,7 @@
      "tests/artisan-accrual.mjs",
      "tests/balance-calibration.mjs"
     ],
-    "mentionCount": 111,
+    "mentionCount": 112,
     "verdict": "asserted"
    },
    "perturb": {
@@ -10421,7 +10421,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -12144,25 +12144,31 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 86,
+     "line": 89,
      "text": "Object.freeze({ upTo: 20, borderPm: 500, havoraPm: null }),",
      "binding": "BORROW_BANDS"
     },
     {
      "file": "src/data/talents.js",
      "line": 90,
+     "text": "Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),",
+     "binding": "BORROW_BANDS"
+    },
+    {
+     "file": "src/data/talents.js",
+     "line": 94,
      "text": "export const BORROW_OPEN = Object.freeze({ openFloor: 20, openLevel: POWER_LEDGER.rampLevel, openRound: 10 });",
      "binding": "BORROW_OPEN"
     },
     {
      "file": "src/data/talents.js",
-     "line": 107,
+     "line": 118,
      "text": "shelter: 1.4,",
      "binding": "BORROW_VALUES"
     }
    ],
    "definition": "a borrowed move's penalty by its V0 band at a border town or the Havora crossing; it opens at max(openFloor, rampLevel x V / buildStepsMax) rounded up to openRound, V after the penalty (src/core/talents.js borrowBand)",
-   "range": "bands 4 / 10 / 20 held steps at 0 / -30 / -50% (border) and -30 / -50 / none (Havora), 17 section 3; BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, circle_of_renewal 7.1, and greater_mend past the last band until V4 (lane/roads-borrow-values, lane/roads-v0-remeasure)",
+   "range": "bands 4 / 10 / 20 / 50 held steps at 0 / -30 / -50 / -80% (border) and -30 / -50 / none / none (Havora), 17 section 3 and 19 L6 (the fourth band, lane/designer-greater-mend); BORROW_VALUES every row a measured V0 on one method, the engine's own borrow (validate refuses a missing one): challenge 0, hunters_mark 0, frost_lance 0, fireball 3.8, shelter 1.4, hoarfrost 2.7, protective_ward 18.4, power_strike 4.2, flame_strike 6.3, turning_cut 11, rend 7.1, raking_shot 0, and the borrowed heals under the heal rule (lane/e5-borrowing, Mend's clock): circle_of_renewal 2, greater_mend 40.3, in the fourth band so lent at -80% from Level 120 at a border town (lane/roads-borrow-values, lane/roads-v0-remeasure)",
    "touches": "which hybrid builds exist at which Level, and how much a borrowed move adds",
    "outcomes": [
     "dps",
@@ -12215,7 +12221,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "MEASURED (18-roads-review-measured.md sections 3 and 7, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs)"
+   "evidence": "MEASURED (18-roads-review-measured.md sections 3, 7 and 7c, 23-spell-audit.md; tools/balance-program/redesign/roads/v0.mjs, roads/e5/sum.mjs)"
   },
   {
    "id": "roads.nodes",
@@ -12224,85 +12230,85 @@
    "sites": [
     {
      "file": "src/data/talents.js",
-     "line": 197,
+     "line": 211,
      "text": "way('Light Hands', 'Mend −2 mana', [mod('mend', { mana: -2 })]),",
      "binding": "HEARTH_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 259,
+     "line": 273,
      "text": "effects: [step('defense', 18, 'last_stand', 'near_fall'), step('offense', -8, 'vow.last_stand')] }),",
      "binding": "SHIELD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 318,
+     "line": 332,
      "text": "effects: [mod('green_sickness', { outPm: 200 }), mod('*heal', { outPm: -30 })] }),",
      "binding": "RESTORATION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 601,
+     "line": 615,
      "text": "effects: [react('challenge_self_heal', 'taunt', 'heal', { pm: 30, to: 'self' }), mod('*heal', { outPm: -30 })] }),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 596,
+     "line": 610,
      "text": "options: [opt('healing_shelter', 'Healing Shelter', 'Shelter heals 50% of the shield', [mod('shelter', { healOfShieldPm: 500 })], true),",
      "binding": "BORDER_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 332,
+     "line": 346,
      "text": "[opt('heavy_strike', 'Heavy Strike', '+30% damage · +2 s cooldown', [mod('power_strike', { outPm: 300, cdMs: 2000 })], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 384,
+     "line": 398,
      "text": "[opt('wide_turn', 'Wide Turn', 'Hits up to 2 tiles away · −25% damage', [mod('turning_cut', { r: 1, outPm: -250 })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 425,
+     "line": 439,
      "text": "[opt('deep_cuts', 'Deep Cuts', 'Bleed lasts 50% longer', [mod('rend', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 468,
+     "line": 482,
      "text": "[opt('aimed_shot', 'Aimed Shot', '+25% damage · +3 mana', [mod('precision_shot', { outPm: 250, mana: 3 })], true),",
      "binding": "RANGED_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 533,
+     "line": 547,
      "text": "[opt('chilling_lance', 'Chilling Lance', 'Chill 4 s · −20% damage',",
      "binding": "DESTRUCTION_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 622,
+     "line": 636,
      "text": "[opt('wide_wounds', 'Wide Wounds', 'Turning Cut: 1 Bleed stack', [react('turn_bleed', 'hit', 'status', { of: 'turning_cut', status: 'bleed' })], true),",
      "binding": "MORE_BORDERS"
     },
     {
      "file": "src/data/talents.js",
-     "line": 359,
+     "line": 373,
      "text": "[opt('riposte', 'Riposte', 'After Parry: +4% damage for 4 s', [step('offense', 11, 'riposte', 'cast:parry:4000')], true),",
      "binding": "SWORD_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 398,
+     "line": 412,
      "text": "[opt('long_stagger', 'Long Stagger', 'Stagger: Chill 4 s', [react('stagger_chill', 'hit', 'status', { of: 'stagger', status: 'chill' })], true),",
      "binding": "CLUB_NODES"
     },
     {
      "file": "src/data/talents.js",
-     "line": 442,
+     "line": 456,
      "text": "[opt('deep_gash', 'Deep Gash', 'Bleed +3 s', [mod('gash', { statusMs: 3000 })], true),",
      "binding": "AXE_NODES"
     }
@@ -12375,7 +12381,7 @@
    "sites": [
     {
      "file": "src/core/hunt/talent-rows.js",
-     "line": 48,
+     "line": 63,
      "text": "export const NEAR_FALL_PM = 150;",
      "binding": "NEAR_FALL_PM"
     }
@@ -12682,9 +12688,10 @@
     "mentions": [
      "tests/imbue.mjs",
      "tests/tp-im-server.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/worn-imbues-db.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -13853,7 +13860,7 @@
      "tests/balance-grade.mjs",
      "tests/boss-call-window.mjs"
     ],
-    "mentionCount": 59,
+    "mentionCount": 60,
     "verdict": "mentioned only"
    },
    "perturb": {
@@ -13884,13 +13891,13 @@
     },
     {
      "file": "supabase/functions/hr-accrue/catalogue.js",
-     "line": 307,
+     "line": 308,
      "text": "export const VENDOR_RAW_RATE = 0.20;",
      "binding": "VENDOR_RAW_RATE"
     },
     {
      "file": "supabase/functions/hr-accrue/catalogue.js",
-     "line": 324,
+     "line": 325,
      "text": "export const SHOP_BUYBACK_RATE = 0.5;",
      "binding": "SHOP_BUYBACK_RATE"
     }
@@ -14886,9 +14893,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -14956,9 +14964,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15012,9 +15021,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15060,9 +15070,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15110,9 +15121,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15165,9 +15177,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -15213,9 +15226,10 @@
      }
     ],
     "mentions": [
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/vendor-shop-arbitrage.mjs"
     ],
-    "mentionCount": 1,
+    "mentionCount": 2,
     "verdict": "asserted"
    },
    "perturb": {
@@ -17038,6 +17052,10 @@
   {
    "at": "src/core/talents.js#grantsOf",
    "why": "a memo bound (2048 grants kept): a cache size, no outcome reads it"
+  },
+  {
+   "at": "src/core/hunt/talent-rows.js#lentModsOf",
+   "why": "a memo bound (256 borrow lists kept a grant): a cache size, no outcome reads it (lane/e5-borrowing)"
   },
   {
    "at": "src/data/talents.js#road",
@@ -19652,7 +19670,7 @@
     "havoraPm",
     "upTo"
    ],
-   "typed": 7,
+   "typed": 9,
    "bindings": 1
   },
   "src/data/talents.js#BORROW_OPEN": {
@@ -19667,7 +19685,6 @@
   "src/data/talents.js#BORROW_VALUES": {
    "pin": "count",
    "keys": [
-    "circle_of_renewal",
     "fireball",
     "flame_strike",
     "gash",
@@ -19680,7 +19697,7 @@
     "stagger",
     "turning_cut"
    ],
-   "typed": 12,
+   "typed": 11,
    "bindings": 1
   },
   "src/data/talents.js#HEARTH_NODES": {

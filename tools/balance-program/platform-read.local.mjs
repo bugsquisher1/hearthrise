@@ -62,7 +62,7 @@ const READS = {
   ledger_recent: `select kind, split_part(intent, ':', 1) intent, count(*) n, round(avg(pg_column_size(l.*))) row_bytes from player_ledger l
     where at > now() - interval '5 days' group by 1, 2 order by 3 desc limit 16`,
   capacity: `select count(*) samples, round(avg(db_pct)::numeric, 2) db_avg, max(db_pct) db_max, max(tick_pct) tick_max, max(edge_pct) edge_max, max(ledger_pct) ledger_max from hr_ops.capacity_samples`,
-  capacity_shape: `select (detail->>'tick_open')::int open_instances, count(*) samples, round(avg(db_pct)::numeric, 2) db_avg, max(db_pct) db_max,
+  capacity_shape: `select coalesce(detail->>'tick_open_instances', detail->>'tick_open')::int open_instances, count(*) samples, round(avg(db_pct)::numeric, 2) db_avg, max(db_pct) db_max,
     round(avg(edge_pct)::numeric, 1) edge_avg, percentile_cont(0.5) within group (order by edge_pct) edge_p50, max(edge_pct) edge_max,
     count(*) filter (where edge_pct > 50) edge_over_half, round(avg(ledger_pct)::numeric, 1) ledger_avg, max((detail->>'tick_worst_lag_s')::numeric) worst_lag_s
     from hr_ops.capacity_samples group by 1 order by 1`,

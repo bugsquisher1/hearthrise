@@ -312,7 +312,9 @@ function readSeed(res, start) {
     causes: (res.party.danger || []).reduce((o, e) => { if (e[5] === 'fall' || e[5] === 'death') { const k = e[5] + ':' + (e[7] || '?') + '@' + (e[6] ?? '?'); o[k] = (o[k] || 0) + 1; } return o; }, {}),
     seats: res.heroes.map((h) => ({ dps: h.dps, landedPct: h.landedPct, dmgPerSwing: h.dmgPerMonsterSwing, swingsPerH: h.monsterSwingsPerH, takenPerH: h.takenPerH, maxHp: h.maxHp || null,
       /* lane/e5-borrowing: the healing it cast on others and its casts an hour by move (a borrowed move's count says it fired) */
-      healOutPerH: h.healOutPerH, castsPerH: h.castsPerH || {} })),
+      healOutPerH: h.healOutPerH, castsPerH: h.castsPerH || {},
+      /* lane/designer-imbue-calls: what an imbuement's condition touches (21 section 3.2), the damage dealt by kind and taken by element, and the hours they cover */
+      dealtToPerH: h.dealtToPerH || {}, takenElPerH: h.takenElPerH || {}, hours: h.hours || 0 })),
     kinds: (() => {
       const o = {};
       for (const [k, n] of Object.entries(res.party.killsByPerH || {})) o[k] = { kills: n * res.party.hours, ttkMs: 0, ttkN: 0, taken: 0 };
@@ -334,6 +336,12 @@ function readSeed(res, start) {
   };
 }
 
+/* a seat's per-hour map summed over seeds (x its hours) into shares by a key's group, thousandths */
+const shareOf = (rows, field, group) => {
+  const o = {}; let t = 0;
+  for (const r of rows) if (r) for (const [k, n] of Object.entries(r[field] || {})) { const g = group(k), v = n * (r.hours || 0); o[g] = (o[g] || 0) + v; t += v; }
+  return t > 0 ? Object.fromEntries(Object.entries(o).sort((x, y) => y[1] - x[1]).map(([g, v]) => [g, Math.round((1000 * v) / t)])) : {};
+};
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 const sd = (xs) => { const m = mean(xs); return xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : 0; };
 const r1 = (x) => (x === null || x === undefined ? null : Math.round(x * 10) / 10);
@@ -356,7 +364,7 @@ for (const c of cells) {
   report.cells[c.id] = {
     ...c, seedsRead: seeds.length,
     /* perSeed keeps a seed's place (null: no settled four-hour of its own), so the power moves below pair the same dice */
-    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 100) / 100 : null, sd: Math.round(sd(p) * 100) / 100, n: p.length, perSeed: p.map((x) => Math.round(x * 100) / 100), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
+    payX: (() => { const p = seeds.map((x) => x.payX).filter((x) => x !== null); return { mean: p.length ? Math.round(mean(p) * 10000) / 10000 : null, sd: Math.round(sd(p) * 10000) / 10000, n: p.length, perSeed: p.map((x) => Math.round(x * 10000) / 10000), fromH: PAY_FROM_H, windowH: r1(mean(seeds.map((x) => x.payH))) }; })(),
     held: { mean: r1(mean(held)), sd: r1(sd(held)), se: r1(sd(held) / Math.sqrt(Math.max(1, held.length))), perSeed: seeds.map((x) => (x.held === null ? null : r0(x.held))) },
     drift: r1(mean(seeds.map((x) => (x.halves[1] !== null && x.halves[0] !== null ? x.halves[1] - x.halves[0] : 0)))),
     within10: r1(100 * within(10)), within20: r1(100 * within(20)),
@@ -385,7 +393,9 @@ for (const c of cells) {
       const casts = {};
       for (const x of seeds) for (const [k, n] of Object.entries((x.seats[i] && x.seats[i].castsPerH) || {})) casts[k] = (casts[k] || 0) + n / seeds.length;
       return { style: s, dps: at('dps'), landedPct: at('landedPct'), dmgPerSwing: at('dmgPerSwing'), swingsPerH: at('swingsPerH'), takenPerH: at('takenPerH'),
-        healOutPerH: at('healOutPerH'), castsPerH: Object.fromEntries(Object.entries(casts).map(([k, n]) => [k, r1(n)])) };
+        healOutPerH: at('healOutPerH'), castsPerH: Object.fromEntries(Object.entries(casts).map(([k, n]) => [k, r1(n)])),
+        /* the shares an imbuement's condition touches, over every seed (lane/designer-imbue-calls): damage dealt by the struck monster's role, damage taken by the blow's element */
+        dealtByRole: shareOf(seeds.map((x) => x.seats[i]), 'dealtToPerH', (k) => (MONSTERS[k] && MONSTERS[k].role) || 'none'), takenByElement: shareOf(seeds.map((x) => x.seats[i]), 'takenElPerH', (k) => k) };
     }),
     kinds: (() => {
       const o = {};
@@ -461,6 +471,8 @@ for (const [id, c] of Object.entries(report.cells)) {
   console.log('  ' + ''.padEnd(17) + ' ' + Object.entries(c.kinds).map(([k, v]) => k + '(' + v.role + ') ' + v.killsPerH + '/h ' + v.ttkS + ' s ' + v.takenPerKill).join(' | '));
   console.log('  ' + ''.padEnd(17) + ' broke off by: ' + Object.entries(c.causes).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + n).join(', '));
 }
+console.log('\nwhat an imbuement\'s condition touches (lane/designer-imbue-calls, 21 section 3.2): per seat, damage dealt by the struck monster\'s role and taken by the blow\'s element, thousandths');
+for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' ' + c.seats.map((t) => t.style + ' dealt ' + JSON.stringify(t.dealtByRole) + ' taken ' + JSON.stringify(t.takenByElement)).join(' | '));
 console.log('\nheld as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken');
 console.log('that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)');
 for (const [id, c] of Object.entries(report.cells)) console.log('  ' + id.padEnd(17) + ' abs ' + (c.abs ? c.abs.level + ' (depth ' + c.abs.depth + ')' : 'n/a')

@@ -75,10 +75,13 @@ begin
     -- and an Inner Flame branch on its own curve's index). After 1071-trait-pieces.sql, the instance read at 1071's image (restated
     -- whole with this file's fences in it, plus the worn pieces). After 1076-personal-loot.sql, at 1076's (restated whole again: 1074's
     -- flame and the instance's frozen loot rule added). After 1077-worn-imbues.sql, at 1077's (each member's worn imbuements added).
+    -- After 1077-tick-dials.sql, the capacity sample at 1077's image (restated
+    -- whole: its tick wall read in heroes); this file restates it whole again below and 1077 restates it again after.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 in ('558e8c46c20b0d06bd770fa67c2ec6f9', '4bea2795d54d2a680390d46b8d7c0f0b', '293bfcbd1027c4665941a29de791ba6e', '251299cf2e9abba9e5071de2fe8308d9', '3d6b400342a45792fd331fb61566c862', 'f90bff161e33d7db33ac8ff585156ede'))
        and not (v_r.fn = 'public.hr_hunt_member_read(public.hunt_sessions)' and v_md5 = '8cf75f1bce69a3273f3490e52650354c')
-       and not (v_r.fn = 'public.hr_skill_level(text,bigint)' and v_md5 = 'e01730edbac721c3eb5ea4c3f32a7514') then
+       and not (v_r.fn = 'public.hr_skill_level(text,bigint)' and v_md5 = 'e01730edbac721c3eb5ea4c3f32a7514')
+       and not (v_r.fn = 'hr_ops.capacity_sample(text,interval)' and v_md5 = 'b0dc4820391387c415c8ca77ba74718e') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;

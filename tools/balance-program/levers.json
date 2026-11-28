@@ -6,7 +6,7 @@
   "commit": "861ae52e39d777e5c21abbbd8a8d2104e47089c0",
   "ruleCodeSameAsBaseline": false
  },
- "authored": "c4f1b901656a377c",
+ "authored": "fa00143f00bad2c3",
  "fields": {
   "sites": "1. where it lives: file, line, the source line, the binding (resolved from an anchor by --write)",
   "definition": "2. its value or definition (the source line is the value as written today)",
@@ -118,7 +118,7 @@
  },
  "census": {
   "bindings": 758,
-  "typed": 17558,
+  "typed": 17561,
   "files": 263,
   "lever": 324,
   "notLever": 434,
@@ -11900,36 +11900,36 @@
    "sites": [
     {
      "file": "src/data/power-ledger.js",
-     "line": 34,
+     "line": 36,
      "text": "rampLevel: 200,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 35,
+     "line": 37,
      "text": "buildStepsMax: 14,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 36,
+     "line": 38,
      "text": "consumableStepsMax: 6,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 37,
+     "line": 39,
      "text": "temperStepsMax: 5,",
      "binding": "POWER_LEDGER"
     },
     {
      "file": "src/data/power-ledger.js",
-     "line": 38,
+     "line": 40,
      "text": "clanStepsMax: 4,",
      "binding": "POWER_LEDGER"
     }
    ],
-   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
+   "definition": "ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax), the consumable slice (imbuements, draught, camp pot: consumableStepsMax, 21 D-16) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it",
    "range": "rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5",
    "touches": "how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early",
    "outcomes": [
@@ -12618,24 +12618,24 @@
    "sites": [
     {
      "file": "src/data/imbue-rules.js",
-     "line": 43,
+     "line": 49,
      "text": "hours: 20,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 48,
+     "line": 56,
      "text": "feeHoursPm: 400,",
      "binding": "IMBUE"
     },
     {
      "file": "src/data/imbue-rules.js",
-     "line": 65,
+     "line": 77,
      "text": "fire_edge: row({ name: 'Fire Edge', kind: 'edge', raises: 'offense', when: null, key: 'edge_fire', convert: { element: 'ember', sharePm: 50 },",
      "binding": "IMBUE_RULES"
     }
    ],
-   "definition": "three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp",
+   "definition": "three a hero (Edge, Ward, Leech), each rated imbueSteps averaged on its best cell in the consumable slice, whole at every Level (21 D-16); a conditional row fires at its measured fire steps (2 over the share its condition touches, at most fireMax, D-17) and takes its rated room; a leech heals leech.pm of the HP its blows take, a conversion resolves sharePm of a blow at the target element (D-18); plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp (owed: at the imbuement band, no ramp, D-19)",
    "range": "hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)",
    "touches": "a consumable choice in place of a draught; Remains to the bench as well as the fire",
    "outcomes": [
@@ -12682,9 +12682,10 @@
     "mentions": [
      "tests/imbue.mjs",
      "tests/tp-im-server.mjs",
-     "tests/trade-formulas.mjs"
+     "tests/trade-formulas.mjs",
+     "tests/worn-imbues-db.mjs"
     ],
-    "mentionCount": 3,
+    "mentionCount": 4,
     "verdict": "asserted"
    },
    "perturb": {
@@ -12694,7 +12695,7 @@
     "existingPatches": []
    },
    "flags": [],
-   "evidence": "STATED (21 section 3.2; the shares behind each size ASSUMED until I1)"
+   "evidence": "MEASURED (21 section 11: the shares behind Brute Edge 5 and Fire Ward 11 and Life Leech 20 pm on v1-climb base cells; the set read on Muster with the candidates im-muster-*)"
   },
   {
    "id": "carry.price",
@@ -19917,22 +19918,24 @@
    "pin": "count",
    "keys": [
     "feeHoursPm",
+    "fireMax",
     "hours",
     "lifeRungPm",
     "parts",
     "remains",
     "workPm"
    ],
-   "typed": 6,
+   "typed": 7,
    "bindings": 1
   },
   "src/data/imbue-rules.js#IMBUE_RULES": {
    "pin": "count",
    "keys": [
+    "fire",
     "pm",
     "sharePm"
    ],
-   "typed": 3,
+   "typed": 5,
    "bindings": 1
   },
   "src/data/gear-steps.js#CARRY": {

@@ -657,7 +657,7 @@ const CASES = {
     return null;
   },
   /* (lane/ledger-l1-l3, 19-power-ledger.md section 2 and L1) THE LEDGER'S CLAMP: a hero at Levels 10, 30, 60 and 200 reads the caps of
-     section 2 (build 0.7 / 2.1 / 4.2 / 14, consumables 0.3 / 0.9 / 1.8 / 6), and what a hero FINDS never ramps (Tyler 2026-11-22: "I
+     section 2 (build 0.7 / 2.1 / 4.2 / 14; consumables 6 at every Level since 21 D-16, lane/designer-imbue-calls), and what a hero FINDS never ramps (Tyler 2026-11-22: "I
      don't want to punish people who are theory crafting or getting lucky with drops"): the gear slice (Traits and the Signature) is 20 and
      Temper 5 at every Level, a Trait counts whole at Level 10. Rows of a ramping slice are written at full size and counted x ramp (a vow
      +18 / -8 nets 1.5 at Level 30, 10 at 200); a gains-only slice clamps its gains and never its costs, the build slice its net; one key
@@ -666,8 +666,8 @@ const CASES = {
   ledger(M) {
     const { sliceCap, clampLedger, ledgerSteps } = M.ledger;
     const near = (a, b) => Math.abs(a - b) < 1e-9;
-    const want = { 10: { build: 0.7, gear: 20, consumable: 0.3, temper: 5 }, 30: { build: 2.1, gear: 20, consumable: 0.9, temper: 5 },
-      60: { build: 4.2, gear: 20, consumable: 1.8, temper: 5 }, 200: { build: 14, gear: 20, consumable: 6, temper: 5 }, 400: { build: 14, gear: 20 } };
+    const want = { 10: { build: 0.7, gear: 20, consumable: 6, temper: 5 }, 30: { build: 2.1, gear: 20, consumable: 6, temper: 5 },
+      60: { build: 4.2, gear: 20, consumable: 6, temper: 5 }, 200: { build: 14, gear: 20, consumable: 6, temper: 5 }, 400: { build: 14, gear: 20 } };
     for (const [L, caps] of Object.entries(want)) {
       for (const [s, c] of Object.entries(caps)) if (!near(sliceCap(s, Number(L)), c)) return 'Level ' + L + ' reads a ' + s + ' cap of ' + sliceCap(s, Number(L)) + ', not ' + c;
     }

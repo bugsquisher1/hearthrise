@@ -1,0 +1,16 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "im-krell-whole",
+ "why": "lane/designer-imbue-calls (21 section 11 ruling D-16): the same set on the tree as ruled: the consumable slice out of the ramp (src/data/power-ledger.js consumable ramps false), so each imbuement counts its whole steps at every Level",
+ "base": "tree",
+ "edits": [
+  {
+   "file": "src/core/combat-sim.js",
+   "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);",
+   "to": "  const imb = imbuesAt([{\"id\":\"brute_edge\",\"band\":70,\"untilMs\":null},{\"id\":\"fire_ward\",\"band\":45,\"untilMs\":null},{\"id\":\"life_leech\",\"band\":50,\"untilMs\":null}], atMs);"
+  }
+ ],
+ "assumptions": [
+  "as im-krell-built, the slice whole"
+ ]
+}

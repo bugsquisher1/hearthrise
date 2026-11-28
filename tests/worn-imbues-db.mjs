@@ -5,7 +5,8 @@
 //
 //   node tests/worn-imbues-db.mjs            the guard
 //   node tests/worn-imbues-db.mjs --mutate   the proof: each planted SQL or edge defect turns its case red
-//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths>   one case (WI_TRACE=1 prints the lit and dark fights)
+//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths|partyEnd>   one case, or with --mutate that case's mutants
+//                                            (WI_TRACE=1 prints the lit and dark fights)
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick (browser closed, the `fire` door, the 90 s flush) and the viewed hello
 // (hunt viewed, the `viewed` door, 30 s windows) through tools/settle-cost.mjs, the real engine: a Level 60 four from four accounts in the
@@ -27,8 +28,12 @@
 //   WI-3 THE PROJECTION: the read hands the leader its three, in equip-slot order, and every other hero its Edge alone (not a row on a
 //        bare head, not one in another kind's slot); the plan hands each hero each one to the read's settled_to plus its msLeft.
 //   WI-4 IN TOWN: lit, an apply while the hero hunts answers hunt_open and journals nothing.
+//   WI-5 A PARTY END MID-WINDOW (lane/imbue-timer-door): lit, the third hero's pool runs out at +100 s, inside a window on both doors,
+//        while the other three hunt on to 270 s: on each door its session settles to its end + 1 ms and its helmet row loses exactly
+//        that, the leader's rows lose the whole 270 s, and the two doors store the same heroes (CONFLICTS 2026-11-27 worn imbuements (5)).
 //
 // mutant-anchors: supabase/migrations/1077-worn-imbues.sql supabase/functions/hr-accrue/hunt-settle.js src/core/combat-sim.js
+// mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js supabase/migrations/2027-03-21-scaled-hunts.sql
 // ci-step: db-replay | Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
 // ci-run: node tests/worn-imbues-db.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
@@ -79,6 +84,7 @@ async function door(db, which, o = {}) {
   const run = await prepare({ heroes: 4, windows, windowMs, hunt: GROUND, door: which, db, level: 60, anchorMs: ANCHOR, gear: gearOf,
     edgeRoot: o.edgeRoot, beforeEnter: fixture(o) });
   if (o.enterOnly) return { run, db, users: run.users };
+  if (o.afterEnter) await o.afterEnter(run);
   await run.warm();
   for (let w = 2; w <= windows + 1; w++) await run.step(w);
   const inst = (await db.query('select id, refusals, world::text as world, ceil(extract(epoch from settled_to) * 1000)::bigint::text as to_ms from public.hunt_instances where hunt_id = $1', [GROUND])).rows[0];
@@ -206,6 +212,57 @@ async function bothPaths(boot, o = {}) {
   return problems;
 }
 
+/* WI-5 THE PARTY END (lane/imbue-timer-door; CONFLICTS 2026-11-27 worn imbuements (5)): the third hero's pool holds END_MS of hunting
+   (player_state.stamina_ms stamped at the anchor), so its hunt ends `stamina` inside the closed hunt's second window [90, 180) and the
+   viewed hunt's fourth [90, 120) while the other three hunt on to 270 s (every hero's leave-together box unticked). The server proves a
+   member's settled window to the millisecond (hr_hunt_apply_member 5a: paid_ms is the window, swings x the interval), so its session
+   stops one millisecond past ITS end, and the timer (hr_flame_temper_settle) takes exactly that off its imbuements on every door: a cut
+   of the windows never charges a hero who went home the rest of the party's window. */
+const END_MS = 100000;
+async function partyEnd(boot, o = {}) {
+  const problems = [];
+  const edge = o.edits && o.edits.length ? plant(o.edits, ['supabase/functions/hr-accrue']) : null;
+  const got = {};
+  try {
+    for (const [which, name] of [['fire', 'closed'], ['viewed', 'viewed']]) {
+      const { db } = await boot();
+      const windowMs = which === 'viewed' ? 30000 : 90000;
+      let r;
+      try {
+        r = await door(db, which, { lit: true, edgeRoot: edge && edge.root, afterEnter: async (run) => {
+          await db.query('update public.player_state set party_leave_together = false where user_id = any($1::uuid[]) and slot = 0', [run.users]);
+          await db.query('update public.player_state set stamina_ms = $2, stamina_at = to_timestamp($3 / 1000.0) where user_id = $1 and slot = 0', [run.users[2], END_MS, ANCHOR]);
+        } });
+      } catch (e) { problems.push('WI-5 the ' + name + ' hunt did not settle: ' + String(e && e.message).slice(0, 200)); continue; }
+      if (Number(r.inst.refusals) !== 0) problems.push('WI-5 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
+      if (Number(r.inst.to_ms) !== ANCHOR + SPAN_MS) problems.push('WI-5 CONTROL: the ' + name + ' party settled to ' + r.inst.to_ms + ', want ' + (ANCHOR + SPAN_MS) + ' (the others hunt on)');
+      const s = (await r.db.query(`select end_reason, (floor(extract(epoch from ended_at) * 1000)::bigint - $2)::int as end_ms,
+                                          (floor(extract(epoch from settled_to) * 1000)::bigint - $2)::int as to_ms
+                                     from public.hunt_sessions where user_id = $1 and slot = 0 and hunt_id = $3`, [r.users[2], ANCHOR, GROUND])).rows[0];
+      if (!s || s.end_reason !== 'stamina' || !(s.end_ms > 90037 && s.end_ms < SPAN_MS) || s.end_ms % windowMs === 0) {
+        problems.push('WI-5 CONTROL: the ' + name + ' third hero did not end mid-window by its pool (' + JSON.stringify(s) + ')'); continue;
+      }
+      if (s.to_ms !== s.end_ms + 1) problems.push('WI-5 the ' + name + ' third hero\'s hunt settled to +' + s.to_ms + ' ms, ended at +' + s.end_ms);
+      /* its Edge ran out at +90.037 s (before its end); its helmet row lost exactly the time it hunted, to its own end */
+      const worn = await wornOf(r.db, r.users[2]);
+      const want = JSON.stringify([{ equip_slot: 'helmet', imbue_id: 'brute_edge', ms: String(LONG_MS - (s.end_ms + 1)) }]);
+      if (worn !== want) problems.push('WI-5 the ' + name + ' third hero (ended at +' + s.end_ms + ' ms) keeps ' + worn + ', want ' + want);
+      /* the leader hunted the whole 270 s: its Ward and Leech lost all of it */
+      const lead = JSON.stringify([{ equip_slot: 'body', imbue_id: 'fire_ward', ms: String(LONG_MS - SPAN_MS) }, { equip_slot: 'helmet', imbue_id: 'life_leech', ms: String(LONG_MS - SPAN_MS) }]);
+      if (await wornOf(r.db, r.users[0]) !== lead) problems.push('WI-5 the ' + name + ' leader keeps ' + await wornOf(r.db, r.users[0]));
+      got[name] = { end: s.end_ms, worn, heroes: await stateOf(r.db) };
+    }
+  } finally { if (edge) edge.done(); }
+  if (got.closed && got.viewed) {
+    if (got.closed.end !== got.viewed.end || got.closed.worn !== got.viewed.worn) {
+      problems.push('WI-5 the doors charged the third hero differently: closed ended +' + got.closed.end + ' keeps ' + got.closed.worn + ', viewed ended +' + got.viewed.end + ' keeps ' + got.viewed.worn);
+    }
+    if (got.closed.heroes !== got.viewed.heroes) problems.push('WI-5 the doors stored different heroes:\n      closed ' + got.closed.heroes.slice(0, 400) + '\n      viewed ' + got.viewed.heroes.slice(0, 400));
+    EVIDENCE.push('WI-5 party end: the third hero ended +' + got.closed.end + ' ms (closed) / +' + got.viewed.end + ' ms (viewed), mid-window on both; keeps ' + got.closed.worn + ' closed, ' + got.viewed.worn + ' viewed');
+  }
+  return problems;
+}
+
 /* --mutate: a SQL defect planted in a replayed function body, or an edge or engine defect planted on a copy of the edge */
 const MUTANTS = [
   { name: 'the projection ignores the switch', fn: 'public.hr_worn_imbues_of(uuid,integer)',
@@ -221,12 +278,24 @@ const MUTANTS = [
   { name: 'the edge never hands them to the hero', edits: [['supabase/functions/hr-accrue/hunt-settle.js', 'wornImbues: m._wornImbues, readAtMs: m._readAtMs,', 'wornImbues: null, readAtMs: m._readAtMs,']], want: /^WI-2/, test: bothPaths },
   { name: 'the edge hands no read instant (each plays to its window\'s end)', edits: [['supabase/functions/hr-accrue/hunt-settle.js', 'wornImbues: m._wornImbues, readAtMs: m._readAtMs,', 'wornImbues: m._wornImbues, readAtMs: null,']], want: /^WI-2/, test: bothPaths },
   { name: 'the fight never reads the run-out', edits: [['src/core/combat-sim.js', 'const imb = imbuesAt(m.hero.wornImbues, atMs);', 'const imb = imbuesAt(m.hero.wornImbues, NaN);']], want: /^WI-2/, test: bothPaths },
+  /* WI-5: the defect CONFLICTS 2026-11-27 (5) described, planted (each member this window settled, its session to the window's end),
+     and the edge proposing it (the server's clock proof refuses that window) */
+  { name: 'the instance settles every member to its window\'s end', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
+    find: '           settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1\n     where id = p_instance;\n',
+    repl: '           settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1\n     where id = p_instance;\n'
+      + "    update public.hunt_sessions set settled_to = v_to\n     where id in (select (e.value->>'session')::uuid from jsonb_array_elements(p_members) e) and settled_to < v_to;\n",
+    want: /^WI-5/, test: partyEnd },
+  { name: 'the edge settles an ended hero to its window\'s end', edits: [['supabase/functions/hr-accrue/accrue-hunt.js',
+    'const settledTo = hs.endedReason ? hs.endedAtMs + 1 : Math.max(hs.nextSwingAtMs, fromMs + 1);', 'const settledTo = hs.endedReason ? toMs : Math.max(hs.nextSwingAtMs, fromMs + 1);']],
+    want: /^WI-5/, test: partyEnd },
 ];
 
 async function main() {
+  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
-    for (const m of MUTANTS) {
+    const list = MUTANTS.filter((m) => !only || m.test.name === only);
+    for (const m of list) {
       const boot = async () => {
         const b = await bootReplay();
         if (m.fn) {
@@ -244,18 +313,17 @@ async function main() {
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 160));
     }
-    console.log(escaped ? 'worn-imbues-db --mutate: ' + escaped + ' ESCAPED' : 'worn-imbues-db --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' caught');
+    console.log(escaped ? 'worn-imbues-db --mutate: ' + escaped + ' ESCAPED' : 'worn-imbues-db --mutate: ' + list.length + '/' + list.length + ' caught');
     process.exitCode = escaped ? 1 : 0;
     return;
   }
   const boot = () => bootReplay();
   /* one case's replays at a time (an unclosed replay is ~300 MB) */
   const problems = [];
-  const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
-  for (const c of [dark, projection, bothPaths].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
+  for (const c of [dark, projection, bothPaths, partyEnd].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
   for (const e of EVIDENCE) console.log('  ' + e);
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window, applied in town only)');
+  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window, applied in town only, a party end mid-window)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

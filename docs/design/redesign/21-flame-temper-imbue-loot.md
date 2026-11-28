@@ -290,14 +290,14 @@ Temper is its own slice, 5 steps on a whole kit at Level 200, opened in whole ra
 ### 3.2 Rules and numbers
 
 - **Three kinds, one slot each, one of each a hero.** Edge (offense) on the weapon, Ward (defense) on the body, Leech (sustain) on the helmet. A new one on a slot replaces the old one, which is lost (with a warning that names the hours left).
-- **On the piece.** It travels with the piece between own heroes. Listing the piece removes it (`13-market` 2.3).
-- **Size.** Each imbuement is sized to `imbueSteps` 2 steps on the ground and seat it suits best (`best`, as Traits are, `04` guard 1), times `ramp` of the hero's Level. The card shows the hero's own number. So the shown percent is 2 steps divided by the share of the fight its condition touches on that cell: a Ward against an element that is a tenth of the damage taken shows about 8%.
+- **On the slot** (D-20). It stays on the hero's slot, as Temper does, and a new piece there keeps it. Its hours run only while a piece is worn in the slot. A piece never carries one.
+- **Size** (D-16, D-17). Each imbuement is rated `imbueSteps` 2 steps averaged on the ground and seat it suits best (`best`, as Traits are, `04` guard 1), whole at every Level. On a blow its condition holds it fires at its `fire` size, 2 steps over the measured share of that cell its condition touches, and the card shows that number.
 - **Conditional by construction.** Its "when" is a role, an element or a status, never a monster family (D-8), and never `in_fight`. Its average over every ground is at most half its best case (`traitAverageSharePm` 500).
 - **No stacking.** One of each kind counts, and an imbuement never stacks with a Trait of the same key (the rule table's keys).
 - **Band.** An imbuement carries the band of its rare part. On a hero above it, it is weaker by the contest curve (`09` 4.2). Held to at most `wearAhead` above.
 - **Life.** Plain 20 hunted hours, Fine 25, Master 30 (`imbueLifeRung` 0.25, D-7). The timer counts hunted time while worn, in the settle.
 - **Recipe.** `imbueParts` of its one named rare part, plus `imbueRemains` Remains of the part's band, plus `imbueWork` work-hours at the Artificing bench (`09` 4.3: the imbuement line is 0.1 of a kit-hour, so 0.08 work-hours a hunted hour for three, 0.53 work-hours each for 20 hours). The made imbuement is a stack keyed by kind, band and quality, and trades on the book.
-- **Apply fee.** `imbueFeeHours` of wage at the piece's item step, times `ramp`, burned when applied (the price falls with the effect early on, so a Level 60 hero pays 30% of it).
+- **Apply fee** (D-19). `imbueFeeHours` of wage at the imbuement's band, burned when applied, the same at every Level.
 
 **What a hero pays** (COMPUTED at full ramp): goods worth about 0.13 hours of wage plus a 0.4 fee, 0.53 an imbuement for 20 hours, 0.08 hours of wage a hunted hour for all three, about 8% of gross coin. For that, up to 6 steps on the right ground, about 4% pace, and about 2.4% more coin from depth. So imbuements are an XP choice that costs gold: "levels or gold tonight" (`02` package 5).
 
@@ -317,10 +317,10 @@ Each is sized on its `best` cell. Shown at full ramp (Level 200 and up). The par
 
 | Name | Tooltip | Slot | Made from | Best on | Why there |
 |---|---|---|---|---|---|
-| Fire Ward | `−8% Fire damage taken · 20 hunted hours` | Body | Ford Weed (Hask's Ford) | Krell's Hold, front hero | Hot Pitch, Rake the Coals and Hall Fire are Fire. Worth nothing on Muster, where nothing casts |
+| Fire Ward | `−4% Fire damage taken · 20 hunted hours` | Body | Ford Weed (Hask's Ford) | Krell's Hold, back row (D-17a) | Hot Pitch, Rake the Coals and Hall Fire are Fire. Worth nothing on Muster, where nothing casts |
 | Fire Edge | `5% of damage dealt as Fire · 20 hunted hours` | Weapon | Rake Tine (Pyre Field) | Muster Barrows, any damage seat | Undead take 15% more Fire. Against a target that resists Fire it costs damage, so the bestiary page decides |
-| Brute Edge | `+3% damage vs Brutes · 20 hunted hours` | Weapon | Pike Ferrule (Pyre Field) | Muster Barrows, melee | Barrow Knight and Captain Hask are brutes. Off against the Pikeman swarm, most of a pull |
-| Life Leech | `Life Leech 1% · 20 hunted hours` | Helmet | Mudlark Hook (the Slake) | Krell's Hold, melee front | Long fights against big bodies. Fewer meals between pulls |
+| Brute Edge | `+2% damage vs Brutes · 20 hunted hours` | Weapon | Pike Ferrule (Pyre Field) | Muster Barrows, melee | Barrow Knight and Captain Hask are brutes. Off against the Pikeman swarm, most of a pull |
+| Life Leech | `Life Leech 2% · 20 hunted hours` | Helmet | Mudlark Hook (the Slake) | Krell's Hold, melee front | Long fights against big bodies. Fewer meals between pulls |
 | Mana Leech | `Mana Leech 1% · 20 hunted hours` | Helmet | Urn Shard (Muster Barrows) | Pyre Field, mage | A caster's drinks bill. Useless to a healer, who deals little damage |
 
 (Re-homed 2026-11-26 by D-12: every part and best ground is one v0.3.0 opens. Coal Tongs, Fire Gland and Leech Jaw bring their higher-band rows when Carter's Rest, Wyvern Roost and the Catacombs open.) Every part comes from a different ground than its best one, so every imbuement makes a trade between two grounds (`02` package 5). Fire Edge and Brute Edge share the Edge slot, so a melee hero on Muster chooses between them by the pull. The shares behind the sizes (Fire as a tenth of a front hero's damage taken on Krell's Hold, brutes as a quarter of a pull's health on Muster) are ASSUMED until I1.
@@ -331,7 +331,7 @@ Each is sized on its `best` cell. Shown at full ramp (Level 200 and up). The par
 |---|---|
 | `src/data/imbue-rules.js` (new, replaces `imbuements.js`) | One row an imbuement: `id`, `name`, `kind` (`edge`, `ward`, `leech`), `slot` (from `kind`), `raises` (offense, defense, heal, mana), `when` (a condition row, `condition-metrics.js` shape), `element` or `convert` where it applies, `key` (the rule table's stacking key), `part` (an item id), `best` (seat, ground), `tip` with `{pct}`. Levers `IMBUE` above |
 | Items | The made imbuement: a stack keyed (kind, band, quality), one item row an imbuement id. The rare parts keep their pack rows; their old `imbue.kind` field retires |
-| Piece | `imbue_id`, `imbue_band`, `imbue_ms_left` on the piece row (a plain piece is a stack today, so a plain worn piece needs a worn-slot row: `hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, ms_left)`, moved with the piece) |
+| Slot | `hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, quality, ms_left)`, on the hero's slot, never on the piece row (D-20) |
 
 ### 3.5 Server verbs and journals
 
@@ -348,7 +348,7 @@ Money surface: yes (items consumed, gold burned, a power source). Row N-8 on `13
 
 | Place | Lines |
 |---|---|
-| Gear slot | A small mark on the slot. Tooltip `Fire Ward · −8% Fire damage taken · 14 h left` |
+| Gear slot | A small mark on the slot. Tooltip `Fire Ward · −4% Fire damage taken · 14 h left` |
 | Artificing, Imbue tab | `Fire Ward · Band 120` · `Needs: 5 Fire Gland · 4 Remains · 0.5 work-hours` · button `Make` |
 | Apply | `Body: Fire Ward · 20 h` · `Replaces: Fire Ward · 3 h left` · `Fee: 6,200 gold` · button `Imbue` |
 | Plan | `Krell's Hold · Body: Fire Ward · Keep imbued` |
@@ -357,7 +357,7 @@ Money surface: yes (items consumed, gold burned, a power source). Row N-8 on `13
 
 ### 3.7 The power ledger
 
-Consumable slice, 6 (`19` row 10, D-1): three imbuements at 2 each fill it, all times `ramp`, the slice cap times `ramp`. A draught (3) or a camp pot (2) is chosen in place of an imbuement. At Level 60 the whole slice is 1.8 steps. The choice ceiling of `19` (best saved build against the suggested path, 5 to 10%) compares builds at the same kit, so imbuements sit outside it by construction. They sit inside the gold ceiling (Temper + consumables + bought Traits, under two tiers).
+Consumable slice, 6 (`19` row 10, D-1): three imbuements at a rated 2 each fill it, whole at every Level (D-16). A draught (3) or a camp pot (2) is chosen in place of an imbuement. The choice ceiling of `19` (best saved build against the suggested path, 5 to 10%) compares builds at the same kit, so imbuements sit outside it by construction. They sit inside the gold ceiling (Temper + consumables + bought Traits, under two tiers).
 
 ### 3.8 Lab runs
 
@@ -492,7 +492,7 @@ No new client verb. The settle credits each hero's bag with its own drops (`hr_h
 |---|---|---|---|
 | D-11 | **The room rule.** A worn imbuement takes its steps of the consumable slice's room on every blow, firing or not. On a blow its condition holds, it counts its steps. A draught or a damage meal gets only what is left, so three imbuements leave a meal nothing. Built as one clamp rule: a ledger row with `holds: false` reserves room in a gains-only slice (`src/core/power-ledger.js`) | D-1 (states the rule the clamp needed) | Per-channel caps alone let an Edge (offense), a Ward (defense) and a meal (offense) stack past 6 between them. Room by what is worn is what "in place of, never on top" means |
 | D-12 | **The sample is re-homed onto the grounds v0.3.0 opens.** Fire Ward from Ford Weed (Hask's Ford), Fire Edge from Rake Tine (Pyre Field) with its best on Muster, Life Leech from Mudlark Hook (the Slake) with its best on Krell's Hold. Brute Edge and Mana Leech keep their parts. The element word is the data's (`ember`, shown as Fire) | Section 3.3's table | Three of the five rows were made from staged grounds' parts, so v0.3.0 could make no Ward and no Life Leech, and a hero could never fill three slots. `validateImbues` now refuses a row whose part or best ground is not open and a condition that names no role or element, and `tests/imbue.mjs` refuses a key a Trait uses (the Traits stay hidden data) |
-| D-13 | **A part is a Material only when an imbuement row names it.** The old `imbue: { kind, tier }` field on every body's part is gone (`part: true` marks the drop rule's row). The five sample parts are Materials and never bulk-sold. Every other part, the first grounds' included, is Junk and sells | Section 3.4 (the old field retires) | A bag full of parts that feed nothing is a dead reward. Under Level 45 an imbuement is worth under a quarter of a step after the ramp, so a new player's parts are gold. A new imbuement row files its part as a Material by itself |
+| D-13 | **A part is a Material only when an imbuement row names it.** The old `imbue: { kind, tier }` field on every body's part is gone (`part: true` marks the drop rule's row). The five sample parts are Materials and never bulk-sold. Every other part, the first grounds' included, is Junk and sells | Section 3.4 (the old field retires) | A bag full of parts that feed nothing is a dead reward. Under Level 35 no imbuement can be worn (the lowest band is 45, worn from 35, D-16), so a new player's parts are gold. A new imbuement row files its part as a Material by itself |
 | D-14 | **The Temper kit is the Tempering Salts, one a band** (`src/data/temper.js TEMPER_KITS`): Iron to Emberforged are the live salts, Dawnsteel's is a new good. A rank on a piece takes the kits of that piece's band, never another band's. Bronze has none (rank 1 opens at Level 40, where Steel is worn). The kit is a K1 kit trade: Smithing's `temper_kit` kind, three bars of its band, named `Mix Fine Tempering Salts` and its sisters (`src/data/trades.js KIT_RECIPES`, batch 2) | Section 2.2 ("half is Temper kits") | One kit for every band would let a cheap band's kit pay for a dear band's rank. Reusing the salts keeps the item players already know, the Tower keys' prize stays the same item, and no new art is owed until Dawnsteel |
 | D-15 | **The old Tempering rungs are retired whole**: the tier ladders, Dawnsteel's small rungs, the unique bands, the Blows and Armor numbers in the fight, the smith's pane, the coach and next-buy lines, and their guards. The steady cut (a cape's `steadyPm` and a steady meal) shared their hook, so it keeps the hook and its old cap of 5 steps in the temper slice until its own slice is ruled (CONFLICTS 2026-11-26) | `19` row 4, `20` TP ("the old rungs are gone") | Two Tempers would be two rules for one sink. The cape's cut is a separate stat, and moving it to another slice is a balance change of its own, so it is named and left in place |
 
@@ -643,4 +643,64 @@ Found and fixed on the way: before this lane, an imbuement handed through heroSe
 | Four Brute Edges on a Level 60 four for 120 s, the damage each hero dealt with and without (Hask's Ford, the play-ground kit, step 570) | 738 / 1712 / 1610 / 1586 against 737 / 1709 / 1611 / 1585; kills 10 each both ways | MEASURED, one seed (`proposeHuntSettle` on the replay) |
 | The same on Muster in steel | the first blow it changes is the 132nd; the stored world after 270 s is the same | MEASURED, one seed |
 
-At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are rounded whole (`amount.js blowAmount`), so on these fixtures a full set moves a hunt by a few hit points. That is I3's question (section 3.8, "felt"), still owed and the designer's: CONFLICTS 2026-11-27 worn imbuements. The Leech and Fire Edge's conversion still only take room (section 3.9 items 2 and 3), and Mana Leech's `mana` is no ledger channel, so it takes none.
+At Level 60 an imbuement is 0.6 of a step (2 x ramp 0.3), and a blow's steps are rounded whole (`amount.js blowAmount`), so on these fixtures a full set moves a hunt by a few hit points. That is I3's question (section 3.8, "felt"), still owed and the designer's: CONFLICTS 2026-11-27 worn imbuements. The Leech and Fire Edge's conversion still only take room (section 3.9 items 2 and 3), and Mana Leech's `mana` is no ledger channel, so it takes none. (Ruled in section 11.)
+
+---
+
+## 11. Imbuement calls: the size, the leech, the conversion, where it sits (2026-11-27, game designer, `lane/designer-imbue-calls`; CONFLICTS 2026-11-27 worn imbuements (2) to (4))
+
+### 11.1 How it plays
+
+- An imbuement works the same at every Level. A Level 60 hero gets all of it, the way a piece of gear counts in full.
+- Each one is strong on the blows it is for. A Brute Edge adds 2% to every blow at a brute and nothing to the rest, and the card says 2%.
+- A Fire Ward is for your back row on Krell's Hold, where the casters take their fire. It cuts that fire by 4%.
+- A Life Leech gives you back 2% of the damage you deal as health. A Fire Edge turns 5% of every blow into Fire, which is good against the Undead and costs you against anything that resists fire. The bestiary page says which.
+- The imbuement stays on your hero's slot, like Temper. Put on a better sword and the Edge is still there. Its hours only run while a piece is worn in that slot.
+
+### 11.2 Rulings made here
+
+| # | Ruling | Amends | Why |
+|---|---|---|---|
+| D-16 | **The consumable slice takes no ramp.** Imbuements, the draught and the camp pot count whole at every Level, cap 6. An imbuement's Level gate is its band: worn from band minus `wearAhead`, weaker past it by the contest curve | `19` row 10, 3.2 Size, 3.7 | They are goods bought with a band, not something a hero grows into, so the ramp counted the Level twice. It made a Level 60 imbuement 0.6 of a step, and the engine's whole-step rounding then gave that 0.6 to one hero as a full step and to the next as nothing (10.3: 1 to 3 HP in 1,700). A whole number of steps passes the rounding exactly, so **the rounding is not the lever and no engine change is needed for it** |
+| D-17 | **An imbuement is rated 2 steps and fires at its measured size.** It takes its rated 2 steps of the slice's room on every blow, firing or not (D-11 holds: three fill the slice, a meal on top adds nothing). On a blow its condition holds, it counts `fire` steps: 2 over the share of its best cell that its condition touches, measured, whole, at most `fireMax` 20 (one tier). The card shows the fire size. Brute Edge **5** (+2% vs Brutes), Fire Ward **11** (−4% Fire damage taken) | 3.2 Size, 3.3's tooltips | Built as 2 a firing blow, an imbuement averaged 2 x its share: Brute Edge 0.9 on Muster, Fire Ward 0.03 on Krell's front. That is the dead reward. Sized on the share, each is worth its 2 steps where it belongs, and the card's number is what the blow does |
+| D-17a | **The Fire Ward's best seat is the back row of Krell's Hold**, not the front | 3.3, D-12 | MEASURED: the front takes 1.5% of its damage as Fire there (its blows are the brutes' swings), the mage and the healer 17.4% and 17.7% (the group spells). A Ward sized on the front would fire at 133 steps |
+| D-18 | **The Leech and the conversion, in the fight.** A **Leech** heals its wearer `leech.pm` of the HP each of its own blows takes (a swing, a shot, a spell's hit; never a status tick), HP for Life and mana for Mana, through the heal cut and never past max, the fraction carried to the next blow so a 30 HP hit still pays. Life Leech **20** permille (2%), Mana Leech **10** (1%). A **conversion** (Fire Edge, `sharePm` 50) resolves 5% of each blow against the target's percent for Fire in place of the blow's own: one offense row of `stepsOf(1 + 0.05 x (Fire% / blow% - 1))` steps, a gain held by the clamp on a target weak to Fire, a whole cost on one that resists it. Both take their rated room | 3.9 items 2 and 3 | The leech reuses the spell leech's rule (`abilities.js leechBack`) with a carried fraction, since a floor on a 1 to 2% share of a 30 HP blow pays nothing. Life Leech's 20 is 2 steps of the front's damage taken on Krell's Hold (it takes 272,800 HP an hour and deals 101,300). The conversion is in steps so the browser and the edge agree, and on Muster's Undead (+15% Fire) it is +2 steps on every blow, its rated size. Mana Leech is sized in coin, not pace (`15`: mana does not bind on the held step): its bar is the Pyre Field mage's drink bill falling by at least twice the imbuement's price an hour (0.53 h of wage over 20 h), measured when the rule lands, `pm` 5 to 30 |
+| D-19 | **The apply fee reads the imbuement's band, with no ramp:** `feeHoursPm` (0.4) hours of wage at the band, 6,813 gold for a band 70 Edge at any Level | 3.2 Apply fee | A good reads its band (Tyler 2026-11-22). With D-20 the worn piece no longer prices it: a fee at the piece's item Level would let a hero imbue a cheap piece and swap. With D-16 the effect is whole, so the price is too, and "levels or gold tonight" is the same choice at Level 60 and 200 |
+| D-20 | **The imbuement sits on the hero's slot, not the piece** (as built: `hero_worn_imbue` is keyed by hero and equip slot). A new piece in the slot keeps it. It plays and its hours run only while a piece is worn there. A piece never carries one, so listing removes nothing | 3.2 "On the piece", 3.4 Piece row, `13-market` 2.3, `12-targets` section 6 | Temper already sits on the slot. One rule for both means an upgrade never costs an imbuement or a choice already made (the first principle), the market never prices one, and nothing moves between heroes or accounts. On the piece it would need a column on every piece row and an unlist rule for a power source that lasts 20 hours |
+
+### 11.3 What is set here and what is owed
+
+| Piece | Where | State |
+|---|---|---|
+| The slice whole at every Level | `src/data/power-ledger.js` `consumable.ramps` false | SET. `tests/imbue.mjs` IM-7, `tests/hunt-core/danger.mjs` ledger |
+| The fire sizes, the Fire Ward's seat, Life Leech 20 | `src/data/imbue-rules.js` (`fire`, `fireMax`, `best`, `leech.pm`); `validateImbues` refuses a condition with no whole fire size from 2 to 20 (IM-1) | SET (data). The engine still fires the rated 2 until HANDOFFS 2026-11-27 designer-imbue-calls item 1 lands |
+| The fire size and the rated room in the clamp | `src/core/imbue.js imbueRows`, `src/core/power-ledger.js clampLedger` | OWED, Systems (item 1). The Lab candidate `im-muster-fire` is the edit |
+| The leech rule and the conversion | `src/core/hunt/amount.js`, `abilities.js`, `damage.js`, the tally | OWED, Systems (item 2) |
+| The fee at the band, no ramp | `src/core/imbue.js applyFee`, `hr_imbue_apply`, `hr_imbue_levers` | OWED, Backend (item 3), a money surface on S-32 |
+| The timer only while worn | 1074's `hr_flame_temper_settle` | OWED, Backend (item 4) |
+| No staged catalogue moved | `hr_imbue_rules` holds no size or seat (`node tools/gen-flame-temper.mjs --check`) | |
+
+### 11.4 Readings
+
+| Reading | Value | Kind |
+|---|---|---|
+| What the conditions touch, Muster Barrows at Level 60 (the mixed four, MID kit, Steady, 12 seeds x 8 h, `v1-climb` base cell, its new condition-share line) | brutes take 43.8% of the hammer's damage, 29.1% of the bow's, 35.7% of the mage's; no blow at a hero is Fire | MEASURED |
+| The same on Krell's Hold at Level 97 | brutes take 45.2% of the hammer's damage; Fire is 1.5% of the hammer's damage taken, 17.4% of the mage's, 17.7% of the healer's (the hammer takes 86% of the four's) | MEASURED |
+| Brute Edge, Fire Ward and Mana Leech on all four, Muster, Level 60, paired against none (`--candidate im-muster-built`: as built, x ramp) | held −4.3 ± 2.5, pace −3.6 ± 2.2 pace steps: nothing | MEASURED |
+| The same with the slice whole (`im-muster-whole`, the tree) | held −0.3 ± 2.6, pace +0.6 ± 2.2 pace steps: nothing (only the Edge fires on Muster, 2 steps on 44% of the hammer's blows) | MEASURED |
+| The same with D-17's fire sizes (`im-muster-fire`) | held −3.8 ± 2.2, pace −1.4 ± 2.0 pace steps: inside the noise. Damage dealt a second over the hunt: as built +0.1%, whole +0.4%, with the fire sizes +0.9% on the three damage seats (hammer 17.10 to 17.27, bow 18.56 to 18.71, mage 21.02 to 21.22), the order and size the shares predict | MEASURED |
+| What 12 seeds can read | One imbuement's rated 2 steps is about 0.9% pace (`15`: 0.43% a pace step), under the cell's se of 2 pace steps. A single imbuement is checked by its damage line and its share, a set of three by I3 | COMPUTED |
+| I3 in full (a set of three that all fire) | Owed until item 2. On Muster only the Edge fires (no Fire, Mana Leech owed), so a set there is worth one imbuement. Krell's Hold holds all three (the Edge on its brutes, the Ward on the back row, the Leech on the front), and its bar is 6 ± 2 pace steps there once the Leech heals | OWED |
+| Rated sizes on their best cells | Brute Edge 5 x 0.438 = 2.2 steps on the hammer; Fire Ward 11 x 0.175 = 1.9 steps of the back row's defense; Life Leech 20 permille = 2.1 steps of the front's damage taken; Fire Edge +2 on Undead | COMPUTED |
+
+### 11.5 Walk-through: a melee hero's first Brute Edge at Level 60 (real data, grepped on the set)
+
+| # | Step | Holds and can reach, from earlier steps only | Real source | Doable |
+|---|---|---|---|---|
+| 1 | Hunt Pyre Field | A company at about Level 60 (band 70 to 90) | `pyre_field` pack, open | Yes |
+| 2 | Five Pike Ferrules drop | Step 1 | `pike_ferrule` on the Charred Pikeman's row, every 0.22 hunted hours | Yes |
+| 3 | Four Grave Dust | Step 1, or Muster Barrows (Cairn Wight, Captain Hask) | `grave_dust` rows on both packs; band 3's Remains face (`STREAM_FACES`) | Yes |
+| 4 | Make Brute Edge | Steps 2 and 3, an Artificing hero at rung 1 | `jobRecipes()` `imbuement_brute_edge`: 5 `pike_ferrule`, 4 `grave_dust`, band 3, makes `imbue_brute_edge` | Staged (S-27, dark) |
+| 5 | Apply it to the weapon in town | Step 4 and 6,813 gold (D-19) | `hr_imbue_apply`; `hunt_open` while hunting | Staged (S-32, dark); the band fee owed (item 3) |
+| 6 | Hunt Muster Barrows | Step 5 | `muster_knight` and `captain_hask` are `role: 'brute'`; `imbueStepsAt(70, 60)` is 2, so the Edge fires at 5 | Fires at 2 until item 1 |
+| 7 | A better sword drops and goes on | Step 6 | `hero_worn_imbue` is keyed by the slot, so the Edge stays (D-20) | Yes, as built |

@@ -161,7 +161,7 @@ export const GEAR_ECONOMY = [
     ev: 'STATED (19-power-ledger.md section 2 rule 2)' }),
   L('ledger.ramp-slices', 'equipment', 'global', 'The power ledger: the ramp and the slice caps', {
     at: [at('src/data/power-ledger.js', 'rampLevel: 200,'), at('src/data/power-ledger.js', 'buildStepsMax: 14,'), at('src/data/power-ledger.js', 'consumableStepsMax: 6,'), at('src/data/power-ledger.js', 'temperStepsMax: 5,'), at('src/data/power-ledger.js', 'clanStepsMax: 4,')],
-    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net) and the consumable slice (cap consumableStepsMax), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it',
+    def: 'ramp(L) = min(1, L / rampLevel) scales the build slice (talents, crossroads, vows, borrows: cap buildStepsMax, on the net), rows and cap alike; the gear slice (Traits and the Signature, conditionalStepsMax), the consumable slice (imbuements, draught, camp pot: consumableStepsMax, 21 D-16) and Temper (temperStepsMax) count whole at every Level; the clan slice (clanStepsMax) is closed, 0, until clans ship; src/core/power-ledger.js clamps, the power step reads it',
     range: 'rampLevel 120 to 200 (V8); buildStepsMax 7 to 14 (the choice ceiling 5 to 10%); consumableStepsMax 5 to 8 (21 D-1); temperStepsMax 5',
     touches: 'how much a build, a consumable kit and Temper are worth over a plain hero at each Level, and how early', out: [...KILL, ...SURVIVE], f: [],
     tests: [['tests/hunt-core/danger.mjs', 'ledger: the caps at Levels 10 to 400, the clamp, the power step']], testReads: ['POWER_LEDGER', 'LEDGER_SLICES'],
@@ -238,12 +238,12 @@ export const GEAR_ECONOMY = [
     ev: 'STATED (21 section 2.2), T1 MEASURED +4.4 held steps (v1-climb 8 seeds x 12 h)' }),
   L('imbue.rules', 'imbuements', 'global', 'Imbuements: 2 steps each, 20 hunted hours, the fee', {
     at: [at('src/data/imbue-rules.js', '  hours: 20,'), at('src/data/imbue-rules.js', '  feeHoursPm: 400,'), at('src/data/imbue-rules.js', "convert: { element: 'ember', sharePm: 50 },")],
-    def: 'three a hero (Edge, Ward, Leech), each imbueSteps on its best cell in the consumable slice x ramp; plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp',
+    def: 'three a hero (Edge, Ward, Leech), each rated imbueSteps averaged on its best cell in the consumable slice, whole at every Level (21 D-16); a conditional row fires at its measured fire steps (2 over the share its condition touches, at most fireMax, D-17) and takes its rated room; a leech heals leech.pm of the HP its blows take, a conversion resolves sharePm of a blow at the target element (D-18); plain 20, fine 25, master 30 hunted hours; made from parts of another ground; the apply fee is feeHoursPm of wage at the piece item Level x ramp (owed: at the imbuement band, no ramp, D-19)',
     range: 'hours 12 to 30, steps 1.5 to 3, lifeRung 0.15 to 0.35, parts 3 to 10, remains 2 to 8, fee 0.2 to 0.6 (21 section 3.2)',
     touches: 'a consumable choice in place of a draught; Remains to the bench as well as the fire', out: [...KILL, ...SURVIVE, ...GOLD], f: [],
     tests: [['tests/imbue.mjs', 'IM-1 to IM-4: the rows, life, the fee, the band']], testReads: ['IMBUE', 'IMBUE_RULES'],
     perturb: NP('not-built', 'the switch imbuements is off; the bench, the items and the fight conditions are owed (21 section 3.9)'),
-    ev: 'STATED (21 section 3.2; the shares behind each size ASSUMED until I1)' }),
+    ev: 'MEASURED (21 section 11: the shares behind Brute Edge 5 and Fire Ward 11 and Life Leech 20 pm on v1-climb base cells; the set read on Muster with the candidates im-muster-*)' }),
   L('carry.price', 'economy', 'global', 'Carry-over: parts and a fee a Trait step', {
     at: [at('src/data/gear-steps.js', 'export const CARRY = Object.freeze({ hoursPerStepPm: 500, partsBase: 2, workPm: 1000 });')],
     def: 'every Trait of a piece onto a plain base of the same slot, same or higher tier: 2 + rank parts of the Trait home ground a Trait, hoursPerStepPm / 1000 hours of wage a Trait step at the new base item Level, workPm / 1000 work-hours',

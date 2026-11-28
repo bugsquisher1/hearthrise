@@ -6,13 +6,15 @@
 // rampLevel with one formula, never per node:
 //   ramp(L) = min(1, L / rampLevel)
 // THE RAMP NEVER TOUCHES WHAT A HERO FINDS (Tyler 2026-11-22: "Gear scaling with level seems wrong right? I don't want to punish people who
-// are theory crafting or getting lucky with drops"): gear, Traits, Signatures and Temper count whole at every Level. Where luck comes from
+// are theory crafting or getting lucky with drops"): gear, Traits, Signatures and Temper count whole at every Level, and so do
+// imbuements and the rest of the consumable slice, goods a hero buys with a band (21 D-16). Where luck comes from
 // is the ground's gate on what drops (src/data/gear-steps.js maxRankAt), never a cap on what the hero wears.
 // THE SLICES (19 section 1; the engine's clamp is src/core/power-ledger.js):
 //   gear        Traits and the Signature together, at most conditionalStepsMax (src/data/gear-steps.js: it stays there), at every Level
 //   build       talent ranks, crossroads, waystones, vows and borrowed moves, at most buildStepsMax x ramp, on the NET of gains and costs (a
 //               vow's cost always bites, so it may buy past the cap only by paying for it; costs are never clamped)
-//   consumable  imbuements, the draught and the camp pot, at most consumableStepsMax x ramp
+//   consumable  imbuements, the draught and the camp pot, at most consumableStepsMax, at every Level (they are BOUGHT with a band, not grown
+//               into: an imbuement's band is its Level gate, wearAhead and the contest curve, 21 D-16, lane/designer-imbue-calls 2026-11-27)
 //   temper      Temper on a whole kit, at most temperStepsMax, at every Level (it is the gear's; rank r opens at Level 40r, 21 D-2)
 //   clan        clan, castle, arena and event buffs, at most clanStepsMax, ZERO until clans ship (20-v030-the-roads.md: "a new clan slice
 //               of 4 steps, zero until clans ship"; ledger row 16: a new source takes a slice or is refused)
@@ -44,7 +46,9 @@ export const POWER_LEDGER = Object.freeze({
 export const LEDGER_SLICES = Object.freeze({
   gear: Object.freeze({ max: null, ramps: false, signed: false }),
   build: Object.freeze({ max: POWER_LEDGER.buildStepsMax, ramps: true, signed: true }),
-  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: true, signed: false }),
+  /* whole at every Level (21 D-16): x ramp it made a Level 60 imbuement 0.6 of a step, a fraction the whole-step rounding then gave one hero
+     and not another (CONFLICTS 2026-11-27 worn imbuements (2)) */
+  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: false, signed: false }),
   temper: Object.freeze({ max: POWER_LEDGER.temperStepsMax, ramps: false, signed: false }),
   /* talent ranks are ON THE CURVE (19 row 2: "inside the Level, not on top. An unspent point is -1/3"): a cap of 0 on the signed net, so
      only the idle points' cost counts (src/core/talents.js grantsOf), whole at every Level (ranks take no ramp) */

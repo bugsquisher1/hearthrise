@@ -1,0 +1,21 @@
+{
+ "schema": "hearthrise.balance-candidate/1",
+ "id": "im-krell-built",
+ "why": "lane/designer-imbue-calls (21 section 11, CONFLICTS 2026-11-27 worn imbuements (2)): every hero of the four wears brute_edge (band 70), fire_ward (band 45), life_leech (band 50) as the engine played them before 21 D-16: 2 steps a firing blow x the contest curve, x ramp(Level) in the consumable slice (the edit puts the ramp back)",
+ "base": "tree",
+ "edits": [
+  {
+   "file": "src/core/combat-sim.js",
+   "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);",
+   "to": "  const imb = imbuesAt([{\"id\":\"brute_edge\",\"band\":70,\"untilMs\":null},{\"id\":\"fire_ward\",\"band\":45,\"untilMs\":null},{\"id\":\"life_leech\",\"band\":50,\"untilMs\":null}], atMs);"
+  },
+  {
+   "file": "src/data/power-ledger.js",
+   "from": "  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: false, signed: false }),",
+   "to": "  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: true, signed: false }),"
+  }
+ ],
+ "assumptions": [
+  "each imbuement at its part's real band (imbueBandOf); it never runs out inside the hunt (untilMs null)"
+ ]
+}

@@ -5,11 +5,11 @@
  "base": "tree",
  "edits": [
   { "file": "src/core/member.js", "from": "    temperSteps: mi.perks && mi.perks.temperSteps ? mi.perks.temperSteps : null };", "to": "    temperSteps: { weapon: 5, shield: 5, helmet: 5, body: 5, pants: 5, boots: 5, gloves: 5, belt: 5, cape: 5, necklace: 5, earrings: 5, ring1: 5, ring2: 5 } };" },
-  { "file": "src/core/combat-sim.js", "from": "  const imb = wornImbuesOf(m.hero.wornImbues);", "to": "  const imb = wornImbuesOf([{ id: 'brute_edge', band: 55, msLeft: 72000000 }, { id: 'fire_ward', band: 55, msLeft: 72000000 }, { id: 'mana_leech', band: 55, msLeft: 72000000 }]);" }
+  { "file": "src/core/combat-sim.js", "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);", "to": "  const imb = imbuesAt([{ id: 'brute_edge', band: 55, untilMs: null }, { id: 'fire_ward', band: 55, untilMs: null }, { id: 'mana_leech', band: 55, untilMs: null }], atMs);" }
  ],
  "assumptions": [
   "Temper rank 5 on every slot is forged past the Level's cap (rank 1 opens at 40, 5 at 200): the reading is 21 T1's whole kit at 5, the most Temper can ever be, clamped by temperLevelsOn to 5 ranks",
   "The imbuements carry Muster's own band (55) so the contest curve takes nothing at Level 60; only Brute Edge has a condition that holds on Muster (its knight and Captain Hask are brutes); Fire Ward waits (no ember blow) and Mana Leech is sustain, so both only take their room",
-  "At Level 60 ramp is 0.3, so the consumable slice is 1.8 steps and Brute Edge counts 0.6 of them on a brute's blows"
+  "Since 21 D-16 the consumable slice is whole at every Level, so Brute Edge counts its 2 steps on a brute's blows at Level 60 (it was 0.6 of a 1.8 cap when this reading was made, 21 section 7.4)"
  ]
 }

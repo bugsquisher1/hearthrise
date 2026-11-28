@@ -261,6 +261,8 @@ export async function loadCellRunner(root) {
       manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {},
       /* the HP regained with no event (regeneration: the window's gap, below), the hunted ms under 30% / 10% of max HP, damage dealt by target kind */
       regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {},
+      /* the damage taken by the blow's element (a dmg event's `element`, 'none' for a plain blow): the share a Ward's condition touches (21 section 3.2) */
+      takenEl: {},
       /* THE WORN TRAITS (cell.traitsBySeat): the hero's blows, the blows at it and its heals, and on how many each Trait held (an event's `tr`) */
       tr: { offense: 0, defense: 0, heal: 0, held: {} },
       /* the engine's sustain block summed over the cell (TALLY), the hunted ms whose regeneration the answer cannot close (a hunt that ended
@@ -349,6 +351,7 @@ export async function loadCellRunner(root) {
                   h.taken += n;
                   const kind = (out.units && out.units[e.u] && out.units[e.u][0]) || (e.dot ? 'status' : '?');
                   h.takenBy[kind] = (h.takenBy[kind] || 0) + n;
+                  const el = e.element || 'none'; h.takenEl[el] = (h.takenEl[el] || 0) + n;
                   /* a monster's spell (monster-spells.js): its hit names the spell, where a swing names 'basic' */
                   if (!e.dot && !uk && e.ability && e.ability !== 'basic') { const s = h.spellsIn[e.ability] || (h.spellsIn[e.ability] = { hits: 0, dmg: 0 }); s.hits++; s.dmg += n; }
                   if (!e.dot && !uk) h.blowsLanded++;
@@ -626,6 +629,7 @@ export async function loadCellRunner(root) {
            (regeneration), the share of hunted time under 30% and 10% of max HP, and the damage dealt to each kind of monster */
         regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
         dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),
+        takenElPerH: Object.fromEntries(Object.entries(h.takenEl).map(([k, n]) => [k, per(n)])),
         /* THE SUSTAIN COUNTERS (Balance Lab phase 2; tools/balance-program/readers.mjs reads them): the engine's tally block as TOTALS over the
            cell (so seeds add), the hunted hours whose regeneration could not be closed, the party deaths this hero was short of mana at
            (by the waiting rule's action), and the close calls (encounters under 25% HP) as a count */

@@ -92,9 +92,9 @@ import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from
    calls (Security N4b). The bestiary read left this file with
    the solo combat channel (lane C2; see (4b)). */
 import { readTickPerks } from './tick-reads.js';
-/* THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). One function, called
-   after a shadow settle has returned; its only writer is hr_tick_probe_commit. */
-import { probeStep, MAX_PROBES_PER_FIRE } from './tick-probe.js';
+/* THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05) LEFT WITH THE GATHER CHANNEL, the one shadowed channel it
+   priced (the one-town-work cut): the artisan channel is armed directly, its parity with the owner's own settle
+   tests/artisan-tick.mjs A-PARITY. hr_tick_probe and its two functions are inert and leave in the cut's F1 pass. */
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -239,7 +239,7 @@ export const TICK_HOLDER_SQL = "select case when $1::int = 0"
    it is byte for byte the window the next fire would have settled, and every
    money fence (lease, watermark CAS, version CAS, 8b, 8c) runs for it under
    the player lock exactly as it would then. SHADOW windows are never caught
-   up: one per visit, so the parity probes and their counts do not move. */
+   up: one per visit. */
 export const MAX_CATCHUP_WINDOWS = 40;
 
 /* THE EXTRA WINDOWS' TIME BUDGET, per fire, from the fire's start. Every
@@ -1068,33 +1068,12 @@ async function tickOne(exec, holder, sel, body) {
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
   }
-  /* (8) THE PARITY PROBE (Security ruling 1, 2026-10-05) — AFTER the settle
-         returned, so nothing it does can reach the window just journalled or
-         the carrier the fence just stored. Only on a JOURNALLED SHADOW window
-         (an armed settle writes no shadow row and the probe's anchor is one),
-         only on the one window in ~160 that holds this character's probe
-         boundary, and never allowed to change this character's outcome: a
-         probe that throws is counted and dropped. ./tick-probe.js. */
-  let probed = null;
-  if (res.mode === 'shadow' && res.journalled === true && body.probeBudget) {
-    try {
-      probed = await probeStep(exec, {
-        holder, userId: sel.userId, slot: sel.slot, channel, session,
-        windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
-        windowTo: a.p_window_to,
-        budget: body.probeBudget,
-        seedLadder: (labels) => seedLadder(exec, sel, labels),
-      });
-    } catch (e) {
-      probed = 'probe_error';
-    }
-  }
   /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `armed` arrives in the driver's
      POST and is ignored: `hr_tick_config.armed_channels` is read inside the
      fence, under the lease lock, for this character's channel, and this is
      what it decided. A summary that reported the body's flag would say
      "shadowed" about a fire that paid. */
-  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed, windows: 1 };
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed' };
 }
 
 /* ── THE FIRE ───────────────────────────────────────────────────────────────
@@ -1131,13 +1110,6 @@ export async function runTick(opts) {
 
   const counts = { processed: 0, skipped: 0, shadowed: 0, refused: 0 };
   const reasons = Object.create(null);
-  /* THE PROBE BUDGET, PER FIRE (./tick-probe.js MAX_PROBES_PER_FIRE). Server
-     state, never the body's: `parseTickBody` builds `body` field by field and
-     this key is set here, after it. `opts.probe === false` is the guard's
-     switch for the with/without-probe chain comparison (PP-3); index.ts never
-     passes it. */
-  body.probeBudget = opts.probe === false ? null : { left: MAX_PROBES_PER_FIRE };
-  const probes = Object.create(null);
 
   /* THE CATCH-UP LEDGER (S3), reported only when the dial is above 1 so a
      one-window fire's summary is byte-identical to before the dial existed. */
@@ -1159,7 +1131,6 @@ export async function runTick(opts) {
     }
     counts[v.outcome] = (counts[v.outcome] || 0) + 1;
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
-    if (v.probe) probes[v.probe] = (probes[v.probe] || 0) + 1;
 
     /* ── THE CATCH-UP (S3). ARMED ONLY: `processed` is the fence's own answer
        that this window PAID through hr_apply (a shadow window answers
@@ -1255,9 +1226,7 @@ export async function runTick(opts) {
     if (deferredIds.length) hunts.freed = await freeDeferredLeases(exec, body.huntBody, deferredIds);
   }
 
-  /* `probes` is present only on a fire that met a probe boundary, so every
-     other fire's summary is byte-identical to before this step existed. */
-  const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
+  const extra = { reasons };
   if (catchup) extra.catchup = catchup;
   if (hunts) extra.hunts = hunts;
   return { status: 200, body: summary(Object.assign({}, counts, extra)) };

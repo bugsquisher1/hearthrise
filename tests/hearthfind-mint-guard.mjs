@@ -83,13 +83,12 @@ import { rollHearthfind } from '../src/core/hearthfind.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = join(ROOT, 'src', 'core', 'hearthfind.js');
-/* THE TWO ROLL SITES. MINT-G5 reads them: a signature with nowhere to put a
+/* THE ROLL SITE (the gathering engine's left with the one-town-work cut). MINT-G5 reads it: a signature with nowhere to put a
    multiplier proves nothing if the CALLER computes one and smuggles it in
    through `index` or through a hand-built row. */
 const CALL_SITES = [
   /* the combat engine's kill hand-off lives with its payer (src/core/hunt-rewards.js, lane S1) */
   ['src/core/hunt-rewards.js', join(ROOT, 'src', 'core', 'hunt-rewards.js')],
-  ['src/core/skill-sim.js', join(ROOT, 'src', 'core', 'skill-sim.js')],
 ];
 
 let failed = 0;
@@ -381,7 +380,7 @@ if (argv.includes('--selftest')) {
   await runAll(null);
   if (failed) { console.error(`\nhearthfind-mint-guard: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('hearthfind-mint-guard: all assertions passed (rollHearthfind takes exactly '
-    + '(index, kind, id, rng) and scales its odds by nothing; both roll sites pass only the source '
+    + '(index, kind, id, rng) and scales its odds by nothing; the roll site passes only the source '
     + 'pair and the server-seeded ctx, with no multiplier in the call; every hearthfind trophy is '
     + 'v:0, bind-on-pickup and not a currency; the flagged set and HEARTHFIND_ITEMS are one set).');
   process.exit(0);

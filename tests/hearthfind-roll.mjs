@@ -309,12 +309,25 @@ async function runAll(mut) {
       + 'boostable — least of all by anything a player can pay for.');
   }
 
-  // ── ROLL-5  ONE ROLL SITE PER ENGINE, NONE OUTSIDE src/core. ────────────
+  // ── ROLL-5  ONE ROLL SITE, THE COMBAT ENGINE'S; NONE ELSEWHERE IN src/core OR THE CLIENT. ──
   {
     const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8').catch(() => '');
     /* The combat engine is the loop (combat-sim.js), its swing (hunt/world-step.js) and its payer (hunt-rewards.js, lane S1). */
     const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js')) + (await read('../src/core/hunt-rewards.js'));
-    const skill = await read('../src/core/skill-sim.js');
+    /* The rest of src/core, which rolls none since the gathering engine left with the one-town-work cut (its node roll
+       site went with src/core/skill-sim.js): a second site anywhere is a second engine. */
+    const { readdirSync: listCore } = await import('node:fs');
+    const ENGINE_FILES = ['combat-sim.js', 'hunt/world-step.js', 'hunt-rewards.js', 'hearthfind.js'];
+    let rest = '';
+    let restFiles = 0;
+    const walkCore = async (dir, rel) => {
+      for (const e of listCore(new URL(dir, import.meta.url), { withFileTypes: true })) {
+        const r = rel ? rel + '/' + e.name : e.name;
+        if (e.isDirectory()) await walkCore(dir + '/' + e.name, r);
+        else if (e.name.endsWith('.js') && !ENGINE_FILES.includes(r)) { rest += await read(dir + '/' + e.name); restFiles++; }
+      }
+    };
+    await walkCore('../src/core', '');
     /* The client's own modules (the rebuilt client, 2026-10-17): none may roll. */
     const { readdirSync } = await import('node:fs');
     const clientDirs = ['../src/app', '../src/session', '../src/shell', '../src/world', '../src/net'];
@@ -333,8 +346,9 @@ async function runAll(mut) {
     const count = (s, re) => (s.match(re) || []).length;
     ok(count(combat, /resolveHearthfind\s*\(/g) === 1,
       `the combat engine has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
-    ok(count(skill, /resolveHearthfind\s*\(/g) === 1,
-      `skill-sim.js has ${count(skill, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
+    ok(restFiles >= 20, `CONTROL: only ${restFiles} other src/core modules were read — the scan below is vacuous`);
+    ok(count(rest, /resolveHearthfind\s*\(/g) === 0,
+      `the rest of src/core has ${count(rest, /resolveHearthfind\s*\(/g)} hearthfind roll sites — none (the combat engine is the one roller)`);
     ok(!/rollHearthfind|resolveHearthfind/.test(client),
       'a client module rolls a hearthfind — a client-side roll is a client-authored drop (CLAUDE.md §1) '
       + 'and a second engine (AWAY-12)');

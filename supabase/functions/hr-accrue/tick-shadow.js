@@ -87,10 +87,9 @@ export function advance(char, res) {
     char.skills[k] = (char.skills[k] || 0) + Number(d.xp[k] || 0);
     ch.xp[k] = (ch.xp[k] || 0) + Number(d.xp[k] || 0);
   }
-  /* THE XP REMAINDER IS A CHECKPOINT PER SKILL (tick-contract.js ABSOLUTE_MAP):
-     the next window must carry on from the remainder this one left, or a
-     10-second chain would restart every skill's carry and pay less than the
-     one-span accrue of the same fight. */
+  /* THE XP REMAINDER IS A CHECKPOINT PER SKILL: the next window must carry on
+     from the remainder this one left, or a chain of windows would restart every
+     skill's carry and pay less than the one-span accrue of the same run. */
   if (d.xp_frac && typeof d.xp_frac === 'object') {
     char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);
     ch.xpFrac = Object.assign(ch.xpFrac || {}, d.xp_frac);

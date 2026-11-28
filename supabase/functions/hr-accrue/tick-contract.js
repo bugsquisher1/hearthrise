@@ -3,271 +3,30 @@
 //
 // The tick service is NOT a new engine. It is a new CALLER of the engine the
 // Edge Function already runs (`supabase/functions/hr-accrue/accrual.js`
-// `computeAccrual`), which itself runs `src/core/*`. This file holds the three
-// rules that make "run the same engine every 10 seconds" produce the same
-// answer as "run it once over the whole span", plus the fold law that turns a
-// sequence of proposed deltas into one proposed delta.
+// `computeAccrual`), which itself runs `src/core/*`. This file holds what
+// crosses the seam BETWEEN two tick windows: the shadow carrier (RULE 4) and
+// the spelling of a window's start (fenceWindowFrom).
 //
-// NOTHING HERE WRITES. No Supabase client, no fetch, no fs. Shadow mode is
-// "compute the delta hr_apply WOULD be handed, and throw it away".
+// RULES 1-3 (tick-aligned polls, the fold law, the progress coalescer, the
+// comparison summaries) LEFT WITH THE GATHER CHANNEL (the one-town-work cut,
+// 09-crafting.md 4.17): they decomposed a flush window into 10 s polls and
+// folded the polls back into one delta. The artisan channel, the tick's only
+// pointer channel now, makes ONE engine call per window (tick-artisan.js), so
+// there is nothing to align, fold or coalesce.
+//
+// NOTHING HERE WRITES. No Supabase client, no fetch, no fs.
 //
 // Read docs/planning/WORLD_TICK_DESIGN.md before changing anything below; each
 // rule is there with the measurement that motivated it.
 //
 // PURE ESM, Node + Deno. Lives IN the edge payload because the op:'tick' entry
-// runs it; the offline guards and the replay tool import it directly, so there
-// is ONE copy (AWAY-12). No `?v=` (not under src/**).
+// runs it; the offline guards import it directly, so there is ONE copy
+// (AWAY-12). No `?v=` (not under src/**).
 // ============================================================================
 
-
-/* ── RULE 1: TICK-ALIGNED WINDOWS ───────────────────────────────────────────
-   `simulateSpan` (src/core/combat-sim.js) budgets a segment as
-   `seg.ms * rate + carryMs`, takes `floor(budget / tickMs)` ticks, and keeps the
-   remainder in `carryMs` — a LOCAL that is initialised to 0 on every call and
-   is not part of any checkpoint the delta carries.
-
-   Consequence, and it is the single biggest hazard of decomposing a span: split
-   a span into windows whose length is not a whole multiple of the character's
-   `tickMs` and every window silently throws its remainder away. At the default
-   2400 ms combat tick a 10 s cadence loses 400 ms per window — 4% of every
-   character's night, compounding, invisible, and in the UNDERPAYING direction
-   (which is why nobody would report it as a dupe and everybody would report it
-   as "away feels worse than playing").
-
-   The fix costs nothing and needs no engine change: the world tick's CADENCE is
-   10 s, but the window it settles is snapped DOWN to the last instant that is a
-   whole number of `tickMs` from the session anchor. The unsettled remainder is
-   not lost — it is simply still unsettled, and the next tick's window starts
-   where this one ended. Time is conserved exactly. */
-export function alignWindow(anchorMs, fromMs, toMs, tickMs) {
-  const t = Math.floor(Number(tickMs) || 0);
-  if (!(t > 0)) throw new Error('alignWindow: tickMs must be a positive integer');
-  const a = Math.floor(Number(anchorMs) || 0);
-  const snap = (ms) => a + Math.floor((ms - a) / t) * t;
-  const from = snap(fromMs);
-  const to = snap(toMs);
-  /* `to <= from` is not an error: it is a character whose cadence tick landed
-     inside one of its own combat ticks. It settles nothing and waits. */
-  return { fromMs: from, toMs: to, ms: Math.max(0, to - from) };
-}
-
-/* Walk [fromMs, toMs] as a sequence of cadence windows, each snapped by
-   alignWindow. The LAST window's `toMs` is the last aligned instant at or
-   before `toMs`; the tail after it is deliberately left unsettled. */
-export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
-  const out = [];
-  let cursor = alignWindow(anchorMs, fromMs, fromMs, tickMs).fromMs;
-  const end = alignWindow(anchorMs, fromMs, toMs, tickMs).toMs;
-  while (cursor < end) {
-    const w = alignWindow(anchorMs, cursor, Math.min(cursor + cadenceMs, end), tickMs);
-    if (w.ms <= 0) {
-      /* A cadence shorter than one combat tick snaps to zero. Advance by a
-         whole combat tick instead of spinning: the world clock is 10 s, but a
-         character whose tick is slower than the cadence settles less often. */
-      const next = w.fromMs + tickMs;
-      if (next > end) break;
-      out.push({ fromMs: w.fromMs, toMs: next, ms: tickMs });
-      cursor = next;
-      continue;
-    }
-    out.push(w);
-    cursor = w.toMs;
-  }
-  return out;
-}
-
-/* ── RULE 2: THE FOLD LAW ───────────────────────────────────────────────────
-   A proposed delta has three kinds of key and confusing them is a dupe or a
-   loss. The classification is stated here ONCE and the shadow comparator is the
-   only reader; step 2 replaces the fold entirely (each tick applies through
-   hr_apply, which already knows each key's arithmetic).
-
-     ADDITIVE   the key is a signed movement; folding is addition.
-     ABSOLUTE   the key is a CHECKPOINT of resulting state; folding is "last
-                window wins". accrual.js's own header calls these out by name:
-                `fight`, `ammo_carry`,
-                `accrued_to`, `hp`, `activity`.
-     APPEND     the key is a list of events; folding is concatenation, and the
-                per-call clamp (one death row, the progress-op cap) must be
-                re-checked AFTER the fold, never only per window. */
-/* level_xp (the core rebuild): Level XP is a signed movement credited by the hunt settle, folded by addition. */
-export const ADDITIVE_SCALAR = Object.freeze(['gold', 'level_xp']);
-export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
-export const ABSOLUTE = Object.freeze([
-  'accrued_to', 'hp', 'fight', 'activity',
-  'ammo_carry',
-  /* where a window's work ended (1059-company-trades.sql): polls are contiguous, so the folded window's work ends where its last
-     poll's did, and hr_apply spends the hero's day from the fence's mark up to it. */
-  'work_to',
-]);
-export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
-/* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last
-   window wins" ENTRY BY ENTRY. `xp_frac` (2026-10-09-xp-frac-carry.sql) carries
-   only the skills a window moved, so a whole-map last-wins would drop the
-   remainder of a skill an earlier window moved and a later one did not. */
-export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);
-
-export function foldDeltas(deltas) {
-  const out = {};
-  for (const d of deltas) {
-    if (!d) continue;
-    for (const k of Object.keys(d)) {
-      const v = d[k];
-      if (k === 'journal') continue;                     // folded separately below
-      if (ADDITIVE_SCALAR.includes(k)) { out[k] = (out[k] || 0) + Number(v || 0); continue; }
-      if (ADDITIVE_MAP.includes(k)) {
-        const m = out[k] || (out[k] = {});
-        for (const id of Object.keys(v || {})) m[id] = (m[id] || 0) + Number(v[id] || 0);
-        continue;
-      }
-      if (ABSOLUTE.includes(k)) { out[k] = v; continue; }
-      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }
-      if (APPEND.includes(k)) {
-        const a = out[k] || (out[k] = []);
-        if (Array.isArray(v)) a.push(...v); else a.push(v);
-        continue;
-      }
-      /* FAIL LOUD. An unclassified key is exactly the failure this file
-         exists to prevent: hr_apply refuses an unknown key with a 409, and a
-         fold that silently dropped one would make the shadow comparison agree
-         with a delta the database would have rejected. */
-      throw new Error(`foldDeltas: unclassified delta key "${k}" — classify it in contract.js`);
-    }
-  }
-  /* Zeroed additive keys are DELETED, not kept at 0: accrual.js only emits
-     `gold`/`xp`/`items` when non-empty, so keeping a 0 would make a byte
-     comparison against the single-span delta fail for a non-reason. */
-  for (const k of ADDITIVE_SCALAR) if (out[k] === 0) delete out[k];
-  for (const k of ADDITIVE_MAP) {
-    if (!out[k]) continue;
-    for (const id of Object.keys(out[k])) if (out[k][id] === 0) delete out[k][id];
-    if (Object.keys(out[k]).length === 0) delete out[k];
-  }
-  return out;
-}
-
-/* ── RULE 2b: PROGRESS OPS COALESCE, ONE IMPLEMENTATION (2026-10-08) ────────
-   `progress` is APPEND under the fold law, and that is what overflows hr_apply:
-   `c_max_progress_ops constant int := 64` and `c_max_progress_add constant
-   bigint := 1000000` (2026-09-14-hr-apply-restatement.sql :316-317) are per
-   CALL, and ONE 90 s gather window at the 10 s cadence files ~6 ops per poll —
-   46, or 55 with a utility pet (Security, measured on set/b566). One more
-   per-poll op, or a flush past ~110 s, would refuse every window of that
-   character. So EVERY tick settle (single window, S4 fold, combat flush)
-   coalesces through this ONE function before the fence; it used to be two
-   (gather's fold-only `coalesceProgress`, combat's `foldProgressOps`) with
-   different state rules.
-
-   WHY IT IS THE SAME WRITE. hr_apply's progress loop applies each op, in
-   order, against the row keyed (kind, key, period_key):
-       value = value + add
-       state = case when claimed then claimed else coalesce(op.state, state) end
-   and journals progress in the ledger only as the KEY NAME `progress` (meta
-   `k`), never per op. So a run of consecutive ops on one row with the SAME
-   `state` lands exactly what one op carrying their summed `add` lands. The
-   rules that keep it exact, each a mutant in tests/progress-coalesce.mjs:
-     · the merge key is (kind, key, period) — a daily op's period is its UTC
-       day, so two days never merge, and two different keys never do;
-     · an op merges only into the LATEST entry for its row, and only if their
-       `state` is identical: a state change starts a new entry, so the per-row
-       state sequence (and so the final state) is preserved exactly;
-     · an op merges only while the sum stays within c_max_progress_add: past it
-       a new entry starts, so a coalesced op is never refused where the ops it
-       replaced would have been accepted;
-     · every `add` must be a non-negative safe integer and every op key one of
-       kind/key/period/add/state, or it THROWS — hr_apply would refuse either,
-       and a guess here would be a counter silently changed;
-     · first-seen order. Distinct rows are independent; one row's entries keep
-       their relative order.
-   ONE op on its own is returned as a copy, unchanged. */
-export const MAX_PROGRESS_OPS = 64;
-export const MAX_PROGRESS_ADD = 1000000;
-const PROGRESS_OP_KEYS = Object.freeze(['kind', 'key', 'period', 'add', 'state']);
-
-export function coalesceProgress(ops) {
-  const out = [];
-  const latest = new Map();
-  for (const op of ops || []) {
-    if (!op || typeof op !== 'object' || Array.isArray(op)) {
-      throw new Error('coalesceProgress: a progress op is not an object');
-    }
-    for (const k of Object.keys(op)) {
-      if (!PROGRESS_OP_KEYS.includes(k)) {
-        throw new Error(`coalesceProgress: unknown progress-op key "${k}" — classify it before folding`);
-      }
-    }
-    const add = Number(op.add ?? 0);
-    if (!Number.isSafeInteger(add) || add < 0) {
-      throw new Error(`coalesceProgress: progress add ${JSON.stringify(op.add)} is not a non-negative integer`);
-    }
-    const id = `${op.kind}\u0000${op.key}\u0000${op.period ?? ''}`;
-    const prev = latest.get(id);
-    if (prev && (prev.state ?? null) === (op.state ?? null) && prev.add + add <= MAX_PROGRESS_ADD) {
-      prev.add += add;
-      continue;
-    }
-    const copy = Object.assign({}, op, { add });
-    latest.set(id, copy);
-    out.push(copy);
-  }
-  return out;
-}
-
-/* ── RULE 3: WHAT A TICK IS ALLOWED TO BE COMPARED ON ───────────────────────
-   The value summary. Deliberately NOT the whole delta: the journal's `meta.ms`
-   and `meta.ticks` are per-call aggregates and a 60-window night journals 60
-   rows' worth of meta that one call states once. Folding those is a reporting
-   decision (see the design doc's journalling section), not a parity fact.
-   Everything a player can SPEND or RANK on is here. */
-export function valueSummary(res) {
-  if (!res || !res.accrued) return { accrued: false, reason: (res && res.reason) || null };
-  const s = res.summary || {};
-  const d = res.delta || {};
-  return {
-    accrued: true,
-    gold: Number(d.gold || 0),
-    xp: sortedMap(d.xp),
-    items: sortedMap(d.items),
-    hp: Number(d.hp || 0),
-    fight: d.fight || null,
-    kills: Number(s.kills || 0),
-    ticks: Number(s.ticks || 0),
-    crits: Number(s.crits || 0),
-    deaths: Number(s.deaths || 0),
-    foodEaten: Number(res.foodEaten || 0),
-  };
-}
-
-/* Time only. The half of parity that decomposition CAN satisfy today without
-   an engine seam, and the half the alignment rule is there to protect. */
-export function timeSummary(res) {
-  const s = (res && res.summary) || {};
-  return {
-    ticks: Number(s.ticks || 0),
-    recoverMs: Number(s.recoverMs || 0),
-    grantMs: Number((res && res.grantMs) || 0),
-  };
-}
-
-function sortedMap(m) {
-  const out = {};
-  for (const k of Object.keys(m || {}).sort()) out[k] = Number(m[k] || 0);
-  return out;
-}
-
-export function addTime(a, b) {
-  return {
-    ticks: a.ticks + b.ticks,
-    recoverMs: a.recoverMs + b.recoverMs,
-    grantMs: a.grantMs + b.grantMs,
-  };
-}
-
-export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
-
 /* ── RULE 4: WHAT THE CHAIN CARRIES BETWEEN FLUSH WINDOWS (2026-09-23) ───────
-   Rules 1-3 decompose a span INSIDE one call. This rule is about the seam
-   BETWEEN two calls, and it is the one shadow mode gets wrong on production.
+   This rule is about the seam BETWEEN two calls, and it is the one shadow mode
+   gets wrong on production.
 
    Armed, the carrier is the database: hr_apply writes `hp`, `fight`,
    the counters and the bag, and the next fire's
@@ -288,8 +47,8 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
    the parity harness hold between windows — and reads it back.
 
    ── WHAT IS CARRIED, AND WHY EACH ONE HAS TO BE ────────────────────────────
-   ABSOLUTE (the ABSOLUTE list above, minus `accrued_to` which the fence's own
-   `shadow_accrued_to` already chains):
+   ABSOLUTE, a checkpoint the later window supersedes (`accrued_to` is not
+   carried: the fence's own `shadow_accrued_to` already chains it):
      hp                a window that starts at the row's hp re-fights from full
      fight             every window restarts the foe at full HP: kills inflate
      ammo_carry        the sub-action remainder is forfeit every window
@@ -407,7 +166,7 @@ export function shadowStateOf(char, opts) {
   if (chain.activity) st.activity = chain.activity;
   if (chain.gold) st.gold = Math.floor(chain.gold);
   if (xp) st.xp = xp;
-  /* THE XP REMAINDER, a checkpoint per skill (ABSOLUTE_MAP), so a shadow chain
+  /* THE XP REMAINDER, a checkpoint per skill (each skill its own), so a shadow chain
      does not restart every skill's carry at the row's value on each fire. */
   if (chain.xpFrac && Object.keys(chain.xpFrac).length) {
     if (Object.keys(chain.xpFrac).length > MAX_SHADOW_XP_KEYS) return null;

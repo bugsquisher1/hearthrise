@@ -322,18 +322,6 @@ export async function coreAnchorGuard() {
     if (prog.grantXp({ skills: { mining: 200 } }, 'mining', 1, { authored: true }).events.length) {
       problems.push('a grant that crosses no threshold must emit no event');
     }
-    /* the deterministic tool carry: 10 actions of a 10% tool = exactly 1 bonus */
-    const carry = {};
-    let bonusUnits = 0;
-    for (let i = 0; i < 10; i++) {
-      const r = prog.resolveGatherAction({ req: 1, qty: [1, 1], prod: 'log', xp: 10 },
-        { skillId: 'woodcutting', level: 1, toolCarry: carry, toolDouble: 0.1, rng: createRng(1) });
-      bonusUnits += r.toolDoubles;
-    }
-    if (bonusUnits !== 1) problems.push(`a 10% tool over 10 actions must pay exactly 1 bonus, paid ${bonusUnits}`);
-    const gated = prog.resolveGatherAction({ req: 50, qty: [1, 1], prod: 'log', xp: 10 },
-      { skillId: 'woodcutting', level: 1, rng: createRng(1) });
-    if (gated.ok !== false || gated.reason !== 'level') problems.push('the level gate no longer stops an action');
 
     /* ── Combat XP routing (core rebuild 2026-10-19; styles.js deleted) ──
        A blow pays the WEAPON FAMILY's skill (Melee or Ranged; magic pays by mana
@@ -346,17 +334,8 @@ export async function coreAnchorGuard() {
     if (sk.DAMAGE_XP_FAMILIES.includes('magic')) problems.push('a magic blow pays damage XP: Magic trains by mana spent, never by damage');
     if (['attack', 'strength', 'hitpoints'].some((k) => sk.SKILLS_DEF[k])) problems.push('a deleted skill (attack/strength/hitpoints) is back in SKILLS_DEF');
 
-    /* ── Phase A: the artisan bench ───────────────────────────────────── */
+    /* ── The Hearth's fuel run (the bench and gathering left with the one-town-work cut) ── */
     const art = await load('artisan.js');
-    const shrimp = { id: 'cook_shrimp', req: 1, xp: 100, input: 'shrimp', output: 'cooked_shrimp' };
-    if (art.burnChance(shrimp, 1, 0) !== 0.25) problems.push('the open-fire burn rate drifted from 25%');
-    if (Math.abs(art.burnChance(shrimp, 1, 0.13) - 0.12) > 1e-9) problems.push('Kitchen L1 no longer buys 12%');
-    if (art.burnChance(shrimp, 26, 0) !== 0) problems.push('25 levels of mastery must burn-proof the open fire');
-    if (art.burnChance(shrimp, 1, 0.25) !== 0) problems.push('Kitchen L3 must be burn-proof');
-    if (art.burnXp(shrimp) !== 25) problems.push('a burn must pay the 25% consolation share');
-    if (art.burnXp({ xp: 1 }) !== 1) problems.push('a burn must never pay 0 XP');
-    if (art.KITCHEN_NO_BURN.length !== 5) problems.push('the Kitchen ladder is no longer 5 rungs');
-
     /* Both recipe dialects read by ONE reader. */
     if (JSON.stringify(art.recipeInputs({ input: 'ore', inputQty: 3, secondary: { coal: 2 } })) !== '{"ore":3,"coal":2}') {
       problems.push('the legacy input+secondary dialect is no longer understood');
@@ -364,58 +343,24 @@ export async function coreAnchorGuard() {
     if (art.missingInput({ inputs: { ore: 3 } }, { ore: 2 }) !== 'ore') problems.push('missingInput must name the shortfall');
     if (art.missingInput({ inputs: { ore: 3 } }, { ore: 3 }) !== null) problems.push('an affordable recipe must report no shortfall');
 
-    const catalogue = { cooked_shrimp: { n: 'Cooked Shrimp' }, plate: { n: 'Platebody', type: 'armor' }, bar: { n: 'Bar' } };
-    if (!art.isMaterialOutput({ output: 'bar' }, catalogue)) problems.push('a bar is a material output');
-    if (art.isMaterialOutput({ output: 'plate' }, catalogue)) problems.push('THE MATERIAL-ONLY YIELD LAW broke — equipment must never take a yield roll');
-
-    /* Real rng objects, not hand-rolled stubs: the chance(0)/chance(1)
-       absorbing cases are part of the contract and a stub that ignores them
-       would test a generator the engine never sees. */
-    const { rngFrom } = await load('rng.js');
-    const always = rngFrom(() => 0);        // worst-case roll: everything fires
-    const never = rngFrom(() => 0.999);     // best-case roll: nothing fires
-    const burnt = art.resolveArtisanAction(shrimp, {
-      skillId: 'cooking', inventory: { shrimp: 5 }, items: catalogue,
-      cookingLevel: 1, noBurn: 0, bonus: () => 0, rng: always,
-    });
-    if (!burnt.ok || !burnt.burnt) problems.push('a forced roll on an open fire must burn');
-    if (burnt.produced.id !== art.BURNT_ITEM || burnt.consumed.shrimp !== 1) problems.push('a burn must cost the ingredient and pay carbon');
-    if (burnt.progress.length) problems.push('a burn must never tick a cook goal');
-    if (burnt.xpAmount !== 25) problems.push('a burn must pay the consolation XP');
-
-    const cooked = art.resolveArtisanAction(shrimp, {
-      skillId: 'cooking', inventory: { shrimp: 5 }, items: catalogue,
-      cookingLevel: 1, noBurn: 0, bonus: () => 0, rng: never,
-    });
-    if (cooked.burnt || cooked.produced.qty !== 1 || cooked.xpAmount !== 100) problems.push('a successful cook drifted');
-    if (cooked.stats.cooked !== 1 || cooked.progress[0] !== 'cooked') problems.push('a successful cook must tick BOTH the stat and the daily/quest key');
-
-    const short = art.resolveArtisanAction(shrimp, { skillId: 'cooking', inventory: {}, items: catalogue, bonus: () => 0, rng: never });
-    if (short.ok !== false || short.reason !== 'inputs' || short.missing !== 'shrimp') problems.push('an empty bag must stop the bench and name the ingredient');
-    const locked = art.resolveArtisanAction({ id: 'x', xp: 1, inputs: {}, output: 'bar', gated: 'pattern' },
-      { skillId: 'crafting', inventory: {}, unlockedRecipes: {}, items: catalogue, bonus: () => 0, rng: never });
-    if (locked.reason !== 'gate') problems.push('a gated recipe must report the gate');
-
-    /* craftSave is scoped to the crafting bench AND to material outputs. */
-    const saveCtx = (skill, output) => art.resolveArtisanAction(
-      { id: 'r', xp: 10, inputs: { bar: 2 }, output },
-      { skillId: skill, inventory: { bar: 9 }, items: catalogue, bonus: (k) => (k === 'craftSave' ? 1 : 0), rng: never });
-    if (saveCtx('crafting', 'bar').saved !== true) problems.push('a 100% Lathe must save the inputs');
-    if (Object.keys(saveCtx('crafting', 'bar').consumed).length) problems.push('a saved craft must consume nothing');
-    if (saveCtx('smithing', 'bar').saved !== false) problems.push('craftSave must not leak onto the forge');
-    if (saveCtx('crafting', 'plate').saved !== false) problems.push('craftSave must not fire on equipment (H6)');
-
-    /* The artisan tool carry: 10 crafts of a 10% tool pay exactly 1 extra. */
-    const aCarry = {};
-    let aBonus = 0;
-    for (let i = 0; i < 10; i++) {
-      const r = art.resolveArtisanAction({ id: 'r', xp: 10, inputs: { bar: 1 }, output: 'bar' }, {
-        skillId: 'smithing', inventory: { bar: 99 }, items: catalogue,
-        bonus: () => 0, toolCarry: aCarry, toolDouble: 0.1, rng: never,
-      });
-      aBonus += r.toolDoubles;
+    const fuel = await load('artisan-sim.js');
+    const bones = { id: 'fuel_bones', input: 'bones', output: null, xp: 40, req: 1, ms: 400 };
+    const idx = fuel.indexFuelRuns({ inner_flame: [bones], smithing: [{ id: 'smelt_bar', input: 'ore', output: 'bar', xp: 1, ms: 1 }] });
+    if (!idx.fuel_bones || idx.smelt_bar) problems.push('the fuel index must hold the fuel run and no bench row');
+    /* Seven bones, a whole day: seven actions, the stop names the fuel, the pool is the bag then Storage. */
+    const spent = {};
+    const st = { skillTargetId: 'fuel_bones', skills: {}, inventory: { bones: 3 }, supply: { bones: 7 } };
+    const sum = fuel.simulateFuelSpan(st, { fromMs: 0, toMs: 86400000, recipes: idx, bonus: () => 0,
+      fx: { removeItem: (id, n) => { spent[id] = (spent[id] || 0) + n; st.supply[id] -= n; } } });
+    if (sum.ticks !== 7 || spent.bones !== 7) problems.push(`seven bones must burn in seven actions, ran ${sum.ticks} and burnt ${spent.bones}`);
+    if (sum.stoppedBy !== 'supplies' || sum.stoppedById !== 'bones') problems.push('a run out of fuel must stop and name the fuel');
+    /* The degrade ladder's budget halves the work, and is not the run's end. */
+    const half = fuel.simulateFuelSpan({ skillTargetId: 'fuel_bones', skills: {}, inventory: { bones: 9 } },
+      { fromMs: 0, toMs: 86400000, recipes: idx, bonus: () => 0, maxActions: 4, fx: {} });
+    if (half.ticks !== 4 || half.stoppedBy !== 'budget') problems.push('a budget of 4 must run 4 actions and stop BUDGET');
+    if (fuel.simulateFuelSpan({ skillTargetId: 'smelt_bar' }, { fromMs: 0, toMs: 1000, recipes: idx }).stoppedBy !== 'unknown_recipe') {
+      problems.push('a bench row must not resolve as a fuel run');
     }
-    if (aBonus !== 1) problems.push(`a 10% artisan tool over 10 crafts must pay exactly 1 extra, paid ${aBonus}`);
 
     const toolsMod = await load('tools.js');
     const toolItems = {

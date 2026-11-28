@@ -3,16 +3,19 @@
 // tests/perk-channel.mjs — the PERMANENT PERK CHANNEL, end to end, EXECUTED.
 //
 // THE CLAIM UNDER TEST, in one line: an unlock row written to the database
-// reaches `burnChance` in the accrual engine with the same magnitude the
-// player's own client computes, and nothing else does.
+// reaches the accrual engine's bonus function with the same magnitude the
+// player's own client computes, and nothing else does. (It was the Kitchen's
+// `noBurn` reaching `burnChance`; the bench and its burn left with the
+// one-town-work cut, so the rate it is measured on is the Shrine's `flameSpeed`,
+// the one rate perk a server-priced town run still spends: the Hearth's fuel.)
 //
 // Every step of that chain runs for real:
 //   player_progress row        (real table, real migration)
 //     → public.hr_unlock_levels  (the seam, real SQL)
 //     → public.hr_perks_of       (real SECURITY DEFINER function)
 //     → normalisePerkState       (real src/core/perks.js)
-//     → makeBonus('noBurn')      (real, shared with the client)
-//     → burnChance()             (real src/core/artisan.js)
+//     → makeBonus('flameSpeed')  (real, shared with the client)
+//     → fuelIntervalMs()         (real src/core/artisan-sim.js)
 //
 // PostgreSQL is real too — PGlite/WASM, PG 18, in process, with the migration
 // files applied verbatim. The only scaffolding is tests/sql/pglite-fixture.sql
@@ -52,7 +55,7 @@ import {
   EMPTY_PERKS, PERMANENT_CAP, GOVERNED,
   normalisePerkState, permanentBonus, makeBonus, clampPermanent,
 } from '../src/core/perks.js';
-import { burnChance, BURN_BASE } from '../src/core/artisan.js';
+import { fuelIntervalMs } from '../src/core/artisan-sim.js';
 import { zeroBonus, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { bonusFor } from '../src/core/member.js';
 import { huntAccrual } from './hunt-fixture.mjs';
@@ -100,6 +103,8 @@ const USER = '00000000-0000-4000-b000-9e9e9e9e9e9e';
 let problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 const near = (a, b) => Math.abs(a - b) < 1e-9;
+/* The Hearth's fuel run the rate arms price (src/data/recipes.js inner_flame's bones row: 400 ms authored). */
+const BONES = { id: 'fuel_bones', input: 'bones', output: null, xp: 40, req: 1, ms: 400 };
 
 async function boot(patch) {
   let PGlite;
@@ -224,30 +229,26 @@ async function run(patch) {
     const bEmpty = bonusFor(null);
     ok(ALL_KEYS.every((k) => bEmpty(k) === 0),
       'P1: bonusFor(null) is not inert — a database with no perk channel would not degrade');
-    ok(burnChance({ req: 10 }, 10, b('noBurn')) === BURN_BASE,
-      'P1: a perkless character does not burn at the base rate');
+    ok(fuelIntervalMs('inner_flame', BONES, { bonus: b }) === fuelIntervalMs('inner_flame', BONES, { bonus: zeroBonus }),
+      'P1: a perkless character does not fuel at the base rate');
   }
 
-  // ── P2 · THE ONE THAT BLOCKS ARTISAN: noBurn, rung by rung ────────────
-  // Measured expectations, from src/core/artisan.js: BURN_BASE 0.25 minus the
-  // Kitchen's noBurn, at the recipe's REQUIRED level (no mastery relief).
-  const KITCHEN_BURN = [
-    [0, 0.25],   // no Kitchen — what the server does today
-    [1, 0.12],
-    [2, 0.06],
-    [3, 0.00],
-    [4, 0.00],
-    [5, 0.00],
-  ];
-  for (const [rung, expected] of KITCHEN_BURN) {
+  // ── P2 · THE RATE A SERVER-PRICED RUN SPENDS: flameSpeed, rung by rung ──
+  // Measured expectations, from src/core/perks.js ROOM_PERKS.shrine: the Shrine's
+  // rung read back through the database is the client's own, and the fuel run's
+  // interval falls with it (each rung strictly faster than the one below).
+  let lastMs = Infinity;
+  for (let rung = 0; rung <= ROOM_PERKS.shrine.length; rung++) {
     await db.query('delete from public.player_progress where user_id=$1', [USER]);
-    if (rung > 0) await grantUnlocks(db, { 'room:kitchen': rung });
+    if (rung > 0) await grantUnlocks(db, { 'room:shrine': rung });
     const env = await perksOf(db);
     const b = makeBonus(env);
-    const got = burnChance({ req: 10 }, 10, b('noBurn'));
-    ok(near(got, expected),
-      `P2: Kitchen ${rung} burns at ${got} — expected ${expected}. The server would ${
-        got > expected ? 'DESTROY' : 'wrongly protect'} input the client would not.`);
+    const expected = rung > 0 ? ROOM_PERKS.shrine[rung - 1].flameSpeed : 0;
+    ok(near(b('flameSpeed'), expected),
+      `P2: Shrine ${rung} reads flameSpeed ${b('flameSpeed')} back from the database, expected ${expected}`);
+    const ms = fuelIntervalMs('inner_flame', BONES, { bonus: b });
+    ok(ms < lastMs, `P2: Shrine ${rung} fuels at ${ms} ms, no faster than the rung below (${lastMs} ms)`);
+    lastMs = ms;
   }
 
   // ── P3 · THE ROUND TRIP CARRIES EVERY ROOM, AT EVERY RUNG ─────────────
@@ -440,7 +441,7 @@ async function run(patch) {
         defense: xpForLevel(99), hitpoints: xpForLevel(99),
       },
       equipment: {}, inventory: {},
-      items: ITEMS, monsters: MONSTERS, nodes: {},
+      items: ITEMS, monsters: MONSTERS,
       /* THE SERVER OWNS THE REMAINDER COLUMN (2026-10-09-xp-frac-carry.sql):
          the projection hands the engine a map, so grantXp carries. Without it
          the engine keeps the pre-column per-grant floor. */
@@ -478,12 +479,12 @@ async function run(patch) {
        12 h Hearth night. Rung 4 must out-fuel rung 1, and rung 1 must out-fuel
        none, or the perk state reaches the bonus function and the engine drops it. */
     {
-      const { GATHER_NODES, ARTISAN_RECIPES_ALL } = await import('../supabase/functions/hr-accrue/catalogue.js');
+      const { FUEL_RUNS } = await import('../supabase/functions/hr-accrue/catalogue.js');
       const a = {
-        ...base, activeKind: 'artisan', activeId: 'fuel_bones', nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
-        skills: { ...base.skills, inner_flame: xpForLevel(99) }, inventory: { bones: 1e6 }, unlockedRecipes: {},
+        ...base, activeKind: 'artisan', activeId: 'fuel_bones', recipes: FUEL_RUNS,
+        skills: { ...base.skills, inner_flame: xpForLevel(99) }, inventory: { bones: 1e6 },
       };
-      ok(!!ARTISAN_RECIPES_ALL.fuel_bones, 'P9-S: no fuel_bones recipe, the Hearth night has no anchor');
+      ok(!!FUEL_RUNS.fuel_bones, 'P9-S: no fuel_bones run, the Hearth night has no anchor');
       const sumXp = (x) => Object.values((x.delta && x.delta.xp) || {}).reduce((p, q) => p + q, 0);
       const shrine = (n) => computeAccrual({ ...a, perks: { ok: true, rooms: { shrine: n }, propertyTier: 0 } });
       const s0 = computeAccrual({ ...a, perks: null }), s1 = shrine(1), s4 = shrine(4);
@@ -663,6 +664,6 @@ if (isMain(import.meta.url)) {
     for (const p of ps) console.log('  x ' + p);
     process.exit(1);
   }
-  console.log('Perk channel guard — an unlock row reaches burnChance with the client\'s own '
+  console.log('Perk channel guard — an unlock row reaches the engine\'s bonus with the client\'s own '
     + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
 }

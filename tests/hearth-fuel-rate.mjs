@@ -60,8 +60,8 @@ function fuel(M, n, frac, ms = 3600000, item = 'bones') {
     userId: UID, slot: 0, nowMs: FROM + ms, accruedToMs: FROM, activeSinceMs: FROM,
     activeKind: 'artisan', activeId: 'fuel_' + item, capMs: 12 * 3600000, seed: 7,
     hp: 150, maxHp: 150, gold: 0, skills: { inner_flame: 0 }, xpFrac: frac === undefined ? {} : { inner_flame: frac },
-    equipment: {}, inventory: { [item]: n }, toolCarry: {}, perks: null, unlockedRecipes: {},
-    items: M.ITEMS, monsters: M.MONSTERS, nodes: M.CAT.GATHER_NODES, recipes: M.CAT.ARTISAN_RECIPES_ALL,
+    equipment: {}, inventory: { [item]: n }, perks: null,
+    items: M.ITEMS, monsters: M.MONSTERS, recipes: M.CAT.FUEL_RUNS,
   });
 }
 

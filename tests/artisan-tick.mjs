@@ -32,7 +32,7 @@
 //   A-FUSE     600 heroes who worked a bench and left, and who gathered and left, each still holding an owned row:
 //              a new bench hero is enrolled and paid by the tick (2027-02-20-tick-fuse-load.sql; the fuse counted
 //              rows nothing ever released).
-//   A-FUSE-GATHER  the same for a new gatherer of an account outside the old 10 % bucket, past the old fuse of 20.
+//   (A-FUSE-GATHER, the same for a new gatherer, retired with the gather channel: the one-town-work cut.)
 //   A-FUSE-HOLDS   the fuse still bites on real load: with the channel at max_owned, the next fresh hero waits.
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -48,7 +48,6 @@ const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const FN = 'supabase/functions/hr-accrue';
 const MIG = '2027-02-10-artisan-tick.sql';
 const RECIPE = 'fuel_bones';
-const GATHER = 'normal_tree';
 const FUSE = '2027-02-20-tick-fuse-load.sql';
 const FUSE_LOCK = ["     <> '7cd2e9f8f1635fbb08e536714a77aa38' then", '     is null then'];
 const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
@@ -250,29 +249,6 @@ async function arms(db, tick, setActivity) {
     `600 owned rows of heroes who left hold no slot: a new bench hero is enrolled and paid (${fbb.bones - fba.bones} bones, one row)`,
     `a new bench hero went unticked past the rows nothing releases: ${js({ fbb, fba, rows: fbRows.length, fire: fbFire }).slice(0, 500)}`);
 
-  /* The gatherer: an account outside the old 10 % bucket, browser closed, fresh. */
-  let gu = nextUid();
-  while (await one(db, 'select public.hr_tick_cohort_bucket($1::uuid) < 100', [gu])) gu = nextUid();
-  await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [gu]);
-  await db.query("insert into public.profiles (id, display_name) values ($1, $2) on conflict (id) do update set display_name = excluded.display_name", [gu, 'Woodsman ' + seq]);
-  const gh = await as(db, gu, 'select public.hr_create_hero(0, $1, $2::jsonb, $3::uuid)',
-    ['Woodsman' + String.fromCharCode(97 + (seq % 26)) + String.fromCharCode(97 + Math.floor(seq / 26) % 26), COLORS, idem()]);
-  if (!gh || gh.ok !== true) throw Object.assign(new Error('gatherer hr_create_hero refused: ' + js(gh)), { harness: true });
-  await db.query(`update public.player_state set active_kind = 'gather', active_id = $2, active_since = now(), accrued_to = now(), last_seen_at = null
-                   where user_id = $1 and slot = 0`, [gu, GATHER]);
-  await db.query('select public.hr_tick_enrol(200)');
-  await db.query(`update public.player_state set active_since = active_since - interval '10 minutes', accrued_to = accrued_to - interval '10 minutes'
-                   where user_id = $1 and slot = 0`, [gu]);
-  await db.query(`update public.hr_return_anchor set real_return_at = real_return_at - interval '10 minutes' where user_id = $1 and slot = 0`, [gu]);
-  const gOwned = await one(db, "select count(*)::int from public.hr_tick_ownership where user_id = $1 and slot = 0 and channel = 'gather' and owned", [gu]);
-  const gMark = await one(db, 'select accrued_to from public.player_state where user_id = $1 and slot = 0', [gu]);
-  const gFire = await fire(db, tick, [gu]);
-  const gMark2 = await one(db, 'select accrued_to from public.player_state where user_id = $1 and slot = 0', [gu]);
-  const gRows = (await db.query("select meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'gather' order by id", [gu])).rows.map((r) => r.meta);
-  arm('A-FUSE-GATHER', gOwned === 1 && gRows.length === 1 && gRows[0].src === 'tick' && Date.parse(gMark2) > Date.parse(gMark),
-    `a gatherer outside the old 10 % bucket, past the old fuse of 20, is enrolled and settled by the tick (one row, watermark +${Date.parse(gMark2) - Date.parse(gMark)} ms)`,
-    `an absent gatherer went unticked: ${js({ gOwned, gRows, gMark, gMark2, fire: gFire }).slice(0, 500)}`);
-
   /* ── A-FUSE-HOLDS: the dial is still a fuse: at max_owned heroes on the channel the next fresh hero waits. ── */
   const coh0 = (await db.query("select max_owned from public.hr_tick_cohort where channel = 'artisan'")).rows[0].max_owned;
   const load = await one(db, `select count(*)::int from public.hr_tick_ownership o join public.player_state ps using (user_id, slot)
@@ -297,8 +273,6 @@ async function prepare(db) {
   await db.query("insert into public.hr_flags (key, enabled, note) values ('town_presence', true, 'artisan-tick') on conflict (key) do update set enabled = true");
   /* the replay lands the tick DISABLED (production runs it); the channels and arm are the migration's */
   await db.query('update public.hr_tick_config set enabled = true where id');
-  /* gather is armed on production by its own excluded file; a rebuilt database comes back with it disarmed */
-  await db.query("update public.hr_tick_config set armed_channels = (select array_agg(distinct x) from unnest(armed_channels || 'gather'::text) x) where id");
 }
 
 const JS_MUTANTS = [
@@ -340,9 +314,6 @@ const SQL_MUTANTS = [
       `      from public.hr_tick_ownership o
      where o.channel = v_c.channel and o.owned;`], FUSE_LOCK,
       ["        raise exception 'tick-fuse-load §4 k3 (%)", "        raise notice 'tick-fuse-load §4 k3 (%)"]] },
-  { id: 'gather_dial_left', arm: 'A-FUSE-GATHER', file: FUSE, why: 'gather stays at stage 1: 10 % of accounts, fused at 20',
-    edits: [[" where channel = 'gather' and permille = 100 and max_owned = 20;", ' where false;'],
-      ["  if exists (select 1 from public.hr_tick_cohort where channel = 'gather' and permille = 100 and max_owned = 20)\n     or exists", '  if exists']] },
   { id: 'no_fuse', arm: 'A-FUSE-HOLDS', file: FUSE, why: 'the fuse stops biting at all',
     edits: [['      v_room := least(v_c.max_owned - v_have, v_limit);', '      v_room := v_limit;'], FUSE_LOCK,
       ["        raise exception 'tick-fuse-load §4 k4 (%)", "        raise notice 'tick-fuse-load §4 k4 (%)"]] },

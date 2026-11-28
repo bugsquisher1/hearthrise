@@ -65,11 +65,12 @@
 // a solo fight is a hunt session, settled from the `hunts` cohort only.
 // EC-4a now drives the shipped `runTick` over a level-61 fighter on the combat
 // channel and requires it skipped `channel_not_driven` on two fires with no
-// shadow and no ledger row; EC-4b requires gather to still settle through the
-// same dispatch; EC-4c pins the old spelling as still refused by the fence;
-// EC-4d reads `hr_tick_config_channels_ck` out of the catalogue and requires
-// every channel it admits to be DRIVEN or DECLARED-UNDRIVEN (combat now the
-// latter), so the roster can never lease what the edge cannot settle. EC-4e
+// shadow and no ledger row; EC-4b requires the artisan channel (the Hearth's fuel
+// run; gather until the one-town-work cut) to still settle through the same
+// dispatch; EC-4c pins a wrong channel as still refused by the fence; EC-4d
+// reads `hr_tick_config_channels_ck` out of the catalogue and requires every
+// channel it admits to be DRIVEN or DECLARED-UNDRIVEN (combat and gather now
+// the latter), so the roster can never lease what the edge cannot settle. EC-4e
 // (the displaced second solo window) went with the channel. The hunt cohort
 // is driven through runTick on this transport by tests/hunt-sessions-settle.mjs
 // TICK-0. The 2026-09-23 proof below describes the S-8 arms as they stood.
@@ -313,9 +314,9 @@ if (failures.length) {
 
 let ACT;
 try {
-  ACT = (await db.query("select activity_id from public.hr_activities where kind = 'gather' limit 1"))
+  ACT = (await db.query("select activity_id from public.hr_activities where kind = 'artisan' and activity_id = 'fuel_bones'"))
     .rows[0]?.activity_id;
-  if (!ACT) { console.error('no gather activity — nothing to point a probe character at'); process.exit(2); }
+  if (!ACT) { console.error('no fuel_bones run — nothing to point a probe character at'); process.exit(2); }
 
   // ── EC-1 ── THE DRIVER CONTRACT ─────────────────────────────────────────
   // tick.js tickOne:
@@ -370,12 +371,14 @@ try {
       insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
       values ('${u}', 0, 10, 1, now() - interval '10 minutes',
-              'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+              'artisan', '${ACT}', now() - interval '2 hours')
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'artisan', active_id = '${ACT}';`);
+    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${u}', 0, 'bones', 500)
+      on conflict (user_id, slot, item_id) do update set qty = 500;`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
-      values ('${u}', 0, 'gather', true, 'proofs', now() + interval '5 minutes');`);
+      values ('${u}', 0, 'artisan', true, 'proofs', now() + interval '5 minutes');`);
     await db.exec('update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;');
 
     const probe = async (nowSpelling) => {
@@ -383,7 +386,7 @@ try {
       let out;
       try {
         out = (await db.query(
-          `select public.hr_tick_settle('proofs', $1::uuid, 0, 'gather', null::bigint,
+          `select public.hr_tick_settle('proofs', $1::uuid, 0, 'artisan', null::bigint,
              '1970-01-01T00:00:00.000Z'::timestamptz, $2::timestamptz, $3::uuid,
              jsonb_build_object('accrued_to', $2::text)) as r`,
           [u, nowSpelling, KEY0])).rows[0].r;
@@ -409,12 +412,14 @@ try {
       insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
       values ('${u2}', 0, 10, 1, now() - interval '10 minutes',
-              'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+              'artisan', '${ACT}', now() - interval '2 hours')
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'artisan', active_id = '${ACT}';`);
+    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${u2}', 0, 'bones', 500)
+      on conflict (user_id, slot, item_id) do update set qty = 500;`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${u2}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
-      values ('${u2}', 0, 'gather', true, '${holder}', now() + interval '5 minutes');`);
+      values ('${u2}', 0, 'artisan', true, '${holder}', now() + interval '5 minutes');`);
 
     const execSeam = async (text, params) => {
       await db.exec('begin'); await db.exec('set local role hr_engine');
@@ -512,7 +517,7 @@ try {
     await db.exec(`update public.hr_tick_ownership set lease_until = now() - interval '1 minute'
                     where user_id = '${u}';`);
     const rosterSeed = (await db.query(
-      `select r.seed from public.hr_tick_roster(array['gather']::text[], 0, 200, 'proofs', 30000,
+      `select r.seed from public.hr_tick_roster(array['artisan']::text[], 0, 200, 'proofs', 30000,
                  null::timestamptz, null::uuid, null::int) r
         where r.user_id = $1::uuid and r.slot = 0`, [u])).rows[0]?.seed;
     const accrueSeed = (await db.query(
@@ -587,7 +592,7 @@ try {
   //
   // These arms drive the shipped `runTick` — not a re-implementation — against
   // the real fence, so reverting tick.js to the constant turns EC-4a red.
-  group('EC-4  the combat driver: a solo combat row is skipped by name (lane C2), a gather one still settles');
+  group('EC-4  the combat driver: a solo combat row is skipped by name (lane C2), an artisan one still settles');
   {
     const FIGHT_MONSTER = 'goblin';
     const XP_AT_61 = 302288;
@@ -652,11 +657,11 @@ try {
       } catch (e) { return { RAISED: String(e.message).slice(0, 160) }; }
     };
 
-    /* THE CHANNEL IS ARMED FOR THIS GUARD ONLY. Production stays `{gather}`
-       until Security lifts the ARM block; the point here is that the EDGE can
+    /* THE CHANNEL IS ADMITTED FOR THIS GUARD ONLY, and put back as it stood after; the point here is that the EDGE can
        settle what an armed roster would hand it, which is the precondition the
        arm is blocked on — not a recommendation to arm. */
-    await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
+    const channelsBefore = (await db.query('select channels from public.hr_tick_config where id')).rows[0].channels;
+    await db.exec("update public.hr_tick_config set channels = array['combat','artisan']::text[],"
       + ' enabled = true, armed_channels = array[]::text[] where id;');
 
     const uc = U(10);
@@ -689,8 +694,8 @@ try {
       + `${JSON.stringify(combatFire)} / ${JSON.stringify(combatFire2)}, ${shadowRows} shadow row(s), `
       + `ledger ${ledgerBefore} -> ${ledgerAfter}. A solo fight is priced only by the hunt settle.`);
 
-    /* THE GATHER PATH IS UNTOUCHED. The dispatch table is the change; the
-       channel that already worked must still work, or S-8's fix has traded one
+    /* THE ARTISAN PATH IS UNTOUCHED (the gather path until the one-town-work cut). The dispatch table is the
+       change; the channel that already worked must still work, or S-8's fix has traded one
        empty parity read for another. */
     const ug = U(11);
     await db.exec(`insert into auth.users (id) values ('${ug}') on conflict do nothing;`);
@@ -698,22 +703,24 @@ try {
       insert into public.player_state (user_id, slot, hp, version, accrued_to,
                                        active_kind, active_id, active_since)
       values ('${ug}', 0, 10, 1, now() - interval '10 minutes',
-              'gather', '${ACT}', now() - interval '2 hours')
-      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+              'artisan', '${ACT}', now() - interval '2 hours')
+      on conflict (user_id, slot) do update set version = 1, accrued_to = now() - interval '10 minutes', active_kind = 'artisan', active_id = '${ACT}';`);
+    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty) values ('${ug}', 0, 'bones', 500)
+      on conflict (user_id, slot, item_id) do update set qty = 500;`);
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${ug}';`);
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
-      values ('${ug}', 0, 'gather', true, '${holder}', now() + interval '5 minutes');`);
+      values ('${ug}', 0, 'artisan', true, '${holder}', now() + interval '5 minutes');`);
     await db.exec(`delete from public.hr_tick_shadow where user_id = '${ug}';`);
     const gatherFire = await fire(ug);
     const gRows = Number((await db.query(
       `select count(*) as n from public.hr_tick_shadow
-        where user_id = '${ug}' and channel = 'gather'`)).rows[0].n);
+        where user_id = '${ug}' and channel = 'artisan'`)).rows[0].n);
     judge('EC-4b', gatherFire.ok === true && gatherFire.shadowed === 1 && gRows === 1,
-      'and the gather path still reaches settleGatherSession through the same dispatch — '
+      'and the artisan path (the Hearth\'s fuel run) still reaches settleArtisanSession through the same dispatch — '
       + `${gRows} shadow row, fire ${JSON.stringify({ shadowed: gatherFire.shadowed, skipped: gatherFire.skipped, reasons: gatherFire.reasons })}`,
       `the dispatch broke the channel that already worked: ${JSON.stringify(gatherFire)}, `
-      + `${gRows} gather shadow rows`);
+      + `${gRows} artisan shadow rows`);
 
     /* ── EC-4c (control) — TODAY'S SHAPE, PINNED AS STILL WRONG ─────────────
        The defect was not "combat settled badly", it was "combat was asked
@@ -736,11 +743,11 @@ try {
       await db.exec('commit');
       return out;
     };
-    const asGather = await probeAs(uc, 'gather');
+    const asGather = await probeAs(uc, 'artisan');
     const asCombat = await probeAs(uc, 'combat');
     judge('EC-4c (control)', asGather.ok !== true && asGather.error !== 'window_already_settled'
         && asCombat.error === 'window_already_settled',
-      "the OLD spelling is still wrong: probing the combat character as 'gather' is refused "
+      "the OLD spelling is still wrong: probing the combat character under another channel ('artisan') is refused "
       + `\`${asGather.error}\` (no lease row on that channel), while its OWN channel reads the `
       + `watermark back (\`${asCombat.error}\`, accrued_to=${asCombat.accrued_to}). That pair is `
       + 'exactly why a hard-coded channel journalled nothing',
@@ -765,7 +772,8 @@ try {
       (c) => !driven.includes(c) && !declaredUndriven.includes(c));
     const undrivenNotAdmitted = declaredUndriven.filter((c) => !admitted.includes(c));
     judge('EC-4d', admitted.length > 0 && unaccounted.length === 0
-        && undrivenNotAdmitted.length === 0 && declaredUndriven.includes('combat') && driven.includes('gather'),
+        && undrivenNotAdmitted.length === 0 && declaredUndriven.includes('combat') && declaredUndriven.includes('gather')
+        && driven.includes('artisan'),
       `every channel the CHECK admits is accounted for — admitted [${admitted.join(', ')}], `
       + `driven [${driven.join(', ')}], declared undriven [${declaredUndriven.join(', ')}] `
       + '(an undriven channel is refused by name as `channel_not_driven`, never fenced under '
@@ -786,7 +794,7 @@ try {
 
     /* Leave the singleton as production holds it. A guard that arms a channel
        and walks away is a guard that changed the thing it measures. */
-    await db.exec("update public.hr_tick_config set channels = array['gather']::text[] where id;");
+    await db.query('update public.hr_tick_config set channels = $1::text[] where id', [channelsBefore]);
   }
 } finally {
   await db.close();

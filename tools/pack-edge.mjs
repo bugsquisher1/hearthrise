@@ -571,14 +571,14 @@ export async function versionQueryGuard() {
    writing a hostile file to disk. */
 export const TICK_MODULES = Object.freeze([
   'supabase/functions/hr-accrue/tick.js',
-  'supabase/functions/hr-accrue/tick-gather.js',
-  /* the artisan channel's settler (2026-10-29, lane/c-playtest-open): a town bench
-     run settled behind the same bearer gate; it reaches shadowTick, so it spells
-     the tick caller and must be fenced like gather's. */
+  /* the artisan channel's settler (2026-10-29, lane/c-playtest-open): the Hearth's
+     fuel run settled behind the same bearer gate; it reaches shadowTick, so it
+     spells the tick caller and is fenced. */
   'supabase/functions/hr-accrue/tick-artisan.js',
   /* (tick-combat.js, the solo combat channel's settler, was deleted with the
-     away model — a fight is a hunt session, settled by hunt-settle.js. T-F1g
-     pins the set by NAME.) */
+     away model — a fight is a hunt session, settled by hunt-settle.js; and
+     tick-gather.js with the gather channel, the one-town-work cut. T-F1g pins
+     the set by NAME.) */
   'supabase/functions/hr-accrue/tick-shadow.js',
   'supabase/functions/hr-accrue/tick-contract.js',
 ]);

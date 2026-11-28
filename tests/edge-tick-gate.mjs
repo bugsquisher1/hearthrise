@@ -192,7 +192,7 @@ function fakeDb(cfg) {
        entry with M-1's stall in it would have looked green here. A stub that
        is more permissive than the door it stands in for is not a test. */
     shadowMarkMs: null,
-    version: 7, activeKind: 'gather', known: new Set([UID]),
+    version: 7, activeKind: 'artisan', known: new Set([UID]),
     /* N6 (2026-09-28): PER-CHARACTER answers, so a two-row fire can hand each
        character a DIFFERENT perk stack and an arm can see whose answer reached
        whose session. `null` keeps the one-answer-for-all shape every older arm
@@ -200,12 +200,12 @@ function fakeDb(cfg) {
        KEYED BY `user:slot`, as the reads are (H1, 2026-09-28): a map keyed
        by user alone answers both of one user's slots the same, so no arm
        could see a read that dropped the slot. */
-    perksBy: null, activeId: 'normal_tree',
+    perksBy: null, activeId: 'fuel_bones',
     /* `user:slot` -> SQLSTATE ('' = codeless): that character's perks read
        throws instead. */
     perksErrorBy: null,
     /* Render the fence's reported mark as Postgres's jsonb does (`…+00:00`);
-       gather does not care, so the older gather arms keep the ISO spelling
+       the fuel run does not care, so the older arms keep the ISO spelling
        they were written against. */
     jsonbMark: false,
     /* PER-CHANNEL ARMING (2026-10-06-world-tick-channel-arm.sql). `armed`,
@@ -273,9 +273,10 @@ function fakeDb(cfg) {
             active_kind: o.activeKind, active_id: o.activeId,
             active_since: new Date(NOW_MS - 3600000).toISOString(),
             hp: 40, max_hp: 40, gold: 10,
-            skills: { woodcutting: 500, hitpoints: 1200 }, inventory: {}, equipment: {},
-            tool_carry: null,
           },
+          /* THE FUEL (the one-town-work cut: the tick's pointer channel is the Hearth's fuel run): bones in the
+             bag at the envelope's top level, where hr_state_of projects it, so a window burns some and settles. */
+          skills: { inner_flame: { xp: 500, level: 4 } }, inventory: { bones: 100000 }, equipment: {},
         },
       }];
     }
@@ -339,7 +340,7 @@ function fakeDb(cfg) {
 }
 
 const rosterRow = (userId, extra) => Object.assign({
-  user_id: userId, slot: 0, shard: 0, active_kind: 'gather', active_id: 'normal_tree',
+  user_id: userId, slot: 0, shard: 0, active_kind: 'artisan', active_id: 'fuel_bones',
   active_since: NOW_ISO, accrued_to: NOW_ISO, version: 1, seed: 1, state: {},
 }, extra || {});
 
@@ -775,21 +776,30 @@ async function runArms(mod) {
   // ── T-PC — THE MODE IS PER CHANNEL, AND THE ANSWER MUST SAY WHOSE ───────
   group('T-PC  per-channel arming reaches the entry (2026-10-06-world-tick-channel-arm.sql)');
   {
-    /* armed = {combat}: a GATHER character is shadowed even though "the tick
-       is armed" — the one-flag reading of the old config would have paid it. */
-    const g = fakeDb({ armed: ['combat'], activeKind: 'gather' });
+    /* armed = {combat}: an ARTISAN character (the Hearth's fuel run) is shadowed even though "the tick is
+       armed" — the one-flag reading of the old config would have paid it. (A gather character until the
+       one-town-work cut retired that channel.) */
+    const g = fakeDb({ armed: ['combat'], activeKind: 'artisan' });
     const outG = await runTick({ exec: g.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
     ok(outG.body.shadowed === 1 && outG.body.processed === 0,
-      'T-PCa — combat armed, a gather character settles in SHADOW', JSON.stringify(outG.body));
-    /* T-PCa's control: arm GATHER and the same character is PAID. (Until lane
+      'T-PCa — combat armed, an artisan character settles in SHADOW', JSON.stringify(outG.body));
+    /* T-PCa's control: arm ARTISAN and the same character is PAID. (Until lane
        C2 the control was a combat character under the combat arm; the solo
        combat channel is retired — T-PCb2 pins that a combat row is skipped by
        name whatever is armed.) */
-    const g2 = fakeDb({ armed: ['gather'], activeKind: 'gather' });
+    const g2 = fakeDb({ armed: ['artisan'], activeKind: 'artisan' });
     const outG2 = await runTick({ exec: g2.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
     ok(outG2.body.processed >= 1 && outG2.body.shadowed === 0,
-      'T-PCb — gather armed, the same gather character is PAID, so T-PCa is not vacuous',
+      'T-PCb — artisan armed, the same artisan character is PAID, so T-PCa is not vacuous',
       JSON.stringify(outG2.body));
+    /* A GATHER row the roster still hands out (the cut file idles every gather pointer) is skipped by name. */
+    const gx = fakeDb({ armed: ['gather', 'artisan'], activeKind: 'gather', activeId: 'normal_tree' });
+    const outGx = await runTick({ exec: gx.exec, body: { op: 'tick',
+      roster: [rosterRow(UID, { active_kind: 'gather', active_id: 'normal_tree' })] } });
+    ok(outGx.body.processed === 0 && outGx.body.shadowed === 0 && gx.settles.length === 0
+        && JSON.stringify(outGx.body.reasons || {}).includes('channel_not_driven'),
+      'T-PCb3 — a gather row (retired by the one-town-work cut) is skipped channel_not_driven, settles nothing',
+      JSON.stringify(outGx.body));
     const c = fakeDb({ armed: ['combat'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true });
     const outC = await runTick({ exec: c.exec, body: { op: 'tick',
       roster: [rosterRow(UID, { active_kind: 'combat', active_id: 'goblin' })] } });
@@ -803,14 +813,14 @@ async function runArms(mod) {
        retries. An answer naming NO channel is a pre-migration fence, whose
        one global flag is the mode on that database: read as given, so the
        edge and the migration deploy in either order. */
-    const x = fakeDb({ armed: ['gather'], activeKind: 'gather', answerChannel: 'combat' });
+    const x = fakeDb({ armed: ['artisan'], activeKind: 'artisan', answerChannel: 'combat' });
     const outX = await runTick({ exec: x.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
     ok(outX.body.skipped === 1 && outX.body.processed === 0 && outX.body.shadowed === 0
         && x.settles.length === 0
         && JSON.stringify(outX.body.reasons || {}).includes('mode_channel_mismatch'),
       'T-PCc — a fence answer naming the wrong channel is skipped mode_channel_mismatch, nothing settled',
       JSON.stringify(outX.body));
-    const old = fakeDb({ armed: ['gather'], activeKind: 'gather', answerChannel: null });
+    const old = fakeDb({ armed: ['artisan'], activeKind: 'artisan', answerChannel: null });
     const outO = await runTick({ exec: old.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
     ok(outO.body.processed === 1 && old.settles.length === 1,
       'T-PCc2 — a pre-migration answer (no channel named) is read as the fence gave it',
@@ -894,8 +904,8 @@ async function runArms(mod) {
     /* Two characters get DIFFERENT perk stacks in ONE fire, each answer a Proxy
        that logs which character the driver was working on when it was touched.
        Each answer must reach its OWN session (touched while it is current) and
-       never another's. Both rows are gatherers: the solo combat channel, the
-       party unit and the bestiary read left with lane C2. */
+       never another's. Both rows are on the Hearth (gatherers until the one-town-work cut): the solo combat
+       channel, the party unit and the bestiary read left with lane C2. */
     const log = [];
     const ref = {};
     const spy = (owner, obj) => {
@@ -909,7 +919,7 @@ async function runArms(mod) {
     };
     const perksOf = (renown) => ({ ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: renown });
     const owners = [`${UID}:0`, `${UID2}:0`];
-    const db = fakeDb({ shadow: true, activeKind: 'gather', activeId: 'normal_tree',
+    const db = fakeDb({ shadow: true, activeKind: 'artisan', activeId: 'fuel_bones',
       known: new Set([UID, UID2]),
       perksBy: { [owners[0]]: spy(owners[0], perksOf(5)), [owners[1]]: spy(owners[1], perksOf(0)) } });
     ref.db = db;
@@ -976,7 +986,7 @@ async function runArms(mod) {
     const P = (files) => tickCallerProblems(files);
     const GATE = { name: 'supabase/functions/hr-accrue/index.ts',
       src: "const S = Deno.env.get('HR_TICK_SHARED_SECRET');\nconst t = tickGate(req.headers, S);\n" };
-    const TICKMOD = { name: 'supabase/functions/hr-accrue/tick-gather.js',
+    const TICKMOD = { name: 'supabase/functions/hr-accrue/tick-artisan.js',
       src: "  Object.assign({ caller: 'tick' }, opts);\n" };
 
     ok(P([{ name: 'supabase/functions/hr-accrue/set-activity.js', src: "  caller: 'tick',\n" }]).length === 1,
@@ -990,10 +1000,10 @@ async function runArms(mod) {
       "T-F1d — (2) bites: tick code with NO bearer gate in the payload is refused",
       JSON.stringify(P([TICKMOD])));
     ok(P([GATE, TICKMOD, { name: 'supabase/functions/hr-accrue/equip.js',
-      src: "import { settleGatherSession } from './tick-gather.js';\n" }]).length === 1,
+      src: "import { settleArtisanSession } from './tick-artisan.js';\n" }]).length === 1,
       'T-F1e — (3) bites: an ordinary verb importing a tick module is refused');
     ok(P([GATE, TICKMOD, { name: 'supabase/functions/hr-accrue/index.ts',
-      src: "import { x } from './tick-gather.js';\n" }]).length === 1,
+      src: "import { x } from './tick-artisan.js';\n" }]).length === 1,
       'T-F1f — (3) bites: even the entrypoint may reach only tick.js');
     /* PINNED BY NAME, not by size (2026-09-23). This arm read
        `length === 4 && every(startsWith(...))`, which a fifth file makes red —
@@ -1002,32 +1012,31 @@ async function runArms(mod) {
        added to get a payload green. The set itself is the claim now, so adding
        or removing ANY entry goes red and has to be argued for here. */
     /* 2026-10-29 (lane/c-playtest-open): + tick-artisan.js, the artisan channel's settler (report #68: a
-       spent Hearth/bench run nobody settled kept "Fueling"). It is a registered settler like tick-gather.js:
-       tick.js's CHANNELS drives it, it reaches shadowTick (the tick caller), and T-F1h fences it the same. */
+       spent Hearth run nobody settled kept "Fueling"): tick.js's CHANNELS drives it, it reaches shadowTick (the
+       tick caller), and T-F1h fences it. tick-gather.js left with the gather channel (the one-town-work cut). */
     const EXPECTED_TICK_MODULES = [
       'supabase/functions/hr-accrue/tick.js',
-      'supabase/functions/hr-accrue/tick-gather.js',
       'supabase/functions/hr-accrue/tick-artisan.js',
       'supabase/functions/hr-accrue/tick-shadow.js',
       'supabase/functions/hr-accrue/tick-contract.js',
     ];
     ok(JSON.stringify([...TICK_MODULES].sort()) === JSON.stringify([...EXPECTED_TICK_MODULES].sort())
       && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
-      'T-F1g — the allowlist is these five NAMED files (tick-combat.js left with the solo combat channel, lane C2; tick-artisan.js joined 2026-10-29), not a directory or a prefix',
+      'T-F1g — the allowlist is these four NAMED files (tick-combat.js left with the solo combat channel, lane C2; tick-artisan.js joined 2026-10-29; tick-gather.js left with the one-town-work cut), not a directory or a prefix',
       `allowlist drifted: ${JSON.stringify(TICK_MODULES)}`);
 
     /* T-F1h — a registered settler is fenced exactly as the entry is.
        Registering a file must not be a way to exempt it. */
-    const SETTLERMOD = { name: 'supabase/functions/hr-accrue/tick-gather.js',
+    const SETTLERMOD = { name: 'supabase/functions/hr-accrue/tick-artisan.js',
       src: "  Object.assign({}, o, { caller: 'tick', seedOf });\n" };
     ok(P([GATE, SETTLERMOD]).length === 0,
-      'T-F1h — tick-gather.js may spell `caller:\'tick\'` behind the bearer gate');
+      'T-F1h — tick-artisan.js may spell `caller:\'tick\'` behind the bearer gate');
     ok(P([SETTLERMOD]).length === 1,
-      'T-F1i — (2) bites on it too: tick-gather.js with no bearer gate is refused',
+      'T-F1i — (2) bites on it too: tick-artisan.js with no bearer gate is refused',
       JSON.stringify(P([SETTLERMOD])));
     ok(P([GATE, SETTLERMOD, { name: 'supabase/functions/hr-accrue/equip.js',
-      src: "import { settleGatherSession } from './tick-gather.js';\n" }]).length === 1,
-      'T-F1j — (3) bites on it too: an ordinary verb importing the gather settler is refused');
+      src: "import { settleArtisanSession } from './tick-artisan.js';\n" }]).length === 1,
+      'T-F1j — (3) bites on it too: an ordinary verb importing the artisan settler is refused');
   }
 
   // ── T-W1 / T-P1 — WIRING, against the PACKED bytes ──────────────────────

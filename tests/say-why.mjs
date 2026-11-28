@@ -18,11 +18,12 @@
 //        with the visible words that say why (not a title: phones have no hover),
 //        and those words must still be in its file. A new rule-disabled control
 //        with no entry is red; deleting its words is red.
-//   SW-3 THE WORDS ARE THE SERVER'S NUMBERS (pure). A bench above the skill says
-//        "You need Cooking 40 to cook Raw Bear Meat. You have 11." from the
-//        catalogue and the server's level, both from the client's pre-check and
-//        from the engine's activity_locked.
-//   SW-4 ON SCREEN (play.html, stubbed server): the item menu's Cook all is off
+//   SW-3 THE WORDS ARE THE SERVER'S NUMBERS (pure). A fuel above the skill says
+//        "Big Bones: requires Inner Flame 15" from the catalogue and the server's
+//        level from the client's pre-check, and "Requires Inner Flame 15, now 11"
+//        from the engine's activity_locked (since the bench cut, 09-crafting 4.17,
+//        the Hearth's fuel runs are the bag's one town press).
+//   SW-4 ON SCREEN (play.html, stubbed server): the item menu's Burn all is off
 //        WITH its visible line; a Shop buy short of gold says how much more.
 //        `--shots <dir>` saves each at
 //        1440×900 and 844×390.
@@ -32,7 +33,7 @@
 //   node tests/say-why.mjs --mutate          every planted defect must turn a NAMED rule RED; a throw, a plant that does not parse or a
 //                                            line with no SW id is HARNESS, never a catch (tests/_mutant-verdict.mjs)
 //
-// mutant-anchors: src/shell/windows/shop.js src/shell/windows/inventory/actions.js src/shell/town-work.js src/session/refusal.js src/shell/intent-words.js src/shell/windows/services.js src/styles/windows.css
+// mutant-anchors: src/shell/windows/shop.js src/shell/windows/inventory/actions.js src/shell/windows/inventory/bury.js src/session/refusal.js src/shell/intent-words.js src/shell/windows/services.js src/styles/windows.css
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -73,7 +74,6 @@ const QUIET = Object.freeze({
   "edgeIntent('sheet'": 'the Character window asks for its sheet on opening; a read, never a press',
   'r = await marketMine(cs); } catch': 'the sale notices\' background read (market-watch.js); a refusal leaves nothing new to tell, and the next read tries again',
   'r = await readWorks(ctx.account, cs); } catch': 'the closed Market\'s Works read (market/state.js readBuilding), never a press; a refusal leaves sc.works null and blockWords says the closed line instead',
-  'stopWork(cs, send)).then': 'the armed stop (town-work.js) answers through the `send` its start was given: the window\'s runIntent',
   'r = await carryOnPlan(ctx.account, cs, null); } catch': 'the return card\'s plan read (carry-on.js readPlan), never a press: a refused read offers no Carry on, each hero keeps its own press, and the next hunt start or end reads it again',
 });
 const RESERVED = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return']);
@@ -261,9 +261,6 @@ export const REASONS = Object.freeze({
     { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },
     { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
   ],
-  'src/shell/windows/hallmark-pane.js': [
-    { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },
-  ],
   'src/shell/windows/havora/works.js': [
     { cond: 'off', words: 'Daily limit reached: ', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
     { cond: 'short > 0', words: "'Need ' + gold(short) + ' more'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },
@@ -393,8 +390,8 @@ export const REASONS = Object.freeze({
     { cond: '!tally', words: "t('tally.board_loading')", where: 'with no tally from the server the board says it is loading and every control stays off' },
   ],
   'src/shell/windows/work.js': [
-    { cond: '(!running && !!why)', words: ": [why || (running ? 'Working on it now'", where: 'the row\'s own line, a short input\'s places linked (workBlock: "You need Smithing 3 to make Bronze Axe. You have 1.")' },
-    { cond: 'running', words: "'Working on it now'", where: 'the row says it is running' },
+    /* the Great Hearth's fuel run (09-crafting 4.17): its Stop shows only with the line that names the run */
+    { cond: 'sc.pending || !buryingOf(cs)', words: 'buryLine(cs)', where: 'the hearth line\'s Stop: the line beside it names the run the server holds; with none it is hidden, and a press in flight says so on the window\'s line' },
   ],
   'src/shell/windows/party.js': [],
   'src/shell/windows/chat.js': [
@@ -492,27 +489,17 @@ export function unsaidOff(files) {
 async function pure(base = ROOT) {
   const fails = [];
   const imp = (p) => import(pathToFileURL(join(base, p)).href);
-  const { buryRecipeOf, buryBlock } = await imp('src/shell/windows/inventory/bury.js');
-  const { startWork, workRow, workBlock } = await imp('src/shell/town-work.js');
+  const { buryRecipeOf, buryBlock, startBury } = await imp('src/shell/windows/inventory/bury.js');
   const { runIntent, refusalText } = await imp('src/shell/intent-words.js');
   const { refusalOf } = await imp('src/session/refusal.js');
-  const read = (lv, inv) => (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv }, smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? { active_kind: 'idle', active_id: null } : null);
-  const bear = buryBlock({ read: read(11, { raw_bear_meat: 2 }) }, buryRecipeOf('raw_bear_meat'));
-  if (bear !== 'Requires Cooking 40, now 11') fails.push('SW-3 Cook all above the level reads ' + JSON.stringify(bear));
-  const axe = workBlock({ read: read(1, {}) }, workRow('artisan', 'forge_bronze_axe'), false);
-  if (axe !== 'Requires Smithing 3, now 1') fails.push('SW-3 a bench row above the level reads ' + JSON.stringify(axe));
-  /* A reforge spends the bag's piece: a hero wearing it hears why, once the rest of the row is there (lane/c-klappa-club) */
-  const wearing = (inv) => ({ read: (k) => (k === 'equipment' ? { weapon: 'practice_club' } : read(1, inv)(k)) });
-  const club = workRow('artisan', 'reforge_klappas_club');
-  const ready = workBlock(wearing({ bronze_bar: 6, small_fang: 3 }), club, false);
-  if (ready !== 'Equipped: Practice Club. Unequip it first.') fails.push('SW-3 a reforge of the worn weapon reads ' + JSON.stringify(ready));
-  const early = workBlock(wearing({ small_fang: 3 }), club, false);
-  if (!/^No Bronze Bar /.test(early)) fails.push('SW-3 the row tells a hero to take the weapon off before the bars are there: ' + JSON.stringify(early));
-  /* The engine's own refusal of the same press (activity_locked), driven through the one start path. */
+  const read = (lv, inv) => (k) => (k === 'skills' ? { inner_flame: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? { active_kind: 'idle', active_id: null } : null);
+  const big = buryBlock({ read: read(11, { big_bones: 2 }) }, buryRecipeOf('big_bones'));
+  if (big !== 'Big Bones: requires Inner Flame 15') fails.push('SW-3 Burn all above the level reads ' + JSON.stringify(big));
+  /* The engine's own refusal of the same press (activity_locked), driven through the one start path (the bag's Burn all). */
   const sc = { pending: false, msg: '' };
-  const cs = { read: read(11, { raw_bear_meat: 2 }), edgeIntent: async () => refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', kind: 'artisan', id: 'cook_bear_meat' } }) };
-  await startWork(cs, workRow('artisan', buryRecipeOf('raw_bear_meat').recipe.id), (fn, busy, done) => runIntent(sc, () => {}, fn, busy, done, cs), () => {});
-  if (sc.msg !== 'Requires Cooking 40, now 11') fails.push('SW-3 the engine\'s activity_locked on Cook all reads ' + JSON.stringify(sc.msg));
+  const cs = { read: read(11, { big_bones: 2 }), edgeIntent: async () => refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', kind: 'artisan', id: 'fuel_big_bones' } }) };
+  await startBury(cs, sc, 'big_bones', (fn, busy, done) => runIntent(sc, () => {}, fn, busy, done, cs), () => {});
+  if (sc.msg !== 'Requires Inner Flame 15, now 11') fails.push('SW-3 the engine\'s activity_locked on Burn all reads ' + JSON.stringify(sc.msg));
   const gate = refusalText(refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', id: 'mosslight_glade', spawn_gate: true } }));
   if (!gate || /did not go through/.test(gate)) fails.push('SW-3 a spawn-gated hunt reads the fallback: ' + JSON.stringify(gate));
   return fails;
@@ -527,7 +514,7 @@ async function screens(overrides) {
     for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
     e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, gold: 50, level_xp: 0 });
     e.stamina = { ms: 1800000, at: e.now, max_ms: 28800000, hunting: false };
-    e.inventory = Object.assign({}, e.inventory, { raw_bear_meat: 2 });
+    e.inventory = Object.assign({}, e.inventory, { big_bones: 2 });
     e.shop = Object.assign({}, e.shop, { offers: [...e.shop.offers, { offer: 'gear.iron_helm', item: 'iron_helm', kind: 'gear', price: 400 }] });
     return e;
   };
@@ -571,11 +558,11 @@ async function screens(overrides) {
         await page.keyboard.press(key);
         return wait(page, (x) => document.querySelector('[data-hs-win="' + x + '"] [data-hs-built]'), id, 3000);
       };
-      /* (a) Cook all in the item menu, above the server's Cooking: off, with its own visible line. */
+      /* (a) Burn all in the item menu, above the server's Inner Flame: off, with its own visible line. */
       if (!(await openWin('b', 'inventory'))) fails.push('SW-4 the bag did not open');
       else {
-        const pocket = '[data-hs-win="inventory"] .hw-pocket[data-item="raw_bear_meat"]';
-        if (!(await wait(page, (q) => document.querySelector(q), pocket, 3000))) fails.push('SW-4 the raw bear meat is not in the bag');
+        const pocket = '[data-hs-win="inventory"] .hw-pocket[data-item="big_bones"]';
+        if (!(await wait(page, (q) => document.querySelector(q), pocket, 3000))) fails.push('SW-4 the big bones are not in the bag');
         else {
           await page.click(pocket, { button: 'right' });
           await page.waitForTimeout(250);
@@ -584,8 +571,8 @@ async function screens(overrides) {
             const why = document.querySelector('.hw-menu.is-on .hw-mi-why[data-why="m-bury"]');
             return { label: b && b.textContent, off: !!b && b.disabled, why: why && why.textContent, shown: !!why && why.getBoundingClientRect().height > 0 };
           });
-          if (!m.label || !m.off || m.why !== 'Requires Cooking 40, now 11' || !m.shown) fails.push('SW-4 the item menu\'s Cook all reads ' + JSON.stringify(m));
-          await shot('cook-all');
+          if (m.label !== 'Burn all 2' || !m.off || m.why !== 'Big Bones: requires Inner Flame 15' || !m.shown) fails.push('SW-4 the item menu\'s Burn all reads ' + JSON.stringify(m));
+          await shot('burn-all');
           await page.keyboard.press('Escape');
         }
         /* (a2) the loot plan on a starting-kit item: Sell off, its reason on its own visible line under it. */
@@ -656,13 +643,13 @@ const MUTANTS = [
     "          + (short ? ', need ' + gold(short) + ' more' : ''));", "          + '');", true],
   ['a new rule-disabled control with no reason', 'src/shell/windows/services.js',
     "  prop(yes, 'disabled', sc.pending);\n  /* BLESSINGS */", "  prop(yes, 'disabled', sc.pending || purse === 0);\n  /* BLESSINGS */"],
-  ['the engine\'s activity_locked on a bench reads as a hunt\'s', 'src/shell/town-work.js',
-    "cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w))", "cs.edgeIntent('set_activity', { activity })"],
+  ['the engine\'s activity_locked on a fuel run reads as a hunt\'s', 'src/shell/windows/inventory/bury.js',
+    "cs.edgeIntent('set_activity', { activity }).then(levelWords)", "cs.edgeIntent('set_activity', { activity })"],
   ['the menu\'s reason line is hidden (a title-only reason, on screen)', 'src/styles/windows.css',
     '.hw-mi-why { max-width: 280px;', '.hw-mi-why { display: none; max-width: 280px;', true],
-  ['the town-work stop drops its refusal', 'src/shell/town-work.js',
-    "  return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), 'Finishing…', () => {",
-    "  cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }); return send(() => Promise.resolve({ ok: true }), 'Finishing…', () => {"],
+  ['the fuel run\'s stop drops its refusal', 'src/shell/windows/inventory/bury.js',
+    "  return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), t('work.job_stopping'), () => {",
+    "  cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }); return send(() => Promise.resolve({ ok: true }), t('work.job_stopping'), () => {"],
 ];
 
 async function main() {

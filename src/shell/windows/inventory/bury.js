@@ -94,7 +94,11 @@ export function startBury(cs, sc, id, send, repaint, count) {
   const n = count === 1 ? 1 : null;
   const qty = n || buryQty(cs, id);
   const activity = { kind: 'artisan', id: row.id, ...(n ? { count: n } : {}) };
-  return send(() => cs.edgeIntent('set_activity', { activity }), t('work.job_starting'), () => {
+  /* the engine refuses a fuel above the server's level as `activity_locked`; for the Hearth that is Inner Flame, not a hunt, and the
+     words name it with both levels (intent-words.js skillShortWords) */
+  const levelWords = (r) => (r && !r.ok && r.error === 'activity_locked'
+    ? Object.assign({}, r, { error: 'level_too_low', skill: { id: FLAME, need: row.req, have: levelIn(cs, FLAME) } }) : r);
+  return send(() => cs.edgeIntent('set_activity', { activity }).then(levelWords), t('work.job_starting'), () => {
     FROM.set(cs, { id: row.id, item: row.item, xp: xpIn(cs, FLAME), held: buryQty(cs, row.item) });
     return buryingWord() + ' ' + whole(qty) + ' ' + itemNameFor(id, qty) + '…';
   });

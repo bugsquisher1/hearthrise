@@ -8,7 +8,7 @@
 //   node tests/artisan-tick.mjs            the guard (the whole replayed chain, the shipped runTick)
 //   node tests/artisan-tick.mjs --mutate   every planted defect (edge copy or SQL) must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/migrations/2027-02-11-bag-over-cap.sql, supabase/migrations/2027-02-20-tick-fuse-load.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js
+// mutant-anchors: supabase/migrations/2027-02-10-artisan-tick.sql, supabase/migrations/2027-02-11-bag-over-cap.sql, supabase/migrations/2027-02-20-tick-fuse-load.sql, supabase/functions/hr-accrue/tick-artisan.js, supabase/functions/hr-accrue/tick.js, supabase/functions/hr-accrue/tick-shadow.js, supabase/functions/hr-accrue/accrue-artisan.js
 //
 // Every hero here is created through hr_create_hero and then put on a bench the
 // way the settle writes it (the pointer, the bag); NONE has a heartbeat, a
@@ -26,6 +26,8 @@
 //              (a twin hero settled by set_activity idle: the collect path): XP and bones.
 //   A-RUNNING  a run with 1,000 bones is settled one flush (90 s) a fire: the bag and
 //              the XP move, the run is NOT ended, one row per window.
+//   A-COUNT    "Burn" (a count of one, kept as active_left: bench_run stays, 09-crafting.md 4.17) started through the
+//              verb burns ONE of fifty bones and goes idle, on the tick's door and on the owner's own stop.
 //   A-ONCE     a second fire over the spent hero pays nothing and journals nothing.
 //   A-OVERCAP  a bag one stack over its cap (a hunt came home) still burns bones, on the tick's door and the
 //              owner's own stop (2027-02-11-bag-over-cap.sql; live bf18bd7f:0 wedged 9.7 h on 10-30).
@@ -197,6 +199,26 @@ async function arms(db, tick, setActivity) {
     `a long run is settled one window a fire and keeps running (${1000 - ra.bones} bones, watermark +${movedMs} ms, one row)`,
     `a running bench was not settled as a window: ${js({ rb, ra, rows: rr.length, movedMs })}`);
 
+  /* ── A-COUNT: "Burn" started by the verb, then settled with the browser closed, and by the owner's own stop. ── */
+  const burnt = [];
+  for (const door of ['tick', 'stop']) {
+    const h = await hearthHero(db, 50, 0);
+    await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = 0", [h]);
+    const st = await setActivity({ exec: engineExec(db), user: h, slot: 0, intentId: idem(), activity: { kind: 'artisan', id: RECIPE, count: 1 } });
+    const kept = await one(db, 'select active_left from public.player_state where user_id = $1 and slot = 0', [h]);
+    await db.query('select public.hr_tick_enrol(200)');
+    await db.query(`update public.player_state set active_since = active_since - interval '10 minutes', accrued_to = accrued_to - interval '10 minutes'
+                     where user_id = $1 and slot = 0`, [h]);
+    await db.query("update public.hr_return_anchor set real_return_at = real_return_at - interval '10 minutes' where user_id = $1 and slot = 0", [h]);
+    if (door === 'tick') await fire(db, tick, [h]);
+    else await setActivity({ exec: engineExec(db), user: h, slot: 0, intentId: idem(), activity: { kind: 'idle', id: null } });
+    const s = await stateOf(db, h);
+    burnt.push({ door, start: st && st.status, kept: Number(kept), bones: s.bones, kind: s.active_kind });
+  }
+  arm('A-COUNT', burnt.every((x) => x.start === 200 && x.kept === 1 && x.bones === 49 && x.kind === 'idle'),
+    '"Burn" burns one of fifty bones and goes idle, with the browser closed and by the owner\'s own stop',
+    `a count of one did not hold: ${js(burnt)}`);
+
   /* ── A-OVERCAP (2027-02-11-bag-over-cap.sql, live bf18bd7f:0 10-30): a hunt's bag came home over the cap, then the
         hero resumed the Hearth. A bench that only burns bones is paid on BOTH doors; a new stack is still refused. ── */
   const overBag = async () => {
@@ -282,6 +304,10 @@ const JS_MUTANTS = [
     from: '    ...(catalogues.recipes ? { recipes: catalogues.recipes } : {}),', to: '' },
   { id: 'short_window', arm: 'A-PARITY', file: `${FN}/tick-artisan.js`, why: 'the window pays a different span than the accrue path (half the window)',
     from: '  const res = artisanTick(char, watermarkMs, toMs, o);', to: '  const res = artisanTick(char, watermarkMs, watermarkMs + Math.floor((toMs - watermarkMs) / 8), o);' },
+  { id: 'count_unread', arm: 'A-COUNT', file: `${FN}/accrue-artisan.js`, why: 'the run\'s count is not read: "Burn" burns the stack',
+    from: '    maxActions: runCap(inp.actionBudget, left0),', to: '    maxActions: inp.actionBudget,' },
+  { id: 'count_not_forwarded', arm: 'A-COUNT', file: `${FN}/tick-shadow.js`, why: 'the tick forwards no count: "Burn" with the browser closed burns a whole window',
+    from: '    ...(Number.isInteger(char.activeLeft) ? { activeLeft: char.activeLeft } : {}),', to: '' },
   { id: 'no_marker', arm: 'A-SPENT', file: `${FN}/tick-artisan.js`, why: 'the journal row is indistinguishable from an accrue (no src tick)',
     from: "  d.journal = { ...j, meta: { ...(j.meta || {}), src: 'tick' } };", to: '  d.journal = { ...j };' },
 ];

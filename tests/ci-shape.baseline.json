@@ -927,6 +927,8 @@
     "node tools/mutant-gate.mjs node tests/world-tick-stall-guard.mjs --selftest": "db-replay-5",
     "node tests/replay-scope-guard.mjs": "db-replay-5",
     "node tools/mutant-gate.mjs node tests/replay-scope-guard.mjs --selftest": "db-replay-5",
+    "node tests/bench-cut-window.mjs": "db-replay-17",
+    "node tools/mutant-gate.mjs node tests/bench-cut-window.mjs --mutate": "db-replay-17",
     "node tests/time-offer-card.mjs": "db-replay-17",
     "node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate": "db-replay-17",
     "node tests/tp-im-server.mjs": "db-replay-17",

@@ -733,6 +733,11 @@
         "bytes": 4086494,
         "on": "2026-11-28",
         "why": "lane/signatures-batch-5: signatures.js's header names batch 5's built rows, a comment block (+1 KB)"
+      },
+      {
+        "bytes": 3876052,
+        "on": "2026-11-28",
+        "why": "cut locked in (210442 bytes)"
       }
     ]
   }

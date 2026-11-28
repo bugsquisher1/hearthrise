@@ -129,6 +129,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
   'storage',
+  'jobEnds',
   'workDay',
 ]);
 
@@ -146,7 +147,7 @@ function storageInputs(e) {
    OVERRIDES these per window (the tick's watermark is the fence's mark, not
    `state.accrued_to`), which is why they are named apart from the state. */
 export const ENGINE_POINTER_KEYS = Object.freeze([
-  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId',
+  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId', 'activeLeft',
 ]);
 
 /** Every key `engineInputsFromEnvelope` produces. */
@@ -199,6 +200,9 @@ export function engineInputsFromEnvelope(env, nowMs) {
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,
+    /* A FUEL RUN'S COUNT (2026-12-01-bench-count.sql): the actions left on it, from the `bench_run` section. Absent (a
+       database without the section) or null = until the fuel is out, and accrueArtisan then proposes no `active_left`. */
+    activeLeft: (e.bench_run && Number.isInteger(e.bench_run.left) && e.bench_run.left > 0) ? e.bench_run.left : null,
 
     /* ── THE COLUMNS ON THE ROW `hr_apply` LOCKS ─────────────────────────── */
     hp: Number(st.hp) || 0,
@@ -248,6 +252,9 @@ export function engineInputsFromEnvelope(env, nowMs) {
        player their night. The switch is the ENVELOPE, never a deploy flag. */
     /* THE WALL (2027-03-13-gm-tools.sql): a walled hero rolls no find, so the server's Nth-ever counters count only real heroes. */
     hearthfindReady: st.hearthfind_ready === true && e.gm !== true,
+    /* A COUNTED RUN'S END, THE SAME KIND OF SWITCH (1026-job-counts.sql): only a database whose `bench_run` section names
+       `count` takes an `active_left` beside the engine's `activity: idle` (what the ending run left; 0 = counted out). */
+    jobEnds: !!e.bench_run && typeof e.bench_run === 'object' && Object.prototype.hasOwnProperty.call(e.bench_run, 'count'),
     /* THE HERO'S WORK DAY (1059-company-trades.sql, the `work_day` section): the last day it worked, the ms of it, its base day
        and today's bought work. The section is the switch: a database without it has no cap and an hr_apply that would refuse a
        `work_to` key, so the engine then stops nothing early and proposes none (src/core/work-day.js workStateOf: null). */

@@ -120,14 +120,19 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* NO ACTIVITY TAKES A COUNT OR A "THEN" (the one-town-work cut). A fuel run burns until its fuel is out: the
-     server keeps no count to stop it at (the `bench_run` section left with the bench), so a `count` or `next`
-     (request.js reads both, an unreadable one as null) is refused by name rather than silently ignored, which would
-     burn the whole stack when the player asked for one. A job's count is the trade job's (hr_trade_job_start). */
-  if (a.count !== undefined || a.next !== undefined) {
-    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'no activity takes a count or a next' } };
+  /* A FUEL RUN TAKES A COUNT, AND NOTHING TAKES A "THEN" (09-crafting.md 4.17, the bridge: `bench_run` stays as the hearth
+     run's count). "Burn" is a count of one, kept by hr_apply as player_state.active_left; no count burns until the fuel is
+     out. An unreadable count (request.js reads it as null), a count on anything else and any `next` are refused by name:
+     a count silently ignored would burn the whole stack when the player asked for one. A trade job's count is
+     hr_trade_job_start's. */
+  if (a.count !== undefined && (kind !== 'artisan' || a.count === null)) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY,
+      detail: { why: kind !== 'artisan' ? 'only a fuel run takes a count' : 'count is a whole number 1..100000' } };
   }
-  return { ok: true, kind, id: kind === 'idle' ? null : id };
+  if (a.next !== undefined) {
+    return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: 'no activity takes a next' } };
+  }
+  return { ok: true, kind, id: kind === 'idle' ? null : id, ...(a.count !== undefined ? { count: a.count } : {}) };
 }
 
 /**
@@ -140,12 +145,16 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from) {
+export function activityDelta(kind, id, from, count) {
+  /* A FUEL RUN'S COUNT rides the statement (hr_apply stores it as player_state.active_left); a statement without one
+     clears it, so a run with no count burns until its fuel is out. */
+  const n = kind === 'artisan' && Number.isInteger(count) ? count : null;
   return {
     activity: {
       kind,
       id: kind === 'idle' ? null : id,
       restart: true,
+      ...(n !== null ? { count: n } : {}),
     },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
@@ -159,7 +168,7 @@ export function activityDelta(kind, id, from) {
       /* Small, and genuinely useful: it records the TRANSITION, which no other
          row does. The window that was paid on the way here has its own ledger
          row with its own `ms`, so nothing is duplicated. */
-      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null },
+      meta: { from_kind: (from && from.kind) || null, from_id: (from && from.id) || null, ...(n !== null ? { count: n } : {}) },
     },
   };
 }
@@ -407,7 +416,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl.count);
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 

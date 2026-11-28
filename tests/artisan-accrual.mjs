@@ -3,10 +3,10 @@
 //
 // Since the one-town-work cut (09-crafting.md 4.17) the `artisan` kind is the Great Hearth's `fuel_<item>` runs and
 // nothing else: town work is a company's jobs, settled in SQL, and the bench (its burn, its yields, its jewel rolls,
-// its recipe gate, its tax, its "make N" count) left with the cut. This guard holds the fuel run's accrual to the same
+// its recipe gate, its tax) left with the cut. This guard holds the fuel run's accrual to the same
 // claims the bench's held, re-aimed. The bench-only claims (b356's T2 client parity of `doArtisanAction`, T5's recipe
-// gate, T6's noBurn and the cooking settlement arm, the bench count, the ammo-clamp ratchet) retired with the bench:
-// their subjects are gone. Every claim is driven through the REAL engine door (accrual.js computeAccrual).
+// gate, T6's noBurn and the cooking settlement arm, the ammo-clamp ratchet) retired with the bench: their subjects are
+// gone. The bench's count stays as the hearth run's ("Burn" is a count of one, 4.17's bridge): T9. Every claim is driven through the REAL engine door (accrual.js computeAccrual).
 //
 //   T1  THE DISPATCH IS TOTAL: PAYABLE_KINDS and KIND_ACCRUERS agree in both directions (combat the one inline
 //       kind, a hunt session), and a kind with no simulation is REFUSED `unsupported_activity`, never priced
@@ -18,10 +18,13 @@
 //   T5  NO BENCH ROW IS PRICED: FUEL_RUNS is the fuel rows alone, and an artisan pointer on a cut bench recipe is
 //       refused `unknown_recipe` (a POINTER reason: a STOP forfeits it), never priced
 //   T7  SHAPE: every delta key is one hr_apply implements, every number an integer, the item map signed, the ledger
-//       kind `craft`, every meta value a scalar; the bench's old inputs (a recipe map, a tax, a count, a bag cap, a
-//       gather index) reaching the engine change nothing
+//       kind `craft`, every meta value a scalar; the bench's old inputs (a recipe map, a tax, a bag cap, a gather
+//       index) reaching the engine change nothing
 //   T8  THE DEGRADE LADDER halves the ACTIONS of a fuel window (its output is bounded by the bag, not the clock), a
 //       budget stop keeps the pointer, and a forged budget can only shrink a window
+//   T9  THE COUNT ("Burn" is a count of one): a run burns its count and no more however its settles are cut, ends on
+//       the action that reaches it, says what it left (`active_left`) only where the server takes it, and a count it
+//       cannot read is no count
 //   T10 THE TOWN FLOOR is 15 s, the hunt settle's, and a fuel window is deterministic: one window asked twice
 //       proposes one delta under one intent key
 //   T11 THE WORK DAY ends a run at the day's end (`work_cap`), and says where its work ended (`work_to`)
@@ -140,7 +143,7 @@ function benchGoneGuard() {
 }
 
 /* ── T7 ─────────────────────────────────────────────────────────────────── */
-const DELTA_KEYS = ['accrued_to', 'journal', 'items', 'xp', 'xp_frac', 'activity', 'work_to'];
+const DELTA_KEYS = ['accrued_to', 'journal', 'items', 'xp', 'xp_frac', 'activity', 'work_to', 'active_left'];
 function shapeGuard() {
   const r = call({ inventory: { [FUEL]: 50 }, xpFrac: { inner_flame: 0.25 }, workDay: { dayMs: 0, usedMs: 0, baseMs: 8 * HOUR, extraMs: 0, todayMs: 0 } });
   ok(r.accrued, `T7: the shape fixture did not accrue (${r.reason})`);
@@ -156,7 +159,7 @@ function shapeGuard() {
     `T7: the journal names ${r.delta.journal.meta.recipe}/${r.delta.journal.meta.skill}: the Hearth's day (1043-hearthrise.sql) reads them`);
   /* The bench's old inputs are inert: the same window with each forged reads the same. */
   const base = JSON.stringify(call({ inventory: { [FUEL]: 50 } }).delta);
-  for (const forged of [{ unlockedRecipes: { x: true } }, { benchTax: { now_mg: 1, rows: {} } }, { activeLeft: 1 }, { jobEnds: true },
+  for (const forged of [{ unlockedRecipes: { x: true } }, { benchTax: { now_mg: 1, rows: {} } }, { jobEnds: true },
     { bagCap: 1 }, { nodes: { fuel_bones: { skill: 'mining', node: { id: 'fuel_bones', xp: 9999, ms: 1 } } } }, { toolCarry: { inner_flame: 0.99 } }]) {
     ok(JSON.stringify(call({ inventory: { [FUEL]: 50 }, ...forged }).delta) === base,
       `T7: the cut input ${Object.keys(forged)[0]} reached the engine and moved the delta`);
@@ -178,6 +181,52 @@ function ladderGuard() {
   ok(forged.accrued && forged.summary.ticks === r.summary.ticks, `T8: a forged budget of 1e12 ran ${forged.summary && forged.summary.ticks} actions, not the window's ${r.summary.ticks}`);
   const nan = call({ actionBudget: 'x' });
   ok(nan.accrued && nan.summary.ticks === r.summary.ticks, 'T8: a non-finite budget is not "no cap"');
+}
+
+/* ── T9 ─────────────────────────────────────────────────────────────────── */
+function countGuard() {
+  /* BURN ONE: a thousand bones, eight hours, a count of one: one bone, the run over, 0 left. */
+  const one = call({ inventory: { [FUEL]: 1000 }, activeLeft: 1, jobEnds: true });
+  ok(one.accrued && one.delta.items[FUEL] === -1 && one.summary.ticks === 1,
+    `T9: "Burn one" burnt ${JSON.stringify(one.delta && one.delta.items)} over ${one.summary && one.summary.ticks} actions: the count is the whole stack's only protection`);
+  if (one.accrued) {
+    ok(one.delta.activity && one.delta.activity.kind === 'idle' && one.delta.active_left === 0,
+      `T9: a counted-out run answered ${JSON.stringify({ activity: one.delta.activity, active_left: one.delta.active_left })}, not idle with 0 left`);
+    ok(one.delta.journal.meta.stopped === 'count' && one.delta.journal.meta.n === 1 && one.delta.journal.meta.left === 0 && one.delta.journal.meta.out_of === null,
+      `T9: the journal says ${JSON.stringify(one.delta.journal.meta)}, not a count of one reached`);
+    ok(Date.parse(one.delta.accrued_to) === FROM_MS + 8 * HOUR, `T9: a counted-out run stamped ${one.delta.accrued_to}, not now`);
+  }
+  /* A database that takes no `active_left` beside an idle (before 1026) is never sent one. */
+  const old = call({ inventory: { [FUEL]: 1000 }, activeLeft: 1, jobEnds: false });
+  ok(old.accrued && old.delta.items[FUEL] === -1 && !('active_left' in old.delta), 'T9: a database without the job end was sent active_left beside idle (hr_apply: bad_delta)');
+  /* HOWEVER THE SETTLES ARE CUT: a 100-action run settled in windows of 37 actions burns 100, counting down. */
+  const step = one.accrued ? one.tickMs : 640;
+  let left = 100; let burnt = 0; let from = FROM_MS; let ended = false; const lefts = [];
+  for (let i = 0; i < 6 && !ended; i++) {
+    const to = from + 37 * step;
+    const w = call({ inventory: { [FUEL]: 1000 - burnt }, activeLeft: left, jobEnds: true, accruedToMs: from, nowMs: to });
+    if (!w.accrued) { ok(false, `T9: window ${i} of a counted run did not accrue (${w.reason})`); break; }
+    burnt += -(w.delta.items && w.delta.items[FUEL]) || 0;
+    ended = !!w.delta.activity;
+    ok(!('active_left' in w.delta) || w.delta.active_left <= left, `T9: window ${i} raised the count ${left} -> ${w.delta.active_left}`);
+    ok('active_left' in w.delta, `T9: window ${i} of a counted run proposed no countdown: the next window burns the whole count again`);
+    left = w.delta.active_left; lefts.push(left);
+    from = Date.parse(w.delta.accrued_to);
+  }
+  ok(burnt === 100 && ended && JSON.stringify(lefts) === '[63,26,0]', `T9: a run of 100 cut in windows burnt ${burnt} (left ${JSON.stringify(lefts)}, ended ${ended})`);
+  /* The fuel ends it first: the run stops on supplies and says what it left. */
+  const dry = call({ inventory: { [FUEL]: 7 }, activeLeft: 20, jobEnds: true });
+  ok(dry.accrued && dry.delta.items[FUEL] === -7 && dry.delta.active_left === 13 && dry.delta.journal.meta.stopped === 'supplies',
+    `T9: seven bones under a count of 20 answered ${JSON.stringify(dry.delta && { items: dry.delta.items, left: dry.delta.active_left, stopped: dry.delta.journal.meta.stopped })}`);
+  /* The degrade ladder's budget and the count: the smaller binds, and a budget stop still keeps the pointer. */
+  const both = call({ inventory: { [FUEL]: 1000 }, activeLeft: 50, jobEnds: true, actionBudget: 20 });
+  ok(both.accrued && both.summary.ticks === 20 && !both.delta.activity && both.delta.active_left === 30,
+    `T9: a budget of 20 under a count of 50 ran ${both.summary && both.summary.ticks} and answered ${JSON.stringify(both.delta && { activity: both.delta.activity, left: both.delta.active_left })}`);
+  /* What is not a whole positive number is no count. */
+  const free = JSON.stringify(call({ inventory: { [FUEL]: 50 } }).delta);
+  for (const bad of [null, undefined, 0, -1, 1.5, '3', NaN, {}]) {
+    ok(JSON.stringify(call({ inventory: { [FUEL]: 50 }, activeLeft: bad }).delta) === free, `T9: a count of ${String(bad)} moved the window`);
+  }
 }
 
 /* ── T10 ────────────────────────────────────────────────────────────────── */
@@ -213,6 +262,7 @@ export async function runAll() {
   benchGoneGuard();
   shapeGuard();
   ladderGuard();
+  countGuard();
   await floorGuard();
   workDayGuard();
   ok(typeof simulateFuelSpan === 'function' && simulateFuelSpan.length >= 2, 'artisan: simulateFuelSpan is not the two-argument span function');
@@ -230,7 +280,7 @@ export const MUTATIONS = [
   { id: 'M1', arm: 'T3', why: 'the fuel is never debited from the pool: an endless pile, and a delta hr_apply refuses insufficient_item',
     file: `${FN}/accrue-artisan.js`, from: '      supply[id] = have - take;\n', to: '' },
   { id: 'M2', arm: 'T4', why: 'a run that ran dry keeps its pointer (the town body stands "Fueling" forever)',
-    file: `${FN}/accrue-artisan.js`, from: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES;', to: '  const stopped = false;' },
+    file: `${FN}/accrue-artisan.js`, from: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES || counted;', to: '  const stopped = counted;' },
   { id: 'M3', arm: 'T4c', why: 'the action that burnt the last fuel does not end the run (report #68)',
     file: 'src/core/artisan-sim.js', from: '        /* THE ACTION THAT BURNT THE LAST FUEL ENDS THE RUN (report #68), on every path. */\n        if (outOfFuel()) return done;\n',
     to: '        /* THE ACTION THAT BURNT THE LAST FUEL ENDS THE RUN (report #68), on every path. */\n' },
@@ -251,6 +301,14 @@ export const MUTATIONS = [
     file: `${FN}/accrue-artisan.js`, from: "      kind: 'craft',", to: "      kind: 'artisan'," },
   { id: 'M11', arm: 'T11', why: 'the work day no longer ends a run that reached its end',
     file: `${FN}/accrue-artisan.js`, from: '  const workEnd = span.workCapped === true && !stopped;', to: '  const workEnd = false;' },
+  { id: 'M13', arm: 'T9', why: 'the run\'s count is not read: "Burn one" burns the whole stack',
+    file: `${FN}/accrue-artisan.js`, from: '    maxActions: runCap(inp.actionBudget, left0),', to: '    maxActions: inp.actionBudget,' },
+  { id: 'M14', arm: 'T9', why: 'a counted-out run keeps its pointer: the next settle burns the count again',
+    file: `${FN}/accrue-artisan.js`, from: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES || counted;', to: '  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES;' },
+  { id: 'M15', arm: 'T9', why: 'a run short of its count proposes no countdown: every window burns the whole count',
+    file: `${FN}/accrue-artisan.js`, from: 'if (left1 !== null && ((runOver && inp.jobEnds === true) || (!runOver && left1 < left0))) delta.active_left = left1;', to: ';' },
+  { id: 'M16', arm: 'T9', why: 'the job end is proposed to a database that refuses it (hr_apply: bad_delta, the window is lost)',
+    file: `${FN}/accrue-artisan.js`, from: '((runOver && inp.jobEnds === true) ||', to: '(runOver ||' },
   /* The door's catalogue answer and the accruer's own are one rule in two layers (either alone refuses): the mutant
      takes both, and the window is then answered nothing_accrued, a SAFE reason a switch confiscates. */
   { id: 'M12', arm: 'T5', why: 'an artisan pointer on a cut bench recipe is answered nothing (a switch confiscates it) instead of refused',

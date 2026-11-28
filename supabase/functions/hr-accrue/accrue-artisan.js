@@ -40,8 +40,21 @@ import { windowWaste, windowEnvelope, settledWatermarkMs } from './accrual-windo
  * @param inp  computeAccrual's input, verbatim
  * @param span { nowMs, grantMs, capped, credit, workCapped } — the shared preamble's
  */
+/* The span's action cap: the degrade ladder's budget and the run's own count, whichever is smaller; null when neither
+   binds (absent and null are both "unbounded", see artisan-sim.js). */
+function runCap(budget, left) {
+  const b = (budget === null || budget === undefined) ? null : Number(budget);
+  if (b === null) return left;
+  return left === null ? b : Math.min(b, left);
+}
+
 export function accrueArtisan(inp, span) {
   const { nowMs, grantMs, capped, credit } = span;
+  /* THE RUN'S COUNT ("Burn" is a count of one; 2026-12-01-bench-count.sql): the actions it may still make, from the
+     server's own player_state.active_left (envelope.js activeLeft); null = until the fuel is out. It caps the span like
+     the degrade ladder's budget, and the run ENDS on the action that reaches it (below), so N actions are burnt however
+     the settles are cut. A run with a count read as a run without one would burn the player's whole stack. */
+  const left0 = Number.isInteger(inp.activeLeft) && inp.activeLeft > 0 ? inp.activeLeft : null;
   const items = inp.items || {};
   /* Equipment reaches a fuel run through exactly one channel — `xpB`, the same term the client's xpGrantCtx() supplies. */
   const eq = equipmentStats(inp.equipment || {}, items);
@@ -118,7 +131,7 @@ export function accrueArtisan(inp, span) {
     bonus,
     /* THE DEGRADE LADDER'S CAP (Security C1), from `inp.actionBudget`, which index.ts computes from the engine's own
        previous answer, never from a request body. Absent/null = unbounded. `minStepMs` is NOT SET: the real floor. */
-    maxActions: inp.actionBudget,
+    maxActions: runCap(inp.actionBudget, left0),
     fx,
   });
 
@@ -158,7 +171,10 @@ export function accrueArtisan(inp, span) {
   /* ⚠ A STOPPED RUN MUST STILL CLEAR THE POINTER, which is why this test comes BEFORE the nothing-happened return: a run
      that stops on its FIRST action (the fuel is already gone) produces nothing, and `nothing_accrued` there would leave
      `active_id` on a run that can never pay. */
-  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES;
+  /* THE COUNT REACHED is a stop like running dry: the run is over and the pointer clears. */
+  const left1 = left0 === null ? null : Math.max(0, left0 - Math.floor(nat(summary.ticks, 0)));
+  const counted = left1 === 0;
+  const stopped = summary.stoppedBy === FUEL_STOP.SUPPLIES || counted;
   /* THE WORK DAY RAN OUT (1059-company-trades.sql): the door cut this window at the day's end (accrual.js `workCapped`). */
   const workEnd = span.workCapped === true && !stopped;
   const runOver = stopped || workEnd;
@@ -181,8 +197,10 @@ export function accrueArtisan(inp, span) {
       meta: {
         ms: grantMs, ticks: summary.ticks, capped,
         recipe: summary.recipeId, skill: summary.skill,
-        stopped: summary.stoppedBy || (workEnd ? 'work_cap' : null),
-        out_of: stoppedInput,
+        stopped: counted ? 'count' : (summary.stoppedBy || (workEnd ? 'work_cap' : null)),
+        out_of: counted ? null : stoppedInput,
+        /* The count this window started from and what it left (absent on an uncounted run). */
+        ...(left0 !== null ? { n: left0, left: left1 } : {}),
         ...(skipped.length ? { skipped_items: skipped.join(',') } : {}),
         ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
         from: new Date(credit.fromMs).toISOString(),
@@ -199,6 +217,10 @@ export function accrueArtisan(inp, span) {
   /* THE RUN IS OVER, so the pointer says so. Sent only when it happened: an `activity` key is a complete, re-validated
      statement and restating an unchanged pointer buys a catalogue lookup and nothing else. */
   if (runOver) delta.activity = { kind: 'idle', id: null };
+  /* A run still short of its count proposes the lowered count (hr_apply accepts it only below the stored one, on an
+     accrual): a replayed or re-cut window cannot burn past N. A run that ENDS states what it left beside its
+     `activity: idle` (1026-job-counts.sql: 0 = counted out; more = the fuel or the day ended it first). */
+  if (left1 !== null && ((runOver && inp.jobEnds === true) || (!runOver && left1 < left0))) delta.active_left = left1;
   /* THE WORK DAY (1059-company-trades.sql): where this window's work ended, what hr_apply spends of the hero's day.
      Sent only to a database that keeps the day (`workDay`, the section's switch). */
   if (inp.workDay) delta.work_to = new Date(Math.min(credit.toMs, credit.fromMs + Math.floor(nat(summary.paidMs, 0)))).toISOString();

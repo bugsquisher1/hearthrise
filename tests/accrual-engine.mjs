@@ -267,8 +267,9 @@ function hostileGuard() {
     ctx: { tickMs: 1, minTickMs: 1 },
     delta: { gold: 1e12 },
     hearth_tokens: 1e9,
-    /* The cut bench's own knobs (09-crafting.md 4.17): a "make N" count, a queued next job, a node index, a tool
-       carry, a bag cap and a learned-recipe map. Nothing on the fuel run reads any of them; asserted, not assumed. */
+    /* The cut bench's own knobs (09-crafting.md 4.17): a request's own `count` (the run's is the server's
+       `activeLeft`), a queued next job, a node index, a tool carry, a bag cap and a learned-recipe map. Nothing on the
+       fuel run reads any of them; asserted, not assumed. */
     count: 1e9,
     next: { kind: 'artisan', id: 'fuel_void_chitin', count: 1e9 },
     nodes: { fuel_bones: { skill: 'mining', node: { prod: 'bones', qty: [1e6, 1e6] } } },
@@ -474,7 +475,11 @@ async function shapeGuard() {
        player base (500 active) that is at most ~12k rows/day x 90 bytes = ~1 MB/day
        (~390 MB/year) if EVERY row were a fuel row, and the hunt settle's rows are
        most of them. The bound that matters — rows — is unchanged. */
-  const META_KEYS = ['ms', 'ticks', 'capped', 'recipe', 'skill', 'stopped', 'out_of', 'skipped_items', 'w', 'from', 'to'];
+  /* `n` AND `left` (the hearth run's count, 09-crafting.md 4.17's bridge): the count a window started from and what it
+     left. ROWS ADDED: ZERO. BYTES: two integers of at most six digits, under 30 bytes, OMITTED on every run with no
+     count ("Burn all"); at the same 12k rows/day ceiling, if every row were a counted run, ~360 KB/day. */
+  const META_KEYS = ['ms', 'ticks', 'capped', 'recipe', 'skill', 'stopped', 'out_of', 'n', 'left', 'skipped_items', 'w', 'from', 'to'];
+  const counted = serverAccrual({ activeLeft: 5, jobEnds: true });
   const metaProblems = (m) => {
     const out = [];
     if (typeof m !== 'object' || m === null || Array.isArray(m)) return ['meta is not an object'];
@@ -491,6 +496,8 @@ async function shapeGuard() {
     'SHAPE-selftest: the meta checker accepted a per-kill log key — it is not checking anything');
   ok(metaProblems(Object.fromEntries(META_KEYS.concat('extra').map((k) => [k, 1]))).length > 0,
     'SHAPE-selftest: the meta checker accepted a row longer than its own allowlist');
+  ok(counted.accrued && 'n' in counted.delta.journal.meta && metaProblems(counted.delta.journal.meta).length === 0,
+    `SHAPE: a counted run's journal meta is not on the allowlist: ${counted.accrued ? metaProblems(counted.delta.journal.meta).join('; ') : counted.reason}`);
   ok(metaProblems(s.delta.journal?.meta).length === 0,
     `SHAPE: the journal meta must be an aggregate, not a per-kill log (game_events: 1.6M rows from six players): ${metaProblems(s.delta.journal?.meta).join('; ')}`);
   ok(typeof s.delta.accrued_to === 'string' && !Number.isNaN(Date.parse(s.delta.accrued_to)),

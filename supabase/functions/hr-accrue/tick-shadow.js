@@ -102,6 +102,9 @@ export function advance(char, res) {
   if (typeof d.hp === 'number') char.hp = d.hp;
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
   if (typeof d.ammo_carry !== 'undefined') char.ammoCarry = d.ammo_carry;
+  /* A FUEL RUN'S COUNT (2026-12-01-bench-count.sql), a checkpoint: the next window caps at what this one left, or every
+     window would burn the whole count again. 0 (counted out) leaves none. */
+  if (typeof d.active_left === 'number') char.activeLeft = d.active_left > 0 ? d.active_left : null;
   /* THE WORK DAY (1059-company-trades.sql), a checkpoint: the next window stops at what this one left of the hero's
      day, or every window would work the whole of it. The fold hr_apply makes, from the same rule
      (src/core/work-day.js foldWork): [this window's watermark, where its work ended], never past its new watermark. */
@@ -180,6 +183,8 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     /* THE ARTISAN CHANNEL'S CATALOGUE (tick-artisan.js): the fuel runs, named exactly as the accrue path
        names it (index.ts runAccrual: `recipes`). PRESENT ONLY WHEN THE CHANNEL CARRIES IT. */
     ...(catalogues.recipes ? { recipes: catalogues.recipes } : {}),
+    /* A counted run's actions left, through engineInputsFromEnvelope; an uncounted run carries no key. */
+    ...(Number.isInteger(char.activeLeft) ? { activeLeft: char.activeLeft } : {}),
     /* NOT from the envelope: `hr_perks_of` is its own read, made by tick.js
        (1b) and carried on the session (2026-09-28); a fixture's pinned value
        offline. Absent ⇒ zero perks, the under-paying direction. */

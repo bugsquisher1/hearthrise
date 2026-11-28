@@ -15,8 +15,9 @@
 //   S3  the engine's FUEL_RUNS are exactly the data's `fuel_<item>` rows on the Hearth's bench (src/data/recipes.js
 //       inner_flame, one per src/data/hearth.js HEARTH_FUELS fuel): a fuel the bag offers that the engine cannot price
 //       is the lockout again, and a non-fuel row it could price is the bench back
-//   S4  a `count` or a `next` is refused 400 `bad_activity` on shape: no count is kept to stop a run at, so honouring
-//       neither would burn the whole stack when the player asked for one
+//   S4  a fuel run takes a count ("Burn" is a count of one), a whole number 1..100000; an unreadable count, a count on
+//       anything else and any `next` are refused 400 `bad_activity` on shape (a count silently dropped burns the whole
+//       stack when the player asked for one); and the count rides the statement hr_apply stores
 //
 // Node-only, no network. `runAll()` is imported by tests/run-smoke.mjs.
 // ============================================================================
@@ -37,13 +38,14 @@ const CUT_BENCH_ID = 'forge_iron_platebody';
 
 export async function runAll() {
   problems.length = 0;
-  let server; let catalogue; let recipes; let hearth;
+  let server; let catalogue; let recipes; let hearth; let request;
   try {
-    [server, catalogue, recipes, hearth] = await Promise.all([
+    [server, catalogue, recipes, hearth, request] = await Promise.all([
       import(mod('supabase/functions/hr-accrue/set-activity.js')),
       import(mod('supabase/functions/hr-accrue/catalogue.js')),
       import(mod('src/data/recipes.js')),
       import(mod('src/data/hearth.js')),
+      import(mod('supabase/functions/hr-accrue/request.js')),
     ]);
   } catch (e) {
     fail('the activity seam could not be loaded, so NOTHING below ran: ' + (e && e.message));
@@ -97,13 +99,32 @@ export async function runAll() {
     }
   }
 
-  /* ── S4 — no activity takes a count or a next. */
-  for (const extra of [{ count: 1 }, { count: 5000 }, { next: 'hunt' }]) {
-    const r = await set({ kind: 'artisan', id: fuelIds[0] || 'fuel_bones', ...extra }).catch((e) => ({ status: 0, body: { error: String(e.message) } }));
+  /* ── S4 — a fuel run takes a count; nothing takes a next. */
+  const fuelId = fuelIds[0] || 'fuel_bones';
+  const tries = [
+    ...[null, 0, -1, 1.5, 100001].map((count) => ({ kind: 'artisan', id: fuelId, count })),
+    { kind: 'idle', id: null, count: 1 }, { kind: 'artisan', id: fuelId, next: 'wait' },
+    { kind: 'artisan', id: fuelId, count: 1, next: 'wait' },
+  ];
+  for (const raw of tries) {
+    /* Through the parser the shell runs: what reaches the intent is request.js's reading of the body. */
+    const r = await set(request.parseIntent({ verb: 'set_activity', activity: raw }).activity).catch((e) => ({ status: 0, body: { error: String(e.message) } }));
     if (r.status !== 400 || !r.body || r.body.error !== 'bad_activity') {
-      fail(`S4: set_activity answered ${r.status} ${JSON.stringify(r.body)} for ${JSON.stringify(extra)}. It must be 400 bad_activity `
-        + 'on shape: no count is kept, so a count honoured as nothing burns the whole stack.');
+      fail(`S4: set_activity answered ${r.status} ${JSON.stringify(r.body)} for ${JSON.stringify(raw)}. It must be 400 bad_activity `
+        + 'on shape: a count silently dropped burns the whole stack.');
     }
+  }
+  for (const count of [1, 100000]) {
+    const read = request.parseIntent({ verb: 'set_activity', activity: { kind: 'artisan', id: fuelId, count } }).activity;
+    const r = await set(read).catch(() => ({ status: 0, body: { error: 'database' } }));
+    if (read.count !== count || (r.status === 400 && r.body && r.body.error === 'bad_activity')) {
+      fail(`S4: a count of ${count} on a fuel run was refused on shape (read ${JSON.stringify(read)}, ${r.status} ${JSON.stringify(r.body)}): "Burn" is a count of one.`);
+    }
+    const d = server.activityDelta('artisan', fuelId, null, count);
+    if (d.activity.count !== count) fail(`S4: the statement for a run of ${count} carries ${JSON.stringify(d.activity)}: hr_apply keeps no count and the run burns the stack.`);
+  }
+  if ('count' in server.activityDelta('artisan', fuelId, null, undefined).activity || 'count' in server.activityDelta('idle', null, null, 1).activity) {
+    fail('S4: a statement with no count, or an idle, carries one.');
   }
   return problems;
 }

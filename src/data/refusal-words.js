@@ -37,6 +37,11 @@ const MARKET_WORDS = Object.freeze({
   not_yours: 'Another player\'s listing',
 });
 
+/* The Talents verbs' own lines (src/session/talent-intents.js, each verb its askVia name) */
+const TALENT_WORDS = Object.freeze({
+  not_offered: 'Not offered here',
+});
+
 /* A code that reads better for the verb the engine refused (its answer echoes `verb`): verb -> code -> line, checked
    before REFUSAL_WORDS. Gear is changed in town (equip.js refuses an equip while the hero's hunt is open). */
 export const REFUSAL_VERB_WORDS = Object.freeze({
@@ -55,6 +60,13 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     hunting: 'Dispatch loot works in town',
     storage_full: 'Storage full, nothing stored',
   }),
+  /* The Roads (1064-roads-sample.sql hr_talent_spend_problem): a town or Havora pick whose move has no band there is not_offered, which
+     reads as the shop's line everywhere else (src/session/talent-intents.js names its verb; the Talents card reads the same table) */
+  talent_spend: TALENT_WORDS,
+  talent_suggested: TALENT_WORDS,
+  talent_auto: TALENT_WORDS,
+  talent_build: TALENT_WORDS,
+  talent_plan: TALENT_WORDS,
   /* A kit-trade job (1073-k1-job-slice.sql hr_trade_job_start / hr_trade_job_end): the server's own reasons, in its order. */
   trade_job: Object.freeze({
     not_open: 'Jobs are not open yet',

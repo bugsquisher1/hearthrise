@@ -334,7 +334,7 @@ const MUTANTS = [
   { name: 'the Leech\'s carry is never stored with the world', edits: [['src/core/hunt/world-state.js',
     "const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));", "const row = (part, obj) => FIELDS[part].map(([name]) => copy(name === 'leechMilli' ? 0 : obj[name]));"]],
     want: /^WI-6/, test: leech },
-  { name: 'the Leech never reaches the blow', edits: [['src/core/hunt/damage.js', '!(ability && ability.dot) ? leechOn(source, target, r.dmg) : null;', '!(ability && ability.dot) ? null : null;']],
+  { name: 'the Leech never reaches the blow', edits: [['src/core/hunt/damage.js', '&& r.dmg > 0 ? leechOn(source, target, r.dmg) : null;', '&& r.dmg > 0 ? null : null;']],
     want: /^WI-6/, test: leech },
 ];
 

@@ -266,7 +266,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   const vit = isHero(target) ? { hp: Math.max(0, Math.floor(Number(target.hp) || 0)), max: Math.max(0, Math.floor(Number(target.maxHp) || 0)) } : null;
   /* A WORN LEECH (imbue-leech.js, 21 D-18): the dealer's own blow at a foe pays back its share of the HP it took, the remainder carried to
      its next blow; its mana rides this event (`back`), its HP is a heal after it. A tick or any `dot` piece is no blow. Dark: none worn. */
-  const lee = source && source.imbues && r.dmg > 0 && !(ability && ability.dot) ? leechOn(source, target, r.dmg) : null;
+  const lee = source && source.imbues && !(ability && ability.dot) && r.dmg > 0 ? leechOn(source, target, r.dmg) : null;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
     ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}), ...(lee && lee.mana ? { back: lee.mana } : {}), ...(vit || {}), ...traitsField(r.traits) }));

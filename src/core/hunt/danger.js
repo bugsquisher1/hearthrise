@@ -322,7 +322,8 @@ export function marginPm(inst) {
 export function noteHurt(inst, u, source) {
   const w = inst.world;
   if (!dangerOn(w) || !isHero(u)) return;
-  const pm = u.maxHp > 0 ? Math.floor((Math.max(0, u.hp) * 1000) / u.maxHp) : 0;
+  /* (a living hero reads at least 1: 0 is a death, and a hero left standing at 1 HP of 1,500 is no death: fall-save.js, lane/signatures-batch-4) */
+  const pm = u.maxHp > 0 ? (u.hp > 0 ? Math.max(1, Math.floor((u.hp * 1000) / u.maxHp)) : 0) : 0;
   const seat = Number.isSafeInteger(u.seat) && u.seat >= 0 ? u.seat : null;
   const hs = holderSeat(inst);
   if (marginOf(pm, seat, hs) >= marginOf(w.low, w.lowHero, hs)) return;

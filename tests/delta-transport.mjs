@@ -218,9 +218,10 @@ const MUTATIONS = {
      above the payload.
 
      Halving the derived action interval is the single highest-leverage forgery
-     available against a gathering night: `n = floor(sliceMs / stepMs)` makes
-     the interval a DIVISOR, so 6,400 ms → 3,200 ms doubles the logs and doubles
-     the XP with nothing else in the delta looking wrong. It stays clear of
+     available against a town night (the Hearth's fuel run since the one-town-work
+     cut): `n = floor(sliceMs / stepMs)` makes the interval a DIVISOR, so 640 ms →
+     320 ms doubles the bones burnt and doubles the XP with nothing else in the
+     delta looking wrong. It stays clear of
      MIN_ACTION_MS (500), so the clamp cannot mask it, and it does not touch the
      transport at all — which is the point: T3/T7 and T1/T2/T6 all still pass
      under it. Only an INDEPENDENTLY transcribed expectation can see it. */
@@ -267,17 +268,17 @@ const MUTATIONS = {
   },
   bare_array_param: {
     stagedFile: 'supabase/functions/hr-accrue/tick.js',
-    why: 'tick.js binds the gather seed ladder into a bare `$3::text[]` again — with no type discovery the '
-       + 'driver has no array serialiser and every gather settle is refused 22P02.',
+    why: 'tick.js binds the seed ladder into a bare `$3::text[]` again — with no type discovery the '
+       + 'driver has no array serialiser and every tick settle is refused 22P02.',
     find: "  + ' from jsonb_array_elements_text($3::text::jsonb) with ordinality l(ts, ord)';",
     repl: "  + ' from unnest($3::text[]) with ordinality l(ts, ord)';",
   },
-  gather_interval_halved: {
-    stagedFile: 'src/core/skill-sim.js',
-    why: 'the gather action interval is derived at HALF its honest value — a night pays twice the '
-       + 'logs and twice the XP, with a perfectly well-formed delta and a 200 from hr_apply.',
-    find: '  return actionIntervalMs(skill, (node && node.ms) || 3000, {',
-    repl: '  return 0.5 * actionIntervalMs(skill, (node && node.ms) || 3000, {',
+  fuel_interval_halved: {
+    stagedFile: 'src/core/artisan-sim.js',
+    why: 'the fuel run\'s action interval is derived at HALF its honest value — a night burns twice the '
+       + 'bones and pays twice the XP, with a perfectly well-formed delta and a 200 from hr_apply.',
+    find: '  return actionIntervalMs(skill, (recipe && recipe.ms) || 3000, { bonus: ctx && ctx.bonus });',
+    repl: '  return 0.5 * actionIntervalMs(skill, (recipe && recipe.ms) || 3000, { bonus: ctx && ctx.bonus });',
   },
 };
 
@@ -789,10 +790,10 @@ async function run(mutate) {
       const res = await runSetActivity({
         exec, user: UID, slot: 0,
         intentId: crypto.randomUUID(),
-        /* A GATHER declaration since lane C2: `combat` is answered
-           hunt_required on shape (a fight is a hunt session now) and would
-           never reach the wire this arm exists for. */
-        activity: { kind: 'gather', id: 'normal_tree', count: 100 },   // a gathering job always takes a count (1026-job-counts.sql)
+        /* A FUEL RUN declaration (the Hearth's; a gather one until the one-town-work cut): `combat` is
+           answered hunt_required on shape (a fight is a hunt session now) and would never reach the wire this
+           arm exists for. */
+        activity: { kind: 'artisan', id: 'fuel_bones' },
       });
 
       /* The refusal envelope carries a whole hr_state_of, so a raw dump buries
@@ -811,7 +812,7 @@ async function run(mutate) {
       const [st] = (await db.query(
         'select active_kind, active_id, version from public.player_state where user_id=$1 and slot=0',
         [UID])).rows;
-      ok(st && st.active_kind === 'gather' && st.active_id === 'normal_tree',
+      ok(st && st.active_kind === 'artisan' && st.active_id === 'fuel_bones',
         `T3: hr_apply reported success but the pointer is ${st && st.active_kind}/${st && st.active_id} `
         + '— the write did not land, so the 200 above is not evidence of anything');
       ok(Number(st.version) === 1,
@@ -819,14 +820,16 @@ async function run(mutate) {
         + '(expected 1) — the version did not advance, so nothing was committed');
     }
 
-    /* ── T8. THE ACCRUE VERB, GATHERING, END TO END OVER THE REAL DRIVER. ────
+    /* ── T8. THE ACCRUE VERB, THE HEARTH'S FUEL RUN, END TO END OVER THE REAL DRIVER. ────
+       (A gathering night until the one-town-work cut retired gathering; the town night the accrue verb pays
+       now is the fuel run, and every claim below is the same claim about it.)
        The gap this closes is narrow and load-bearing, so it is worth naming
        precisely what covered what before it existed:
 
          tests/accrual-engine.mjs   calls computeAccrual directly and proves the
-                                    gather PRICE matches the client's own replay
+                                    town PRICE matches the client's own replay
                                     for the same seed. It never opens a database.
-         tests/activity-intent.mjs  drives a gather collect through the real
+         tests/activity-intent.mjs  drives a town collect through the real
                                     hr_apply — but over a PGlite `exec`, and via
                                     the set_activity verb.
          T1 above                   executes index.ts's cast, but only far enough
@@ -845,7 +848,7 @@ async function run(mutate) {
          and every assertion in T1–T7 passes on it — they all compare the engine
          against itself. The pin below is derived from the AUTHORED NODE and the
          pacing dials, never from the simulation, which is what lets it see the
-         `gather_interval_halved` mutation that nothing else in this file can. */
+         `fuel_interval_halved` mutation that nothing else in this file can. */
     {
       /* A SECOND ACCOUNT AT SLOT 0 — not a second slot on the first one.
          2026-09-08-hero-slot-buy.sql made every slot above 0 an ENTITLEMENT:
@@ -858,26 +861,24 @@ async function run(mutate) {
       const USER = UID_T8;
       const SLOT = 0;
       const SPAN_H = 4;
-      /* oak_tree, not normal_tree: `req: 15` means the fixture must satisfy a
-         level gate the server re-checks, so a pass is not available to a
-         character that simply ignored it. `qty: [1,1]` means the yield draws no
-         random number, so the expected item count is the action count exactly
-         — the pin below would otherwise be a distribution, not a number. */
-      const NODE = { id: 'oak_tree', ms: 4000, product: 'oak_log', skill: 'woodcutting' };
+      /* fuel_bones: one bone an action, no roll at all, so the expected count of bones burnt is the action count
+         exactly. The bag holds far more than the window can burn, so the run never stops on its fuel. */
+      const NODE = { id: 'fuel_bones', ms: 400, product: 'bones', skill: 'inner_flame' };
+      const STOCK = 100000;
 
       const made1 = (await db.query('select public.__b7d1_create($1,$2) as v', [USER, SLOT])).rows[0].v;
       ok(made1.ok === true, `T8: hr_create_character(slot ${SLOT}) returned ${JSON.stringify(made1)}`);
 
-      /* The fixture. Level 16 woodcutting (3,000 XP) clears oak's 15, and the
-         inventory is EMPTIED so the character owns no axe — the transcription
-         below assumes a tool-less interval and that assumption is asserted, not
-         hoped for, a few lines down. */
+      /* The fixture: 3,000 Inner Flame XP and a bag of nothing but bones (a fuel run has no tool, so the
+         transcription below is the plain interval). */
       await db.query(
-        "update public.player_skills set xp = 3000 "
-        + "where user_id=$1 and slot=$2 and skill_id='woodcutting'", [USER, SLOT]);
+        "insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, $2, 'inner_flame', 3000) "
+        + 'on conflict (user_id, slot, skill_id) do update set xp = 3000', [USER, SLOT]);
       await db.query('delete from public.player_inventory where user_id=$1 and slot=$2', [USER, SLOT]);
+      await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, $2, $3, $4)',
+        [USER, SLOT, NODE.product, STOCK]);
       await db.query(
-        "update public.player_state set active_kind='gather', active_id=$3, "
+        "update public.player_state set active_kind='artisan', active_id=$3, "
         + "accrued_to = now() - ($4 || ' hours')::interval, "
         + "active_since = now() - ($4 || ' hours')::interval "
         + 'where user_id=$1 and slot=$2', [USER, SLOT, NODE.id, String(SPAN_H)]);
@@ -894,9 +895,9 @@ async function run(mutate) {
       const env = read?.state;
       ok(env && env.ok === true, `T8: hr_state_of answered ${JSON.stringify(env)?.slice(0, 200)}`);
       const st = env.state;
-      ok(st.active_kind === 'gather' && st.active_id === NODE.id,
+      ok(st.active_kind === 'artisan' && st.active_id === NODE.id,
         `T8: the fixture pointer reads ${st.active_kind}/${st.active_id} — nothing below is a `
-        + 'gathering test');
+        + 'fuel run test');
 
       /* THE SEED, from the server. `hr_seed` mixes a 256-bit secret held in a
          table with RLS on and no client grant, so this also proves the engine
@@ -919,27 +920,19 @@ async function run(mutate) {
       const CORE = (rel) => pathToFileURL(join(importDir, '..', '..', '..', rel)).href + bust;
       const { computeAccrual } = await import(
         pathToFileURL(join(importDir, 'accrual.js')).href + bust);
-      const { GATHER_NODES } = await import(
+      const { FUEL_RUNS } = await import(
         pathToFileURL(join(importDir, 'catalogue.js')).href + bust);
       const { ITEMS } = await import(CORE('src/data/items.js'));
       const { MONSTERS } = await import(CORE('src/data/monsters.js'));
       const { PACE, MIN_ACTION_MS } = await import(CORE('src/core/pacing.js'));
-      const { toolFor } = await import(CORE('src/core/skill-sim.js'));
 
       const skills = {};
       for (const k of Object.keys(env.skills || {})) skills[k] = Number(env.skills[k].xp) || 0;
       const nowMs = new Date(read.now).getTime();
 
-      /* THE FIXTURE'S OWN VACUITY CHECK. `bestTool` reads inventory AND
-         equipment, and a tool adds a speed term straight into the interval —
-         which would make the transcription below quietly wrong and this whole
-         assertion a coin flip. Assert the premise. */
-      const tool = toolFor({ inventory: env.inventory || {}, equipment: env.equipment || {} },
-        NODE.skill, ITEMS);
-      ok(!tool,
-        `T8: the fixture character owns a ${NODE.skill} tool (${JSON.stringify(tool)}), so the `
-        + 'tool-less interval this test transcribes is not the interval the engine will derive. '
-        + 'Clear it, or the pricing pin below passes or fails for the wrong reason.');
+      /* THE FIXTURE'S OWN VACUITY CHECK: the bag the engine is handed holds the fuel and nothing else. */
+      ok(JSON.stringify(env.inventory || {}) === JSON.stringify({ [NODE.product]: STOCK }),
+        `T8: the fixture bag is ${JSON.stringify(env.inventory)}, not ${STOCK} ${NODE.product} alone`);
 
       const out = computeAccrual({
         userId: USER,
@@ -957,22 +950,18 @@ async function run(mutate) {
         skills,
         equipment: env.equipment || {},
         inventory: env.inventory || {},
-        autoEatEnabled: st.auto_eat_enabled === true,
-        autoEatFood: st.auto_eat_food ?? null,
-        autoEatPct: Number(st.auto_eat_pct),
-        toolCarry: st.tool_carry ?? null,
         perks: null,
         items: ITEMS,
         monsters: MONSTERS,
-        nodes: GATHER_NODES,
+        recipes: FUEL_RUNS,
       });
       ok(out.accrued === true,
-        `T8: the engine refused a ${SPAN_H}h gathering window with reason '${out.reason}'. `
-        + "`unsupported_activity` means 'gather' left PAYABLE_KINDS, which silently returns every "
-        + 'gathering player to a zero night.');
-      ok(out.delta?.journal?.kind === 'gather',
-        `T8: the delta is journalled as '${out.delta?.journal?.kind}', expected 'gather' — a `
-        + 'gathering night filed under another kind is unauditable');
+        `T8: the engine refused a ${SPAN_H}h fuel window with reason '${out.reason}'. `
+        + "`unsupported_activity` means 'artisan' left PAYABLE_KINDS, which silently returns every "
+        + 'Hearth run to a zero night.');
+      ok(out.delta?.journal?.kind === 'craft',
+        `T8: the delta is journalled as '${out.delta?.journal?.kind}', expected 'craft' — a `
+        + 'fuel night filed under another kind is unauditable');
 
       /* ── THE PRICING PIN, TRANSCRIBED FROM THE AUTHORED NODE. ──────────────
          Deliberately a SECOND EXPRESSION of the interval, not a call to
@@ -986,18 +975,18 @@ async function run(mutate) {
          stays green, while a change to how the SIMULATION derives or consumes
          the interval moves only one side and turns it red. With no perk stack,
          no tool and no buff, `speedClamp(0) === 1`, so the honest interval is
-         `max(500, floor(4000 * 1.60)) = 6,400 ms` and the honest yield of a
-         `qty:[1,1]` node is one product per action, exactly. */
+         `max(500, floor(400 * 1.60)) = 640 ms` and the honest burn is one bone
+         per action, exactly. */
       const intervalMs = Math.max(MIN_ACTION_MS, Math.floor(NODE.ms * PACE.actionMs));
       const expectedQty = Math.floor(Number(out.grantMs) / intervalMs);
       ok(expectedQty > 1000,
         `T8: the fixture budgets only ${expectedQty} actions — too few for a rounding error to be `
         + 'distinguishable from a pricing error');
-      ok(out.delta.items && out.delta.items[NODE.product] === expectedQty,
+      ok(out.delta.items && out.delta.items[NODE.product] === -expectedQty,
         `T8 PRICING: ${SPAN_H}h on ${NODE.id} proposed `
         + `${JSON.stringify(out.delta.items)}, but ${out.grantMs} ms at the authored `
         + `${NODE.ms} ms x PACE.actionMs ${PACE.actionMs} = ${intervalMs} ms per action is exactly `
-        + `${expectedQty} ${NODE.product}. The action interval is a DIVISOR of elapsed time and the `
+        + `${expectedQty} ${NODE.product} burnt. The action interval is a DIVISOR of elapsed time and the `
         + 'largest single lever in the grant (design section 3), so a wrong one is a silent mint or '
         + 'a silent confiscation with a perfectly well-formed delta.');
 
@@ -1034,9 +1023,9 @@ async function run(mutate) {
       const gotQty = Number((await db.query(
         'select qty from public.player_inventory where user_id=$1 and slot=$2 and item_id=$3',
         [USER, SLOT, NODE.product])).rows[0]?.qty ?? 0);
-      ok(gotQty === expectedQty,
+      ok(gotQty === STOCK - expectedQty,
         `T8: hr_apply reported success but player_inventory holds ${gotQty} ${NODE.product}, not `
-        + `the ${expectedQty} the engine priced — the 200 above is not evidence that anything landed`);
+        + `the ${STOCK - expectedQty} left after the ${expectedQty} the engine priced — the 200 above is not evidence that anything landed`);
 
       const gotXp = Number((await db.query(
         'select xp from public.player_skills where user_id=$1 and slot=$2 and skill_id=$3',
@@ -1058,8 +1047,8 @@ async function run(mutate) {
          `hr_apply` stamps gold_in/xp_in/qty_in itself, from the same three
          variables `hr_day_budget_check` was called with, so the ledger row is
          the only honest evidence of what the day was CHARGED. Asserting it here
-         answers the question by measurement rather than by reading the SQL:
-         gathering's item grants consume the UNITS dimension, and only that one.
+         answers the question by measurement rather than by reading the SQL: a
+         fuel run grants no item, so it charges the XP dimension and no other.
 
          ONE ROW, not one per action — a 4h night is 2,250 actions, and
          `game_events` reaching 1.6M rows / 229 MB from six players in four days
@@ -1093,18 +1082,16 @@ async function run(mutate) {
         + 'hr_apply stopped raising and journalling renown on 2027-03-30: nothing reads either, and '
         + `the rows were 14.9% of the live ledger. Rows by kind: ${kindCensus}.`);
       const led = accrual[0];
-      ok(led.kind === 'gather' && led.intent === 'accrue',
-        `T8: the ledger row is ${led.kind}/${led.intent}, expected gather/accrue`);
-      ok(Number(led.qty_in) === expectedQty,
-        `T8 BUDGET: the ledger stamped qty_in=${led.qty_in} for ${expectedQty} items. Gathering's `
-        + 'yield MUST charge the units dimension of the daily budget — an item grant that stamps 0 '
-        + 'is an uncapped mint against the one ceiling that is derived from an append-only ledger '
-        + 'rather than stored as a counter.');
+      ok(led.kind === 'craft' && led.intent === 'accrue',
+        `T8: the ledger row is ${led.kind}/${led.intent}, expected craft/accrue`);
+      ok(Number(led.qty_in) === 0,
+        `T8 BUDGET: the ledger stamped qty_in=${led.qty_in} for a night that granted no item — `
+        + 'spent fuel is not a grant, and charging it would refuse an honest Hearth night against the units ceiling.');
       ok(Number(led.xp_in) === Number(out.delta.xp?.[NODE.skill] ?? 0),
         `T8 BUDGET: the ledger stamped xp_in=${led.xp_in} against a delta of `
         + `${JSON.stringify(out.delta.xp)}`);
       ok(Number(led.gold_in) === 0,
-        `T8 BUDGET: a gathering night stamped gold_in=${led.gold_in} — gathering mints no gold, so `
+        `T8 BUDGET: a fuel night stamped gold_in=${led.gold_in} — the Hearth mints no gold, so `
         + "a non-zero here is another kind's value being charged to this window");
     }
 
@@ -1118,7 +1105,7 @@ async function run(mutate) {
              bool, text, uuid, null), on the real driver, side by side;
          (c) no payload SQL binds a JS array into an array-typed parameter (`$n::<type>[]` with no
              `::text` before it): without discovery the driver sends `a,b` (the control proves it);
-         (d) the one site that did — tick.js's gather seed ladder — runs on the deployed driver and
+         (d) the one site that did — tick.js's seed ladder — runs on the deployed driver and
              answers every label's seed, each equal to hr_seed of that label alone. */
     {
       ok(poolOpts && poolOpts.fetch_types === false,
@@ -1160,7 +1147,7 @@ async function run(mutate) {
 
       const TK = await import(pathToFileURL(join(importDir, 'tick.js')).href + `?t=${Date.now()}${Math.random()}`);
       ok(typeof TK.SEED_LADDER_SQL === 'string',
-        'T10d: tick.js no longer exports SEED_LADDER_SQL — this arm cannot execute the gather seed ladder');
+        'T10d: tick.js no longer exports SEED_LADDER_SQL — this arm cannot execute the seed ladder');
       const labels = ['2026-10-28 01:02:03.456789+00', '2026-10-28 01:03:33.456789+00'];
       const rows = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
@@ -1173,7 +1160,7 @@ async function run(mutate) {
         return r.seed;
       })));
       ok(rows.length === 2 && rows.every((r, i) => Number(r.ord) === i + 1 && String(r.seed) === String(single[i])),
-        `T10d: the gather seed ladder answered ${JSON.stringify(rows)} for ${labels.length} labels on the deployed driver, `
+        `T10d: the seed ladder answered ${JSON.stringify(rows)} for ${labels.length} labels on the deployed driver, `
         + `not their single seeds ${JSON.stringify(single)} in order`);
 
       /* THE CONTROL: on the deployed options a JS array bound into `$1::text[]` really is refused. If the driver

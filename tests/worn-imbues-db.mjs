@@ -296,7 +296,8 @@ async function partyEnd(boot, o = {}) {
 }
 
 /* WI-7 A LIT LEECH FOUR, BOTH PATHS (lane/imbue-engine, 21 D-18): every hero wears a Life Leech (band 50) on a helmed head. Its heal is
-   floor((took x 20 + carry) / 1000) a blow, the remainder carried on the unit (src/core/hunt/imbue-leech.js leechMilli, persisted with
+   floor((took x 19 + carry) / 1000) a blow (20 permille on the band's contest curve at Level 60: 21 D-21, lane/imbue-d21-d22; the rule
+   is tests/imbue.mjs IM-10's), the remainder carried on the unit (src/core/hunt/imbue-leech.js leechMilli, persisted with
    the world): a closed hunt (three 90 s windows) and a viewed one (nine 30 s windows) cut the carry at different boundaries, so they store
    the same world and the same heroes (bags, Level XP, each tally's healing) only if the carry rides every stored world. Each hero healed
    by its Leech (the tally's `life_leech` source), and the stored world carries a hero's carry. */

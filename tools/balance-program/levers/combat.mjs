@@ -310,9 +310,11 @@ export const COMBAT = [
     flags: [flag('ineffective', 'No formula past tier 7 (Level 88): today\'s gear earns 0.91 of the pace at Level 400, 0.47 at 1,000, and cannot hunt at 2,000', '44 summary item 1, MEASURED there (progression-engine-probe.json)')],
     ev: 'CONFIRMED (read)' }),
   L('weapon.ammo', 'weapon-power', 'content', 'Ammunition strength and use', {
-    at: [at('src/data/library2-items.js', 'const AMMO_STR = '), at('src/data/stonecraft.js', 'const AMMO_STAT = ')],
-    rows: rows('arrow and bolt strength and requirement, whetstone ammoPerShot', [home('src/data/library2-items.js#AMMO_REQ', 'count'), home('src/data/stonecraft.js#STONECRAFT_ITEMS', 'keys'), home('src/data/library2-items.js#whet', 'count')]),
-    def: 'arrows and bolts add strength (AMMO_STR / AMMO_STAT a tier) and spend one a shot (ammoPerShot)',
+    /* the ammo-slot ladder lives in stonecraft.js alone since lane/kit-bands-6-9 (09 4.16) removed library2-items.js's dead whetstone
+       copies; the arrows' rows are slot-ladders.js's */
+    at: [at('src/data/stonecraft.js', 'const AMMO_STAT = ')],
+    rows: rows('arrow and bolt strength and requirement, whetstone ammoPerShot', [home('src/data/stonecraft.js#AMMO_MADE_LV', 'count'), home('src/data/stonecraft.js#STONECRAFT_ITEMS', 'keys'), home('src/data/slot-ladders.js#SLOT_ITEMS', 'keys')]),
+    def: 'arrows and bolts add strength (AMMO_STAT a tier) and spend one a shot (ammoPerShot)',
     range: 'rising by tier',
     touches: 'a shooter\'s damage and supply bill', out: [...KILL, 'storePerH'], f: ['C-HERO-POWER', 'E19'],
     perturb: P('the kits carry the Level\'s ammo (gear.mjs accessories)'),

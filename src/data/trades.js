@@ -283,21 +283,30 @@ const RUNE_FACES = Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f) => ['rune_' 
    BAND 5 IS EMBERFORGED (09 4.15): Emberstone Ore, Swordfish, Emberfruit and Runewood, and its arrow is the Emberhead (an ember-headed
    arrow is ember's). THE LADDERS END: the runes stop at Graven (runes.js RUNE_TIERS, five) and the honing stones go from Rune to Dawnsteel
    (stonecraft.js, no ember stone), so band 5 has no rune and no stone. A caster and a melee hero there spend band 4's until the supply
-   ladders gain an ember rung (09 4.15, flagged for the ladder's owner) */
+   ladders gain an ember rung (09 4.15, flagged for the ladder's owner).
+   THE STONE SITS ON ITS ARROW'S RUNG (lane/kit-bands-6-9, 09 4.16): stonecraft.js re-cut the whetstones so each metal's stone is its arrow's
+   rung, and the Emberforged Whetstone fills rung 6, so band 5 grinds its own stone. BAND 6 IS DAWNSTEEL (09 4.16): Dawnstone Ore, Duskwood,
+   Frostfin, Dawnsteel Arrowheads, Dawnpoint Arrows and the Dawnsteel Whetstone, every ladder's last rung but the runes'. ITS DRINK WAITS:
+   Moonbloom (the last crop) has no mana press, and a new drink needs its server consume row (hr_hunt_action_ids, held by tests/hunt-core/
+   conditions.mjs sql-rows to an applied file), so a band 6 caster drinks band 5's cordial until that lands (HANDOFFS 2026-11-28,
+   kit-bands-6-9). BANDS 7 AND 8 ARE COBALT AND WOLFRAM (09 4.16): each a new rock, its bar and the Temper kit three bars
+   make, and its fish and meal (Shark, Moonfish). No arrow, stone, rune or wood sits past band 6 yet, nor a crop or drink past band 5: the supply ladders run
+   one rung a band past their last (HANDOFFS 2026-11-28, kit-bands-6-9), and each band's wood and drink land with its rung. Band 9 has no
+   gear tier and no ground, so it has no batch */
 export const KIT_FACES = Object.freeze({
-  ore: Object.freeze(['copper_ore', 'iron_ore', 'coal', 'mithril_ore', 'rune_ore', 'emberstone_ore']),
-  /* the bars Smithing smelts, a metal a band (gear-tiers.js MATERIAL_TIERS): the Temper kits' input to Dawnsteel */
-  bar: Object.freeze(['bronze_bar', 'iron_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar']),
-  arrowhead: Object.freeze(['bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads', 'rune_arrowheads', 'ember_arrowheads']),
+  ore: Object.freeze(['copper_ore', 'iron_ore', 'coal', 'mithril_ore', 'rune_ore', 'emberstone_ore', 'dawnstone_ore', 'cobalt_ore', 'wolfram_ore']),
+  /* the bars Smithing smelts, a metal a band (gear-tiers.js MATERIAL_TIERS): the arrowheads', the stones' and the Temper kits' input */
+  bar: Object.freeze(['bronze_bar', 'iron_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar', 'cobalt_bar', 'wolfram_bar']),
+  arrowhead: Object.freeze(['bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads', 'rune_arrowheads', 'ember_arrowheads', 'dawn_arrowheads']),
   /* the honing stone a melee hero spends (09 3.2's charge line): the Coarse Whetstone the store and the start kit already name */
-  honing_stone: Object.freeze(['coarse_whetstone', 'iron_whetstone', 'steel_whetstone', 'mithril_whetstone', 'rune_whetstone']),
-  log: Object.freeze(['normal_log', 'oak_log', 'willow_log', 'maple_log', 'yew_log', 'runewood_log']),
-  shaft: Object.freeze(['normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank']),
-  arrow: Object.freeze(['bronze_arrows', 'iron_arrows', 'steel_arrows', 'mithril_arrows', 'rune_arrows', 'emberhead_arrows']),
+  honing_stone: Object.freeze(['coarse_whetstone', 'iron_whetstone', 'steel_whetstone', 'mithril_whetstone', 'rune_whetstone', 'ember_whetstone', 'dawn_whetstone']),
+  log: Object.freeze(['normal_log', 'oak_log', 'willow_log', 'maple_log', 'yew_log', 'runewood_log', 'duskwood_log']),
+  shaft: Object.freeze(['normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank']),
+  arrow: Object.freeze(['bronze_arrows', 'iron_arrows', 'steel_arrows', 'mithril_arrows', 'rune_arrows', 'emberhead_arrows', 'dawnpoint_arrows']),
   /* the bolt opens at Woodcrafting's second rung (KINDS.bolt opens 2), so band 0 has none: Iron Bolts are the first */
   bolt: Object.freeze([null, 'iron_bolts']),
-  fish: Object.freeze(['shrimp', 'trout', 'pikeperch', 'goldgill', 'lobster', 'swordfish']),
-  meal: Object.freeze(['cooked_shrimp', 'cooked_trout', 'cooked_pikeperch', 'cooked_goldgill', 'cooked_lobster', 'cooked_swordfish']),
+  fish: Object.freeze(['shrimp', 'trout', 'pikeperch', 'goldgill', 'lobster', 'swordfish', 'frostfin', 'shark', 'moonfish']),
+  meal: Object.freeze(['cooked_shrimp', 'cooked_trout', 'cooked_pikeperch', 'cooked_goldgill', 'cooked_lobster', 'cooked_swordfish', 'cooked_frostfin', 'cooked_shark', 'cooked_moonfish']),
   /* the crop a drink is pressed from (drinks.js: the turnip's juice is the first mana drink, the carrot's the second), and the drink */
   grain: Object.freeze(['turnip', 'carrot', 'tomato', 'pumpkin', 'goldenroot', 'emberfruit']),
   drink: Object.freeze(['turnip_juice', 'carrot_juice', 'tomato_juice', 'pumpkin_cider', 'goldenroot_tea', 'emberfruit_cordial']),
@@ -305,8 +314,8 @@ export const KIT_FACES = Object.freeze({
   cut_stone: Object.freeze(['rune_blank', 'rune_blank', 'rune_blank', 'rune_blank', 'rune_blank']),
   ...RUNE_FACES,
   /* THE TEMPER KIT (21 section 2.2, lane/tp-im-steps 2026-11-26): the Tempering Salts the smith already sells are its faces, Iron to
-     Emberforged, and Dawnsteel's is new. Band 0 has none: Bronze is never tempered (a rank opens at Level 40, where Steel is worn). Cobalt
-     and Wolfram's land with the grounds that drop them. A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
+     Emberforged, and Dawnsteel's, Cobalt's and Wolfram's are new (09 4.16). Band 0 has none: Bronze is never tempered (a rank opens at Level
+     40, where Steel is worn). A rank at item Level iL takes the kits of bandOf(iL) (src/core/temper-steps.js) */
   temper_kit: TEMPER_KITS,
 });
 /* THE HUNTED STREAMS' FACES (STREAM_FACES: Remains a band, lane/k1-job-slice's call) and THE IMBUEMENT JOBS (IMBUE_JOBS, one Artificing
@@ -315,7 +324,9 @@ export { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId };
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
 export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', iron_arrowheads: 'Iron Arrowheads', steel_arrowheads: 'Steel Arrowheads',
-  mithril_arrowheads: 'Mithril Arrowheads', rune_ore: 'Rune Ore', rune_arrowheads: 'Rune Arrowheads', ember_arrowheads: 'Emberforged Arrowheads', ...TEMPER_KIT_NEW });
+  mithril_arrowheads: 'Mithril Arrowheads', rune_ore: 'Rune Ore', rune_arrowheads: 'Rune Arrowheads', ember_arrowheads: 'Emberforged Arrowheads',
+  ember_whetstone: 'Emberforged Whetstone', dawn_arrowheads: 'Dawnsteel Arrowheads', cobalt_ore: 'Cobalt Ore',
+  cobalt_bar: 'Cobalt Bar', wolfram_ore: 'Wolfram Ore', wolfram_bar: 'Wolfram Bar', ...TEMPER_KIT_NEW });
 
 /** THE JOB'S DOORS for catalogue-coherence (data only, no counts): one row a job recipe, { id, trade, output, inputs: [item ids] }, the
     output its face and the inputs the faces of its parts, materials and hunted streams at its band (src/core/trades.js jobRecipes is the
@@ -460,6 +471,42 @@ export const KIT_BATCHES = Object.freeze([
     kitRow('drink', 5, 'Brew Emberfruit Cordial'),
     kitRow('arrowhead', 5, 'Forge Emberforged Arrowheads'),
     kitRow('arrow', 5, 'Fletch Emberhead Arrows'),
+  ]),
+  /* BAND 5'S STONE (lane/kit-bands-6-9, 09 4.16): the whetstones re-cut onto their arrows' rungs, so rung 6 is the Emberforged Whetstone's */
+  batch('band5-stone', [
+    kitRow('honing_stone', 5, 'Grind Emberforged Whetstones'),
+  ]),
+  /* BAND 6, DAWNSTEEL (lane/kit-bands-6-9, 09 4.16; item Level 120, every row at its trade's Level 61): band 5's kinds at dawnsteel and
+     duskwood, with its stone. Read for repetition: one new head (Dawnsteel Arrowheads), every other name a live item. No rune (the ladder
+     ends at Graven) and no crop or drink yet (KIT_FACES above). The Ox Road is staged, so these open with it */
+  batch('band6-dawn', [
+    kitRow('ore', 6, 'Mine Dawnstone Ore'),
+    kitRow('log', 6, 'Chop Duskwood Logs'),
+    kitRow('fish', 6, 'Catch Frostfin'),
+    kitRow('bar', 6, 'Smelt Dawnsteel Bars'),
+    kitRow('shaft', 6, 'Saw Duskwood Planks'),
+    kitRow('meal', 6, 'Cook Frostfin'),
+    kitRow('honing_stone', 6, 'Grind Dawnsteel Whetstones'),
+    kitRow('arrowhead', 6, 'Forge Dawnsteel Arrowheads'),
+    kitRow('arrow', 6, 'Fletch Dawnpoint Arrows'),
+  ]),
+  /* BANDS 7 AND 8, COBALT AND WOLFRAM (lane/kit-bands-6-9, 09 4.16; item Levels 140 and 160, rows at Levels 71 and 81): the chains that
+     close without a supply rung. A new rock, its bar and the Temper kit three bars make, so a rank on the Wyvern Roost's or the Catacombs'
+     gear is never owed a kit, and the fish and meal the order already named. The charge goods, the wood and the drink wait for their
+     ladders' next rung. Read for repetition: the same five kinds twice, one new metal each */
+  batch('band7-cobalt', [
+    kitRow('ore', 7, 'Mine Cobalt Ore'),
+    kitRow('bar', 7, 'Smelt Cobalt Bars'),
+    kitRow('temper_kit', 7, 'Mix Cobalt Tempering Salts'),
+    kitRow('fish', 7, 'Catch Shark'),
+    kitRow('meal', 7, 'Cook Shark'),
+  ]),
+  batch('band8-wolfram', [
+    kitRow('ore', 8, 'Mine Wolfram Ore'),
+    kitRow('bar', 8, 'Smelt Wolfram Bars'),
+    kitRow('temper_kit', 8, 'Mix Wolfram Tempering Salts'),
+    kitRow('fish', 8, 'Catch Moonfish'),
+    kitRow('meal', 8, 'Cook Moonfish'),
   ]),
 ]);
 export const KIT_RECIPES = Object.freeze(KIT_BATCHES.flatMap((b) => b.rows));

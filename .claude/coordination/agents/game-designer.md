@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-28 lane/kit-bands-6-9 (bands 5 to 8, the supply-ladder flags)
+- A ladder "a band late" is often a rung kept for a cut item (Copper's). Re-key the names onto the rungs before touching gates: stats and gates by rung never move, so no measured band moves.
+- Gates derived from old careers past the measured range land past their own band. Cap a rung's gate at its band's gear item Level; rungs under the cap keep the measurement (BD-10 re-derives both).
+- The job-goods vendor cap turns any bench recipe over a newly job-made bar into a faucet in recipe-yield-guard. When a batch adds a bar, read every bench recipe that eats it (the Dawnsteel stone's book was the outlier, 100).
+- Bands past the supply ladders' end: build only the chains that close (rock, bar, Temper kit, fish, meal) and spec the rungs; a plank or crop with no arrow or drink to feed is a good with no use.
+- The deeper grounds' restore burn falls (healer cover 86% on the Ox Road), so bands 5 and 6 read under 0.8 at 12 h. kitWork is global and would push bands 1 and 2 out; the ratio is the grounds', say so and move nothing.
+
 ## 2026-11-27 lane/designer-kit-band1 (the cut's four calls, the orphan list, band 1)
 - Count an orphan by its DOORS, not by reachability: catalogue-coherence's labels collide ('made by cooking' is both the bench and a job), so read jobFaces() apart. The script (cut-orphans.mjs) reproduced the backend's 145 exactly on its first run; the band rule needed iL first (an item's `step` is a tier index, not 20 a band) and runes kept off the metal words ('rune' is a metal and a family).
 - A shared face across bands needs a "one good, one recipe" rule, or a later band's job is the same good behind a gate. The rune's stone is bandless; the rune's band is its tier and binder.

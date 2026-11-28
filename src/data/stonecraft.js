@@ -176,12 +176,21 @@ export const STONECRAFT_ITEMS = {
      protect and a free stone was a free +2 strB forever. 0.02 like its ladder: one stone per fifty
      swings. The arrow's first rung stays FREE: an empty quiver IS a penalty. It books at 0 (W0). */
   coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[0], madeLv: AMMO_MADE_LV[0], strB: AMMO_STAT[0], ammoPerShot: 0.02 },
+  /* THE STONE SITS ON ITS ARROW'S RUNG (the designer, lane/kit-bands-6-9, 09 4.16): a metal's stone is its metal's arrow's rung (Iron 2,
+     Steel 3, Mithril 4, Rune 5, Emberforged 6, Dawnsteel 7), so a band's stone opens with its arrow and a company makes the stone its
+     melee hero can use. The ladder used to keep the Copper Whetstone's rung, which put each metal's stone a rung, and a band of gates,
+     above its arrow. Copper keeps rung 2 beside Iron until the bench cut removes it (09 4.12: a second good of one kind at one band) */
   copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[1], madeLv: AMMO_MADE_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
-  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[2], madeLv: AMMO_MADE_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
-  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[3], madeLv: AMMO_MADE_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
-  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[4], madeLv: AMMO_MADE_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
-  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[5], madeLv: AMMO_MADE_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
-  dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 100, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[6], madeLv: AMMO_MADE_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
+  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 3,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[1], madeLv: AMMO_MADE_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
+  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 11, type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[2], madeLv: AMMO_MADE_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
+  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 12, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[3], madeLv: AMMO_MADE_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
+  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 20, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[4], madeLv: AMMO_MADE_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
+  /* band 5's stone (09 4.16): new with the job that grinds it from two Emberforged Bars, booked between the Rune and Dawnsteel stones.
+     THE DAWNSTEEL STONE BOOKS AT 40, was 100 (09 4.16): once a job smelts Dawnsteel Bars the vendor bids a bar its inputs plus its work
+     (the job-goods cap), so the bench's ten stones from one Dawnsteel and one Rune Bar sold for 7.4 times what went in
+     (tests/recipe-yield-guard.mjs, 5x). The ladder's step from Rune's 20 now reads 30 and 40, a whetstone worth about what it took */
+  ember_whetstone:   { n: 'Emberforged Whetstone', icon: '🪨', v: 30, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[5], madeLv: AMMO_MADE_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
+  dawn_whetstone:   { n: 'Dawnsteel Whetstone',icon: '🪨', v: 40, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'melee', reqLv: SUPPLY_GATES.melee[6], madeLv: AMMO_MADE_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
 };
 

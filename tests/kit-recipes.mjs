@@ -41,6 +41,9 @@
 //              hero's band and one band behind, and at most storeCeiling times the crafted good's (it is a fallback, not a fine)
 //   KR-HOURS   a finished kit good is one hunted hour of its line (effect 1); its work is the catalogue's; the job at the row's own
 //              Level takes its own work over the speed; under the band's rung the job is refused (rung_locked)
+//   KR-CROPS   THE BENCH CUT (09 4.17, lane/bench-cut-data): a farm plot opens on the job ladder's rung (the company's Farming): every
+//              crop's `req` is its band's rung Level, a crop a Pull job makes sits on that job's band, and the data side's
+//              recipeLevel (the store's made-at Level, src/data/supply-basics.js) is the catalogue's rungLevel(bandRung) on every row
 // Exit: 0 green · 1 red (or a mutant escaped) · 2 harness.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
@@ -65,10 +68,11 @@ async function load(root) {
   const [T, D, CC, IT, SK, HG, MO, DG, RU] = await Promise.all([imp('src/core/trades.js'), imp('src/data/trades.js'), imp('src/data/catalogue-coherence.js'), imp('src/data/items.js'), imp('src/data/store-kit.js'),
     imp('src/data/hunt-grounds.js'), imp('src/data/monsters.js'), imp('src/data/danger.js'), imp('src/data/runes.js')]);
   const drinkRungs = Object.keys((await imp('src/data/drinks.js')).DRINK_ITEMS).length;
+  const CROPS = (await imp('src/data/gathering.js')).CROPS;
   /* the arrow ladder's rungs (slot-ladders.js: the Ranged ammo's tiers, Bronze to Dawnpoint): band b fletches rung b + 1, so Woodcutting and
      Woodcrafting have a job at every band an arrow rung is left for, as Runecutting has at every band a rune tier is left for */
   const arrowRungs = Math.max(...Object.values(IT.ITEMS).filter((i) => i && i.slot === 'ammo' && i.reqSkill === 'ranged' && Number.isInteger(i.tier)).map((i) => i.tier));
-  return { T, D, KR: D, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, runeTiers: RU.RUNE_TIERS.length, arrowRungs, drinkRungs,
+  return { T, D, KR: D, CROPS, ITEMS: IT.ITEMS, sources: CC.itemSources(), uses: CC.itemUses(), STORE_KIT: SK.STORE_KIT, runeTiers: RU.RUNE_TIERS.length, arrowRungs, drinkRungs,
     bandDrops: bandDropsOf(HG, MO, DG, HG.OPEN_GROUNDS), anyBandDrops: bandDropsOf(HG, MO, DG, HG.HUNT_GROUNDS), ...catalogueOf(T) };
 }
 
@@ -305,6 +309,24 @@ const ARMS = {
     }
     return out;
   },
+  'KR-CROPS'({ T, KR, CROPS, cat }) {
+    const out = [];
+    if (!cat) return ['KR-CROPS no catalogue'];
+    const span = KR.TRADE_LEVERS.rungs.span;
+    for (const [id, c] of Object.entries(CROPS)) {
+      if (!Number.isInteger(c.band) || c.band < 0) { out.push(`KR-CROPS ${id} names no band`); continue; }
+      if (c.req !== 1 + span * c.band) out.push(`KR-CROPS ${id}'s plot opens at Farming ${c.req}, not its band ${c.band}'s rung Level ${1 + span * c.band}`);
+    }
+    for (const r of KR.KIT_RECIPES.filter((x) => x.kind === 'grain')) {
+      const crop = Object.entries(CROPS).find(([, c]) => c.prod === KR.faceOf('grain', r.band));
+      if (!crop) out.push(`KR-CROPS ${r.id} pulls ${KR.faceOf('grain', r.band)}, which no plot grows`);
+      else if (crop[1].band !== r.band) out.push(`KR-CROPS ${crop[0]} sits on band ${crop[1].band}, but its Pull job ${r.id} is band ${r.band}`);
+    }
+    for (const r of cat.named) {
+      if (KR.recipeLevel(r.kind, r.band) !== T.rungLevel(T.bandRung(cat.kinds[r.kind], r.band))) out.push(`KR-CROPS ${r.id}: the data side's recipeLevel ${KR.recipeLevel(r.kind, r.band)} is not the catalogue's Level ${r.R}`);
+    }
+    return out;
+  },
 };
 
 async function runPure(X, only = null) {
@@ -383,6 +405,9 @@ const MUTANTS = [
   ['the cap counts the whole list, not a batch (band 1 could never land)', 'KR-BATCH', 'src/data/trades.js',
     'if (b.rows.length > KIT_BATCH_MAX)', 'if (batches.flatMap((x) => x.rows || []).length > KIT_BATCH_MAX)'],
   ['a batch has no cap', 'KR-BATCH', 'src/data/trades.js', "if (b.rows.length > KIT_BATCH_MAX) out.push('batch '", "if (b.rows.length > 999) out.push('batch '"],
+  ['a plot opens off its job\'s rung (the carrot at Farming 10)', 'KR-CROPS', 'src/data/gathering.js', 'band:1,req:11,seed:\'carrot_seed\'', 'band:1,req:10,seed:\'carrot_seed\''],
+  ['a crop sits on another band than its Pull job (the tomato at band 3)', 'KR-CROPS', 'src/data/gathering.js', 'band:2,req:21,seed:\'tomato_seed\'', 'band:3,req:31,seed:\'tomato_seed\''],
+  ['the data side\'s recipeLevel drifts from the catalogue\'s rung', 'KR-CROPS', 'src/data/trades.js', '- 1) * TRADE_LEVERS.rungs.span;', ') * TRADE_LEVERS.rungs.span;'],
   ['the job ignores the trade Level', 'KR-HOURS', 'src/core/trades.js', 'if (rung < kind.opens || rung > TRADE_PM.rungCount || lv(level) < R) return null;', 'if (rung < kind.opens || rung > TRADE_PM.rungCount) return null;'],
 ];
 

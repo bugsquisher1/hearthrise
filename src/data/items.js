@@ -180,8 +180,7 @@ export const ITEMS={
          budget (hr_day_budget_check) in 8.6 hours, through the
          SERVER-AUTHORITATIVE `vendor_sell` verb — no client forgery needed.
 
-     v:1 is ladder parity with `barbed_arrows`, its exact tier peer (iron-tier,
-     lv 15 vs this rung's 20). `ammoPerShot: 1` matches every tier-2+ rung so
+     v:1 is ladder parity with every tier-2 rung (iron-tier, made at 15). `ammoPerShot: 1` matches every tier-2+ rung so
      this stopped being the one arrow in the game with no sink the day the
      combat loop started spending (E1, 2026-08-31, src/core/ammo.js). Both are
      enforced by the ammo-ladder guard in tests/recipe-yield-guard.mjs.
@@ -192,9 +191,11 @@ export const ITEMS={
      off the storefront. reqLv 1 is not a restriction (the gate is `level < req_lv`)
      — it is the data form of "belongs to Ranged", which is what keeps the column
      non-NULL across the whole slot and lets the ammo guard read one shape. */
-  /* Iron Bolts: against Barbed Arrows (3/3) a bolt misses more and hits harder (1/4). */
+  /* Iron Bolts: against Iron Arrows (3/3) a bolt misses more and hits harder (1/4). */
   iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[1],madeLv:15},
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',rangeAtkB:2,rangeStrB:3,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
+  /* THE ARROW LADDER'S RUNG 2 (the bench cut, 09-crafting 4.13): band 1's arrow is its metal's, the Fletch Iron Arrows job's face, so it
+     takes the rung the Barbed Arrows held (cut with the bench as a second arrow at one band), on the rung's own numbers and gate. */
+  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:3,rangeStrB:3,ammoPerShot:1,reqSkill:'ranged',reqLv:SUPPLY_GATES.ranged[1],madeLv:15},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:10},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:10},
   willow_log:{n:'Willow Log',icon:'🪵',v:15},maple_log:{n:'Maple Log',icon:'🪵',v:15},

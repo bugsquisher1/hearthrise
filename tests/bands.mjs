@@ -295,7 +295,7 @@ for (const [id, pin] of Object.entries(PINS)) {
     });
   }
   /* THE STONE SITS ON ITS ARROW'S RUNG (09 4.16): a metal's whetstone is its metal's arrow's rung, gated by the Melee row there */
-  for (const [arrow, stone] of [['barbed_arrows', 'iron_whetstone'], ['steel_arrows', 'steel_whetstone'], ['mithril_arrows', 'mithril_whetstone'], ['rune_arrows', 'rune_whetstone'], ['emberhead_arrows', 'ember_whetstone'], ['dawnpoint_arrows', 'dawn_whetstone']]) {
+  for (const [arrow, stone] of [['iron_arrows', 'iron_whetstone'], ['steel_arrows', 'steel_whetstone'], ['mithril_arrows', 'mithril_whetstone'], ['rune_arrows', 'rune_whetstone'], ['emberhead_arrows', 'ember_whetstone'], ['dawnpoint_arrows', 'dawn_whetstone']]) {
     ok(ITEMS[stone] && ITEMS[stone].tier === ITEMS[arrow].tier && ITEMS[stone].reqLv === CM.SUPPLY_GATES.melee[ITEMS[stone].tier - 1], 'BD-10 ' + stone + ' is not on ' + arrow + '\'s rung (' + (ITEMS[stone] && ITEMS[stone].tier) + ' against ' + ITEMS[arrow].tier + ') at its Melee gate');
   }
   for (let t = 1; t <= RN.RUNE_TIERS.length; t++) {

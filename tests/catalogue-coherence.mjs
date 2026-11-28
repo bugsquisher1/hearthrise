@@ -593,17 +593,10 @@ function mutate() {
     MONSTERS.slime.drops.push({ id: '__mut_drop', ch: 0.1 });
     return { restore: () => { MONSTERS.slime.drops.pop(); delete ITEMS.__mut_drop; } };
   });
+  /* (re-aimed by the bench cut: Fluxsalt's one use was a bench recipe, and both left; the Potato is eaten and nothing else spends it) */
   run('an item loses its only use', 'C2', () => {
-    const saved = {};
-    for (const skill of Object.keys(ARTISAN_RECIPES)) {
-      saved[skill] = ARTISAN_RECIPES[skill];
-      ARTISAN_RECIPES[skill] = saved[skill].filter((r) => {
-        const inp = Object.assign({}, r.inputs || {}, r.secondary || {});
-        if (r.input) inp[r.input] = 1;
-        return !('flux_salt' in inp);
-      });
-    }
-    return { restore: () => { Object.assign(ARTISAN_RECIPES, saved); } };
+    const was = ITEMS.potato; ITEMS.potato = { ...was, heals: 0 };
+    return { restore: () => { ITEMS.potato = was; } };
   });
   run('a stale AWAITING_ROSTER row (the id left ITEMS)', 'C1', () => {
     const id = AWAITING_ROSTER[0]; const was = ITEMS[id];
@@ -703,6 +696,9 @@ function mutate() {
     const restore = farFind('__mut_far2');
     return { unreachable: { ...UNREACHABLE, cut: [...UNREACHABLE.cut, '__mut_far2'] }, restore };
   });
+  /* the bench cut's derived fates sit outside the ceiling only while their rows are exactly their doors' (traitBase, jobFind) */
+  run('a held row moved under a derived fate to slip the ceiling', 'C11d', () => ({ unreachable: retag('dragon_gem', 'later', 'traitBase') }));
+  run('a derived fate drops one of its door\'s rows', 'C11d', () => ({ unreachable: { ...UNREACHABLE, jobFind: UNREACHABLE.jobFind.slice(1) } }));
 
   /* C12 — a house price a player can pay (Andy's report, 2026-10-31). */
   run('the Brook Bear loses its pelt (the wall Andy hit: the Keep asks for what nothing drops)', 'C12a', () => {

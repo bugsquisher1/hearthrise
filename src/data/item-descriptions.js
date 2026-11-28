@@ -300,7 +300,7 @@ export const ITEM_DESC = {
   'hollow_sigil': 'A sigil that makes the air around it go quiet. It only drops in the Hunt',
   'hunter_necklace': 'A beaded hunter\'s necklace that helps your hits land',
   'iron_bolts': 'Short, heavy iron bolts. They miss more than an arrow and hit harder when they land',
-  'iron_arrows': 'Iron-tipped arrows that hit a little harder when you crit',
+  'iron_arrows': 'Iron-tipped arrows on oak shafts. They hit harder than bronze',
   'iron_bar': 'A smelted iron bar, the workhorse metal of early smithing',
   'iron_belt': 'A belt with an iron buckle that protects your waist from low hits',
   'iron_boots': 'Plain iron-soled boots that keep you steady on your feet',

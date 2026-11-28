@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/balance-program/redesign/trades/cut-orphans.mjs — WHAT THE BENCH CUT WOULD ORPHAN (lane/designer-kit-band1, game designer,
-//   2026-11-27; docs/design/redesign/09-crafting.md sections 4.11 and 4.12).
+// tools/balance-program/redesign/trades/cut-orphans.mjs — WHAT THE BENCH CUT ORPHANED (lane/designer-kit-band1, game designer,
+//   2026-11-27; docs/design/redesign/09-crafting.md sections 4.11 to 4.17).
 //
-// The cut (09 4.12) removes two doors: the live bench (src/data/recipes.js ARTISAN_RECIPES, every skill but the hearth's fuel runs, which
-// make no item) with the step tiers' made pieces (STEP_MADE), and the gathering nodes as town work (catalogue-coherence's 'gathered').
-// The farm plots, monster drops, the store, the start kit and every chest stay. An item is ORPHANED when it has a door today and none of
-// the doors it keeps is left, and no job recipe (src/data/trades.js jobFaces) makes it. Read from the data, nothing typed:
-//   catalogue-coherence itemSources()   every door an item has today, by label
-//   ARTISAN_RECIPES / STEP_MADE         the bench's outputs (recipeOutcomes: a jewelry row's every outcome)
-//   jobFaces()                          what the job list makes (its labels collide with the bench's 'made by <skill>', so read apart)
+// THE CUT HAS LANDED (lane/bench-cut-data, 2026-11-28): the live bench (src/data/recipes.js keeps only the hearth's fuel runs, which make
+// no item), the step tiers' made pieces and the gathering nodes are gone, and every orphan took its ruled fate (a job, a drop, a re-point,
+// a cut, or a hold under catalogue-coherence's traitBase and jobFind doors). So the count is ZERO, and --check holds it there: an item
+// whose only door is a 'made by' label no job backs (a bench row that came back) is an orphan again. Read from the data, nothing typed:
+//   catalogue-coherence itemSources()   every door an item has, by label
+//   ARTISAN_RECIPES                     the artisan rows left (the fuel runs: no item)
+//   jobFaces()                          what the job list makes (its labels collide with a bench's 'made by <skill>', so read apart)
 //
 // THE BAND an orphan belongs to (one band is one gear tier, item Level 20 x band, 12-targets 8.3), first rule that answers:
 //   1. its item Level (iL / tierSteps: 20 a band)
@@ -29,21 +29,18 @@ const ROOT = join(HERE, '..', '..', '..', '..');
 const OUT = join(HERE, 'cut-orphans.json');
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
 
-const [CC, R, SL, J, T, GS, G] = await Promise.all([imp('src/data/catalogue-coherence.js'), imp('src/data/recipes.js'), imp('src/data/slot-ladders.js'),
-  imp('src/data/jewelry.js'), imp('src/data/trades.js'), imp('src/data/gear-steps.js'), imp('src/data/gathering.js')]);
+const [CC, R, T, GS] = await Promise.all([imp('src/data/catalogue-coherence.js'), imp('src/data/recipes.js'), imp('src/data/trades.js'),
+  imp('src/data/gear-steps.js')]);
 const { ITEMS } = CC;
 const tierSteps = GS.GEAR_STEPS.tierSteps;
 
 /* the bench's outputs, each with the lowest trade Level that makes it */
 const benchReq = new Map();
 const benchOut = (id, req) => { if (id && (!benchReq.has(id) || req < benchReq.get(id))) benchReq.set(id, req); };
-for (const [skill, list] of Object.entries(R.ARTISAN_RECIPES_EVERY || R.ARTISAN_RECIPES)) {
-  if (skill === 'inner_flame') continue; /* the hearth's fuel runs stay (09 4.12 ruling) and make no item */
-  for (const r of list) for (const id of J.recipeOutcomes(r)) benchOut(id, Number(r.req) || 1);
+for (const [skill, list] of Object.entries(R.ARTISAN_RECIPES)) {
+  if (skill === 'inner_flame') continue; /* the hearth's fuel runs stay until F1 (09 4.13 row 3) and make no item */
+  for (const r of list) if (r.output) benchOut(r.output, Number(r.req) || 1);
 }
-for (const list of Object.values(SL.STEP_MADE)) for (const r of list) benchOut(r.output, Number(r.req) || 1);
-/* a gathered good's node Level stands in for the bench Level (rule 3) */
-for (const list of [G.TREES, G.ROCKS, G.FISH_SPOTS]) for (const n of list || []) benchOut(n.prod, Number(n.req) || 1);
 const jobMade = new Set(T.jobFaces().map((j) => j.output).filter(Boolean));
 
 const sources = CC.itemSources();

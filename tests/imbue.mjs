@@ -35,11 +35,14 @@
 //         and drops it at that instant; a Lab hero with no read instant lasts the span
 //   IM-9  THE FIRE SIZE (21 D-17, lane/imbue-engine): a firing Brute Edge writes its fire size 5 x c over its rated room 2 x c, a waiting
 //         one its room alone; with a meal of 6 a Level 60 brute's blow reads 5 plus what the three rated rooms leave (0.14) and a swarm's
-//         only that; Fire Ward 11 x c on an ember blow; rooms past the cap (a forged fourth) scale the firing rows to the cap's share
-//   IM-10 THE LEECH (21 D-18, lane/imbue-engine): floor((took x 20 + carry) / 1000) a blow, the remainder carried (a 30 HP blow pays 0, 1,
-//         0, 1, 1), on the rule and on a hero through the fight's door (src/core/hunt/imbue-leech.js): never past max HP or mana, nothing
-//         off a blow at an ally or from a Leech past wearAhead under its band (the heal cut: tests/hunt-core/necrotic-storm.mjs
-//         withered-cuts, with Withered planted live)
+//         only that; Fire Ward 11 x c on an ember blow; rooms past the cap (a forged fourth) scale the firing rows to the cap's share. A
+//         conversion (Fire Edge) writes its whole steps x c, a gain and a cost alike (D-21), and on a blow it does not change it waits on
+//         its room (D-22): a meal beside it on a neutral target gets only what the three rooms leave (lane/imbue-d21-d22)
+//   IM-10 THE LEECH (21 D-18, lane/imbue-engine): floor((took x pm + carry) / 1000) a blow, the remainder carried (a 30 HP blow at 20
+//         pays 0, 1, 0, 1, 1); pm is leech.pm x c at its band, whole, at least 1 (D-21, lane/imbue-d21-d22: a band 50 Life Leech 20 at
+//         Level 50, 19 at 60, 17 at 97, 12 at 200), on the rule and on a hero through the fight's door (src/core/hunt/imbue-leech.js):
+//         never past max HP or mana, nothing off a blow at an ally or from a Leech past wearAhead under its band (the heal cut:
+//         tests/hunt-core/necrotic-storm.mjs withered-cuts, with Withered planted live)
 // ════════════════════════════════════════════════════════════════════════
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -158,10 +161,29 @@ async function pure(base) {
   if (!past || !(pastC < 1) || !near(past.steps, 5 * pastC) || !near(past.room, 2 * pastC)) out.push('IM-9 a Brute Edge 90 Levels behind fires ' + JSON.stringify(past) + ', want 5 and a room of 2, each x ' + pastC);
   const four = ['a', 'b', 'c', 'd'].map((k) => ({ slice: 'consumable', raises: 'offense', steps: 5, room: 2, key: 'edge_' + k }));
   if (!near(PL.clampLedger(four, 200).offense, 15)) out.push('IM-9 four forged firing rows (rooms 8 of a cap of 6) read ' + PL.clampLedger(four, 200).offense + ', want 20 x 6 / 8 = 15');
-  /* IM-10 THE LEECH (21 D-18, lane/imbue-engine): floor((took x 20 + carry) / 1000) a blow, the remainder carried. A 30 HP blow pays 0, 1,
-     0, 1, 1 over five (600 thousandths each), on the pure rule and on a hero unit through the fight's own door (imbue-leech.js leechOn):
-     HP never past max (the carry still moves), a Mana Leech's mana never past max, nothing at an ally, and nothing past wearAhead under
-     its band */
+  /* THE CONVERSION ON THE CURVE (21 D-21, lane/imbue-d21-d22): a Fire Edge (band 70) 90 Levels past its band writes its whole steps x c,
+     a gain (an Undead's +2, amount.js stepsOf) and a cost (a stone golem's -4) alike, no room. ITS WAITING ROW (D-22, D-11): on a blow it
+     does not change (n 0: a target neutral to Fire, or a Fire blow) it waits on its rated 2 x c, so beside a Fire Ward and a Mana Leech
+     at Level 60 a meal of 6 gets only what the three rooms leave (0.14, as the Brute Edge case reads), not the 2.14 two rooms leave */
+  const fireSet = C.wornImbuesOf([{ id: 'fire_edge', band: 70, msLeft: 5 }, { id: 'fire_ward', band: 45, msLeft: 5 }, { id: 'mana_leech', band: 55, msLeft: 5 }]);
+  const convRow = (n, L) => C.imbueRows(fireSet, 'offense', { role: null, element: null, convert: () => n }, L).find((r) => r.key === 'edge_fire');
+  const fireC = C.imbueStepsAt(70, 160) / 2;
+  for (const n of [2, -4]) {
+    const cr = convRow(n, 160);
+    if (!(fireC < 1) || !cr || !near(cr.steps, n * fireC) || cr.holds === false || cr.room !== undefined) out.push('IM-9 a Fire Edge 90 Levels past its band converting ' + n + ' writes ' + JSON.stringify(cr) + ', want ' + n + ' x ' + fireC + ' and no room (D-21)');
+  }
+  const idle = convRow(0, 160);
+  if (!idle || !near(idle.steps, 2 * fireC) || idle.holds !== false || idle.room !== undefined) out.push('IM-9 a Fire Edge on a blow it does not change writes ' + JSON.stringify(idle) + ', want its waiting row of 2 x ' + fireC + ' (D-22)');
+  const neutral = PL.clampLedger(C.imbueRows(fireSet, 'offense', { role: null, element: null, convert: () => 0 }, 60).concat([food('offense', 6)]), 60).offense;
+  if (!near(neutral, leftover)) out.push('IM-9 a meal of 6 beside a Fire Edge, a Fire Ward and a Mana Leech on a neutral target reads ' + neutral + ', want what the three rooms leave, ' + leftover + ' (D-22)');
+  /* IM-10 THE LEECH (21 D-18, lane/imbue-engine): floor((took x pm + carry) / 1000) a blow, the remainder carried. At 20 permille a 30 HP
+     blow pays 0, 1, 0, 1, 1 over five (600 thousandths each) on the pure rule. THE CURVE (21 D-21, lane/imbue-d21-d22): pm is leech.pm x c
+     at its band, rounded whole, at least 1: a band 50 Life Leech heals 20 at Level 50, 19 at 60, 17 at 97, 12 at 200 (1 at the very least),
+     so the Level 60 hero through the fight's own door (imbue-leech.js leechOn) pays 0, 1, 0, 1, 0 (570 each). HP never past max (the
+     carry still moves), a Mana Leech's mana never past max, nothing at an ally, and nothing past wearAhead under its band */
+  const band50 = C.wornImbuesOf([{ id: 'life_leech', band: 50, msLeft: 5 }]);
+  const pmAt = (L) => { const l = C.leechOf(band50, L); return l ? l.pm : null; };
+  if ([50, 60, 97, 200, 1600].map(pmAt).join() !== '20,19,17,12,1') out.push('IM-10 a band 50 Life Leech heals ' + [50, 60, 97, 200, 1600].map(pmAt).join() + ' permille at Levels 50, 60, 97, 200 and 1,600, want 20,19,17,12,1 (leech.pm x c, rounded whole, at least 1: D-21)');
   let carry = 0;
   const pays = [];
   for (let i = 0; i < 5; i++) { const p = C.leechPay(30, 20, carry); pays.push(p.back + '/' + p.carry); carry = p.carry; }
@@ -175,9 +197,13 @@ async function pure(base) {
     const h = { side: 'hero', id: 1, alive: true, heroLv: 60, hp: 50, maxHp: 100, mana: 0, maxMana: 0, leechMilli: 0, imbues: life };
     const got = [];
     for (let i = 0; i < 5; i++) { const r = LE.leechOn(h, foe, 30); got.push((r ? r.hp : 0) + '/' + h.leechMilli); }
-    if (got.join() !== '0/600,1/200,0/800,1/400,1/0' || h.hp !== 53) out.push('IM-10 a Life Leech hero healed ' + got.join() + ' over five 30 HP blows (HP ' + h.hp + '), want 0/600,1/200,0/800,1/400,1/0 and 53');
+    if (got.join() !== '0/570,1/140,0/710,1/280,0/850' || h.hp !== 52) out.push('IM-10 a Level 60 Life Leech hero (band 50, 19 permille) healed ' + got.join() + ' over five 30 HP blows (HP ' + h.hp + '), want 0/570,1/140,0/710,1/280,0/850 and 52');
     const full = { ...h, hp: 100, leechMilli: 900 };
-    if (LE.leechOn(full, foe, 30) !== null || full.hp !== 100 || full.leechMilli !== 500) out.push('IM-10 a hero at full HP healed past max or lost its carry (HP ' + full.hp + ', carry ' + full.leechMilli + ')');
+    if (LE.leechOn(full, foe, 30) !== null || full.hp !== 100 || full.leechMilli !== 470) out.push('IM-10 a hero at full HP healed past max or lost its carry (HP ' + full.hp + ', carry ' + full.leechMilli + ', want 470)');
+    /* a Level 200 hero's band 50 Leech pays 12 permille through the same door: a 1,000 HP blow heals 12 */
+    const old = { ...h, heroLv: 200, hp: 10, leechMilli: 0 };
+    const or = LE.leechOn(old, foe, 1000);
+    if (!or || or.hp !== 12 || old.hp !== 22 || old.leechMilli !== 0) out.push('IM-10 a Level 200 hero\'s band 50 Life Leech on a 1,000 HP blow healed ' + JSON.stringify(or) + ' (HP ' + old.hp + '), want 12 (D-21)');
     const mage = { side: 'hero', id: 2, alive: true, heroLv: 60, hp: 10, maxHp: 100, mana: 95, maxMana: 100, leechMilli: 0, imbues: C.wornImbuesOf([{ id: 'mana_leech', band: 55, msLeft: 5 }]) };
     const mr = LE.leechOn(mage, foe, 1000);
     if (!mr || mr.mana !== 5 || mr.hp !== 0 || mage.mana !== 100 || mage.hp !== 10) out.push('IM-10 a Mana Leech on a 1,000 HP blow at 95 of 100 mana gave ' + JSON.stringify(mr) + ' (mana ' + mage.mana + ', HP ' + mage.hp + '), want 5 mana to its max and no HP');
@@ -227,7 +253,13 @@ const MUTANTS = [
   ['a Mana Leech fills past max mana', 'src/core/hunt/imbue-leech.js', 'Math.min(pay.back, int(u.maxMana) - int(u.mana))', 'pay.back'],
   ['a Mana Leech heals HP', 'src/core/hunt/imbue-leech.js', "if (l.of === 'mana') {", "if (false) {"],
   ['the leech pays off a blow at an ally', 'src/core/hunt/imbue-leech.js', ' || !t || !isEnemy(u, t)) return null;', ') return null;'],
-  ['a leech past wearAhead plays', 'src/core/imbue.js', 'if (r && r.leech && whole(r.leech.pm) && imbueStepsAt(w.band, heroLevel) > 0)', 'if (r && r.leech && whole(r.leech.pm))'],
+  ['a leech past wearAhead plays', 'src/core/imbue.js', '    if (steps > 0) return { id: w.id, of: r.leech.of,', '    if (r && r.leech && whole(r.leech.pm)) return { id: w.id, of: r.leech.of,'],
+  /* IM-9 and IM-10 (lane/imbue-d21-d22: 21 D-21, D-22) */
+  ['the leech skips the contest curve', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: whole(r.leech.pm) };'],
+  ['the leech rounds down', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: Math.max(1, Math.floor((whole(r.leech.pm) * steps) / IMBUE.steps)) };'],
+  ['the leech can round to nothing', 'src/core/imbue.js', 'pm: Math.max(1, Math.round((whole(r.leech.pm) * steps) / IMBUE.steps)) };', 'pm: Math.round((whole(r.leech.pm) * steps) / IMBUE.steps) };'],
+  ['a conversion skips the contest curve', 'src/core/imbue.js', "raises: channel, steps: (n * steps) / IMBUE.steps, key: r.key });", "raises: channel, steps: n, key: r.key });"],
+  ['a conversion that changes nothing takes no room', 'src/core/imbue.js', "      else out.push({ slice: 'consumable', raises: channel, steps, key: r.key, holds: false });\n", ''],
   ['the consumable slice has no cap', 'src/core/power-ledger.js', 'Math.max(0, Math.min(cap, gains + room) - room)', 'Math.max(0, gains)'],
   ['the consumable slice ramps again', 'src/data/power-ledger.js', 'max: POWER_LEDGER.consumableStepsMax, ramps: false,', 'max: POWER_LEDGER.consumableStepsMax, ramps: true,'],
   ['a conditional row with no fire size passes', 'src/data/imbue-rules.js', 'if (r.when && !(Number.isInteger(r.fire)', 'if (false && !(Number.isInteger(r.fire)'],

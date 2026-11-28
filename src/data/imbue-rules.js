@@ -27,9 +27,8 @@
 // past max, the fraction carried to the next blow so a small hit still pays; it takes its room and no steps. A CONVERSION (Fire Edge, D-18)
 // resolves `convert.sharePm` of each blow against the target's percent for its element in place of the blow's own: one offense row of
 // stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it, and on a
-// blow it does not change it waits on its room like any other (D-22). Both read the band by the contest curve like every row (D-21): the
-// Leech's permille and the conversion's steps x c. Both in the engine (lane/imbue-engine, lane/imbue-d21-d22): src/core/hunt/imbue-leech.js,
-// src/core/imbue.js leechOf, imbueRows and convertMult.
+// blow it does not change it waits on its room (D-22). Both read the band's contest curve like every row (D-21). Both in the engine:
+// src/core/hunt/imbue-leech.js, src/core/imbue.js leechOf, imbueRows and convertMult.
 // LIFE. Quality sets life, not strength (D-7): plain 20, fine 25, master 30 hunted hours (lifeRungPm 250 a rung over plain).
 //
 // v0.3.0 (21 D-12). Every row's part and best ground is on a ground v0.3.0 opens (a pack with status 'open'), so a company can make an

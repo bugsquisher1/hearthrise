@@ -7681,11 +7681,11 @@ jobs:
         run: |
           node tests/tally-window-pure.mjs
           node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate
-      # tests/utc-midnight-replay.mjs
-      - name: UTC midnight replay shard plan - every arm and every proof in exactly one shard, each job within budget
+      # tests/utc-midnight-shards.mjs
+      - name: UTC midnight replay shards - every arm and every proof in exactly one shard, each job within budget
         if: ${{ !cancelled() }}
         run: |
-          node tests/utc-midnight-replay.mjs --shard-plan
+          node tests/utc-midnight-shards.mjs
       # tools/mutant-gate.mjs
       - name: Nightly gate - a release builds only on swept code
         if: ${{ !cancelled() }}
@@ -7834,9 +7834,10 @@ jobs:
   # 34.6 of 35 min on the first and was cancelled at 35 on the second; both times this job set the run's tail
   # (started at minute 26 behind 40 busy runners, ended last). Now utc-midnight-replay..-5 each run one fifth of the
   # 13 arms (the control and the probe in every one); -4 and -5 add one half of the --selftest. Each is 4 whole
-  # replays: ~15 min on a typical runner, ~19.4 booked on a slow one (55% of 35). The steps come from the guard's
-  # `// ci-step:` headers, and its --shard-plan (client-guards) is red when the shards drop or repeat an arm or a proof
-  # unit, or a job is booked past 75% of its timeout as the chain grows. 35 keeps room for that growth (the replay
+  # replays: 8.5-16.0 min on the rehearsal 46140139042 (every arm and both proof halves ran), 19.4 booked on a slow
+  # runner (55% of 35). The steps come from the guard's `// ci-step:` headers, and tests/utc-midnight-shards.mjs
+  # (client-guards) is red when the shards drop or repeat an arm or a proof unit, or a job is booked past 75% of its
+  # timeout as the chain grows. 35 keeps room for that growth (the replay
   # doubled in ten days); a cancelled job proves nothing and runs in full on the next push (tools/lib/ci-history.mjs).
   utc-midnight-replay:
     runs-on: ubuntu-latest

@@ -99,12 +99,12 @@
 // 46117646677 and up to 246 s on a slow runner (46132371081), twice the 11-17 figure, so half the arms plus the proof
 // no longer fit one job: 34.6 of 35 min on 46117646677, cancelled at 35 on 46132371081, and the job that set both
 // runs' tail. `--shard=K/N` runs every Nth arm from the Kth, `--selftest --shard=K/N` every Nth proof unit; the
-// control and the probe run in every shard, so a shard's red means what the whole run's does. `--shard-plan` (no
-// database, client-guards) is red when smoke.yml's shards do not hold every arm and every proof unit exactly once,
-// when a shard's job runs another guard, or when a job is booked past 75% of its timeout-minutes.
+// control and the probe run in every shard, so a shard's red means what the whole run's does. The arms, the proof
+// units and the dealing rule are tests/_utc-arms.mjs; tests/utc-midnight-shards.mjs (no database, client-guards) is
+// red when smoke.yml's shards do not hold each exactly once or a job they run in is booked past 75% of its timeout.
 //
-// Exit: 0 green · 1 the chain cannot rebuild at some hour of the day (--shard-plan: the shards are wrong) ·
-//       2 harness (the control arm failed, a mutation could not be planted, or a planted plan defect went uncaught).
+// Exit: 0 green · 1 the chain cannot rebuild at some hour of the day ·
+//       2 harness (the control arm failed, a mutation could not be planted, or a shard holds nothing).
 //
 // No credentials; production untouched.
 //
@@ -120,8 +120,6 @@
 // ci-step: utc-midnight-replay-5 | UTC midnight replay, arms 5 of 5 and proof 2 of 2 - the chain applies at every second of the day
 // ci-run: node tests/utc-midnight-replay.mjs --shard=5/5
 // ci-run: node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest --shard=2/2
-// ci-step: client-guards | UTC midnight replay shard plan - every arm and every proof in exactly one shard, each job within budget
-// ci-run: node tests/utc-midnight-replay.mjs --shard-plan
 // ════════════════════════════════════════════════════════════════════════
 
 import { spawnSync } from 'node:child_process';
@@ -130,7 +128,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { parseWorkflow, WORKFLOW } from './run-ci-local.mjs';
+import { ARMS, PROOF_UNITS, armsOf, parseShard, shardOf } from './_utc-arms.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -173,42 +171,12 @@ const PROBE_SQL = "    raise exception 'HRPROBE now=%', now();\n";
 const PROBE_OFFSET = 3600;
 // Must equal the shim's own midnight; asserted against the shim text below.
 const SHIM_MIDNIGHT = Date.parse('2026-09-18T00:00:00.000Z');
-/* The sweep, in seconds of the FIXTURE's clock relative to midnight. It runs to
-   +9 and not to +3 because the band the security review measured was not a
-   boundary artefact: a 15-kill claim needs ≈6.9 s of window at the 600 ms kill
-   floor, and a 40-kill one ≈18.5 s, so a fixture that re-acquires a literal
-   magnitude goes red for the first several SECONDS of a day, not the first
-   moment of it. The label is EXACT since 2026-10-11: the arm offset puts the
-   target file's transaction on second k to the millisecond, and file i of the
-   chain on k + (i − target) ms, so every arm also replays EVERY file of the
-   chain within ±0.3 s of that second — on any machine, at any load. (Before,
-   the label was only the intended second: ~1.2 s of jitter idle, tens of
-   seconds loaded.) */
-const SWEEP = [-3, -2, -1, 0, 1, 2, 3, 5, 7, 9];
-
-/* The fixed arms keep the coarse coverage the hand-measured window bought:
-   00:02:30 and 00:04:30 sit inside [00:00, 00:05), the window of the FIVE-minute
-   backdates, and 00:25:00 covers the THIRTY-minute ones
-   (2026-09-02-renown-kill-faucet.sql lines 672/719). +3600 is the control. */
-const ARMS = [
-  { name: 'replay at 00:02:30 UTC', off: 150, window: true },
-  { name: 'replay at 00:04:30 UTC', off: 270, window: true },
-  { name: 'replay at 00:25:00 UTC (covers the 30-minute fixture backdates)', off: 1500, window: true },
-  { name: 'CONTROL — replay at 01:00:00 UTC (must be green)', off: 3600, window: false },
-];
-
-/** The plain run's arms in order, [label, offset]: the sweep (the probed fixture index turns a fixture second into an
-    offset), then the fixed window arms. The control and the probe are not arms: every shard runs both. */
-const armsOf = (index) => SWEEP.map((k) => [`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`, k - index / 1000])
-  .concat(ARMS.filter((x) => x.window).map((a) => [a.name, a.off]));
-/** A shard's share of a list: every Nth item from the Kth. The run and --shard-plan both read this one function. */
-const shardOf = (list, sh) => (sh ? list.filter((_, i) => i % sh.n === sh.k - 1) : list);
-const SHARD_FLAG = /(?:^|\s)--shard=(\d+)\/(\d+)(?=\s|$)/;
+/* The sweep (SWEEP), the fixed window arms and the control (ARMS), the proof units and how a shard deals them are in
+   tests/_utc-arms.mjs, which tests/utc-midnight-shards.mjs reads too. */
 const SHARD = (() => {
-  const a = process.argv.find((x) => x.startsWith('--shard='));
-  const m = a && /^--shard=(\d+)\/(\d+)$/.exec(a);
-  if (a && (!m || +m[1] < 1 || +m[1] > +m[2])) { console.error(`  HARNESS: bad ${a} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
-  return m ? { k: +m[1], n: +m[2] } : null;
+  const sh = parseShard(process.argv);
+  if (sh && sh.bad) { console.error(`  HARNESS: bad ${sh.bad} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
+  return sh;
 })();
 const secondsSince = (t) => Math.round((Date.now() - t) / 1000);
 
@@ -553,18 +521,20 @@ function provePlant() {
   }
 }
 
-/* THE PROOF UNITS, in the order --selftest --shard=K/N deals them (every Nth from the Kth). `full` counts the units'
-   whole-chain replays; the probe and an arm refused at the target file stop at file #120, seconds in. The two whole
-   ones come first, so K/2 gives each half one: clamp + s1, pins + plant. */
-const PROOFS = [
-  { name: 'clamp', full: 1, run: proveClamp },
-  { name: 'pins', full: 1, run: provePins },
-  { name: 's1', full: 0, run: proveS1 },
-  { name: 'plant', full: 0, run: provePlant },
-];
+/* The proof units (tests/_utc-arms.mjs PROOF_UNITS, the order a shard deals them in) and the function that proves each. */
+const PROVE = { clamp: proveClamp, pins: provePins, s1: proveS1, plant: provePlant };
+const PROOFS = PROOF_UNITS.map((u) => ({ ...u, run: PROVE[u.name] }));
 
 async function selftest() {
   console.log('\nUTC MIDNIGHT REPLAY — MUTATION PROOF\n');
+  const unproved = PROOFS.filter((u) => typeof u.run !== 'function').map((u) => u.name);
+  const unlisted = Object.keys(PROVE).filter((n) => !PROOF_UNITS.some((u) => u.name === n));
+  if (unproved.length || unlisted.length) {
+    console.error(`  HARNESS: tests/_utc-arms.mjs PROOF_UNITS and this file's proofs differ (no proof for: ${unproved.join(', ') || '-'}; `
+      + `not listed: ${unlisted.join(', ') || '-'}), so a shard could deal a unit nothing proves or never deal one`);
+    harness = 1;
+    return;
+  }
   const units = shardOf(PROOFS, SHARD);
   if (!units.length) {
     console.error(`  HARNESS: --shard=${SHARD.k}/${SHARD.n} holds none of the ${PROOFS.length} proof units`);
@@ -584,176 +554,7 @@ async function selftest() {
   for (const u of units) u.run(boundary);
 }
 
-// ── --shard-plan ────────────────────────────────────────────────────────────
-/* A job is booked SETUP_S (checkout, npm install, the gate's plan: 89 s on a 2,144-file diff in 46132371081, the probe,
-   the arms that stop at the target file) plus REPLAY_S for each whole-chain replay, scaled by the chain's bytes, and must
-   book at most 75% of its timeout-minutes. REPLAY_S is the slowest arm measured, 10:41:39 to 10:45:45 on run 46132371081,
-   when the chain was CHAIN_BYTES. The scaling undercounts a chain whose new files run heavier than its old ones (0.14 s
-   a file on 11-17, 0.27 now), so re-measure REPLAY_S off a slow run's arm lines when the chain has grown a third. */
-const REPLAY_S = 246;
-const CHAIN_BYTES = 39_626_172;
-const SETUP_S = 180;
-const BUDGET_SHARE = 0.75;
-const GUARD = 'tests/utc-midnight-replay.mjs';
-const GATE = 'node tools/mutant-gate.mjs ';
-
-/** The chain's bytes (supabase/migrations/*.sql), CR not counted, so a Windows checkout books what a runner does. */
-function chainBytes() {
-  let n = 0;
-  for (const f of readdirSync(MIGDIR)) {
-    if (!f.endsWith('.sql')) continue;
-    const b = readFileSync(join(MIGDIR, f));
-    n += b.length;
-    for (let i = b.indexOf(13); i >= 0; i = b.indexOf(13, i + 1)) n--;
-  }
-  return n;
-}
-
-/** Every workflow command that runs this guard: { job, cmd, kind: 'arms' | 'proof' | 'plan', sh: {k, n} | null }. */
-function utcCommands(jobs) {
-  const out = [];
-  for (const j of jobs) {
-    for (const s of j.steps) {
-      if (/^Install /.test(s.name || '')) continue;   // environment steps, as tests/ci-shape.mjs isInfraStep reads them
-      for (const cmd of s.run) {
-        const inner = cmd.startsWith(GATE) ? cmd.slice(GATE.length).trimStart() : cmd;
-        if (!inner.startsWith(`node ${GUARD}`)) continue;
-        const m = SHARD_FLAG.exec(inner);
-        const kind = /\s--selftest(?=\s|$)/.test(inner) ? 'proof' : /\s--shard-plan(?=\s|$)/.test(inner) ? 'plan' : 'arms';
-        out.push({ job: j.name, cmd, kind, sh: m ? { k: +m[1], n: +m[2] } : null });
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * The plan's verdict on parsed jobs: { problems: [{ rule, message }], rows }. Pure. `pick` is the shard selection the
- * run uses (planted wrong by the defects below), `bytes` the chain's size.
- *   UTC-PLAN-1  every arm runs in exactly one plain shard, all cut one way, no shard empty
- *   UTC-PLAN-2  every proof unit runs in exactly one --selftest shard, the same way
- *   UTC-PLAN-3  --shard-plan itself runs exactly once
- *   UTC-PLAN-4  a job that holds a shard runs this guard alone, so its booking is its whole time
- *   UTC-PLAN-5  a job that holds a shard is booked at most 75% of its timeout-minutes
- */
-function planOf(jobs, { arms = armsOf(0).map(([l]) => l), proofs = PROOFS, pick = shardOf, bytes = CHAIN_BYTES } = {}) {
-  const problems = [];
-  const fail = (rule, message) => problems.push({ rule, message });
-  const cmds = utcCommands(jobs);
-  const where = (c) => `${c.sh ? `${c.sh.k}/${c.sh.n}` : 'unsharded'} in ${c.job}`;
-  const family = (rule, kind, items, what) => {
-    const runs = cmds.filter((c) => c.kind === kind);
-    const ns = [...new Set(runs.map((c) => (c.sh ? c.sh.n : 1)))];
-    if (ns.length > 1) fail(rule, `the ${what} runs are cut ${ns.join(' and ')} ways (${runs.map(where).join(', ')}): one list is dealt one way`);
-    const seen = new Map(items.map((x) => [x, []]));
-    for (const c of runs) {
-      const share = pick(items, c.sh);
-      if (!share.length) fail(rule, `${where(c)} holds no ${what}: a job that proves nothing`);
-      for (const x of share) if (seen.has(x)) seen.get(x).push(where(c));
-    }
-    for (const [x, at] of seen) {
-      if (!at.length) fail(rule, `${what} "${x}" runs in no shard`);
-      else if (at.length > 1) fail(rule, `${what} "${x}" runs ${at.length} times (${at.join(', ')})`);
-    }
-  };
-  family('UTC-PLAN-1', 'arms', arms, 'arm');
-  family('UTC-PLAN-2', 'proof', proofs.map((p) => p.name), 'proof unit');
-  const plans = cmds.filter((c) => c.kind === 'plan');
-  if (plans.length !== 1) fail('UTC-PLAN-3', `--shard-plan runs ${plans.length} times (${plans.map((c) => c.job).join(', ') || 'nowhere'}), not once`);
-
-  const replayS = REPLAY_S * bytes / CHAIN_BYTES;
-  const fullOf = new Map(proofs.map((p) => [p.name, p.full]));
-  const rows = [];
-  for (const j of jobs) {
-    const mine = cmds.filter((c) => c.job === j.name && c.kind !== 'plan');
-    if (!mine.length) continue;
-    const others = j.steps.filter((s) => !/^Install /.test(s.name || '')).flatMap((s) => s.run)
-      .filter((cmd) => !mine.some((c) => c.cmd === cmd));
-    if (others.length) fail('UTC-PLAN-4', `${j.name} runs ${others.length} other command(s) beside its shard (${others[0]}): its booking would not be its time. Move them to a job with room`);
-    let full = 0;
-    for (const c of mine) {
-      full += c.kind === 'arms' ? 1 + pick(arms, c.sh).length
-        : pick(proofs.map((p) => p.name), c.sh).reduce((n, x) => n + (fullOf.get(x) || 0), 0);
-    }
-    const booked = (SETUP_S + full * replayS) / 60;
-    const share = Number.isFinite(j.timeoutMinutes) ? booked / j.timeoutMinutes : Infinity;
-    rows.push({ job: j.name, holds: mine.map((c) => `${c.kind} ${c.sh ? `${c.sh.k}/${c.sh.n}` : 'all'}`).join(' + '), full, booked, timeout: j.timeoutMinutes, share });
-    if (!(share <= BUDGET_SHARE)) {
-      fail('UTC-PLAN-5', `${j.name} is booked ${booked.toFixed(1)} min (${full} whole replays at ${Math.round(replayS)} s + ${SETUP_S} s) of `
-        + `timeout-minutes ${j.timeoutMinutes}, over ${BUDGET_SHARE * 100}%: add a shard (the headers' K/N, then node tests/ci-shape.mjs --write)`);
-    }
-  }
-  return { problems, rows, replayS };
-}
-
-function shardPlan() {
-  console.log('\nUTC MIDNIGHT REPLAY — SHARD PLAN (smoke.yml)\n');
-  const jobs = parseWorkflow(readFileSync(WORKFLOW, 'utf8'));
-  const labels = armsOf(0).map(([l]) => l);
-  if (new Set(labels).size !== labels.length || new Set(PROOFS.map((p) => p.name)).size !== PROOFS.length) {
-    console.error('  HARNESS: two arms or two proof units share a name, so the plan cannot tell them apart');
-    process.exit(2);
-  }
-  const bytes = chainBytes();
-  const real = planOf(jobs, { bytes });
-  console.log(`  ..    chain ${(bytes / 1e6).toFixed(1)} MB: one whole replay booked ${Math.round(real.replayS)} s, plus ${SETUP_S} s a job\n`);
-  for (const r of real.rows) {
-    console.log(`  ..    ${r.job.padEnd(22)} ${r.holds.padEnd(26)} ${String(r.full).padStart(2)} replays  `
-      + `${r.booked.toFixed(1).padStart(5)} of ${r.timeout} min (${Math.round(r.share * 100)}%)`);
-  }
-  console.log('');
-  const byRule = (rule) => real.problems.filter((p) => p.rule === rule);
-  ok(`every arm runs in exactly one shard (${labels.length} arms)`, !byRule('UTC-PLAN-1').length);
-  ok(`every proof unit runs in exactly one shard (${PROOFS.length} units)`, !byRule('UTC-PLAN-2').length);
-  ok('the plan itself runs once', !byRule('UTC-PLAN-3').length);
-  ok('every shard\'s job runs this guard alone', !byRule('UTC-PLAN-4').length);
-  ok(`every shard's job is booked within ${BUDGET_SHARE * 100}% of its timeout`, !byRule('UTC-PLAN-5').length);
-  for (const p of real.problems) console.error(`        ${p.rule}: ${p.message}`);
-
-  /* Planted defects, each red by its own rule (a plan that has never been red is not a guard). */
-  const copy = () => JSON.parse(JSON.stringify(jobs));
-  const runsOf = (js, kind) => utcCommands(js).filter((c) => c.kind === kind);
-  const stepOf = (js, cmd) => js.flatMap((j) => j.steps).find((s) => s.run.includes(cmd));
-  const drop = (js, cmd) => { const s = stepOf(js, cmd); s.run = s.run.filter((x) => x !== cmd); return js; };
-  const last = (js, kind) => runsOf(js, kind).sort((a, b) => (b.sh ? b.sh.k : 0) - (a.sh ? a.sh.k : 0))[0];
-  const planted = [
-    ['a plain shard dropped (its arms never replay)', 'UTC-PLAN-1', () => { const js = copy(); return planOf(drop(js, last(js, 'arms').cmd), { bytes }); }],
-    ['a plain shard registered twice', 'UTC-PLAN-1', () => {
-      const js = copy(); const c = runsOf(js, 'arms')[0]; const s = stepOf(js, runsOf(js, 'arms')[1].cmd); s.run.push(c.cmd); return planOf(js, { bytes });
-    }],
-    ['one plain shard cut another way', 'UTC-PLAN-1', () => {
-      const js = copy(); const c = runsOf(js, 'arms')[0]; const s = stepOf(js, c.cmd);
-      s.run = s.run.map((x) => (x === c.cmd ? x.replace(SHARD_FLAG, ` --shard=${c.sh.k}/${c.sh.n + 1}`) : x)); return planOf(js, { bytes });
-    }],
-    ['an unsharded run beside the shards (every arm twice)', 'UTC-PLAN-1', () => {
-      const js = copy(); stepOf(js, runsOf(js, 'arms')[0].cmd).run.push(`node ${GUARD}`); return planOf(js, { bytes });
-    }],
-    ['a selection that drops the last arm', 'UTC-PLAN-1', () => planOf(copy(), { bytes, pick: (l, sh) => shardOf(l, sh).filter((x) => x !== l[l.length - 1]) })],
-    ['a selection that deals the first arm to every shard', 'UTC-PLAN-1', () => planOf(copy(), { bytes, pick: (l, sh) => [...new Set([l[0], ...shardOf(l, sh)])] })],
-    ['a proof shard dropped', 'UTC-PLAN-2', () => { const js = copy(); return planOf(drop(js, last(js, 'proof').cmd), { bytes }); }],
-    ['the plan unregistered', 'UTC-PLAN-3', () => { const js = copy(); return planOf(drop(js, runsOf(js, 'plan')[0].cmd), { bytes }); }],
-    ['another guard in a shard\'s job', 'UTC-PLAN-4', () => {
-      const js = copy(); stepOf(js, runsOf(js, 'arms')[0].cmd).run.push('node tests/zz-planted.mjs'); return planOf(js, { bytes });
-    }],
-    ['a shard\'s job given a 10-minute timeout', 'UTC-PLAN-5', () => {
-      const js = copy(); js.find((j) => j.name === runsOf(js, 'arms')[0].job).timeoutMinutes = 10; return planOf(js, { bytes });
-    }],
-    ['the chain grown to three times its bytes', 'UTC-PLAN-5', () => planOf(copy(), { bytes: bytes * 3 })],
-  ];
-  console.log('');
-  let missed = 0;
-  for (const [name, rule, run] of planted) {
-    let got;
-    try { got = run().problems; } catch (e) { console.error(`  HARNESS: could not plant "${name}": ${e.message}`); process.exit(2); }
-    const hit = got.find((p) => p.rule === rule);
-    console.log(`  ${hit ? 'caught ' : 'MISSED '} planted: ${name}${hit ? ` (${rule})` : ` (expected ${rule}; got ${got.map((p) => p.rule).join(', ') || 'nothing'})`}`);
-    if (!hit) missed++;
-  }
-  if (missed) { console.error(`\n${missed} planted defect(s) not caught by their rule\n`); process.exit(2); }
-}
-
-if (process.argv.includes('--shard-plan')) shardPlan();
-else if (process.argv.includes('--selftest')) await selftest();
+if (process.argv.includes('--selftest')) await selftest();
 else await base();
 
 if (harness) { console.error('\nHARNESS FAILURE\n'); process.exit(2); }

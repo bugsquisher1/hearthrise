@@ -850,7 +850,7 @@
     "node tools/mutant-gate.mjs node tests/piece-client.mjs --mutate": "client-guards",
     "node tests/tally-window-pure.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate": "client-guards",
-    "node tests/utc-midnight-replay.mjs --shard-plan": "client-guards",
+    "node tests/utc-midnight-shards.mjs": "client-guards",
     "node tools/mutant-gate.mjs --nightly-gate": "client-guards",
     "node tests/special-attributes.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/special-attributes.mjs --mutate": "client-guards-3",

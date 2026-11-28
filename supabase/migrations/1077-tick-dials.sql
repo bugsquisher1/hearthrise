@@ -4,7 +4,7 @@
 --
 -- STATUS: supabase/migration-notes/1077-tick-dials.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base. It moves two dial values
---   (hr_tick_config) and SPLICES one body, hr_ops.capacity_sample (1046-settle-plans.sql's image, PINNED in §0; 1046's own pin
+--   (hr_tick_config) and RESTATES one body whole, hr_ops.capacity_sample (1046-settle-plans.sql's image, PINNED in §0; 1046's own pin
 --   accepts this file's image, so the staged tail re-applies in order). Nothing else on the chain is edited.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §3 self-check.
 -- EDGE: none (tick.js reads `hunt_body` 0..63 and hr_hunt_lease_free takes 0..63: body 53 is inside both). CLIENT: none.
@@ -45,8 +45,8 @@
 -- §2 hr_ops.capacity_sample: the TICK WALL IN HEROES. Since 1004 the roster cuts a fire by heroes (hunt_body_heroes x
 --      hunt_bodies_max), but the sample still read OPEN INSTANCES over fires x hunt_bodies_max x hunt_body_max (16 since 1004):
 --      10 x 32 x 16 = 5,120 "instances", where a population of fours tops out at 1,280. At 1,000 fours (78% of the real
---      ceiling) the wall read 19.5%, and at 1,280 (hunts lagging) 25%: the 70% alarm could not fire for fours. Five anchored
---      splices (one of them the sampler's own comment on its tick lines), every other byte unchanged:
+--      ceiling) the wall read 19.5%, and at 1,280 (hunts lagging) 25%: the 70% alarm could not fire for fours. Restated whole
+--      from 1046's image with five lines changed (one of them its own comment on the tick lines), every other byte as there:
 --        tick_open            the OPEN HUNT SESSIONS (heroes), was open instances
 --        tick_capacity        fires x hunt_bodies_max x least(hunt_body_heroes, hunt_body_max) heroes: exact when the heroes
 --                             dial is the smaller (here 12 < 16: every fire's pick is bounded by 12 x 54 heroes, whatever the
@@ -58,7 +58,7 @@
 --
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────
 -- The roster's locks, leases and packing are byte for byte (1004's body); only how many it takes a body and a fire moves. A
---   second apply sets the same two values and finds every splice's post text in place (it moves nothing): byte-identical
+--   second apply sets the same two values and restates the same body (it moves nothing): byte-identical
 --   (tests/schema-drift.mjs). A fire running while this commits reads the old or the new row, never half of it.
 --
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
@@ -84,10 +84,14 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
--- md5 of prosrc with carriage returns removed: 1046-settle-plans.sql's image of the sampler, or this file's own.
+-- md5 of prosrc with carriage returns removed: 1046-settle-plans.sql's image of the sampler, or this file's own. Read by its schema
+-- and name (hr_ops.capacity_sample has one signature: 1002 created it, 1046 restated it).
 do $mig$
 declare v_md5 text;
 begin
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'hr_ops' and p.proname = 'capacity_sample') <> 1 then
+    raise exception 'PRECONDITION: hr_ops.capacity_sample is missing or overloaded'; end if;
   if to_regclass('public.hr_tick_config') is null or to_regclass('public.hunt_tick_lease') is null
      or to_regclass('hr_ops.capacity_samples') is null
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_tick_config' and column_name = 'hunt_body_heroes')
@@ -97,7 +101,8 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'hr_tick_config_hunt_body_heroes_ck')
      or not exists (select 1 from pg_constraint where conname = 'hr_tick_config_hunt_bodies_max_ck') then
     raise exception 'PRECONDITION: a dial lost its CHECK (1..64): the holder''s two digits and hr_hunt_lease_free''s 0..63 rest on it'; end if;
-  select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('hr_ops.capacity_sample(text,interval)');
+  select md5(replace(p.prosrc, chr(13), '')) into v_md5 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'hr_ops' and p.proname = 'capacity_sample';
   if v_md5 is distinct from 'a3d64ccabd14150741c619af824d2cf2' and v_md5 is distinct from 'b0dc4820391387c415c8ca77ba74718e' then
     raise exception 'PIN: hr_ops.capacity_sample is neither 1046-settle-plans.sql''s image nor this file''s own: md5 % - re-pin', v_md5; end if;
 end $mig$;
@@ -105,33 +110,105 @@ end $mig$;
 -- ── §1 THE DIALS ─────────────────────────────────────────────────────────────
 update public.hr_tick_config set hunt_body_heroes = 12, hunt_bodies_max = 54 where id;
 
--- ── §2 THE TICK WALL IN HEROES: FIVE ANCHORED SPLICES OF hr_ops.capacity_sample ──
--- Each anchor and its replacement are dollar-quoted and ONE line (a checkout's line ends never reach a splice), so the line the
--- body holds after the splice is written here verbatim. Two replacements begin with their anchor, so a body that already holds
--- the replacement is spliced (a second apply) and skipped before its anchor is counted.
-do $mig$
-declare v_r record; v_def text; v_n int;
+-- ── §2 THE TICK WALL IN HEROES: hr_ops.capacity_sample RESTATED WHOLE ─────────
+-- 1046-settle-plans.sql's body (§0 pins it) with five lines changed, every other byte as there: the declare line (v_open_inst),
+-- the tick comment, the body's heroes (least of the two dials), the open read (sessions, and instances beside them) and the
+-- sample's tick keys (tick_unit, tick_open_instances). Restated rather than spliced: the sampler is not a public function, so the
+-- live-hash sweep (tests/live-hash-drift.mjs, public bodies only) neither tracks nor reads it, as for 1002's and 1046's.
+create or replace function hr_ops.capacity_sample(p_prefix text default 'capacity-', p_after interval default null)
+returns jsonb language plpgsql volatile set search_path = pg_catalog, public as $fn$
+declare
+  c hr_ops.capacity_config%rowtype;
+  v_prev hr_ops.capacity_samples%rowtype;
+  v_stmt double precision; v_ins bigint; v_secs numeric;
+  v_cadence numeric; v_flush numeric; v_body int; v_bodies int; v_cap bigint;
+  v_open int := 0; v_worst numeric; v_open_inst int;
+  v_edge_bodies int := 0; v_edge_max numeric; v_edge_def int := 0; v_edge_err text;
+  v_db_ms double precision; v_rows_day numeric;
+  v_rd_calls bigint; v_rd_total double precision; v_rd_ms numeric;   -- SETTLE-READ
+  v_obs jsonb; v_walls jsonb; v_firing text[];
 begin
-  for v_r in select * from (values
-    (1, $a$  v_open int := 0; v_worst numeric;$a$,
-        $b$  v_open int := 0; v_worst numeric; v_open_inst int;$b$),
-    (2, $a$  -- tick: what the roster can lease in one settle window, and what is open.$a$,
-        $b$  -- tick (1077-tick-dials.sql): the HEROES the roster can lease in one settle window (a body's heroes are the smaller dial: a lone-hunt body closes at hunt_body_max instances), and the heroes open.$b$),
-    (3, $a$coalesce(t.hunt_body_max, 1), coalesce(t.hunt_bodies_max, 1)$a$,
-        $b$least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)$b$),
-    (4, $a$  select count(distinct s.instance_id)::int, max(extract(epoch from now() - i.settled_to)) into v_open, v_worst$a$,
-        $b$  select count(*)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst$b$),
-    (5, $a$    'tick_open', v_open, 'tick_capacity', v_cap,$a$,
-        $b$    'tick_open', v_open, 'tick_capacity', v_cap, 'tick_unit', 'heroes', 'tick_open_instances', v_open_inst,$b$)) t(n, find, repl)
-    order by n loop
-    v_def := replace(pg_get_functiondef('hr_ops.capacity_sample(text,interval)'::regprocedure), chr(13), '');
-    -- a second apply: the body already holds the replacement
-    if strpos(v_def, v_r.repl) > 0 then continue; end if;
-    v_n := (length(v_def) - length(replace(v_def, v_r.find, ''))) / length(v_r.find);
-    if v_n <> 1 then raise exception 'SPLICE %: hr_ops.capacity_sample holds its anchor % times, want 1', v_r.n, v_n; end if;
-    execute replace(v_def, v_r.find, v_r.repl);
-  end loop;
-end $mig$;
+  select * into c from hr_ops.capacity_config where id;
+  select * into v_prev from hr_ops.capacity_samples order by at desc, id desc limit 1;
+  v_secs := extract(epoch from now() - v_prev.at);
+
+  -- db: the extension may be absent (a replay) or unreadable; either is null, never a failed sample.
+  if to_regclass('extensions.pg_stat_statements') is not null then
+    begin execute 'select sum(total_exec_time) from extensions.pg_stat_statements' into v_stmt;
+    exception when others then v_stmt := null; end;
+    -- SETTLE-READ: every statement that calls the party read (hunt-settle.js HUNT_READ_SQL, either spelling), cumulative.
+    begin execute 'select sum(calls)::bigint, sum(total_exec_time) from extensions.pg_stat_statements
+                    where query like ''%hr_hunt_instance_read(%''' into v_rd_calls, v_rd_total;
+    exception when others then v_rd_calls := null; v_rd_total := null; end;
+  end if;
+  -- A delta needs a previous sample between 30 s and 15 min old, and no stats reset between (a negative delta).
+  if v_stmt is not null and v_prev.stmt_ms_total is not null and v_secs between 30 and 900 and v_stmt >= v_prev.stmt_ms_total then
+    v_db_ms := v_stmt - v_prev.stmt_ms_total;
+  end if;
+  -- SETTLE-READ: the mean of the reads made since the previous sample; none made (or a reset) is null, never 0.
+  if v_rd_calls is not null and v_prev.settle_read_calls is not null and v_secs between 30 and 900
+     and v_rd_calls > v_prev.settle_read_calls and v_rd_total >= v_prev.settle_read_total then
+    v_rd_ms := round(((v_rd_total - v_prev.settle_read_total) / (v_rd_calls - v_prev.settle_read_calls))::numeric, 1);
+  end if;
+
+  -- ledger: cumulative inserts on the journal and any partition of it; no scan of the table.
+  select sum(s.n_tup_ins)::bigint into v_ins from pg_stat_user_tables s
+   where s.relid = 'public.player_ledger'::regclass
+      or s.relid in (select i.inhrelid from pg_inherits i where i.inhparent = 'public.player_ledger'::regclass);
+  if v_ins is not null and v_prev.ledger_ins_total is not null and v_secs between 30 and 900 and v_ins >= v_prev.ledger_ins_total then
+    v_rows_day := round((v_ins - v_prev.ledger_ins_total) * 86400 / v_secs);
+  end if;
+
+  -- tick (1077-tick-dials.sql): the HEROES the roster can lease in one settle window (a body's heroes are the smaller dial: a lone-hunt body closes at hunt_body_max instances), and the heroes open.
+  select coalesce(t.cadence_seconds, 10), coalesce(t.flush_seconds, 90), least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)
+    into v_cadence, v_flush, v_body, v_bodies from public.hr_tick_config t where t.id;
+  v_cap := floor((coalesce(v_flush, 90) + coalesce(v_cadence, 10)) / greatest(coalesce(v_cadence, 10), 1))::bigint
+           * coalesce(v_bodies, 1) * coalesce(v_body, 1);
+  -- From the OPEN sessions (the partial index hunt_sessions_one_open holds exactly them), never a scan of every instance ever.
+  select count(*)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst
+    from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id
+   where s.ended_at is null;
+
+  -- edge: the tick answers pg_net holds from the last minute (an unreadable answer is skipped, never a failed sample).
+  if to_regclass('net._http_response') is not null then
+    begin
+      execute $q$
+        select count(*)::int, max(e.ms), coalesce(sum(e.def), 0)::int
+          from (select case when (b#>>'{hunts,engine_ms}') ~ '^[0-9]{1,9}$' then (b#>>'{hunts,engine_ms}')::numeric end as ms,
+                       case when (b#>>'{hunts,deferred}') ~ '^[0-9]{1,9}$' then (b#>>'{hunts,deferred}')::int else 0 end as def
+                  from (select r.content::jsonb as b from net._http_response r
+                         where r.created > now() - interval '1 minute' and length(r.content) < 65536
+                           and r.content like '{%' and r.content like '%"op":"tick"%') x
+                 where b ? 'hunts') e $q$
+        into v_edge_bodies, v_edge_max, v_edge_def;
+    exception when others then v_edge_err := sqlstate; v_edge_bodies := null;   -- unreadable: null, never a false 0%
+    end;
+  end if;
+
+  v_obs := jsonb_build_object(
+    'db_exec_ms', v_db_ms, 'db_secs', case when v_db_ms is not null then v_secs end, 'db_cores', c.db_cores,
+    'tick_open', v_open, 'tick_capacity', v_cap, 'tick_unit', 'heroes', 'tick_open_instances', v_open_inst,
+    'edge_bodies', v_edge_bodies, 'edge_max_ms', v_edge_max, 'edge_budget_ms', c.edge_budget_ms,
+    'ledger_rows_day', v_rows_day, 'ledger_prune_rows_day', c.ledger_prune_rows_day);
+  v_walls := hr_ops.capacity_walls(v_obs);
+
+  insert into hr_ops.capacity_samples (db_pct, tick_pct, edge_pct, ledger_pct, stmt_ms_total, ledger_ins_total,
+                                       settle_read_ms, settle_read_calls, settle_read_total, detail)
+  values ((v_walls->>'db')::numeric, (v_walls->>'tick')::numeric, (v_walls->>'edge')::numeric, (v_walls->>'ledger')::numeric,
+          v_stmt, v_ins, v_rd_ms, v_rd_calls, v_rd_total,
+          v_obs || jsonb_build_object('tick_worst_lag_s', round(v_worst), 'edge_deferred', v_edge_def,
+                                      'edge_error', v_edge_err, 'active_backends',
+                                      (select count(*) from pg_stat_activity where state = 'active' and backend_type = 'client backend')));
+
+  v_firing := hr_ops.capacity_alarm(v_walls, p_prefix, p_after);
+  if hr_ops.settle_read_alarm(v_rd_ms, p_prefix, p_after) then v_firing := v_firing || 'settle_read'::text; end if;   -- SETTLE-READ
+
+  -- RETENTION, in the same file as the table (bounded a run).
+  delete from hr_ops.capacity_samples d
+   where d.id in (select o.id from hr_ops.capacity_samples o where o.at < now() - c.keep order by o.id limit 5000);
+
+  return v_walls || jsonb_build_object('settle_read_ms', v_rd_ms, 'firing', to_jsonb(v_firing));
+end $fn$;
 -- (CREATE OR REPLACE keeps the function's ACL: 1046's revokes stand; §3 (kg) reads them.)
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED; every probe row is this block's own and is rolled back ──
@@ -143,7 +220,7 @@ end $mig$;
 --     offers exactly those 12 and the four that waited
 -- s1  the sampler at the same moment reads the wall in heroes: tick_unit heroes, tick_capacity 10 x 54 x 12 = 6,480,
 --     tick_open the open sessions and tick_open_instances the open instances
--- sp  every splice holds its post text once and its anchor nowhere
+-- sp  the sampler is this file's image (md5 of its prosrc), after s1 has read what the image does
 -- kg  no client, engine or tick role can execute the sampler or the packer; the engine still holds the free
 do $chk$
 declare
@@ -269,17 +346,8 @@ begin
   end;
 
   -- ── sp
-  v_def := replace(pg_get_functiondef('hr_ops.capacity_sample(text,interval)'::regprocedure), chr(13), '');
-  if strpos(v_def, $x$least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)$x$) = 0
-     or strpos(v_def, $x$count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst$x$) = 0
-     or strpos(v_def, $x$'tick_unit', 'heroes', 'tick_open_instances', v_open_inst,$x$) = 0
-     or strpos(v_def, $x$v_worst numeric; v_open_inst int;$x$) = 0
-     or strpos(v_def, $x$coalesce(t.hunt_body_max, 1), coalesce(t.hunt_bodies_max, 1)$x$) > 0
-     or strpos(v_def, $x$select count(distinct s.instance_id)::int, max($x$) > 0
-     or strpos(v_def, $x$  -- tick (1077-tick-dials.sql): the HEROES the roster can lease$x$) = 0
-     or strpos(v_def, $x$  -- tick: what the roster can lease in one settle window, and what is open.$x$) > 0 then
-    raise exception 'sp: hr_ops.capacity_sample does not hold the five splices (or an anchor survived)'; end if;
-  select md5(replace(prosrc, chr(13), '')) into v_def from pg_proc where oid = 'hr_ops.capacity_sample(text,interval)'::regprocedure;
+  select md5(replace(p.prosrc, chr(13), '')) into v_def from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'hr_ops' and p.proname = 'capacity_sample';
   if v_def is distinct from 'b0dc4820391387c415c8ca77ba74718e' then
     raise exception 'sp: hr_ops.capacity_sample is not this file''s image: md5 % - re-pin §0, this line and 1046-settle-plans.sql''s pin', v_def; end if;
 

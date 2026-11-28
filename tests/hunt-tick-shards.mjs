@@ -996,8 +996,8 @@ const CAP_MUTANTS = [
     find: 'update public.hr_tick_config set hunt_body_max = 4, hunt_bodies_max = 32 where id;',
     replace: 'update public.hr_tick_config set hunt_body_max = 12 where id;' },
 ];
-/* 1077-tick-dials.sql's §3 bites. Each mutant moves the dials or a splice; §3 reads behaviour (k0, s1, sp) before its md5 line, and
-   `expect` names the gate that must refuse. */
+/* 1077-tick-dials.sql's §3 bites. Each mutant moves the dials or a line of the restated sampler; §3 reads behaviour (k0, s1) before
+   its md5 line (sp), and `expect` names the gate that must refuse. */
 const TD = '1077-tick-dials.sql';
 const TD_MUTANTS = [
   { name: '[tick-dials] the dials are left as they were', expect: 'k0:',
@@ -1005,14 +1005,14 @@ const TD_MUTANTS = [
   { name: '[tick-dials] the fan-out stays at 32 bodies', expect: 'k0:',
     find: 'update public.hr_tick_config set hunt_body_heroes = 12, hunt_bodies_max = 54 where id;', replace: 'update public.hr_tick_config set hunt_body_heroes = 12 where id;' },
   { name: '[tick-dials] the sampler keeps a body\'s instances as its heroes (the wall 8,640, not 6,480)', expect: 's1:',
-    find: '        $b$least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)$b$),',
-    replace: '        $b$coalesce(t.hunt_body_heroes, 1) * 0 + coalesce(t.hunt_body_max, 1), coalesce(t.hunt_bodies_max, 1)$b$),' },
+    find: '  select coalesce(t.cadence_seconds, 10), coalesce(t.flush_seconds, 90), least(coalesce(t.hunt_body_max, 1), coalesce(t.hunt_body_heroes, 1)), coalesce(t.hunt_bodies_max, 1)',
+    replace: '  select coalesce(t.cadence_seconds, 10), coalesce(t.flush_seconds, 90), coalesce(t.hunt_body_max, 1), coalesce(t.hunt_bodies_max, 1)' },
   { name: '[tick-dials] the sampler still counts open instances as the wall\'s open', expect: 's1:',
-    find: '        $b$  select count(*)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst$b$),',
-    replace: '        $b$  select count(distinct s.instance_id)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst$b$),' },
-  { name: '[tick-dials] a splice is skipped (the old comment stays)', expect: 'sp:',
-    find: '        $b$  -- tick (1077-tick-dials.sql): the HEROES the roster can lease in one settle window (a body\'s heroes are the smaller dial: a lone-hunt body closes at hunt_body_max instances), and the heroes open.$b$),',
-    replace: '        $b$  -- tick: what the roster can lease in one settle window, and what is open.$b$),' },
+    find: '  select count(*)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst',
+    replace: '  select count(distinct s.instance_id)::int, max(extract(epoch from now() - i.settled_to)), count(distinct s.instance_id)::int into v_open, v_worst, v_open_inst' },
+  { name: '[tick-dials] the sampler is not this file\'s image where s1 does not look (its old tick comment)', expect: 'sp:',
+    find: '  -- tick (1077-tick-dials.sql): the HEROES the roster can lease in one settle window (a body\'s heroes are the smaller dial: a lone-hunt body closes at hunt_body_max instances), and the heroes open.',
+    replace: '  -- tick: what the roster can lease in one settle window, and what is open.' },
 ];
 /* 2027-02-04-tick-span.sql's §5 bites: the roster body is pinned by md5 in §0 and §5(a), so a body mutant RE-PINS both
    (spanPatches) and the refusal must come from the behavioural gate named in `expect`. */

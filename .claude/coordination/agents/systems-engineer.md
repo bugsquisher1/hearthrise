@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 · lane/p1-dealt-rows (12-targets 8.11 item 2: a guarantee is dealt under personal loot)
+1. *A deterministic deal is only as fair as its key is mixed.* (monster unit + swing) mod n: my first synthetic test fed arithmetic sequences (unit +1, swing every 7th kill) and read 29/29/29/14%; real play is mixed by the fight's dice. Measured on the real settle (Muster four, 3 secrets x 4 h): 975 Big Bones for 975 kills carrying it, seats 24.7/27.0/23.4/24.9%. Test with seeded gaps, and measure the real engine before trusting a rotation.
+2. *Move an event's shape into one exported function, keep the old anchor.* `drops.js dropEvent` now builds the drop event for a rolled and a dealt unit; returning `({ ... })` kept drop-tables.mjs's "the roller reveals nothing" anchor live without editing that slow guard, and the mutant now bites both paths.
+3. *A new divisor needs an empty-set guard.* `itemOwner(j, 0, …)` throws, so the "rollers of nobody" mutant became a HARNESS throw, not a catch; `if (!by.length) return;` makes the kill fail safe and the mutant is caught by PLP-1 again.
+4. *A dealt rule gives Security an exact bound.* Sum over seats of a guarantee's units = the window's kills of the monsters carrying it; PLP-4 asserts it on both doors (S-31's row).
+
 ## 2026-11-27 · lane/e5-borrowing (v0.3.0 E5, 19 L6: the borrow engine and the heal rule)
 1. *Reuse the mechanism that already means the rule.* "A borrowed heal shares Mend's clock, casting either starts it" is exactly `replaces: ['mend']` (clockOf: fire only while Mend's cooldown is up, the cast starts it). 19's proposed `clock: 'mend'` field would have been a second mechanism with the same meaning.
 2. *Put a lent rule on the row as the hero casts it, keyed on the one borrow list.* lentModsOf marks every id of heroSetup's `borrowed` (build grants and the Lab's handed seam alike) as a `lent` mod, so moddedRow applies the rules once and rowsFor caches on one object. A rule keyed only on the talents path would have left every Lab measurement playing the old engine.

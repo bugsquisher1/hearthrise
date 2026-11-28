@@ -29,21 +29,13 @@
 //      client-direct claim and by hr_apply, writes nothing, and falls back to
 //      settle_first once the hunt stops. `--mutate=partyExempt` restores the
 //      exemption (return null for a partied row) → RED.
-//  R4  A MID-ABSENCE SWAP COUNTS (the world-tick contract, verdict §3). In the
-//      tests/world-tick-parity.mjs harness a real version bump grants the pickaxe
-//      at t = 3 h: every window before it runs at 12.80 s and every window after
-//      it at 11.52 s, and the fold differs from the no-swap fold by the modelled
-//      delta (+15.6 % ore × 4.25/7.25, +11.1 % actions × 4.25/7.25) within ±0.5 %.
-//      (XP is reported, not modelled: the tool's xpB is floored per action.)
-//      The accrue settle, split at the swap as settle-before-mutate forces it,
-//      agrees with the tick fold within ±0.5 % (verdict P5); the pre-fix
-//      ordering (claim first, one settle over the whole night) does NOT.
-//      `--mutate=noReseed` carries the pre-bump session across the version move
-//      (the tick-contract.js:376 staleness gate skipped) → RED.
+//  R4  RETIRED with the gather tick (the one-town-work cut): a mid-absence gathering-tool swap, priced per gather
+//      tick window. R5's refusal is what forces the split the swap needed.
 //  S1  A SECOND APPLY IS A NO-OP — both files re-apply at chain end and every
 //      body they touch is byte-identical.
 //  S2  ONE THRESHOLD, ONE PAYABLE SET — the SQL's c_settle_first_ms equals
-//      COMBAT_XP_SETTLE_FIRST_MS and its c_payable equals accrual.js PAYABLE_KINDS.
+//      COMBAT_XP_SETTLE_FIRST_MS and its c_payable is accrual.js PAYABLE_KINDS (plus the cut's one inert
+//      kind, gather, by name: it leaves with the cut's F1 pass).
 //
 // NO CREDENTIALS. NO NETWORK. NO `?v=` on the imports (tests/**, b332).
 // Exit: 0 green · 1 a violation · 2 a harness problem.
@@ -57,18 +49,16 @@ import { goldOf, setGold } from './_gold.mjs';
    attended combat-XP door in the core rebuild (2026-10-19): no JS path reads it any more, so the SQL's
    c_settle_first_ms is held to the ruled 180 s directly. */
 const COMBAT_XP_SETTLE_FIRST_MS = 180000;
-import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
-  from '../supabase/functions/hr-accrue/accrual.js';
-import { settleGatherSession, intentValue, atSpan, GATHER_CATALOGUES }
-  from '../services/world-tick/gather.js';
-import { seedFor } from '../services/world-tick/shadow.js';
+import { PAYABLE_KINDS } from '../supabase/functions/hr-accrue/accrual.js';
 import { isMain } from './_is-main.mjs';
 
 const MIG_SBM = '2026-09-28-settle-before-mutate.sql';
 const MIG_FROM = '2026-09-28-buff-segment-from.sql';
 const UID = '00000000-0000-4000-8000-00000000f25b';
-const TOOL = 'iron_pickaxe';
 const STALE = '7 hours 15 minutes';
+/* The item a non-stamping hr_apply grants (R5, R6): any catalogued item; bones, which the cut keeps (the Hearth's fuel).
+   (An iron pickaxe until the one-town-work cut took the gathering tools out of the catalogue.) */
+const GRANT = 'bones';
 
 const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
 let failed = 0;
@@ -94,11 +84,6 @@ const MUTATIONS = {
       ['    if c_party_channel_pays then return null; end if;\n',
        '    return null;  -- MUTANT partyExempt\n'],
       SBM_S4_BLIND]]]),
-  },
-  noReseed: {
-    why: 'the tick carries its pre-bump session across a version move (the staleness gate skipped), so '
-       + 'a tool granted mid-absence never reaches the windows after it',
-    r4: 'noReseed',
   },
 };
 
@@ -157,7 +142,7 @@ async function r5(db) {
     [UID])).rows[0].v);
   const J = { kind: 'admin', intent: 'r5_probe' };
   for (const [what, delta] of [
-    ['items:+1', { items: { [TOOL]: 1 }, journal: J }],
+    ['items:+1', { items: { [GRANT]: 1 }, journal: J }],
     ['buff_apply', { buff_apply: { item: food }, items: { [food]: -1 }, journal: J }],
   ]) {
     const [row] = await asRole(db, 'hr_engine', 'select public.hr_apply($1,0,$2,$3,$4::text::jsonb) r',
@@ -213,7 +198,7 @@ async function r6(db) {
   const version = Number((await db.query('select version::text v from player_state where user_id=$1 and slot=0',
     [UID])).rows[0].v);
   const [row] = await asRole(db, 'hr_engine', 'select public.hr_apply($1,0,$2,$3,$4::text::jsonb) r',
-    [UID, version, crypto.randomUUID(), JSON.stringify({ items: { [TOOL]: 1 }, journal: { kind: 'admin', intent: 'r6' } })]);
+    [UID, version, crypto.randomUUID(), JSON.stringify({ items: { [GRANT]: 1 }, journal: { kind: 'admin', intent: 'r6' } })]);
   ok(row.r && row.r.error === 'party_hunt_running',
     `R6 hr_apply items:+1 on a partied stale row answered ${JSON.stringify(row.r).slice(0, 160)}`);
   const after = await snapshot(db);
@@ -273,100 +258,28 @@ async function s2() {
     `S2 c_settle_first_ms ${t && t[1]} != COMBAT_XP_SETTLE_FIRST_MS ${COMBAT_XP_SETTLE_FIRST_MS}`);
   const p = sql.match(/c_payable constant text\[\] := array\[([^\]]*)\]/);
   const kinds = p ? p[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).sort() : null;
-  ok(!!kinds && JSON.stringify(kinds) === JSON.stringify([...PAYABLE_KINDS].sort()),
-    `S2 c_payable ${JSON.stringify(kinds)} != accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)}`);
+  /* EVERY KIND THE ENGINE PAYS IS SETTLED FIRST: a payable kind missing here is F2's hole (a claim prices the absence
+     at the state it creates). The SQL's set may carry ONE extra, `gather`, by name: the one-town-work cut took it out
+     of PAYABLE_KINDS and its cut file idles every gather pointer, so the branch is inert, and it leaves with the
+     other inert gather branches in the cut's F1 pass (09-crafting.md 4.17, the bridge). Any other difference is red. */
+  const INERT_SQL_KINDS = ['gather'];
+  const missingSql = [...PAYABLE_KINDS].filter((k) => !(kinds || []).includes(k));
+  const extraSql = (kinds || []).filter((k) => !PAYABLE_KINDS.includes(k) && !INERT_SQL_KINDS.includes(k));
+  ok(!!kinds && missingSql.length === 0 && extraSql.length === 0,
+    `S2 c_payable ${JSON.stringify(kinds)} vs accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)}: `
+    + `missing [${missingSql}], unexplained extra [${extraSql}]`);
 }
 
-// ── R4 ──────────────────────────────────────────────────────────────────────
-/* The production row: mithril (12.80 s bare, 11.52 s with the iron pickaxe),
-   17:45 -> 01:00 (7.25 h), the tool arriving mid-absence — here at t = 3 h. */
-const R4_FROM = Date.UTC(2026, 8, 26, 17, 45, 0);
-const R4_SWAP = R4_FROM + 3 * 3600000;
-const R4_END = R4_FROM + 7.25 * 3600000;
-const R4_SESSION = {
-  name: 'R4 miner, pickaxe granted at t = 3 h', userId: '00000000-0000-4000-8000-0000000000f4',
-  slot: 0, shard: 0, version: 2047, activeId: 'mithril_rock', activeSinceOffsetMs: 0,
-  capMs: 43200000, seed: 20260927, hp: 50, maxHp: 50, gold: 0,
-  skills: { mining: 5000000, hitpoints: 200000 }, inventory: {}, equipment: {}, toolCarry: {},
-};
-const BAND = 0.005;
-
-function r4(mut) {
-  const s = atSpan(R4_SESSION, R4_FROM);
-  const noSwap = settleGatherSession(s, R4_FROM, R4_END, {});
-  const before = settleGatherSession(s, R4_FROM, R4_SWAP, {});
-  const last = before.intents[before.intents.length - 1];
-  /* THE VERSION BUMP. A real write (the claim) moved player_state.version, so the
-     tick drops what it carried and re-seeds from TRUTH: the bag now holds the
-     pickaxe and the watermark / tool_carry are the server's after the last flush. */
-  const truth = {
-    ...s, version: s.version + 1, inventory: { ...s.inventory, [TOOL]: 1 },
-    accruedToMs: before.watermarkMs,
-    toolCarry: (last && last.args.p_delta.tool_carry) || s.toolCarry,
-  };
-  const resumed = mut === 'noReseed' ? { ...truth, version: s.version, inventory: { ...s.inventory } } : truth;
-  const after = settleGatherSession(resumed, before.watermarkMs, R4_END, {});
-
-  const intervals = (run) => [...new Set(run.results.filter((r) => r.res.accrued)
-    .map((r) => r.res.summary.intervalMs))];
-  ok(JSON.stringify(intervals(before)) === '[12800]',
-    `R4 windows BEFORE the swap ran at ${JSON.stringify(intervals(before))} ms, want [12800]`);
-  ok(JSON.stringify(intervals(after)) === '[11520]',
-    `R4 windows AFTER the swap ran at ${JSON.stringify(intervals(after))} ms, want [11520] — the tool granted `
-    + 'by the version bump never reached the tick');
-
-  const fold = intentValue([...before.intents, ...after.intents]);
-  const base = intentValue(noSwap.intents);
-  const post = (R4_END - R4_SWAP) / (R4_END - R4_FROM);
-  const oreModel = 1 + (1.04 * 12800 / 11520 - 1) * post;
-  const tickModel = 1 + (12800 / 11520 - 1) * post;
-  const ore = fold.items.mithril_ore / base.items.mithril_ore;
-  const ticks = fold.ticks / base.ticks;
-  const xp = fold.xp.mining / base.xp.mining;
-  ok(Math.abs(ore / oreModel - 1) <= BAND,
-    `R4 the swap fold pays ${ore.toFixed(4)}x the no-swap ore, model ${oreModel.toFixed(4)}x (±${BAND * 100}%)`);
-  ok(Math.abs(ticks / tickModel - 1) <= BAND,
-    `R4 the swap fold runs ${ticks.toFixed(4)}x the no-swap actions, model ${tickModel.toFixed(4)}x (±${BAND * 100}%)`);
-  ok(xp > 1, `R4 the swap fold paid no more XP than the no-swap fold (x${xp.toFixed(4)})`);
-
-  /* P5: the accrue settle agrees — when it is split at the swap, which is what
-     settle-before-mutate forces (the claim is refused until the window is paid). */
-  const accrue = (sess, fromMs, toMs) => computeAccrual({
-    userId: sess.userId, slot: sess.slot, nowMs: toMs, accruedToMs: fromMs,
-    activeSinceMs: R4_FROM, activeKind: 'gather', activeId: sess.activeId, capMs: sess.capMs,
-    seed: seedFor(sess.userId, sess.slot, fromMs), hp: sess.hp, maxHp: sess.maxHp, gold: sess.gold,
-    skills: sess.skills, inventory: sess.inventory, equipment: sess.equipment, toolCarry: sess.toolCarry,
-    items: GATHER_CATALOGUES.items, monsters: {}, nodes: GATHER_CATALOGUES.nodes,
-    caller: 'accrue', callerAuthority: CALLER_AUTHORITY,
-  });
-  const a1 = accrue(s, R4_FROM, R4_SWAP);
-  const settledTo = Date.parse(a1.delta.accrued_to);
-  const a2 = accrue({ ...truth, toolCarry: a1.delta.tool_carry || {} }, settledTo, R4_END);
-  const split = (a1.delta.items.mithril_ore || 0) + (a2.delta.items.mithril_ore || 0);
-  ok(Math.abs(split / fold.items.mithril_ore - 1) <= BAND,
-    `R4/P5 the split accrue settle pays ${split} ore, the tick fold ${fold.items.mithril_ore} (±${BAND * 100}%)`);
-  /* …and the ordering the verdict found in production does not: claim first, then
-     ONE settle over the whole night at the new state. Asserted so this arm keeps
-     saying what the fix is for. */
-  const wrong = accrue(truth.inventory && { ...s, inventory: truth.inventory }, R4_FROM, R4_END);
-  const wrongOre = wrong.delta.items.mithril_ore;
-  ok(wrongOre / fold.items.mithril_ore - 1 > 0.05,
-    `R4 the claim-first single settle (${wrongOre} ore) is within 5% of the per-window fold `
-    + `(${fold.items.mithril_ore}) — the fixture no longer shows the defect it pins`);
-  return { ore, oreModel, ticks, tickModel, xp, split, fold: fold.items.mithril_ore, wrongOre };
-}
+// ── R4 (retired with the gather tick, the one-town-work cut) ────────────────
+/* R4 proved a mid-absence tool swap prices each GATHER tick window at its own state (the pickaxe's interval) and that
+   the split accrue settle agrees with the tick's poll fold. Its harness was the gather tick (settleGatherSession) and
+   its subject a gathering tool; both left with gathering. What keeps the property is R5: the settle-first refusal that
+   FORCES the split, on the live chain. */
 
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run(mutate, { only } = {}) {
   const m = mutate ? MUTATIONS[mutate] : null;
   if (mutate && !m) throw harness(`unknown mutation '${mutate}'`);
-  if (!only || only === 'R4') {
-    const r = r4(m && m.r4);
-    if (!only) console.log(`  R4 ore x${r.ore.toFixed(4)} (model x${r.oreModel.toFixed(4)}), actions `
-      + `x${r.ticks.toFixed(4)} (model x${r.tickModel.toFixed(4)}), xp x${r.xp.toFixed(4)}; split settle `
-      + `${r.split} vs tick ${r.fold} ore; claim-first single settle ${r.wrongOre}`);
-  }
-  if (only === 'R4' || (m && m.r4)) return failed;
   let db;
   try { ({ db } = await bootReplay({ patches: m && m.patches, upTo: LAST_PATCHED })); } catch (e) {
     if (e.harness) throw e;
@@ -428,9 +341,8 @@ if (RUN_DIRECTLY) {
     if (n) { console.error(`settle-before-mutate: ${n} violation(s)`); process.exit(1); }
     console.log(`settle-before-mutate${only ? ` (${only} only)` : ''}: a client-direct RPC or a non-stamping `
       + 'hr_apply on a 7.25 h-stale row is refused settle_first and writes nothing, and the same claim pays '
-      + 'once the window is settled (R5); a mid-absence tool swap prices each window at its own state and '
-      + 'the split settle agrees with the tick fold (R4); both files re-apply byte-identically (S1); one '
-      + 'threshold and one payable set (S2).');
+      + 'once the window is settled (R5); both files re-apply byte-identically (S1); one threshold and one '
+      + 'payable set (S2).');
     process.exit(0);
   } catch (e) {
     if (e && e.harness) { console.error(`settle-before-mutate: HARNESS — ${e.message}`); process.exit(2); }

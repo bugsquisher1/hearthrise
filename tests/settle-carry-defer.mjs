@@ -70,11 +70,11 @@ import { computeAccrual, settledWatermarkMs, CALLER_AUTHORITY }
 import { hashSeed } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { TREES } from '../src/data/gathering.js';
+import { recipeInputs } from '../src/core/artisan.js';
 /* The SAME derived index index.ts and set-activity.js pass (the A14 rule:
    one derivation, two callers). Importing it rather than rebuilding one here is
    the difference between testing the engine and testing a second catalogue. */
-import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
+import { FUEL_RUNS } from '../supabase/functions/hr-accrue/catalogue.js';
 import { readFileSync } from 'node:fs';
 
 let fails = 0;
@@ -95,15 +95,14 @@ const MAXED = 13034431;
 function baseChar(over) {
   return {
     userId: '00000000-0000-4000-8000-0000000000aa', slot: 0,
-    /* A GATHERING base (closed rebuild, lane C2): a fight outside a hunt
-       session is never priced here — the hunt's own window chain is
-       tests/hunt-sessions-settle.mjs TICK-1 (split-settle parity). */
-    activeKind: 'gather', activeId: 'normal_tree', capMs: 43200000,
+    /* A HEARTH base (the town pointer since the one-town-work cut; a gathering one before it): a fight outside
+       a hunt session is never priced here — the hunt's own window chain is tests/hunt-sessions-settle.mjs TICK-1
+       (split-settle parity). Stocked far past what any span here can burn, so the run never STOPS. */
+    activeKind: 'artisan', activeId: 'fuel_bones', capMs: 43200000,
     hp: 99, maxHp: 99, gold: 0,
     skills: { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED,
-              ranged: MAXED, magic: 1000, inner_flame: 1000,
-              woodcutting: MAXED, mining: MAXED, fishing: MAXED },
-    inventory: {},
+              ranged: MAXED, magic: 1000, inner_flame: 1000 },
+    inventory: { bones: 1000000 },
     equipment: {},
     fight: {}, recoveringUntilMs: 0,
     ...over,
@@ -126,7 +125,7 @@ function call(char, fromMs, toMs, extra) {
     recoveringUntilMs: char.recoveringUntilMs,
     ammoCarry: char.ammoCarry, toolCarry: char.toolCarry,
     items: ITEMS, monsters: MONSTERS,
-    nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+    recipes: FUEL_RUNS,
     /* The server-code token 'collect'/'tick' are fenced behind (accrual.js
        CALLER_AUTHORITY, 2026-09-18). Spelled BEFORE the spread so an arm can
        override it with a forgery — which D4g does. */
@@ -214,31 +213,17 @@ console.log('settle-carry-defer — the watermark defers the sub-tick carry, it 
 console.log('');
 const SPAN_MS = 4 * 3600000;
 const CASES = [];
-/* The gather arm uses the WORST remainder in src/data/gathering.js rather than
-   an invented number: the node whose interval divides 90 000 least evenly is
-   where the defect was largest (settle-carry-loss's 6.66% row). Picked from the
-   catalogue so a content change moves the fixture instead of dating it. */
+/* The town arm (the gather arm, its sibling, retired with gathering: the one-town-work cut) uses the WORST
+   remainder among the fuel runs rather than an invented number: the run whose interval divides 90 000 least evenly
+   is where the defect is largest. Picked from the catalogue so a content change moves the fixture instead of dating
+   it. Stocked far past what 4 h can consume, so the run never STOPS — a supplies stop is D5's case, not this one. */
 {
-  const worst = TREES
-    .map((t) => ({ id: t.id, ms: Number(t.ms) || 0 }))
-    .filter((t) => t.ms > 0 && t.id)
-    .sort((a, b) => (SETTLE_INTERVAL_MS % b.ms) - (SETTLE_INTERVAL_MS % a.ms))[0];
-  if (!worst) { fails++; console.log('  ✗ D0 src/data/gathering.js TREES has no node with an interval'); }
-  else CASES.push({ name: `gather, ${worst.id} (${worst.ms} ms)`,
-                    over: { activeKind: 'gather', activeId: worst.id } });
-}
-/* The artisan arm, chosen the same way and for the same reason: it is the THIRD
-   caller of `sliceSpan` (artisan-sim.js:355) and a fix that covered only two of
-   the three channels would be a silent hole in the one that burns inputs.
-   Stocked far past what 4 h can consume, so the run never STOPS — a supplies
-   stop is D5's case, not this one. */
-{
-  const cand = Object.entries(ARTISAN_RECIPES_ALL)
+  const cand = Object.entries(FUEL_RUNS)
     .map(([id, e]) => ({ id, ms: Number(e.recipe && e.recipe.ms) || 0,
-                         inputs: (e.recipe && e.recipe.inputs) || null }))
+                         inputs: e.recipe ? recipeInputs(e.recipe) : null }))
     .filter((r) => r.ms > 0 && r.inputs && Object.keys(r.inputs).length === 1)
     .sort((a, b) => (SETTLE_INTERVAL_MS % b.ms) - (SETTLE_INTERVAL_MS % a.ms))[0];
-  if (!cand) { fails++; console.log('  ✗ D0b no single-input artisan recipe in the catalogue'); }
+  if (!cand) { fails++; console.log('  ✗ D0b no fuel run in the catalogue'); }
   else {
     const inv = {}; for (const k of Object.keys(cand.inputs)) inv[k] = 1000000;
     CASES.push({ name: `artisan, ${cand.id} (${cand.ms} ms)`,

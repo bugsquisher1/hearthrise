@@ -388,20 +388,14 @@ function tickHeroes(inst, sc) {
    On the Danger scale a hero under the stance's trigger, or dead, ends the pull where it stands: the step falls (pullEnds), every pack on
    the party drops its targets, heals and walks home (leash.js resetPack, as the leash and a leader's death do), the heroes drop theirs, and
    the party rests where it stands until it is ready; then it pulls the same pocket again, made at the lower step (fitPull). What a player
-   sees: the party breaks off, the monsters turn and walk back to their spots whole, the party catches its breath and goes again. */
-function breakOff(inst, sc) {
+   sees: the party breaks off, the monsters turn and walk back to their spots whole, the party catches its breath and goes again.
+   (Exported for fall-save.js fallBackNow.) */
+export function breakOff(inst, sc) {
   const w = inst.world;
   pullEnds(inst, sc);
   for (let p = 0; p < w.packs.length; p++) if (w.packs[p].aggro) resetPack(inst, p, sc);
   for (const h of heroes(inst)) h.target = null;
   w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false;
-}
-
-/** A FALL BACK A SAVE STARTS (src/core/hunt/fall-save.js, lane/signatures-batch-4: Hearth Mason's Cloak, damage.js landHit): on the Danger
-    scale, in a fight, the pull breaks off now (breakOff), as a hero under its stance's line breaks it, on any stance (Bold too, which
-    never breaks off on its own). Nothing off the scale or outside a fight. */
-export function fallBackNow(inst, sc) {
-  if (dangerOn(inst.world) && inst.world.phase === PHASE.FIGHT) breakOff(inst, sc);
 }
 
 /** Phase-AI hook: travel, pull, fight, regroup; the pocket route (PC-03..13). */

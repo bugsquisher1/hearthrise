@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 085a542b5c0a055c09bc89f90d09caa06c6953bb2d1eecaabace90bdc89fadbb
+--   catalogue digest: 67174a5698a20c64d11f6531454b8b9769016152ff19979406d803265d2d0e39
 --   rows: 772 items (27 untradeable) ·
 --         465 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -388,7 +388,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dawn_sword','Dawnsteel Sword',true,'weapon',36000,'level',110,null,false,null,false),
   ('dawn_temper_salts','Dawnsteel Tempering Salts',true,null,230,null,null,null,false,null,false),
   ('dawn_warhammer','Dawnsteel Warhammer',true,'weapon',39600,'level',110,null,false,null,true),
-  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',100,'melee',120,null,false,null,false),
+  ('dawn_whetstone','Dawnsteel Whetstone',true,'ammo',40,'melee',120,null,false,null,false),
   ('dawnbound_amulet','Dawnbound Amulet',true,'jewelry',72000,'level',86,null,false,null,false),
   ('dawnforged_signet','Dawnforged Signet',true,'jewelry',72000,'level',84,null,false,null,false),
   ('dawnhide_belt','Dawnhide Belt',true,'armor',20160,'level',110,null,false,'medium',false),
@@ -472,7 +472,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_temper_salts','Ember Tempering Salts',true,null,180,null,null,null,false,null,false),
   ('ember_tower_shield','Emberforged Tower Shield',true,'offhand',9750,'level',90,null,false,null,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'level',90,null,false,null,true),
-  ('ember_whetstone','Emberforged Whetstone',true,'ammo',45,'melee',100,null,false,null,false),
+  ('ember_whetstone','Emberforged Whetstone',true,'ammo',30,'melee',100,null,false,null,false),
   ('emberfruit','Emberfruit',true,null,480,null,null,192,true,null,false),
   ('emberfruit_cordial','Emberfruit Cordial',true,null,160,null,null,null,false,null,false),
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false,null,false),
@@ -1920,7 +1920,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '085a542b5c0a055c09bc89f90d09caa06c6953bb2d1eecaabace90bdc89fadbb', now())
+  values (true, '67174a5698a20c64d11f6531454b8b9769016152ff19979406d803265d2d0e39', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2150,7 +2150,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 085a542b5c0a055c09bc89f90d09caa06c6953bb2d1eecaabace90bdc89fadbb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 67174a5698a20c64d11f6531454b8b9769016152ff19979406d803265d2d0e39',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 3315c84c5e2f5b2fe209d2266fe0060d152e11b33a7692d69cff4cb413ea29ff
+--   digest: 0fccc244b278a32c51f1b8745be3f004ffa8e3554f8bd3d1f5f525c156a2c29f
 --   81 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
 --   729 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
@@ -1802,7 +1802,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('dawn_sword', 195),
   ('dawn_temper_salts', 46),
   ('dawn_warhammer', 214),
-  ('dawn_whetstone', 100),
+  ('dawn_whetstone', 40),
   ('dawnbound_amulet', 504),
   ('dawnforged_signet', 504),
   ('dawnhide_belt', 141),
@@ -1885,7 +1885,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_temper_salts', 36),
   ('ember_tower_shield', 146),
   ('ember_warhammer', 214),
-  ('ember_whetstone', 45),
+  ('ember_whetstone', 30),
   ('emberfruit', 96),
   ('emberfruit_cordial', 160),
   ('emberfruit_seed', 120),

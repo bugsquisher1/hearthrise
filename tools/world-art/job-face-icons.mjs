@@ -3,19 +3,18 @@
 // tools/world-art/job-face-icons.mjs — THE JOB SLICE'S NEW GOODS' PLACEHOLDER ICONS, RE-DYED FROM SHIPPED ONES
 // (backend-architect, lane/k1-job-slice, 2026-11-26; the Art Director judges each and may replace it with bespoke art).
 //
-// The job slice makes ten goods items (src/data/items.js: Bronze, Iron, Steel and Mithril Arrowheads, Dawnsteel Tempering Salts and one `imbue_<id>` an imbuement),
+// The job slice makes thirteen goods items (src/data/items.js: Bronze, Iron, Steel, Mithril, Rune and Emberforged Arrowheads, Rune Ore, Dawnsteel Tempering Salts and one `imbue_<id>` an imbuement),
 // and every ITEMS key needs a 32x32 pixel icon (tests/pixel-icons.mjs). Rather than invent a style, each is a shipped icon re-dyed by rank
 // (step-tier-icons.mjs dye: every opaque colour of the source, dark to light, becomes the colour of the same rank in a ramp of the locked
 // palette), so it stays on the palette, binary alpha, 32x32:
 //   dawn_temper_salts   the Ember Tempering Salts in Dawnsteel's ramp (the next band's kit beside its neighbour)
-//   bronze_arrowheads   the Barrow Nail (a metal point) in the Bronze Bar's own colours
-//   iron_arrowheads     the same nail in the Iron Bar's colours (band 1's head, lane/designer-kit-band1)
-//   steel_ and mithril_arrowheads   the same nail in the Steel and Mithril Bars' colours (bands 2 and 3, lane/kit-bands-2-3)
+//   rune_ore            the Mithril Ore in the Rune Bar's colours (band 4, lane/kit-bands-4-5)
+//   (the six arrowheads wore the Barrow Nail re-dyed until 2026-11-28; tools/world-art/arrowhead-icons.mjs draws them now)
 //   imbue_<id>          its part's icon in its element's ramp: the Fire Ward's Ford Weed and the Fire Edge's rake tine in ember, the Brute
 //                       Edge's pike ferrule in wolfram, the Life Leech's hook in drakehide green, the Mana Leech's urn shard in cobalt blue
 // pixel-icons.mjs's `drawn` rule holds each file to what this draws: edit this script and rerun it, never the PNG.
 //
-//   node tools/world-art/job-face-icons.mjs     write the ten PNGs into assets/icons-bundle/pixel/items/
+//   node tools/world-art/job-face-icons.mjs     write its PNGs into assets/icons-bundle/pixel/items/
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -39,9 +38,8 @@ function rampFrom(id) {
 /* each imbuement's element ramp (src/data/imbue-rules.js: two fire, one brute, a life and a mana leech) */
 const IMBUE_RAMP = Object.freeze({ fire_ward: 'ember', fire_edge: 'ember', brute_edge: 'wolfram', life_leech: 'drakehide', mana_leech: 'cobalt' });
 
-const rows = [['dawn_temper_salts', 'ember_temper_salts', () => RAMPS.dawn], ['bronze_arrowheads', 'barrow_nail', () => rampFrom('bronze_bar')],
-  ['iron_arrowheads', 'barrow_nail', () => rampFrom('iron_bar')], ['steel_arrowheads', 'barrow_nail', () => rampFrom('steel_bar')],
-  ['mithril_arrowheads', 'barrow_nail', () => rampFrom('mithril_bar')]];
+/* the six arrowheads left for their own drawing (tools/world-art/arrowhead-icons.mjs, Art Director 2026-11-28) */
+const rows = [['dawn_temper_salts', 'ember_temper_salts', () => RAMPS.dawn], ['rune_ore', 'mithril_ore', () => rampFrom('rune_bar')]];
 for (const j of IMBUE_JOBS) {
   if (!IMBUE_RAMP[j.imbue] || !RAMPS[IMBUE_RAMP[j.imbue]]) throw new Error('job-face-icons: ' + j.imbue + ' has no ramp');
   rows.push([j.face, j.part, () => RAMPS[IMBUE_RAMP[j.imbue]]]);

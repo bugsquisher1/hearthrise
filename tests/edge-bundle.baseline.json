@@ -673,6 +673,11 @@
         "bytes": 4020595,
         "on": "2026-11-28",
         "why": "designer-sig-batch4: reshaped Signature rows and the stoked status (signatures.js, statuses.js)"
+      },
+      {
+        "bytes": 4024578,
+        "on": "2026-11-28",
+        "why": "kit-bands-4-5: 27 band 4-5 job recipes, faces and 3 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
       }
     ]
   }

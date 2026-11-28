@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: ca9a9d56f8b10bc63ccab7417a091f8171f87178f6c8b75de16875fe5d05b0ae
---   rows: 760 items (27 untradeable) ·
+--   catalogue digest: 34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270
+--   rows: 763 items (27 untradeable) ·
 --         464 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
 --         0 runes
@@ -449,6 +449,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('eelskin_helmet','Eelskin Hood',true,'armor',35450,'level',150,null,false,'medium',false),
   ('eelskin_pants','Eelskin Chaps',true,'armor',64990,'level',150,null,false,'medium',false),
   ('elderscale_heart','Elderscale Heart',true,null,9000,null,null,null,false,null,false),
+  ('ember_arrowheads','Emberforged Arrowheads',true,null,400,null,null,null,false,null,false),
   ('ember_axe','Emberforged Axe',true,'tool',1400,null,null,null,false,null,false),
   ('ember_bar','Emberforged Bar',true,null,500,null,null,null,false,null,false),
   ('ember_belt','Emberforged Belt',true,'armor',10400,'level',90,null,false,'heavy',false),
@@ -700,6 +701,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ruby','Ruby',true,null,400,null,null,null,false,null,false),
   ('ruby_signet','Ruby Signet',true,'jewelry',9000,'level',52,null,false,null,false),
   ('rubyfire_studs','Rubyfire Studs',true,'jewelry',4500,'level',66,null,false,null,false),
+  ('rune_arrowheads','Rune Arrowheads',true,null,400,null,null,null,false,null,false),
   ('rune_arrows','Rune Arrows',true,'ammo',6,'ranged',66,null,false,null,false),
   ('rune_axe','Rune Axe',true,'tool',1800,null,null,null,false,null,false),
   ('rune_bar','Rune Bar',true,null,500,null,null,null,false,null,false),
@@ -714,6 +716,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_helm','Rune Helm',true,'armor',5400,'level',70,null,false,'heavy',false),
   ('rune_knife','Rune Knife',true,'tool',9200,null,null,null,false,null,false),
   ('rune_needle','Rune Needle',true,'tool',9200,null,null,null,false,null,false),
+  ('rune_ore','Rune Ore',true,null,50,null,null,null,false,null,false),
   ('rune_pickaxe','Rune Pickaxe',true,'tool',1800,null,null,null,false,null,false),
   ('rune_platebody','Rune Platebody',true,'armor',13500,'level',70,null,false,'heavy',false),
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'level',70,null,false,'heavy',false),
@@ -1907,7 +1910,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'ca9a9d56f8b10bc63ccab7417a091f8171f87178f6c8b75de16875fe5d05b0ae', now())
+  values (true, '34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1935,11 +1938,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 760 then raise exception 'hr_items has % rows, generator emitted 760', v_n; end if;
+  if v_n <> 763 then raise exception 'hr_items has % rows, generator emitted 763', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '474db5465c6656873df77b115d964c9e' then
-    raise exception 'hr_items names differ from src/data (expected digest 474db5465c6656873df77b115d964c9e)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'ca7cbb2df299b702f7a0216749885236' then
+    raise exception 'hr_items names differ from src/data (expected digest ca7cbb2df299b702f7a0216749885236)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2137,7 +2140,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ca9a9d56f8b10bc63ccab7417a091f8171f87178f6c8b75de16875fe5d05b0ae',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 34e6ced03acb161f41c36b7a394345d74aea937faa8050fa485a9807c9482270',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

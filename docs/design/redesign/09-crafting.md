@@ -824,8 +824,8 @@ The four land as one merge on the set, after the designer's item batches, in the
 
 **What each becomes (the designer's rule for the batches to come).**
 
-- **A band's kit face, in its band's batch:** the band's arrow, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar, and the bolt at iron only (4.14). Bands 1 to 3 are built (4.13, 4.14). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
-- **A second good of one kind at one band is cut with the bench** (4.9 rule 1: a recipe is one kind at one band, so two meals a band are the same hour of food twice): the extra foods and drinks at each band once its batch has picked its one meal and one drink, the raw fish no batch picks and no monster drops, `barbed_arrows`, `copper_whetstone`, `copper_bar`, and the Deep Seam bridge (`verdite_ore`, `verdite_bar`, `flux_salt`: one bar a band). Named arrows past a band's metal (`emberhead_arrows`, `dawnpoint_arrows`) are cut too: a band's arrow is its metal's.
+- **A band's kit face, in its band's batch:** the band's arrow, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar, and the bolt at iron only (4.14). Bands 1 to 5 are built (4.13 to 4.15), band 5 with no rune or stone, whose ladders end a band earlier (4.15). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
+- **A second good of one kind at one band is cut with the bench** (4.9 rule 1: a recipe is one kind at one band, so two meals a band are the same hour of food twice): the extra foods and drinks at each band once its batch has picked its one meal and one drink, the raw fish no batch picks and no monster drops, `barbed_arrows`, `copper_whetstone`, `copper_bar`, and the Deep Seam bridge (`verdite_ore`, `verdite_bar`, `flux_salt`: one bar a band). A band's arrow is its metal's, so the two named arrows are their metals' arrows: `emberhead_arrows` is band 5's and `dawnpoint_arrows` band 6's (4.15 re-ruled the cut this list once made).
 - **Jewelry (27), the cloaks and `heartgarnet` are Artificing's Trait crafts** (section 2: crafted jewelry and cloaks roll Traits from the part used). They need kinds `KINDS` does not have yet. Ruled at the end of 4.13: the kinds for the Trait craft (after v0.3.0), and each piece's fate at the cut.
 - **The gathering tools (12) are cut with the bench.** They speed the gathering nodes the cut removes. The `tool_*` kinds bring tools back as job tools when they ship (20 section 1.4).
 - **The named-piece reforges** (`klappas_club`, `steelgrate`) are gear, and gear drops (section 2): each becomes a drop of its named source in `28-named-pieces.md` or is cut.
@@ -976,6 +976,81 @@ So band 2 sits in the 0.8 to 1.0 this page wants at 10 h and on its top edge at 
 **The store a band behind stays the fallback** (the same tool, a hero at the band's first step, gold an hour of effect): band 2's meal line is 786 at the store against 528 crafted at the band and 524 a band behind, its charge line 1,572 against 1,057 and 1,047. Band 3's are 852 against 572 and 567, and 1,703 against 1,145 and 1,134. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind (KR-STORE, every band 0 to 8).
 
 *Read with care.* The pace table again applies one burn to the whole career: on the Warrens burn a planned free 10 h day keeps the worst kit line at the band 95 days of 140 and one behind on the rest, never two (on the Muster burn, 125 and 15). The store's named rows (Salted Lobster beside a crafted Cooked Pikeperch) are priced by the buyer's step, so they play correctly, but their names follow the old ladder. Naming them for the band's face is W1's remainder (4.9).
+
+### 4.15 Bands 4 and 5, rune and Emberforged (2026-11-27, game designer, lane/kit-bands-4-5)
+
+**How it plays:** once a hero holds a depth record on the Pyre Field or Krell's Hold and a trade reaches Level 41, the Work window offers that trade's rune job. Rune Ore smelts to Rune Bars, which forge Rune Arrowheads and grind Rune Whetstones. Yew saws to planks, and a head and a plank make a Rune Arrow. Lobster cooks, Goldenroot brews to tea, and two Blank Runes and a Big Bone cut any Graven rune. Ten Levels on, an Emberforged record opens Emberstone Ore, Runewood, Swordfish, Emberfruit Cordial and Emberhead Arrows. No v0.3.0 ground is band 5 (Carter's Rest is staged), so those jobs open the day it does.
+
+**Built (STAGED, dark with `trade_jobs`).** Two batches, each read for repetition (CLAUDE.md section 10). Band 4 was played through the guards and read first, then band 5.
+
+| Batch | Rows | What |
+|---|---|---|
+| `band4-rune` | 17 | Mine Rune Ore, Chop Yew Logs, Catch Lobster, Pull Goldenroot, Smelt Rune Bars, Saw Yew Planks, Cook Lobster, Brew Goldenroot Tea, Grind Rune Whetstones, Forge Rune Arrowheads, Fletch Rune Arrows, and Cut Graven Earth, Water, Fire, Ice, Poison and Rupture Runes |
+| `band5-ember` | 10 | Mine Emberstone Ore, Chop Runewood Logs, Catch Swordfish, Pull Emberfruit, Smelt Emberforged Bars, Saw Runewood Planks, Cook Swordfish, Brew Emberfruit Cordial, Forge Emberforged Arrowheads, Fletch Emberhead Arrows |
+
+104 named rows in nine batches (5, 9, 6, 5, 18, 17, 17, 17, 10), 109 job recipes with the imbuements. Every band 4 row opens at its trade's Level 41, every band 5 row at Level 51 (`bandRung`). The Rune and Ember Temper kits (already named) now have bars a job makes.
+
+*The repetition read.* Band 4 is band 3's kinds at rune and yew: one new rock, one new head, the last rune tier. Band 5 is band 4's kinds at ember and runewood, short the rune and the stone. Every name is a live item but Rune Ore and the two heads.
+
+*Calls made here.*
+
+- **Rune's rock is Rune Ore, a new good** (`rune_ore`, booked at 50, between Mithril Ore's 40 and Emberstone Ore's 55). The bench smelted Rune Bars from three goods (a Mithril Bar, Magic Essence and coal), and a kind takes one material, so Mining opens a new rock at rune as it did at every band before. "Rune" already names the metal (the Rune Sword, the Rune Bar), so the ore reads as its bar's. Its placeholder icon is the Mithril Ore re-dyed in the Rune Bar's colours.
+- **Band 4's Remains are Big Bones** (`STREAM_FACES.remains[4]`). Both band 4 grounds drop them: Krell's Hold (Grave Guard, Gatekeeper) and the Pyre Field (Stoker, Provost). Razor Claw drops on the Pyre Field alone, so a Krell's Hold company could never bind with it. Big Bones also drop on Carter's Rest, so they can carry band 5 when a band 5 rune exists.
+- **The ladders end, so band 5 has no rune and no honing stone.** The runes stop at Graven (`runes.js RUNE_TIERS`, five tiers, one a band from 0 to 4). The honing stones go from Rune to Dawnsteel (`stonecraft.js`), with no ember stone between them. A rune or a stone for band 5 would be a new rung on a combat ladder (its stats, its gate and its spell version), which is that ladder's owner's call, not a job's. Until it lands, a band 5 caster cuts Graven runes and a melee hero grinds Rune Whetstones, a band behind, like the store's lag. No v0.3.0 hero meets it, since no band 5 ground is open. KR-ROWS holds Runecutting to a job at every band a rune tier is left for, read from `RUNE_TIERS`, so the day a sixth tier lands its row is owed.
+- **Emberhead is ember's arrow, re-ruling 4.12 by its own rule** ("a band's arrow is its metal's"). Emberhead Arrows are the arrow ladder's tier 6, between Rune and Dawnpoint, with ember heads. So they are band 5's arrow, made from Emberforged Arrowheads and a Runewood Plank. Dawnpoint Arrows (tier 7, dawn) are band 6's by the same reading, for its batch.
+- **Fish, crop and wood keep their order.** Lobster and Swordfish, Goldenroot and Emberfruit, Yew and Runewood. Cooked Lobster gains a job at band 4, and 4.14's re-point of its Kitchen 2 cost to Cooked Pikeperch stands (a tier 2 room asks for a band 2 good). Runewood Planks gain a job at band 5, so their room and castle costs keep their good.
+- **Three new goods: Rune Ore, Rune Arrowheads and Emberforged Arrowheads** (the heads booked at 400 under their bars' 500, as every head is; placeholder icons re-dyed by `tools/world-art/job-face-icons.mjs` for the Art Director).
+
+*Every input has a source and every output a use* (KR-SOURCE, KR-CLOSED; `tests/kit-recipes.mjs --mutate` 36 of 36 caught, seven of them new for bands 4 and 5). Every town input of every band 4 and band 5 job is made by a job at its band or below. Big Bones drop on both open band 4 grounds, and a mutant binding band 4 with Troll Hide (a Carter's Rest drop) is caught. Band 5 has no hunted input.
+
+**What bands 4 and 5 still orphan, each ruled.** After this batch the cut orphans **88** live items, not 104 (`cut-orphans.mjs`, by band 0 to 9: 10 / 13 / 14 / 8 / 5 / 12 / 11 / 5 / 7 / 3). 16 gained a job: the six Graven runes, Rune Arrows, Rune Whetstones, Yew and Runewood Planks, Goldenroot Tea, Cooked Lobster, Cooked Swordfish, Emberfruit Cordial, Emberhead Arrows and Raw Swordfish.
+
+| Band | Item | Fate | Why |
+|---|---|---|---|
+| 4 | `carrot_stew`, `vegetable_stew` | Cut with the bench | A second food at band 4, whose meal is Cooked Lobster (4.12) |
+| 4 | `rune_axe`, `rune_pickaxe` | Cut with the bench | Gathering tools for nodes the cut removes (4.12). The `tool_*` kinds bring tools back as job tools |
+| 4 | `verdite_bar` | Cut with the bench | The Deep Seam bridge, one bar a band (4.12) |
+| 5 | `ember_tart`, `fishers_pie`, `pumpkin_pie`, `river_chowder` | Cut with the bench | Second foods at band 5, whose meal is Cooked Swordfish |
+| 5 | `cooked_shark` | Band 7's meal, with its batch | Shark is band 7's fish in the order 4.14 set (Lobster, Swordfish, Frostfin, Shark, Moonfish). Its Kitchen 5 cost re-points to Cooked Swordfish, the cut's data lane's |
+| 5 | `ember_earrings`, `ember_necklace`, `ember_ring`, `archmage_cloak` | Held as the Trait craft's bases (4.13) | Artificing's Trait craft ships after v0.3.0 and no band 5 ground is open before it |
+| 5 | `ember_axe`, `ember_pickaxe` | Cut with the bench | Gathering tools (4.12) |
+| 5 | `heartgarnet` | Cut with the bench | Ruled at the end of 4.13 |
+
+**Walk-through: a company's first rune day, on real data.** It holds what the steel walk-through (4.14) ends with, walked on through band 3: bands 0 to 3 goods and every kit trade at Level 31. Each trade needs 28.1 work-hours of its own XP from Level 31 to 41 (`tradeXpTable`: 134,076 to 235,222 seconds of work, read as the XP at which `tradeLevel` first returns each Level), so the eight kit trades take about seven planned free days of a company of four. Every id was grepped on the set (`items.js`, `monsters.js`, `hunt-grounds.js OPEN_GROUNDS`, `danger.js`, `trades.js` through `jobRecipes`, `catalogue-coherence` doors).
+
+| # | Step | Holds and can reach (steps before only, plus bands 0 to 3) | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Pyre Field to a depth record | Band 3 gear and kit. The Pyre Field opens at Level 70 | `OPEN_GROUNDS.pyre_field`, `DANGER_GROUNDS.pyre_field` gear Level 80 (band 4, `hr_trade_band_open` reads band 4 or deeper). Drops `big_bones` (`stoker`, `provost`). Krell's Hold does too (`grave_guard`, `gatekeeper`) | Yes |
+| 1 | Mine Rune Ore, Mining 41 | The band 4 record from step 0. No input | `ore_b4`, face `rune_ore` (new) | Yes once lit |
+| 2 | Smelt Rune Bars, Smithing 41 | Ore from step 1 | `bar_b4`, 1 `rune_ore` to `rune_bar` | Yes once lit |
+| 3 | Forge Rune Arrowheads, Smithing 41 | Bars from step 2 | `arrowhead_b4`, 1 `rune_bar` to `rune_arrowheads` (new) | Yes once lit |
+| 4 | Chop Yew Logs and Saw Yew Planks, Woodcutting 41 and Woodcrafting 41 | Nothing needed for the logs | `log_b4` (`yew_log`), `shaft_b4` (1 `yew_log` to `yew_plank`) | Yes once lit |
+| 5 | Fletch Rune Arrows, Woodcrafting 41 | Arrowheads from step 3, planks from step 4 | `arrow_b4`, 1 `rune_arrowheads` and 1 `yew_plank` to `rune_arrows` | Yes once lit |
+| 6 | Grind Rune Whetstones, Smithing 41 | Bars from step 2 | `honing_stone_b4`, 2 `rune_bar` to `rune_whetstone` | Yes once lit |
+| 7 | Catch Lobster and Cook Lobster, Fishing 41 and Cooking 41 | Nothing needed for the fish | `fish_b4` (`lobster`), `meal_b4` (1 `lobster` to `cooked_lobster`) | Yes once lit |
+| 8 | Pull Goldenroot and Brew Goldenroot Tea, Farming 41 and Cooking 41 | Nothing needed for the crop (or the plots' goldenroot, `goldenroot_seed` from the shop) | `grain_b4` (`goldenroot`), `drink_b4` (1 `goldenroot` to `goldenroot_tea`) | Yes once lit |
+| 9 | Cut Graven runes, Runecutting 41 | Blank Runes from band 0's Mine Rune Essence and Cut Blank Runes, Big Bones from step 0 | `rune_<family>_b4`: 2 `rune_blank` and 1 `big_bones` to `graven_<family>_rune`, six families | Yes once lit |
+| 10 | Mix Rune Tempering Salts, Smithing 41 | Bars from step 2 | `temper_kit_b4`, 3 `rune_bar` to `rune_temper_salts` | Yes once lit |
+
+No step needs a good only the bench, the store or the start kit makes. The walk found one gap, ruled above: band 4 had no Remains face, so the server would have refused all six Graven runes. Band 5 walks the same way from a Carter's Rest record (gear Level 100) once that ground opens, with Emberstone Ore, Runewood, Swordfish and Emberfruit, and no rune or stone row.
+
+**The labor ratio at 10, 12 and 14 hours,** MEASURED. Each burn is the real engine's: the Steady four (hammer, bow, mage, healer), 8 seeds x 10 h, at the band's first ground and reference Level, nothing worn over the band's top item Level (`node tools/balance-program/redesign/v1-climb.mjs --ground pyre_field --level 80 --only base:steady --seeds 8 --hours 10 --max-il 99`, saved as `k1-band4-pyre.json`; the same on `carters_rest --level 117 --max-il 119`, `k1-band5-carters.json`), priced by the K1 tool (`measure.mjs --from <burn> --days 10,12,14`, saved as `k1-band4-measured.txt` and `k1-band5-measured.txt`). The Pyre Field four's kit asks 0.64 work-hours a hunted hour (0.72 with imbuements), the Carter's Rest four's 0.44 (0.52). Neither four died.
+
+| Hunting a hero a day | Band 4: free 8 h whole day / 0.8 used / Premium 10 h whole | Band 4 made at home, gold share of gross (free, whole) | Band 5: free 8 h whole day / 0.8 used / Premium 10 h whole | Band 5 made at home, gold share (free, whole) |
+|---|---|---|---|---|
+| 10 h | 0.80 / 1.00 / 0.64 | 100%, 0.040 | 0.55 / 0.69 / 0.44 | 100%, 0.029 |
+| 12 h | 0.96 / 1.20 / 0.77 | 100%, 0.040 | 0.66 / 0.82 / 0.53 | 100%, 0.029 |
+| 14 h | 1.12 / 1.40 / 0.90 | 89%, 0.060 | 0.77 / 0.96 / 0.62 | 100%, 0.029 |
+
+Band 4 sits in the 0.8 to 1.0 this page wants at 10 and 12 hours on a planned day, and leans on the store for 11% of its kit at 14 hours. In band, so no lever moves (CLAUDE.md 3.5).
+
+Band 5 falls under the band on a planned day (0.66 at 12 hours) and sits in it only on the 0.8 used day (0.82 and 0.96 at 12 and 14 hours). That is the burn, not the recipes: this batch moves no kind's work, and the Carter's Rest four burns about half the Pyre Field four's restore (kit share 0.25 of the hour against 0.31, a drink line of 1,079 gold an hour against 2,321). **The dial that owns it is the ground's own tuning, and no trade lever is it.** Carter's Rest is staged and untuned: its four holds step 44 against its `refStep` 60. The one trade dial that moves every band's ratio, `kitWork`, would need about 1.21 times to lift band 5 to 0.8 at 12 hours, and that puts bands 1, 2 and 4 at 1.20, 1.22 and 1.16. So nothing moves here. `tools/new-ground.mjs` measures the ground's kit share (EL-KIT) when it opens, and the lane that opens it re-runs this burn. Until then a band 5 company's spare labor goes to the trade furthest behind, the hall and the castle, as 5.3 has it.
+
+**The store a band behind stays the fallback** (the same tool, a hero at the band's first step, gold an hour of effect): band 4's meal line is 923 at the store against 620 crafted at the band and 614 a band behind, its charge line 1,844 against 1,240 and 1,229. Band 5's are 999 against 671 and 665, and 1,998 against 1,343 and 1,330. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind (KR-STORE, every band 0 to 8).
+
+*Read with care.* The pace table applies one burn to the whole career, and the Pyre Field's drink bill read as a career-long rate is heavy: on the 0.8 used free 10 hour day the worst kit line sits two or more bands behind 123 days of 140, while the whole planned day keeps it at the band 111 days and one behind the rest. That is the 0.8 used day's zero spare labor on the heaviest burn, not band 4's recipes.
+
+*Found on the way, for the stone ladder's owner (CONFLICTS 2026-11-27 kit-bands-4-5).* The honing stone faces sit one combat tier above the arrows at the same band, since the stone ladder keeps the cut Copper Whetstone's rung. So a band's stone is gated a band later than its arrow (`SUPPLY_GATES.melee`): the Mithril Whetstone wants Level 73 against the Muster Barrows' reference 60, and the Rune Whetstone 115 against the Pyre Field's 80. A melee hero there can make the band's stone and not use it yet. The fix belongs with the faces' re-cut to the one hunted hour unit (the job slice, 4.9) and the ladder's gates, measured on the bands, not in a job batch.
 
 ---
 

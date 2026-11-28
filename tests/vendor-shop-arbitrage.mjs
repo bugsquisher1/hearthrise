@@ -33,6 +33,16 @@
 // offer, a +100 loop through the platebody — stayed green before this arm (the
 // mutant now plants cheap copper into the whetstone grind; platebodies are gone).
 //
+// THE JOB LOOP (lane/job-goods-vendor, 2026-11-27; HANDOFFS kit-bands-2-3 item
+// 5). Every good a town job makes (src/core/trades.js jobRecipes: every band,
+// every row a later batch adds) sells to the vendor for at most what its inputs
+// cost (each the cheaper of its vendor sale and its shop price: the craft and
+// the buy loop in one) plus the floor's pay for the work the job adds
+// (floorShare x V of the kind's own work, computed HERE from the lever, never
+// read from the cap under test). Held twice: on the shipped catalogue, and with
+// the good's book planted at 10,000,000 gold and not raw, so no bench-era book
+// (a Dawnsteel Bar books 1,050 over a 95 ore) can carry a job good past it.
+//
 // Only vendor > SHOP_BUYBACK_RATE × shop is red; exactly half is the ruling.
 // Exit 0 clean, 1 on any violation (each named with both prices), 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -48,6 +58,8 @@ import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { SHOP_LISTED_OFFER_IDS } from '../src/data/supply-basics.js';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
+import { tradeCatalogue, jobRecipes, valueAt, bandStep } from '../src/core/trades.js';
+import { TRADE_LEVERS } from '../src/data/trades.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
@@ -241,6 +253,39 @@ function reportCraft(found) {
   return fails.length ? 1 : 0;
 }
 
+/* THE JOB LOOP's bound, computed HERE: floorShare from the lever (src/data/trades.js), V from the one value formula (src/core/trades.js
+   valueAt, pinned to its SQL twin by tests/trade-formulas.mjs) of the kind's OWN work at its band's step. Never the cap's own workBid,
+   so a mutant that prices the work dearer cannot also raise the bar it is measured against. */
+const FLOOR_PM = Math.round(TRADE_LEVERS.store.floorShare * 1000);
+const PLANTED_BOOK = 10000000;
+const MIN_JOB_GOODS = 20;
+
+/** Pure: every job recipe whose good sells to the vendor for more than its inputs' cost (the cheaper of each one's sale and its shop
+    price) plus the floor's pay for the work it adds, on `items` as shipped and with the good's book planted at PLANTED_BOOK, not raw. */
+export function findJobArbitrage({ items = ITEMS, offers = GOLD_OFFERS, vendorPriceOf = CAT.vendorPriceOf, cat = tradeCatalogue() } = {}) {
+  const unit = unitPrices(offers);
+  const bad = [], goods = new Set();
+  const recipes = jobRecipes(cat);
+  for (const r of recipes) {
+    const work = Math.floor((FLOOR_PM * valueAt(cat.kinds[r.kind].ownUh, bandStep(r.band))) / 1000);
+    const cost = (its) => Object.entries(r.inputs).reduce((t, [id, n]) => t + n * Math.min(vendorPriceOf(its, id), id in unit ? unit[id] : Infinity), 0);
+    const planted = { ...items, [r.face]: { ...(items[r.face] || { n: r.face }), v: PLANTED_BOOK, raw: false } };
+    goods.add(r.face);
+    for (const [how, its] of [['as shipped', items], ['book planted at ' + PLANTED_BOOK, planted]]) {
+      const inputs = cost(its), sale = vendorPriceOf(its, r.face);
+      if (sale > inputs + work) bad.push({ recipe: r.id, face: r.face, how, sale, inputs, work });
+    }
+  }
+  return { bad, goods: goods.size, recipes: recipes.length };
+}
+
+function reportJob({ bad, goods, recipes }) {
+  if (goods < MIN_JOB_GOODS) throw new HarnessError(`vacuous: ${goods} job goods from ${recipes} job recipes (at least ${MIN_JOB_GOODS})`);
+  for (const b of bad) console.log(`  ✗ job loop ${b.recipe} -> ${b.face} (${b.how}): vendor ${b.sale}g > inputs ${b.inputs}g + the floor's pay for its work ${b.work}g`);
+  console.log(`vendor-shop-arbitrage: ${recipes} job recipe(s), ${goods} job good(s), ${bad.length} job-loop violation(s)`);
+  return bad.length ? 1 : 0;
+}
+
 function report({ bad, priced, total }) {
   if (total === 0 || priced === 0) throw new HarnessError(`vacuous: ${total} gold offers, ${priced} with a vendor bid`);
   for (const b of bad) {
@@ -250,15 +295,26 @@ function report({ bad, priced, total }) {
   return bad.length ? 1 : 0;
 }
 
-/** Import catalogue.js with ONE textual patch, from a sibling temp file so its
-    relative imports resolve. The anchor must match exactly once. */
-async function mutantCatalogue(find, repl) {
-  const src = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'catalogue.js');
-  const text = readFileSync(src, 'utf8');
+/** Patch `text` at an anchor that must match exactly once. */
+function patchOnce(text, find, repl) {
   if (text.split(find).length !== 2) throw new HarnessError(`mutant anchor matched ${text.split(find).length - 1}x: ${find}`);
-  const tmp = join(ROOT, 'supabase', 'functions', 'hr-accrue', `.catalogue.mutant-${process.pid}-${Date.now()}.js`);
-  writeFileSync(tmp, text.replace(find, repl));
-  try { return await import(pathToFileURL(tmp).href); } finally { unlinkSync(tmp); }
+  return text.replace(find, repl);
+}
+
+/** Import catalogue.js with ONE textual patch, from a sibling temp file so its
+    relative imports resolve. The anchor must match exactly once. With `core`
+    ([find, repl]), src/core/trades.js is patched too, as a sibling temp file
+    the catalogue's patch names by `__CORE__`. */
+async function mutantCatalogue(find, repl, { core = null } = {}) {
+  const src = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'catalogue.js');
+  const stamp = `${process.pid}-${Date.now()}`;
+  const coreTmp = core ? join(ROOT, 'src', 'core', `.trades.mutant-${stamp}.js`) : null;
+  const tmp = join(ROOT, 'supabase', 'functions', 'hr-accrue', `.catalogue.mutant-${stamp}.js`);
+  if (coreTmp) writeFileSync(coreTmp, patchOnce(readFileSync(join(ROOT, 'src', 'core', 'trades.js'), 'utf8'), core[0], core[1]));
+  try {
+    writeFileSync(tmp, patchOnce(readFileSync(src, 'utf8'), find, coreTmp ? repl.replace('__CORE__', `.trades.mutant-${stamp}.js`) : repl));
+    try { return await import(pathToFileURL(tmp).href); } finally { unlinkSync(tmp); }
+  } finally { if (coreTmp) unlinkSync(coreTmp); }
 }
 
 async function selftest() {
@@ -337,15 +393,34 @@ update public.hr_items set value = 99999 where item_id in ('${item}') and value 
 ` : ''));
   if (v6.get(item) !== 99999) fails.push(`M8 literal value UPDATE: parsed but not applied (got ${v6.get(item)})`);
 
+  // M9 to M12 — THE JOB LOOP. Each plants a wrong cap and the arm must name Smelt Mithril Bars (bar_b3: a 40-book ore, a 250-book bar) with
+  //      its book planted; the clean tree is the control.
+  const cleanJob = findJobArbitrage();
+  if (cleanJob.bad.length) fails.push(`job control: tree is not clean (${cleanJob.bad.map((b) => b.recipe + ' ' + b.how).join(', ')})`);
+  const jobCaught = (vp) => findJobArbitrage({ vendorPriceOf: vp }).bad.some((b) => b.recipe === 'bar_b3' && /planted/.test(b.how));
+  const JOB_MUTANTS = [
+    ['M9 the job cap removed (a job good sells at its book again)', '  return jobCapped(items, id, bookSaleOf(items, id), null);', '  return bookSaleOf(items, id);'],
+    ['M10 a job\'s inputs priced at their book, not their sale',
+      '    for (const [input, n] of r.inputs) bound += n * (below.has(input) ? 0 : jobCapped(items, input, bookSaleOf(items, input), below));',
+      '    for (const [input, n] of r.inputs) bound += n * (Number((items[input] || {}).v) || 0);'],
+    ['M11 the work paid twice the floor', '    let bound = r.workBid;', '    let bound = r.workBid * 2;'],
+  ];
+  for (const [why, find, repl] of JOB_MUTANTS) if (!jobCaught((await mutantCatalogue(find, repl)).vendorPriceOf)) fails.push(why + ': not caught');
+  // M12 — src/core/trades.js workBid prices the good's WHOLE work (its store bid) instead of the work its job adds: the cap then lets a
+  //      bar carry its ore's work twice. Planted in a sibling copy of the core module that a patched catalogue imports.
+  const m12 = await mutantCatalogue("import { jobSaleBounds } from '../../../src/core/trades.js';", "import { jobSaleBounds } from '../../../src/core/__CORE__';",
+    { core: ['valueAt(kind.ownUh, bandStep(band))', 'valueAt(kind.workUh, bandStep(band))'] });
+  if (!jobCaught(m12.vendorPriceOf)) fails.push('M12 workBid on the whole good\'s work (src/core/trades.js): not caught');
+
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 8 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 12 mutants on ${target.id} (${item}) and bar_b3, ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 
 try {
   process.exitCode = process.argv.includes('--selftest')
     ? await selftest()
-    : (() => { const sv = sqlItemValues(); return report(findArbitrage({ sqlVal: sv })) | reportCraft(findCraftArbitrage({ sqlVal: sv })); })();
+    : (() => { const sv = sqlItemValues(); return report(findArbitrage({ sqlVal: sv })) | reportCraft(findCraftArbitrage({ sqlVal: sv })) | reportJob(findJobArbitrage()); })();
 } catch (e) {
   console.error(`vendor-shop-arbitrage: HARNESS ${e instanceof HarnessError ? '' : 'CRASH '}${e.message}`);
   process.exitCode = 2;

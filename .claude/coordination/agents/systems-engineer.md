@@ -2,6 +2,11 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-27 · lane/job-goods-vendor (HANDOFFS kit-bands-2-3 item 5: a job good never sells past its inputs plus its work, S-33)
+1. *Measure the sale, not the book.* The handoff priced Steel Bars at book 125; the vendor pays 25 (BULK_GOODS sell at the raw fifth). Read `vendorPriceOf` and the generated table before believing a faucet, and before choosing a fix that moves prices.
+2. *A proposed floor can be the faucet.* Pricing every job good at its store bid lifted dropped Coal 2 -> 105 and the start kit's arrows 0 -> 362. A cap that only lowers kills the class without opening a free-source faucet.
+3. *A bound that binds nothing today still needs a test that bites.* No job good breaks the bound on this tree, so the arm also plants each good's book at 10,000,000: without the cap 46 of 82 go red, with it none.
+4. *Comment bytes are edge bytes.* An 11-byte comment edit after `--raise` put hr-accrue over its ceiling: trim, never raise twice.
 ## 2026-11-27 · lane/e5-borrowing (v0.3.0 E5, 19 L6: the borrow engine and the heal rule)
 1. *Reuse the mechanism that already means the rule.* "A borrowed heal shares Mend's clock, casting either starts it" is exactly `replaces: ['mend']` (clockOf: fire only while Mend's cooldown is up, the cast starts it). 19's proposed `clock: 'mend'` field would have been a second mechanism with the same meaning.
 2. *Put a lent rule on the row as the hero casts it, keyed on the one borrow list.* lentModsOf marks every id of heroSetup's `borrowed` (build grants and the Lab's handed seam alike) as a `lent` mod, so moddedRow applies the rules once and rowsFor caches on one object. A rule keyed only on the talents path would have left every Lab measurement playing the old engine.

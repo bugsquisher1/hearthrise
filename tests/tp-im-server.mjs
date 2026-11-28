@@ -3,7 +3,7 @@
 // tests/tp-im-server.mjs — TEMPER AND IMBUEMENTS ON STEPS, THE SERVER HALF (lane/tp-server-1, 2026-11-26; 1071-tp-im-server.sql and
 //   1069-gear-phase-b-flame-temper-catalogue.generated.sql; docs/design/redesign/21-flame-temper-imbue-loot.md section 7, D-14, D-15).
 //
-// ci-step: db-replay | Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
+// ci-step: db-replay-17 | Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
 // ci-run: node tests/tp-im-server.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/tp-im-server.mjs --mutate
 //

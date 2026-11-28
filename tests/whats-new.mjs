@@ -9,7 +9,7 @@
 //   node tests/whats-new.mjs --mutate   every planted defect (in a temp copy of src) must turn its arm red
 //
 // mutant-anchors: src/app/whats-new.js src/data/whats-new.js src/styles/app.css
-// ci-step: db-replay | What's new - one card an account, the fresh line for a returning account
+// ci-step: db-replay-17 | What's new - one card an account, the fresh line for a returning account
 // ci-run: node tests/whats-new.mjs
 // ci-run: node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
 //

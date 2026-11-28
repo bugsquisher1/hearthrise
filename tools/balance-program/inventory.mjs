@@ -35,7 +35,7 @@
 // Exit 0 clean, 1 red, 2 bad argument.
 //
 // mutant-anchors: none — --selftest plants its cases in memory and in a temp folder; no tracked file is patched
-// ci-step: db-replay | The balance program's inventory still catches an unclaimed system
+// ci-step: db-replay-17 | The balance program's inventory still catches an unclaimed system
 // ci-run: node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';

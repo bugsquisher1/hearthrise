@@ -680,9 +680,14 @@
         "why": "kit-bands-4-5: 27 band 4-5 job recipes, faces and 3 arrowhead items in src/data (trades.js, job-faces.js, items.js)"
       },
       {
-        "bytes": 4031694,
+        "bytes": 4034282,
         "on": "2026-11-28",
-        "why": "lane/kit-bands-6-9 (09 4.16): src/data rows only - trades.js bands 5-8 kit batches (22 rows) and faces, job-faces.js Remains bands 5-8, items.js/stonecraft.js/drinks.js nine new goods, item-descriptions.js their lines, core-model.js SUPPLY_GATES rule comment; library2-items.js lost its dead whetstone copies"
+        "why": "lane/imbue-engine on the set with kit-bands-4-5 and icons (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
+      },
+      {
+        "bytes": 4040860,
+        "on": "2026-11-28",
+        "why": "lane/kit-bands-6-9 (09 4.16): src/data rows only - trades.js bands 5-8 kit batches (20 rows) and faces, job-faces.js Remains bands 5-8, items.js/stonecraft.js eight new goods, item-descriptions.js their lines, temper.js Cobalt and Wolfram kits, core-model.js SUPPLY_GATES rule comment; library2-items.js lost its dead whetstone copies"
       }
     ]
   }

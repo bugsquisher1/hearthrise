@@ -1,0 +1,31 @@
+
+V1 on krells_hold (36 seeds x 8 h, held step read from hour 4; step 0 = the ground as built, one step = +0.35000000000000003% health and blow)
+levers: CLIMB {"cleanRun":2,"climbMax":8,"fallSteps":18,"deathSteps":120,"coolPulls":10} RISKS {"careful":{"fallPm":450,"cleanPm":650,"afterDeath":"careful"},"steady":{"fallPm":250,"cleanPm":450,"afterDeath":"careful"},"bold":{"fallPm":80,"cleanPm":300,"afterDeath":"steady","breakOff":false}} readyPm 800
+held = the time-weighted step while all four hunt (to the first death), from hour 4; fourH = those hours a seed
+cell              held (mean +- sd)  drift  +-10  +-20  chg/h falls/h reach h  pulls/h  deaths wipes near(death/warned/fellAfter)  fourH  whys
+base:steady        45.2 +- 5.8      3.4  76.2  97.9   11.6    0.6     0.7     61.8      0     0  0 (0/0/0)                       4  {"hold":14024,"climb":3588,"fall":154}
+
+pay from a held start (hour 4 to the four's end), Level XP a hunted hero-hour as a multiple of the hours table
+  base:steady       1.0291x  sd 0.0441  n 36  window 4 h  seeds 1.0595 1.0446 1.0244 1.0541 1.0012 1.0771 1.0668 1.0727 1.0147 0.9995 1.0731 1.063 1.0189 0.9865 1.0611 1.0246 1.06 1.0314 1.0613 1.0183 1.0562 1.0701 1.0517 1.0425 1.0628 1.0763 1.0418 0.9757 1.0363 0.9779 1.0233 0.961 1.0473 1.008 0.9131 0.8896
+
+gold a hunted hero-hour over the whole hunt (coin; coin + loot at the store's price, no Rares; the store bill), mean +- sd over seeds
+  base:steady       L97  coin 17375 +- 644  income 19570 +- 659  store 5553  kit share 0.28 (meal 464, drink 1595, charge 1113, shot 2381)  loot by band: common 615, uncommon 238, scarce 1247, other 95  n 36
+
+power moves (paired seeds): the held step at the changed power minus at base
+
+the damage the four took, each seat's share over the hunt (lane/w2-roles-rows), styles hammer, bow, mage, healer
+  base:steady       hammer 0.857  bow 0.013  mage 0.07  healer 0.061
+
+the formula readers (lane/monster-formula): per seat dps (dealt a hunted second), landed % of the swings at it, damage a swing; per kind kills/h, first wound to death (s), damage it did a kill
+  base:steady       hammer dps 28.34 land 65.77% hit 45.35 (6040.83/h) | bow dps 25.5 land 100% hit 142.88 (28.25/h) | mage dps 35.02 land 81.57% hit 28.74 (784.64/h) | healer dps 16.71 land 87.72% hit 37.14 (523.56/h)
+                    farmhand(swarm) 155.8/h 21.4 s 500 | hasks_lookout(shooter) 90.7/h 21.4 s 379 | pyre_priest(warder) 61.1/h 44.3 s 417 | grave_guard(brute) 139.4/h 47.2 s 1144 | gatekeeper(brute) 24.4/h 19.9 s 929
+                    broke off by: fall:grave_guard@0 121, fall:pyre_priest@0 15, fall:farmhand@0 9, fall:hasks_lookout@2 7, fall:gatekeeper@0 1, fall:gatekeeper@2 1
+
+what an imbuement's condition touches (lane/designer-imbue-calls, 21 section 3.2): per seat, damage dealt by the struck monster's role and taken by the blow's element, thousandths
+  base:steady       hammer dealt {"brute":452,"swarm":278,"warder":150,"shooter":120} taken {"none":986,"ember":14} | bow dealt {"brute":385,"swarm":249,"shooter":217,"warder":149} taken {"ember":1000} | mage dealt {"brute":370,"shooter":260,"swarm":217,"warder":153} taken {"none":846,"ember":154} | healer dealt {"brute":412,"swarm":256,"shooter":180,"warder":152} taken {"none":809,"ember":191}
+
+held as absolute steps (src/core/bands.js: a Level of reference strength) and sustain on the reference (04 section 3: the share of the damage taken
+that regeneration, heal spells and food covered; taken a hero-second, permille of max HP)
+  base:steady       abs 85.3 (depth 11)  free 102  spell 851  food 47  taken 18.7 pm/s
+
+wall 541 s

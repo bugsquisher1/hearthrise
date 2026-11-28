@@ -1,7 +1,7 @@
 {
  "schema": "hearthrise.balance-candidate/1",
  "id": "im-muster-built",
- "why": "lane/designer-imbue-calls (21 section 11, CONFLICTS 2026-11-27 worn imbuements (2)): every hero of the four wears brute_edge (band 70), fire_ward (band 45), mana_leech (band 55) as the engine played them before 21 D-16: 2 steps a firing blow x the contest curve, x ramp(Level) in the consumable slice (the edit puts the ramp back)",
+ "why": "lane/designer-imbue-calls (21 section 11, CONFLICTS 2026-11-27 worn imbuements (2)): every hero of the four wears brute_edge (band 70), fire_ward (band 45), mana_leech (band 55) as the engine played them before 21 D-16 and D-17: 2 steps a firing blow x the contest curve, x ramp(Level) in the consumable slice (the edits put the ramp back and the fire size out; re-cut by lane/imbue-engine). The Mana Leech returns mana as built (D-18, lane/imbue-engine)",
  "base": "tree",
  "edits": [
   {
@@ -13,6 +13,11 @@
    "file": "src/data/power-ledger.js",
    "from": "  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: false, signed: false }),",
    "to": "  consumable: Object.freeze({ max: POWER_LEDGER.consumableStepsMax, ramps: true, signed: false }),"
+  },
+  {
+   "file": "src/core/imbue.js",
+   "from": "      const fire = Number.isInteger(r.fire) ? r.fire : IMBUE.steps;",
+   "to": "      const fire = IMBUE.steps;"
   }
  ],
  "assumptions": [

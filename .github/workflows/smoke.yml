@@ -5309,6 +5309,66 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # db-replay-16: SCHEMA DRIFT, split out of db-replay 2026-11-28 (lane/ci-db-replay-cache; the measurement and the two
+  # cancelled runs are in db-replay's header). Its full sweep, at its slowest (46123337940): setup 0.3 + the step 20.6
+  # (a cold seeded replay 177 s, the second apply 54 s, the mutant gate's plan, 42 mutants 15 min, five of them
+  # whole-chain replays) = 20.9 min; x2 = 42. On a push whose diff leaves the guard alone it is the plain run, 3-4 min.
+  db-replay-16:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 42
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
+      # copy of every player's progression, and disaster recovery rests entirely
+      # on "we can rebuild the schema from the repo". On 2026-08-14 that was
+      # FALSE — 15 objects existed in production and in no file, and applying the
+      # migrations in filename order got 23 of 41 files in — and there was no
+      # test that could have said so. This replays supabase/schema.sql + every
+      # migration onto a real in-process PostgreSQL in the order declared by
+      # the apply order (tools/lib/apply-order.mjs), then fingerprints the result against a
+      # committed baseline. It ALSO fails if a new migration is not placed in
+      # that order, so a file cannot be silently omitted from a rebuild.
+      # No credentials; production untouched.
+      #
+      # --mutate plants seven real defects in the real migration text (a gutted
+      # reconstruction, a vanished policy, a renamed column, RLS switched off on
+      # a watched table AND on an unwatched one, a silent type change, and the
+      # A11 lockdown GUC removed) and demands every one is caught. This repo has
+      # shipped a guard that asserted nothing twelve times; this one does not get
+      # to claim it works.
+      #
+      # --live-selftest proves the PRODUCTION half can fail. That half cannot run
+      # here (it needs a live database, and no credentials belong in CI), but the
+      # classifier behind it can: it plants a prod-only table, a repo-only table,
+      # a changed table, a changed category with no per-table breakdown, and a
+      # partial paste, and requires each to be reported. From 2026-08-14 to
+      # 2026-08-30 the production delta was unfalsifiable prose that had been
+      # measured exactly once; this is what stops it going back to that.
+      #
+      # Its own job since 2026-11-28 (db-replay-16's header). It seeds bystander rows into its replay, so it never read
+      # the snapshot db-replay's verify builds: a cold replay there and here alike.
+      - name: Schema drift — the repo must rebuild the database
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/schema-drift.mjs
+          node tools/mutant-gate.mjs node tests/schema-drift.mjs --mutate
+          node tests/schema-drift.mjs --live-selftest
+
   # ── in-page-4 … in-page-9 ── HUNT SCREEN MUTANTS, SHARDS 2-7 of 10 (see the
   # note above in-page-3). Budget: ~20 min a job x2 = 40.
   # 2026-11-18 (lane/ci-speed): timeout 40 -> 41: the full sweep measured 20.5 min, x2.
@@ -5609,6 +5669,15 @@ jobs:
   # RE-MEASURED 2026-09-28 after the db-replay-4 split: 348 s (5.8 min) of
   # steps on job 108958707424; the 16-min timeout is unchanged.
   # 2026-11-18 (lane/ci-speed): timeout 29 -> 41: the full sweep measured 20.2 min, x2.
+  # SPLIT IN THREE 2026-11-28 (lane/ci-db-replay-cache): next runs 46117646677 (49df7ba29) and 46123337940
+  # (578d301cc) CANCELLED this job at 41 min, every step green. Both pushes changed smoke.yml, so the mutant gate
+  # had no usable green for this job and measured it from main's merge base, the whole frozen set: every proof
+  # here ran, and the full sweep no longer fits. A cancelled job is never green, so the next push fell back again
+  # (the loop). The full sweep, each step at its slowest of four runs that ran it (46090873960, 46103465557, the
+  # two cancelled; work blocks and worn imbuements scaled from the runs that finished them): PGlite verify 7.1 +
+  # schema drift 20.6 + the 17 self-registered guards ~25.5 = 53 min. Now: here the verify and the first eight
+  # guards, 0.4 + 7.1 + 13.0 = 20.5 min, x2 = 41; schema drift alone in db-replay-16 (x2 = 42); the other nine
+  # guards in db-replay-17 (x2 = 30). No step dropped.
   db-replay:
     runs-on: ubuntu-latest
     needs: release-proven
@@ -5658,38 +5727,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/pglite-template.mjs --verify --for=db-replay
 
-      # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
-      # copy of every player's progression, and disaster recovery rests entirely
-      # on "we can rebuild the schema from the repo". On 2026-08-14 that was
-      # FALSE — 15 objects existed in production and in no file, and applying the
-      # migrations in filename order got 23 of 41 files in — and there was no
-      # test that could have said so. This replays supabase/schema.sql + every
-      # migration onto a real in-process PostgreSQL in the order declared by
-      # the apply order (tools/lib/apply-order.mjs), then fingerprints the result against a
-      # committed baseline. It ALSO fails if a new migration is not placed in
-      # that order, so a file cannot be silently omitted from a rebuild.
-      # No credentials; production untouched.
-      #
-      # --mutate plants seven real defects in the real migration text (a gutted
-      # reconstruction, a vanished policy, a renamed column, RLS switched off on
-      # a watched table AND on an unwatched one, a silent type change, and the
-      # A11 lockdown GUC removed) and demands every one is caught. This repo has
-      # shipped a guard that asserted nothing twelve times; this one does not get
-      # to claim it works.
-      #
-      # --live-selftest proves the PRODUCTION half can fail. That half cannot run
-      # here (it needs a live database, and no credentials belong in CI), but the
-      # classifier behind it can: it plants a prod-only table, a repo-only table,
-      # a changed table, a changed category with no per-table breakdown, and a
-      # partial paste, and requires each to be reported. From 2026-08-14 to
-      # 2026-08-30 the production delta was unfalsifiable prose that had been
-      # measured exactly once; this is what stops it going back to that.
-      - name: Schema drift — the repo must rebuild the database
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/schema-drift.mjs
-          node tools/mutant-gate.mjs node tests/schema-drift.mjs --mutate
-          node tests/schema-drift.mjs --live-selftest
+      # SCHEMA DRIFT MOVED TO ITS OWN JOB, db-replay-16, 2026-11-28 (lane/ci-db-replay-cache, see this job's header):
+      # its full sweep alone is 20.6 min on a slow runner (a cold replay of the whole chain, then 42 mutants,
+      # five of them whole-chain replays of about two minutes each). It shares no snapshot with the guards here:
+      # it replays from zero.
 
       # MOVED TO db-replay-2 2026-10-24: Settle before mutate, Ledger rollup, Catalogue
       # literal drift, Live-hash drift, Apply-order honesty and Client RPCs read-only.
@@ -5757,63 +5798,6 @@ jobs:
         run: |
           node tests/recruits.mjs
           node tools/mutant-gate.mjs node tests/recruits.mjs --mutate
-      # tests/time-offer-card.mjs
-      - name: Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/time-offer-card.mjs
-          node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate
-      # tests/tp-im-server.mjs
-      - name: Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/tp-im-server.mjs
-          node tools/mutant-gate.mjs node tests/tp-im-server.mjs --mutate
-      # tests/trade-formulas.mjs
-      - name: Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-trades.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
-          node tests/trade-formulas.mjs
-          node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
-      # tests/trade-jobs.mjs
-      - name: Trade jobs - a kit-trade job on the server's quote, its refusals in order, the same goods viewed and closed, a stop returns the rest
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/trade-jobs.mjs
-          node tools/mutant-gate.mjs node tests/trade-jobs.mjs --mutate
-      # tests/trait-pieces-db.mjs
-      - name: Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/gen-trait-pieces.mjs --check
-          node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest
-          node tests/trait-pieces-db.mjs
-          node tools/mutant-gate.mjs node tests/trait-pieces-db.mjs --mutate
-      # tests/whats-new.mjs
-      - name: What's new - one card an account, the fresh line for a returning account
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/whats-new.mjs
-          node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
-      # tests/work-blocks.mjs
-      - name: Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/work-blocks.mjs
-          node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate
-      # tests/worn-imbues-db.mjs
-      - name: Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/worn-imbues-db.mjs
-          node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
-      # tools/balance-program/inventory.mjs
-      - name: The balance program's inventory still catches an unclaimed system
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
       # ── END SELF-REGISTERED GUARDS ──
 
   # in-page-51: the Call out window's mutants, shard 1 of 3 (lane/ci-reds-1127, 2026-11-27; tests/boss-call-window.mjs --shard). The 48
@@ -8285,6 +8269,91 @@ jobs:
         run: |
           node tests/replay-scope-guard.mjs
           node tools/mutant-gate.mjs node tests/replay-scope-guard.mjs --selftest
+
+  # db-replay-17: the last nine self-registered guards of db-replay, from "Block offer card" on, split out 2026-11-28
+  # (lane/ci-db-replay-cache; the measurement and the two cancelled runs are in db-replay's header). Their full sweep,
+  # each step at its slowest measured and scaled to the slowest runner seen (46123337940): offer card 15 + temper and
+  # imbuements 20 + trade formulas 32 + trade jobs 66 + Trait pieces 152 + what's new 11 + work blocks 289 + worn
+  # imbuements 106 + the inventory 4 = 695 s, + setup 0.4 + the first guard's cold chain build 3.0 = 15 min; x2 = 30.
+  db-replay-17:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/time-offer-card.mjs
+      - name: Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/time-offer-card.mjs
+          node tools/mutant-gate.mjs node tests/time-offer-card.mjs --mutate
+      # tests/tp-im-server.mjs
+      - name: Temper and imbuements on steps, the server half - the old rungs gone, the kit a band from the bag then Storage, the band lock, both doors (1071)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tp-im-server.mjs
+          node tools/mutant-gate.mjs node tests/tp-im-server.mjs --mutate
+      # tests/trade-formulas.mjs
+      - name: Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trades.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
+          node tests/trade-formulas.mjs
+          node tools/mutant-gate.mjs node tests/trade-formulas.mjs --mutate
+      # tests/trade-jobs.mjs
+      - name: Trade jobs - a kit-trade job on the server's quote, its refusals in order, the same goods viewed and closed, a stop returns the rest
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/trade-jobs.mjs
+          node tools/mutant-gate.mjs node tests/trade-jobs.mjs --mutate
+      # tests/trait-pieces-db.mjs
+      - name: Trait pieces - the worn projection and the settle's Trait roll, both paths, the bounds through the real commit (1071)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-trait-pieces.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-trait-pieces.mjs --selftest
+          node tests/trait-pieces-db.mjs
+          node tools/mutant-gate.mjs node tests/trait-pieces-db.mjs --mutate
+      # tests/whats-new.mjs
+      - name: What's new - one card an account, the fresh line for a returning account
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/whats-new.mjs
+          node tools/mutant-gate.mjs node tests/whats-new.mjs --mutate
+      # tests/work-blocks.mjs
+      - name: Work blocks - four town-work blocks at x1.5 and the fifth refused, the standing rule buys without a press on both doors, the offer once
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/work-blocks.mjs
+          node tools/mutant-gate.mjs node tests/work-blocks.mjs --mutate
+      # tests/worn-imbues-db.mjs
+      - name: Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/worn-imbues-db.mjs
+          node tools/mutant-gate.mjs node tests/worn-imbues-db.mjs --mutate
+      # tools/balance-program/inventory.mjs
+      - name: The balance program's inventory still catches an unclaimed system
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
+      # ── END SELF-REGISTERED GUARDS ──
 
   # db-replay-9: Lane S2 server, split out of db-replay-7 (lane a-ci-speed, 2026-11-01). Run 41339988105
   # measured db-replay-7 at 48.3 of its 50 min, Lane S2 21.1 of it: 21.7 min here, 26.6 left there. x2 = 44.

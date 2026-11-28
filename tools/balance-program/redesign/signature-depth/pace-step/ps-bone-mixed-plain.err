@@ -1,0 +1,25 @@
+V1: 24 seed jobs (1 cells x 24 seeds x 8 h) on 3 workers; catacomb_bone_wing, Levels 175 / 178 / 70
+[1/24] base:steady#1 67 s, 68 s elapsed
+[2/24] base:steady#2 67 s, 69 s elapsed
+[3/24] base:steady#0 69 s, 70 s elapsed
+[4/24] base:steady#3 60 s, 129 s elapsed
+[5/24] base:steady#5 61 s, 131 s elapsed
+[6/24] base:steady#4 64 s, 133 s elapsed
+[7/24] base:steady#6 62 s, 191 s elapsed
+[8/24] base:steady#8 62 s, 195 s elapsed
+[9/24] base:steady#7 65 s, 196 s elapsed
+[10/24] base:steady#9 61 s, 251 s elapsed
+[11/24] base:steady#10 63 s, 258 s elapsed
+[12/24] base:steady#11 64 s, 260 s elapsed
+[13/24] base:steady#12 60 s, 312 s elapsed
+[14/24] base:steady#13 64 s, 322 s elapsed
+[15/24] base:steady#14 65 s, 325 s elapsed
+[16/24] base:steady#15 59 s, 371 s elapsed
+[17/24] base:steady#16 64 s, 385 s elapsed
+[18/24] base:steady#17 64 s, 389 s elapsed
+[19/24] base:steady#18 61 s, 432 s elapsed
+[20/24] base:steady#19 62 s, 448 s elapsed
+[21/24] base:steady#20 65 s, 454 s elapsed
+[22/24] base:steady#21 53 s, 485 s elapsed
+[23/24] base:steady#22 49 s, 497 s elapsed
+[24/24] base:steady#23 49 s, 502 s elapsed

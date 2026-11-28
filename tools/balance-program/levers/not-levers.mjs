@@ -6,6 +6,7 @@
 // lever's valid range (field 3), not listed as levers.
 
 export const NOT_LEVERS = Object.freeze([
+  { at: 'src/core/imbue.js#leechPay', why: 'the Leech carry clamp: a remainder in thousandths of one HP or mana, 0 to 999, the arithmetic of the permille carry (21 D-18); the lever is src/data/imbue-rules.js leech.pm' },
   /* targets */
   { at: 'src/data/balance-sheet.js#BALANCE_SHEET', why: 'balance TARGETS the guards judge against (close calls, typical low HP, XP against the contract, the fresh hero, harder-tier XP, blow shares): BL-3\'s target spec, not a gameplay number' },
   { at: 'src/data/core-model.js#LEVEL_PACE', why: 'the pace TARGET (contract 1385 x L^1.274, the benchmark Levels, the new player\'s steps): read by judges and tools, never by the engine (planned knob paceContract, R12)' },

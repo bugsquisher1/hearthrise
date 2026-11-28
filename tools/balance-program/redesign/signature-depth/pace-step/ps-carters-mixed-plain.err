@@ -1,0 +1,25 @@
+V1: 24 seed jobs (1 cells x 24 seeds x 8 h) on 2 workers; carters_rest, Levels 117 / 120 / 70
+[1/24] base:steady#1 66 s, 68 s elapsed
+[2/24] base:steady#0 67 s, 68 s elapsed
+[3/24] base:steady#2 62 s, 130 s elapsed
+[4/24] base:steady#3 65 s, 134 s elapsed
+[5/24] base:steady#4 63 s, 193 s elapsed
+[6/24] base:steady#5 65 s, 199 s elapsed
+[7/24] base:steady#6 67 s, 259 s elapsed
+[8/24] base:steady#7 65 s, 264 s elapsed
+[9/24] base:steady#8 63 s, 322 s elapsed
+[10/24] base:steady#9 66 s, 331 s elapsed
+[11/24] base:steady#10 62 s, 384 s elapsed
+[12/24] base:steady#11 67 s, 397 s elapsed
+[13/24] base:steady#12 66 s, 450 s elapsed
+[14/24] base:steady#13 65 s, 462 s elapsed
+[15/24] base:steady#14 51 s, 502 s elapsed
+[16/24] base:steady#15 51 s, 513 s elapsed
+[17/24] base:steady#16 50 s, 552 s elapsed
+[18/24] base:steady#17 50 s, 563 s elapsed
+[19/24] base:steady#18 51 s, 603 s elapsed
+[20/24] base:steady#19 55 s, 618 s elapsed
+[21/24] base:steady#20 60 s, 664 s elapsed
+[22/24] base:steady#21 59 s, 678 s elapsed
+[23/24] base:steady#22 56 s, 720 s elapsed
+[24/24] base:steady#23 54 s, 732 s elapsed

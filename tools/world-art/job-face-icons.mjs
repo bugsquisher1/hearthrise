@@ -3,26 +3,22 @@
 // tools/world-art/job-face-icons.mjs — THE JOB SLICE'S NEW GOODS' PLACEHOLDER ICONS, RE-DYED FROM SHIPPED ONES
 // (backend-architect, lane/k1-job-slice, 2026-11-26; the Art Director judges each and may replace it with bespoke art).
 //
-// The job slice makes twenty-one goods items (src/data/items.js: Bronze to Dawnsteel Arrowheads, Rune, Cobalt and Wolfram Ore, the Cobalt and
-// Wolfram Bars, the Dawnsteel, Cobalt and Wolfram Tempering Salts, the Emberforged Whetstone and one `imbue_<id>` an imbuement),
+// The job slice makes goods items (src/data/items.js: the arrowheads, Rune, Cobalt and Wolfram Ore, the Cobalt and Wolfram Bars, the Dawnsteel, Cobalt and
+// Wolfram Tempering Salts, the Emberforged Whetstone and one `imbue_<id>` an imbuement),
 // and every ITEMS key needs a 32x32 pixel icon (tests/pixel-icons.mjs). Rather than invent a style, each is a shipped icon re-dyed by rank
 // (step-tier-icons.mjs dye: every opaque colour of the source, dark to light, becomes the colour of the same rank in a ramp of the locked
 // palette), so it stays on the palette, binary alpha, 32x32:
 //   dawn_temper_salts   the Ember Tempering Salts in Dawnsteel's ramp (the next band's kit beside its neighbour)
-//   bronze_arrowheads   the Barrow Nail (a metal point) in the Bronze Bar's own colours
-//   iron_arrowheads     the same nail in the Iron Bar's colours (band 1's head, lane/designer-kit-band1)
-//   steel_ and mithril_arrowheads   the same nail in the Steel and Mithril Bars' colours (bands 2 and 3, lane/kit-bands-2-3)
-//   rune_arrowheads     the same nail in the Rune Bar's colours, and rune_ore the Mithril Ore in them (band 4, lane/kit-bands-4-5)
-//   ember_arrowheads    the same nail in the Emberforged Bar's colours (band 5, lane/kit-bands-4-5)
+//   rune_ore            the Mithril Ore in the Rune Bar's colours (band 4, lane/kit-bands-4-5)
 //   ember_whetstone     the Rune Whetstone in the Emberforged Bar's colours (band 5's stone, lane/kit-bands-6-9)
-//   dawn_arrowheads     the nail in the Dawnsteel Bar's colours (band 6)
 //   cobalt_ and wolfram_  the Dawnstone Ore and the Mithril Bar (cobalt), the Iron Ore and the Rune Bar (wolfram), and the Ember Tempering
-//                       Salts, each in its tier's ramp (bands 7 and 8's ore, bar and salts)
-//   imbue_<id>         its part's icon in its element's ramp: the Fire Ward's Ford Weed and the Fire Edge's rake tine in ember, the Brute
+//                       Salts, each in its tier's ramp (bands 7 and 8's ore, bar and salts, lane/kit-bands-6-9)
+//   (the arrowheads, Dawnsteel's too, wore the Barrow Nail re-dyed until 2026-11-28; tools/world-art/arrowhead-icons.mjs draws them now)
+//   imbue_<id>          its part's icon in its element's ramp: the Fire Ward's Ford Weed and the Fire Edge's rake tine in ember, the Brute
 //                       Edge's pike ferrule in wolfram, the Life Leech's hook in drakehide green, the Mana Leech's urn shard in cobalt blue
 // pixel-icons.mjs's `drawn` rule holds each file to what this draws: edit this script and rerun it, never the PNG.
 //
-//   node tools/world-art/job-face-icons.mjs     write the twenty-one PNGs into assets/icons-bundle/pixel/items/
+//   node tools/world-art/job-face-icons.mjs     write its PNGs into assets/icons-bundle/pixel/items/
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -46,12 +42,10 @@ function rampFrom(id) {
 /* each imbuement's element ramp (src/data/imbue-rules.js: two fire, one brute, a life and a mana leech) */
 const IMBUE_RAMP = Object.freeze({ fire_ward: 'ember', fire_edge: 'ember', brute_edge: 'wolfram', life_leech: 'drakehide', mana_leech: 'cobalt' });
 
-const rows = [['dawn_temper_salts', 'ember_temper_salts', () => RAMPS.dawn], ['bronze_arrowheads', 'barrow_nail', () => rampFrom('bronze_bar')],
-  ['iron_arrowheads', 'barrow_nail', () => rampFrom('iron_bar')], ['steel_arrowheads', 'barrow_nail', () => rampFrom('steel_bar')],
-  ['mithril_arrowheads', 'barrow_nail', () => rampFrom('mithril_bar')], ['rune_arrowheads', 'barrow_nail', () => rampFrom('rune_bar')],
-  ['rune_ore', 'mithril_ore', () => rampFrom('rune_bar')], ['ember_arrowheads', 'barrow_nail', () => rampFrom('ember_bar')],
-  /* bands 5 to 8 (lane/kit-bands-6-9, 09 4.16) */
-  ['ember_whetstone', 'rune_whetstone', () => rampFrom('ember_bar')], ['dawn_arrowheads', 'barrow_nail', () => rampFrom('dawn_bar')],
+/* the six arrowheads left for their own drawing (tools/world-art/arrowhead-icons.mjs, Art Director 2026-11-28) */
+const rows = [['dawn_temper_salts', 'ember_temper_salts', () => RAMPS.dawn], ['rune_ore', 'mithril_ore', () => rampFrom('rune_bar')],
+  /* bands 5, 7 and 8 (lane/kit-bands-6-9, 09 4.16) */
+  ['ember_whetstone', 'rune_whetstone', () => rampFrom('ember_bar')],
   ['cobalt_ore', 'dawnstone_ore', () => RAMPS.cobalt], ['cobalt_bar', 'mithril_bar', () => RAMPS.cobalt],
   ['cobalt_temper_salts', 'ember_temper_salts', () => RAMPS.cobalt],
   ['wolfram_ore', 'iron_ore', () => RAMPS.wolfram], ['wolfram_bar', 'rune_bar', () => RAMPS.wolfram],

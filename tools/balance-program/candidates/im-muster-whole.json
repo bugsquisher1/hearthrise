@@ -1,16 +1,21 @@
 {
  "schema": "hearthrise.balance-candidate/1",
  "id": "im-muster-whole",
- "why": "lane/designer-imbue-calls (21 section 11 ruling D-16): the same set on the tree as ruled: the consumable slice out of the ramp (src/data/power-ledger.js consumable ramps false), so each imbuement counts its whole steps at every Level",
+ "why": "lane/designer-imbue-calls (21 section 11 ruling D-16 alone): the same set with the slice whole (src/data/power-ledger.js consumable ramps false) but each conditional imbuement firing at its rated 2 x the contest curve, not its fire size (the edit puts D-17 back out; re-cut by lane/imbue-engine once the fire size was the tree's). The Mana Leech returns mana as built (D-18, lane/imbue-engine)",
  "base": "tree",
  "edits": [
   {
    "file": "src/core/combat-sim.js",
    "from": "  const imb = imbuesAt(m.hero.wornImbues, atMs);",
    "to": "  const imb = imbuesAt([{\"id\":\"brute_edge\",\"band\":70,\"untilMs\":null},{\"id\":\"fire_ward\",\"band\":45,\"untilMs\":null},{\"id\":\"mana_leech\",\"band\":55,\"untilMs\":null}], atMs);"
+  },
+  {
+   "file": "src/core/imbue.js",
+   "from": "      const fire = Number.isInteger(r.fire) ? r.fire : IMBUE.steps;",
+   "to": "      const fire = IMBUE.steps;"
   }
  ],
  "assumptions": [
-  "as im-muster-built, the slice whole"
+  "as im-muster-fire, each imbuement firing at its rated 2"
  ]
 }

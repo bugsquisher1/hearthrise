@@ -40,6 +40,11 @@ if [ -n "$REPLAY" ]; then
   SEEDS=2 run b4r-muster-river    muster_barrows 60 $X --signatures -,-,-,riverstone_earrings
   exit 0
 fi
+# ── CARTER'S REST ON ITS OWN PACE STEP (lane/pace-step-per-ground, 2026-11-28; pace-step.mjs): the Key's 36 seeds owed at home, and the
+#    Apron (#18) read at home now that the ground has its own scale. The plain four's first 12 seeds replay b3-carters-mixed exactly ──
+SEEDS=36 run b4-carters-mixed36  carters_rest 117 $X
+SEEDS=36 run b4-carters-key36    carters_rest 117 $X --signatures -,-,-,the_cellar_key
+SEEDS=36 run b4-carters-apron36  carters_rest 117 $X --signatures -,-,-,brewers_apron
 # ── the second scale ground (the spread bar), by the real id ──
 run b4-roost-tooth       wyvern_roost 140 hammer,crossbow,mage,healer --signatures -,bulls_tooth,-,-
 run b4-pyre-boots        pyre_field 80 $X --signatures -,-,-,night_carters_boots

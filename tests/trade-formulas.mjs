@@ -12,7 +12,7 @@
 // mutant-anchors: src/core/trades.js src/data/trades.js
 //   (the JS mutants patch a temp copy of src/; the SQL mutants patch a live body read from the replayed chain, pg_get_functiondef;
 //   no tracked file is patched)
-// ci-step: db-replay | Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
+// ci-step: db-replay-17 | Trades on one curve - 09's numbers, no typed yield, one bill a style, the store a tier behind at 1.5x, the twins the JS
 // ci-run: node tools/gen-trades.mjs --check
 // ci-run: node tools/mutant-gate.mjs node tools/gen-trades.mjs --selftest
 // ci-run: node tests/trade-formulas.mjs

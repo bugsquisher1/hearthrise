@@ -22,7 +22,8 @@ let loading = null;
 function sheet() {
   const doc = globalThis.document;
   if (!doc || !doc.head) return Promise.resolve();
-  let link = doc.querySelector('link[data-rd-sheet]');
+  /* the selector names a <link>: a stylesheet link, not the page's generic element */
+  let link = /** @type {HTMLLinkElement | null} */ (/** @type {unknown} */ (doc.querySelector('link[data-rd-sheet]')));
   if (link && link.sheet) return Promise.resolve();
   if (!link) {
     link = doc.createElement('link');
@@ -64,7 +65,7 @@ renderTalents.patch = function patchTalents(el, ctx) {
 /* the map's keys and Find talent's typing (talents/find.js) */
 renderTalents.events = Object.freeze(['keydown', 'input']);
 
-renderTalents.act = function actTalents(ctx, el, action, ev, t) {
+renderTalents.act = function actTalents(ctx, el, action, ev, target) {
   const host = hostOf(el);
-  return body && host && host.hasAttribute('data-rd-built') ? body.actBody(ctx, host, action, ev, t) : false;
+  return body && host && host.hasAttribute('data-rd-built') ? body.actBody(ctx, host, action, ev, target) : false;
 };

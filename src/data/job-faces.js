@@ -17,8 +17,12 @@ import { GEAR_STEPS } from './danger.js';
    it at entry Level 45, band 2, and it drops on every band-2 imbuement part's home ground) and band 3 is Razor Claw (FLAME_FUEL Level 70,
    band 3, and it drops on the Pyre Field, home of both band-3 parts). Band 1 is Bones too (the designer, lane/designer-kit-band1, 09 4.13):
    band 1 has no imbuement, but its runes bind with Remains, and the Mosslight Glade (the band-1 ground, gear Level 20) drops Bones
-   from glade_poacher, goblin_sluicer and rook_poacher, so the binder of bands 0 to 2 is one good and changes where the imbuement's does. */
-export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'razor_claw']) });
+   from glade_poacher, goblin_sluicer and rook_poacher, so the binder of bands 0 to 2 is one good and changes where the imbuement's does.
+   BAND 3 IS GRAVE DUST, not Razor Claw (the designer, lane/kit-bands-2-3, 09 4.14): band 3's runes bind with its Remains too, and Razor
+   Claw drops only on the Pyre Field (entry Level 70), so a company hunting the Muster Barrows (the band-3 ground, gear Level 60) could
+   never cut its own band's runes. Grave Dust drops on the Muster Barrows (cairn_wight, captain_hask) and on the Pyre Field (pyre_wraith,
+   provost), the home of both band-3 imbuement parts, so the binder still comes from where the band's parts drop. */
+export const STREAM_FACES = Object.freeze({ remains: Object.freeze(['bones', 'bones', 'bones', 'grave_dust']) });
 
 /** The item a hunted stream drops at `band` (null: none named). */
 export const streamFaceOf = (stream, band) => (STREAM_FACES[stream] && STREAM_FACES[stream][band]) || null;

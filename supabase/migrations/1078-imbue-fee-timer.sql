@@ -46,7 +46,7 @@
 -- ── COST (100x: 2,000 accounts x 4 heroes x 10 h) ────────────────────────────
 -- Dark (the switch off): unchanged, the trigger's one hr_flag_on. Lit: the timer's two statements a window become one (a CTE that joins at
 --   most three hero_worn_imbue rows to two primary keys), so a lit settle runs one statement fewer a member a window; no row, no ledger
---   row, no byte on the wire is added. The section reads one hr_wage a row instead of one hr_worn_level per fee.
+--   row, no byte on the wire is added. The section's fee reads the row's band (one hr_wage), no longer a second hr_worn_level.
 --
 -- EDGE: none. The engine reads the worn set from hr_worn_imbues_of (unchanged) and never prices an apply. src/core/imbue.js applyFee moved
 --   to the band (the edge bundle carries the file, so its hash moves; no settle reads applyFee).

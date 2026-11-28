@@ -34,10 +34,7 @@ export function lifeMs(quality) {
 /** The equip slot an imbuement sits in (its kind's), or null for no such imbuement. */
 export const imbueSlotOf = (id) => (own(IMBUE_RULES, id) ? IMBUE_SLOTS[IMBUE_RULES[id].kind] : null);
 
-/** THE APPLY FEE (hr_imbue_fee's twin: hr_imbue_apply charges it and the section `imbues` shows it), whole gold, burned: feeHoursPm of
-    wage at the imbuement's BAND, with no ramp (21 D-19: 6,813 for a band 70 Edge). Never the worn piece's item Level (the imbuement sits on
-    the hero's slot, D-20, so a fee read off the piece would let a hero imbue a cheap piece and wear a dear one) and never the hero's Level
-    (it counts whole at every Level, D-16). */
+/** THE APPLY FEE (hr_imbue_fee's twin), whole gold, burned: feeHoursPm of wage at the imbuement's band, no ramp (21 D-19). */
 export function applyFee(band) {
   return wagePrice(IMBUE.feeHoursPm, Math.max(1, Math.floor(Number(band) || 1)));
 }

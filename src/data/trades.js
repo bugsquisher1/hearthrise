@@ -270,28 +270,33 @@ export function validate(L = TRADE_LEVERS, kinds = KINDS, trades = TRADES, lines
 /* BAND 1 IS IRON (lane/designer-kit-band1, 09 4.13): the iron and oak goods the live game already names, and one new good, the Iron
    Arrowheads. THE RUNE'S STONE HAS NO METAL: Rune Essence and Blank Runes are every band's, made by band 0's two jobs alone (a face is
    made by one row, validateKitRecipes), so a band's rune is its tier and its binder, never a new stone with no decision in it. */
-const RUNE_BAND_TIERS = Object.freeze([1, 2]); /* band 0 Chalked, band 1 Scored (runes.js RUNE_TIERS); the later bands' tiers land with them */
+const RUNE_BAND_TIERS = Object.freeze([1, 2, 3, 4]); /* band 0 Chalked to band 3 Carved (runes.js RUNE_TIERS, one tier a band); the later bands' tiers land with them */
 const RUNE_LABEL = Object.freeze(Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f) => [f, RUNE_FAMILIES[f].label])));
 const RUNE_FACES = Object.fromEntries(CRAFTED_RUNE_FAMILIES.map((f) => ['rune_' + f, Object.freeze(RUNE_BAND_TIERS.map((t) => runeId(f, t)))]));
+/* BANDS 2 AND 3 ARE STEEL AND MITHRIL (lane/kit-bands-2-3, 09 4.14). STEEL'S ORE IS COAL: a kind takes one material at every band, and
+   the rock that is new at steel is the coal it needs, so Mining opens a new rock each band (copper, iron, coal, mithril). THE FISH, THE
+   CROP AND THE WOOD climb in their node and press order (pikeperch then goldgill; tomato then pumpkin; willow then maple), so the fish
+   leave one for each of bands 4 to 8 (lobster, swordfish, frostfin, shark, moonfish). PAST IRON A CROSSBOW SHOOTS ITS BAND'S ARROWS (hunt-roles.js
+   shootsItem: any Ranged ammo): no steel or mithril bolt is an item, and two would be the same hour of arrows under a new name */
 export const KIT_FACES = Object.freeze({
-  ore: Object.freeze(['copper_ore', 'iron_ore']),
+  ore: Object.freeze(['copper_ore', 'iron_ore', 'coal', 'mithril_ore']),
   /* the bars Smithing smelts, a metal a band (gear-tiers.js MATERIAL_TIERS): the Temper kits' input to Dawnsteel */
   bar: Object.freeze(['bronze_bar', 'iron_bar', 'steel_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar']),
-  arrowhead: Object.freeze(['bronze_arrowheads', 'iron_arrowheads']),
+  arrowhead: Object.freeze(['bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads']),
   /* the honing stone a melee hero spends (09 3.2's charge line): the Coarse Whetstone the store and the start kit already name */
-  honing_stone: Object.freeze(['coarse_whetstone', 'iron_whetstone']),
-  log: Object.freeze(['normal_log', 'oak_log']),
-  shaft: Object.freeze(['normal_plank', 'oak_plank']),
-  arrow: Object.freeze(['bronze_arrows', 'iron_arrows']),
+  honing_stone: Object.freeze(['coarse_whetstone', 'iron_whetstone', 'steel_whetstone', 'mithril_whetstone']),
+  log: Object.freeze(['normal_log', 'oak_log', 'willow_log', 'maple_log']),
+  shaft: Object.freeze(['normal_plank', 'oak_plank', 'willow_plank', 'maple_plank']),
+  arrow: Object.freeze(['bronze_arrows', 'iron_arrows', 'steel_arrows', 'mithril_arrows']),
   /* the bolt opens at Woodcrafting's second rung (KINDS.bolt opens 2), so band 0 has none: Iron Bolts are the first */
   bolt: Object.freeze([null, 'iron_bolts']),
-  fish: Object.freeze(['shrimp', 'trout']),
-  meal: Object.freeze(['cooked_shrimp', 'cooked_trout']),
+  fish: Object.freeze(['shrimp', 'trout', 'pikeperch', 'goldgill']),
+  meal: Object.freeze(['cooked_shrimp', 'cooked_trout', 'cooked_pikeperch', 'cooked_goldgill']),
   /* the crop a drink is pressed from (drinks.js: the turnip's juice is the first mana drink, the carrot's the second), and the drink */
-  grain: Object.freeze(['turnip', 'carrot']),
-  drink: Object.freeze(['turnip_juice', 'carrot_juice']),
-  rune_stone: Object.freeze(['rune_essence', 'rune_essence']),
-  cut_stone: Object.freeze(['rune_blank', 'rune_blank']),
+  grain: Object.freeze(['turnip', 'carrot', 'tomato', 'pumpkin']),
+  drink: Object.freeze(['turnip_juice', 'carrot_juice', 'tomato_juice', 'pumpkin_cider']),
+  rune_stone: Object.freeze(['rune_essence', 'rune_essence', 'rune_essence', 'rune_essence']),
+  cut_stone: Object.freeze(['rune_blank', 'rune_blank', 'rune_blank', 'rune_blank']),
   ...RUNE_FACES,
   /* THE TEMPER KIT (21 section 2.2, lane/tp-im-steps 2026-11-26): the Tempering Salts the smith already sells are its faces, Iron to
      Emberforged, and Dawnsteel's is new. Band 0 has none: Bronze is never tempered (a rank opens at Level 40, where Steel is worn). Cobalt
@@ -303,7 +308,8 @@ export const KIT_FACES = Object.freeze({
 export { STREAM_FACES, streamFaceOf, IMBUE_JOBS, imbueJobId };
 
 /* New goods, id -> label. Each is made by one recipe and used by another, and becomes an item with the job slice. */
-export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', iron_arrowheads: 'Iron Arrowheads', ...TEMPER_KIT_NEW });
+export const NEW_FACES = Object.freeze({ bronze_arrowheads: 'Bronze Arrowheads', iron_arrowheads: 'Iron Arrowheads', steel_arrowheads: 'Steel Arrowheads',
+  mithril_arrowheads: 'Mithril Arrowheads', ...TEMPER_KIT_NEW });
 
 /** THE JOB'S DOORS for catalogue-coherence (data only, no counts): one row a job recipe, { id, trade, output, inputs: [item ids] }, the
     output its face and the inputs the faces of its parts, materials and hunted streams at its band (src/core/trades.js jobRecipes is the
@@ -383,6 +389,39 @@ export const KIT_BATCHES = Object.freeze([
     kitRow('arrow', 1, 'Fletch Iron Arrows'),
     kitRow('bolt', 1, 'Fletch Iron Bolts'),
     ...CRAFTED_RUNE_FAMILIES.map((f) => kitRow('rune_' + f, 1, 'Cut Scored ' + RUNE_LABEL[f] + ' Runes')),
+  ]),
+  /* BAND 2, STEEL (lane/kit-bands-2-3, 09 4.14; item Level 40, every row at its trade's Level 21): every kind band 1 holds but the bolt,
+     at steel and willow. Read for repetition: one new rock (Coal), one new good (Steel Arrowheads), the Etched runes */
+  batch('band2-steel', [
+    kitRow('ore', 2, 'Mine Coal'),
+    kitRow('log', 2, 'Chop Willow Logs'),
+    kitRow('fish', 2, 'Catch Pikeperch'),
+    kitRow('grain', 2, 'Pull Tomatoes'),
+    kitRow('bar', 2, 'Smelt Steel Bars'),
+    kitRow('shaft', 2, 'Saw Willow Planks'),
+    kitRow('meal', 2, 'Cook Pikeperch'),
+    kitRow('drink', 2, 'Press Tomato Juice'),
+    kitRow('honing_stone', 2, 'Grind Steel Whetstones'),
+    kitRow('arrowhead', 2, 'Forge Steel Arrowheads'),
+    kitRow('arrow', 2, 'Fletch Steel Arrows'),
+    ...CRAFTED_RUNE_FAMILIES.map((f) => kitRow('rune_' + f, 2, 'Cut Etched ' + RUNE_LABEL[f] + ' Runes')),
+  ]),
+  /* BAND 3, MITHRIL (lane/kit-bands-2-3, 09 4.14; item Level 60, every row at its trade's Level 31): the same kinds at mithril and maple.
+     Its runes bind with Grave Dust, band 3's Remains (job-faces.js STREAM_FACES), which the Muster Barrows drops, so a band-3 company
+     cuts its own runes */
+  batch('band3-mithril', [
+    kitRow('ore', 3, 'Mine Mithril Ore'),
+    kitRow('log', 3, 'Chop Maple Logs'),
+    kitRow('fish', 3, 'Catch Goldgill'),
+    kitRow('grain', 3, 'Pull Pumpkins'),
+    kitRow('bar', 3, 'Smelt Mithril Bars'),
+    kitRow('shaft', 3, 'Saw Maple Planks'),
+    kitRow('meal', 3, 'Cook Goldgill'),
+    kitRow('drink', 3, 'Brew Pumpkin Cider'),
+    kitRow('honing_stone', 3, 'Grind Mithril Whetstones'),
+    kitRow('arrowhead', 3, 'Forge Mithril Arrowheads'),
+    kitRow('arrow', 3, 'Fletch Mithril Arrows'),
+    ...CRAFTED_RUNE_FAMILIES.map((f) => kitRow('rune_' + f, 3, 'Cut Carved ' + RUNE_LABEL[f] + ' Runes')),
   ]),
 ]);
 export const KIT_RECIPES = Object.freeze(KIT_BATCHES.flatMap((b) => b.rows));

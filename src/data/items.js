@@ -673,6 +673,9 @@ export const ITEMS={
   bronze_arrowheads: {n:'Bronze Arrowheads', icon:'🔺', v:20},
   /* band 1's head (lane/designer-kit-band1, 09 4.13): forged from one Iron Bar, booked under it the same way */
   iron_arrowheads: {n:'Iron Arrowheads', icon:'🔺', v:25},
+  /* bands 2 and 3's heads (lane/kit-bands-2-3, 09 4.14): forged from one Steel or one Mithril Bar, booked under it the same way */
+  steel_arrowheads: {n:'Steel Arrowheads', icon:'🔺', v:100},
+  mithril_arrowheads: {n:'Mithril Arrowheads', icon:'🔺', v:200},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -980,7 +983,7 @@ const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
   'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
-  'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads',
+  'dawn_temper_salts', 'bronze_arrowheads', 'iron_arrowheads', 'steel_arrowheads', 'mithril_arrowheads',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

@@ -824,9 +824,9 @@ The four land as one merge on the set, after the designer's item batches, in the
 
 **What each becomes (the designer's rule for the batches to come).**
 
-- **A band's kit face, in its band's batch:** the band's arrow, bolt, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar. Band 1's are built (4.13). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
+- **A band's kit face, in its band's batch:** the band's arrow, honing stone, rune tier (all six families), one meal, one drink, its plank and its bar, and the bolt at iron only (4.14). Bands 1 to 3 are built (4.13, 4.14). `dawn_bar` is band 6's bar and lands with band 6 (or as a one-row batch before the cut, since the Dawnsteel Temper kit spends it).
 - **A second good of one kind at one band is cut with the bench** (4.9 rule 1: a recipe is one kind at one band, so two meals a band are the same hour of food twice): the extra foods and drinks at each band once its batch has picked its one meal and one drink, the raw fish no batch picks and no monster drops, `barbed_arrows`, `copper_whetstone`, `copper_bar`, and the Deep Seam bridge (`verdite_ore`, `verdite_bar`, `flux_salt`: one bar a band). Named arrows past a band's metal (`emberhead_arrows`, `dawnpoint_arrows`) are cut too: a band's arrow is its metal's.
-- **Jewelry (27), the cloaks and `heartgarnet` are Artificing's Trait crafts** (section 2: crafted jewelry and cloaks roll Traits from the part used). They need kinds `KINDS` does not have yet, so they are their own batch, designed with the Trait crafts and landed before the cut.
+- **Jewelry (27), the cloaks and `heartgarnet` are Artificing's Trait crafts** (section 2: crafted jewelry and cloaks roll Traits from the part used). They need kinds `KINDS` does not have yet. Ruled at the end of 4.13: the kinds for the Trait craft (after v0.3.0), and each piece's fate at the cut.
 - **The gathering tools (12) are cut with the bench.** They speed the gathering nodes the cut removes. The `tool_*` kinds bring tools back as job tools when they ship (20 section 1.4).
 - **The named-piece reforges** (`klappas_club`, `steelgrate`) are gear, and gear drops (section 2): each becomes a drop of its named source in `28-named-pieces.md` or is cut.
 - **Uses that outlive their source** are re-pointed by the cut's data lane to the band's face: the room and property costs on `cooked_trout`, `cooked_lobster`, `cooked_shark`, `wheat_bread`, `field_ration`, `goldenroot_roast`, `moonbloom_elixir` and the oak, willow, maple, runewood and duskwood planks, and the Hallmark and reforge offers on the crafted jewelry.
@@ -896,6 +896,86 @@ So the band 1 kit sits inside the 0.8 to 1.0 this page wants at 10 and 12 hours 
 **The store a band behind stays the fallback** (the same tool, a hero at band 1's first step, gold an hour of effect): the meal line is 729 at the store against 488 crafted at band 1 and 485 crafted at band 0, the charge line 1,457 against 976 and 971. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind, as at every band 0 to 8 (KR-STORE).
 
 *Read with care:* the K1 tool's pace table applies one measured burn to the whole career, so the Glade's heavier mana bill read as a career-long rate overstates the lag past band 2. The pace of 4.9 (the Muster burn) is unchanged by this batch: no kind's work moved.
+
+**Artificing's Trait crafts, ruled (game designer, lane/kit-bands-2-3, 2026-11-27).** For the backend lane that builds them after v0.3.0 (20 section 1.4 puts crafted jewelry and cloaks in a later patch), and for the cut's data lane now.
+
+*How it plays:* an Artificing hero picks a slot (a ring, earrings, a necklace or a cloak) and a ground. The ground's rare parts go into the piece, and the piece rolls one Trait from that ground's pool for that slot. You aim a Trait by choosing whose parts you spend. A better Artificer rolls a higher rank more often.
+
+| Good | Job, trade | Kind | Band | Inputs | Rolls |
+|---|---|---|---|---|---|
+| Ring, earrings, necklace | Set a Ring (Earrings, Necklace), Artificing | one kind a slot: `jewel_ring`, `jewel_earrings`, `jewel_necklace` | The setting's band. A row exists at a band only where an open ground's Trait pool names the slot at or under it: rings from band 2 (Hask's Ford), earrings and necklaces once the Catacombs or the Ox Road open | 1 Setting (a new Smithing part kind, `setting`, 1 bar of the band, sized like the arrowhead: `budget { of: 'jewel', share: 0.5 }`), `craftParts` rare parts of the one ground the player picks, the job's work and fee | One Trait of that (ground, slot) cell (`traits.js traitPool`, `GEAR_STEPS.traitRoll`), its rank on the quality cascade (4.4), capped by the ground's entry Level as a drop is |
+| Cloak | Stitch a Cloak, Artificing | `cloak` | The hides' band. Capes roll at Muster Barrows (band 3) and Krell's Hold (band 4) on open grounds | Hides as the `common_part` stream of the band (beast parts, by the cover rule, so cloaks bid against Alchemy's draughts for the same parts), `craftParts` rare parts of the one ground picked, the job's work and fee | As above, the cape cell |
+
+- **Two levers, both borrowed from carry-over** (21 section 2): `craftParts` starts at carry-over's rank-I count (3), and the job's work is `carryWork`. Working a Trait onto a new piece and moving one onto a base are the same act, so they cost the same.
+- **The pool sits at or under the piece's band.** A Trait from a ground deeper than the setting or the hides is refused, as carry-over refuses a lower tier. A deep Trait never sits on a cheap base.
+- **They do not fit `KIT_RECIPES` as it is, so no row is built here.** A Trait craft lands a Trait piece (one row with its base, Trait, rank and escrow, T1's), not a stack. Its rare part is the player's pick among grounds, not one face a band. No `budget` for a worn piece exists in `KINDS` or `src/core/trades.js`. The roller is dark (`traitsLive` false). And `validateKitRecipes` refuses a kind that does not ship in v0.3.0. The kinds, the budget and the pick are the backend lane's, on this table.
+
+**The cut's fates for the 27 jewelry pieces, the cloaks, `heartgarnet` and the two armor pieces** (v0.3.0, where no Trait craft ships):
+
+| Items | Fate | Why |
+|---|---|---|
+| The 15 perk grades (`banded_signet_*` 6, `fang_studs_*` 3, `seam_jasper_band_*` 6) | **Cut with the bench**, with their Hallmark and reforge offers (`gen-jewelry`'s `hr_hallmark_offers`, `hr_jewel_reforge_offers`) | Perks fold into Traits (02 package 2, point 3). A Trait piece is one row, never an item id for each combination |
+| The 12 metal pieces (ember, dawn, cobalt and wolfram rings, earrings and necklaces, item Level 100 to 160) and the four high cloaks (`archmage_cloak`, `duskweave_cloak`, `samite_cloak`, `cerecloth_cloak`) | **Kept as the Trait craft's bases at bands 5 to 8**, held sourceless under a new bucket (a) fate whose door is the Trait craft (catalogue-coherence `UNREACHABLE_FATES`, the cut's data lane adds it with C11's proof) | Every open ground in v0.3.0 is band 4 or under (the Pyre Field and Krell's Hold at gear Level 80), so no hero needs them before the craft ships |
+| `graypelt_cloak` (the cape ladder's tier 1, the first hour's cloak) and `warband_bulwark` (tier 3) | **A drop of their tier's open ground**: the Graypelt Cloak on the Thicket's gray wolves (gray pelts), the Warband Bulwark on Hask's Ford's banded pikemen. Sized by the drop formula, authored by the cut's data lane. The first hour's "Stitch Graypelt Cloak" coach step (`hunt-tutorial.js`) and the Path row (`the-path.js`) point at the drop | Gear drops and a bench makes none (02 package 2, kept). A plain cloak made at a bench with no Trait is the one thing 09's rule ("jewelry and cloaks only, where a rolled Trait is the whole point") does not allow |
+| `heartgarnet` | **Cut with the bench** | It has no consumer (vendor trash since 2026-10-14, "a dead end awaiting a designer ruling"). The Trait craft aims with the rare part, so a gem would be a second aiming input with no decision of its own |
+| `steelgrate` | As 4.12: a drop of its named source or cut | A named-piece reforge is gear, and gear drops |
+
+### 4.14 Bands 2 and 3, steel and mithril (2026-11-27, game designer, lane/kit-bands-2-3)
+
+**How it plays:** once a hero holds a depth record on a steel ground (the Coppercap Warrens, Hask's Ford or the Slake) and a trade reaches Level 21, the Work window offers that trade's steel job. Coal smelts to Steel Bars, which forge Steel Arrowheads and grind Steel Whetstones. Willow saws to planks, and a head and a plank make a Steel Arrow. Pikeperch cooks, tomatoes press to juice, and two Blank Runes and a bone cut any Etched rune. Ten Levels on, a mithril record (the Muster Barrows) opens Mithril Ore, maple, Goldgill, pumpkins and the Carved runes, which bind with Grave Dust.
+
+**Built (STAGED, dark with `trade_jobs`).** Two batches, each read for repetition (CLAUDE.md section 10).
+
+| Batch | Rows | What |
+|---|---|---|
+| `band2-steel` | 17 | Mine Coal, Chop Willow Logs, Catch Pikeperch, Pull Tomatoes, Smelt Steel Bars, Saw Willow Planks, Cook Pikeperch, Press Tomato Juice, Grind Steel Whetstones, Forge Steel Arrowheads, Fletch Steel Arrows, and Cut Etched Earth, Water, Fire, Ice, Poison and Rupture Runes |
+| `band3-mithril` | 17 | Mine Mithril Ore, Chop Maple Logs, Catch Goldgill, Pull Pumpkins, Smelt Mithril Bars, Saw Maple Planks, Cook Goldgill, Brew Pumpkin Cider, Grind Mithril Whetstones, Forge Mithril Arrowheads, Fletch Mithril Arrows, and Cut Carved Earth, Water, Fire, Ice, Poison and Rupture Runes |
+
+77 named rows in seven batches (5, 9, 6, 5, 18, 17, 17), 82 job recipes with the imbuements. Every band 2 row opens at its trade's Level 21, every band 3 row at Level 31 (`bandRung`). The Temper kits at bands 2 and 3 (already named) now have bars a job makes.
+
+*The repetition read.* Each batch is band 1's kinds at a new metal, by rule (4.9 rule 1), so the shape repeats and the goods do not: one new rock a band (copper, iron, coal, mithril), one new head a band, one rune tier a band (Chalked, Scored, Etched, Carved), and every name is a live item but the two arrowheads.
+
+*Calls made here.*
+
+- **Steel's ore is Coal.** A kind takes one material at every band, so the rock that is new at steel is the coal steel needs. Mining opens a new rock every band. Coal also drops on the Warrens (Goblin Digger, Hobgoblin Foreman) and the Slake (Bargeman), the band's own grounds. `steel_bar`'s description now reads "smelted hot with coal".
+- **No bolt past iron.** A crossbow shoots any Ranged ammo (`hunt-roles.js shootsItem`), so past iron it shoots its band's arrows. No steel or mithril bolt is an item, and two would be the same hour of arrows under a new name (4.12's second-good rule). 4.12's "a band's arrow, bolt" line reads "the bolt at iron only".
+- **Fish, crop and wood climb in their node and press order.** The fish leave one for each of bands 4 to 8 (Lobster, Swordfish, Frostfin, Shark, Moonfish). The crops and woods take the next in the same order (Goldenroot and Emberfruit, Yew, Runewood and Duskwood), and a band past them gets a new good with its batch. `cooked_pikeperch`, which 4.13 cut as band 1's second meal, is band 2's meal now.
+- **Band 3's Remains are Grave Dust, not Razor Claw** (`STREAM_FACES`, re-ruling 4.11 row 3 by its own reason). Razor Claw drops only on the Pyre Field (entry Level 70, band 4 by its gear), so a company hunting the Muster Barrows could never bind a Carved rune. Grave Dust drops on the Muster Barrows (Cairn Wight, Captain Hask) and on the Pyre Field (Pyre Wraith, Provost), the home of both band 3 imbuement parts, so the binder still comes from where the band's parts drop. Make Fire Edge and Make Brute Edge now take 4 Grave Dust, and their book value falls from 2,180 and 2,140 to 1,120 and 1,080 (the set's book). Their descriptions say grave dust. KR-CLOSED now holds that every hunted input of a whole band drops on an open ground of that band (a mutant planting Razor Claw back is caught).
+- **Two new goods: Steel and Mithril Arrowheads** (booked at 100 and 200, under their bars' 125 and 250, as the bronze and iron heads are; placeholder icons re-dyed by `tools/world-art/job-face-icons.mjs` for the Art Director).
+
+*Every input has a source and every output a use* (KR-SOURCE, KR-CLOSED). After bands 2 and 3 the cut orphans **104** live items, not 128 (`cut-orphans.mjs`, by band 0 to 9: 10 / 13 / 15 / 8 / 9 / 20 / 11 / 8 / 7 / 3). 24 gained a job: the six Etched and six Carved runes, the steel and mithril arrows and whetstones, Willow and Maple Planks, Pikeperch and Goldgill raw and cooked, Tomato Juice and Pumpkin Cider. What bands 2 and 3 still hold is ruled already: second foods and the Deep Seam bridge cut with the bench (4.12), the axes and pickaxes cut, the jewelry grades cut and the Warband Bulwark a drop (4.13), `steelgrate` a drop or a cut, and the room costs on `field_ration` (Kitchen 4, Cellar 4) and Cooked Lobster (Kitchen 2) re-pointed by the cut's data lane, Cooked Lobster's to Cooked Pikeperch.
+
+**Walk-through: a company's first steel day, on real data.** It holds what the iron walk-through (4.13) ends with: band 0 and band 1 goods and every trade at Level 11. Each trade needs 12.2 work-hours of its own XP from Level 11 to 21 (`tradeXpTable`: 30,419 to 74,246 seconds of work), so the eight kit trades take about three planned free days of a company of four. Every id was grepped on the set (`items.js`, `monsters.js`, `hunt-grounds.js`, `danger.js`, `trades.js`, `catalogue-coherence` doors).
+
+| # | Step | Holds and can reach (steps before only, plus bands 0 and 1) | Real source | Doable |
+|---|---|---|---|---|
+| 0 | Hunt the Coppercap Warrens to a depth record | Band 1 gear and kit. The Warrens open at Level 32 | `hunt-grounds.js coppercap_warrens`, `DANGER_GROUNDS.coppercap_warrens` gear Level 40 (band 2, `hr_trade_ground_bands`). Drops `bones` (`goblin_scavenger`, `goblin_skulker`, `goblin_digger`) and `coal` (`goblin_digger`, `hobgoblin_foreman`) | Yes |
+| 1 | Mine Coal, Mining 21 | The band 2 record from step 0. No input | `ore_b2`, face `coal` | Yes once lit |
+| 2 | Smelt Steel Bars, Smithing 21 | Coal from step 1 (or step 0's drops) | `bar_b2`, 1 `coal` to `steel_bar` | Yes once lit |
+| 3 | Forge Steel Arrowheads, Smithing 21 | Bars from step 2 | `arrowhead_b2`, 1 `steel_bar` to `steel_arrowheads` (new) | Yes once lit |
+| 4 | Chop Willow Logs and Saw Willow Planks, Woodcutting 21 and Woodcrafting 21 | Nothing needed for the logs | `log_b2` (`willow_log`), `shaft_b2` (1 `willow_log` to `willow_plank`) | Yes once lit |
+| 5 | Fletch Steel Arrows, Woodcrafting 21 | Arrowheads from step 3, planks from step 4 | `arrow_b2`, 1 `steel_arrowheads` and 1 `willow_plank` to `steel_arrows` | Yes once lit |
+| 6 | Grind Steel Whetstones, Smithing 21 | Bars from step 2 | `honing_stone_b2`, 2 `steel_bar` to `steel_whetstone` | Yes once lit |
+| 7 | Catch Pikeperch and Cook Pikeperch, Fishing 21 and Cooking 21 | Nothing needed for the fish | `fish_b2` (`pikeperch`), `meal_b2` (1 `pikeperch` to `cooked_pikeperch`) | Yes once lit |
+| 8 | Pull Tomatoes and Press Tomato Juice, Farming 21 and Cooking 21 | Nothing needed for the crop (or the plots' tomatoes, `tomato_seed` from the shop) | `grain_b2` (`tomato`), `drink_b2` (1 `tomato` to `tomato_juice`) | Yes once lit |
+| 9 | Cut Etched runes, Runecutting 21 | Blank Runes from band 0's Mine Rune Essence and Cut Blank Runes, bones from step 0 | `rune_<family>_b2`: 2 `rune_blank` and 1 `bones` to `etched_<family>_rune`, six families | Yes once lit |
+| 10 | Mix Fine Tempering Salts, Smithing 21 | Bars from step 2 | `temper_kit_b2`, 3 `steel_bar` to `fine_temper_salts` | Yes once lit |
+
+No step needs a good only the bench, the store or the start kit makes. Band 3 walks the same way from a Muster Barrows record (gear Level 60), with Mithril Ore, Maple, Goldgill, pumpkins and Carved runes bound with the Muster's Grave Dust. The walk found one gap, now ruled: band 3's binder dropped only a band deeper.
+
+**The labor ratio at 10, 12 and 14 hours,** MEASURED. Each burn is the real engine's: the Steady four (hammer, bow, mage, healer), 8 seeds x 10 h, at the band's first ground and reference Level, nothing worn over the band's top item Level (`node tools/balance-program/redesign/v1-climb.mjs --ground coppercap_warrens --level 41 --only base:steady --seeds 8 --hours 10 --max-il 59`, saved as `k1-band2-warrens.json`; the same on `muster_barrows --level 60 --max-il 79`, `k1-band3-muster.json`), priced by the K1 tool (`measure.mjs --from <burn> --days 10,12,14`, saved as `k1-band2-measured.txt` and `k1-band3-measured.txt`). The Warrens four's kit asks 0.67 work-hours a hunted hour (0.75 with imbuements), the Muster four's 0.54 (0.62).
+
+| Hunting a hero a day | Band 2: free 8 h whole day / 0.8 used / Premium 10 h whole | Band 2 made at home, gold share of gross (free, whole) | Band 3: free 8 h whole day / 0.8 used / Premium 10 h whole | Band 3 made at home, gold share (free, whole) |
+|---|---|---|---|---|
+| 10 h | 0.84 / 1.05 / 0.67 | 100%, 0.042 | 0.67 / 0.84 / 0.54 | 100%, 0.034 |
+| 12 h | 1.01 / 1.26 / 0.81 | 99%, 0.044 | 0.81 / 1.01 / 0.65 | 100%, 0.034 |
+| 14 h | 1.18 / 1.47 / 0.94 | 85%, 0.071 | 0.94 / 1.18 / 0.75 | 100%, 0.034 |
+
+So band 2 sits in the 0.8 to 1.0 this page wants at 10 h and on its top edge at 12 h (the store fills 1%), and leans on the store for 15% of its kit at 14 h. Band 3's lighter burn puts the 10 h day under the band (0.67, 0.77 with its imbuements), a surplus of about 2.6 work-hours a hero that goes to the trade furthest behind, the hall and the castle, as 5.3 has it. At the reference 12 h day both bands are in band. In band, so no lever moves (CLAUDE.md 3.5). This batch moves no kind's work, so these ratios are the burns', not the recipes'.
+
+**The store a band behind stays the fallback** (the same tool, a hero at the band's first step, gold an hour of effect): band 2's meal line is 786 at the store against 528 crafted at the band and 524 a band behind, its charge line 1,572 against 1,057 and 1,047. Band 3's are 852 against 572 and 567, and 1,703 against 1,145 and 1,134. The store is 1.49 times the crafted good at the band and 1.50 times the one a band behind (KR-STORE, every band 0 to 8).
+
+*Read with care.* The pace table again applies one burn to the whole career: on the Warrens burn a planned free 10 h day keeps the worst kit line at the band 95 days of 140 and one behind on the rest, never two (on the Muster burn, 125 and 15). The store's named rows (Salted Lobster beside a crafted Cooked Pikeperch) are priced by the buyer's step, so they play correctly, but their names follow the old ladder. Naming them for the band's face is W1's remainder (4.9).
 
 ---
 

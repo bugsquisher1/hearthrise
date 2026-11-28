@@ -4,6 +4,9 @@
 //
 //   node tests/character-window.mjs                the rules
 //   node tests/character-window.mjs --mutate       every planted defect must turn a rule RED
+//   ... --mutate --shard=K/N                       every Nth mutant from the Kth, with its own clean control
+//                                                  (tests/_mutant-shard.mjs; tests/page-mutant-shards.mjs holds smoke.yml's
+//                                                  shards to every mutant once, each job within budget)
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
@@ -64,6 +67,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { mutantShard, controlArgv } from './_mutant-shard.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 import { barWindows } from './_bar.mjs';
@@ -825,10 +829,14 @@ async function main() {
       : 'character-window: rows match the server; stats only from the server section; nothing that does not exist is drawn; one sheet ask per version; outfit save is one intent; the death log is the server\'s; skills split with named unlocks' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
-  const MINE = scopedMutants('tests/character-window.mjs', MUTANTS);
+  /* --shard=K/N: every Nth mutant from the Kth (tests/_mutant-shard.mjs), so N jobs hold every mutant once; then a gated push
+     proves only the shard's mutants its diff touches (tools/lib/mutant-scope.mjs), the nightly all of them. */
+  const shard = mutantShard('tests/character-window.mjs', MUTANTS);
+  if (shard.harness) { console.log('  ✗ ' + shard.harness); process.exit(2); }
+  if (shard.line) console.log(shard.line);
+  const MINE = scopedMutants('tests/character-window.mjs', shard.list, { tag: shard.tag });
   if (!MINE.length) process.exit(0);
-  const clean = await cleanControl(() => checks(null, null));
+  const clean = await cleanControl(() => checks(null, null), { argv: controlArgv() });
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
@@ -837,7 +845,7 @@ async function main() {
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, null)), counts));
   }
-  console.log(exitOf(counts) ? 'character-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate: ' + MINE.length + '/' + MINE.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'character-window --mutate' + shard.tag + ': ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate' + shard.tag + ': ' + MINE.length + '/' + MINE.length + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
 

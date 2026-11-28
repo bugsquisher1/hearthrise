@@ -434,6 +434,7 @@ const ROWS5S = [
   ["#48 Troll Picker's Hooks (axes): Gash hits 3 or more, the next Rend +40%", 'pace', ['Muster Barrows', 'b5s-muster-axes-gash', 'b5s-muster-hooks'], ['the Flooded Wing', 'b5s-flood-axes-gash', 'b5s-flood-hooks']],
   ['#29 Fledgling Claw (axes): Bleed to 6, as built, Gash on the bar', 'pace', ['Muster Barrows', 'b5s-muster-axes-gash', 'b5s-muster-claw'], ['the Flooded Wing', 'b5s-flood-axes-gash', 'b5s-flood-claw']],
   ["#33 Teamster's Mitts (sword): Power Strike, the next blow you take at half", 'pace', ['Muster Barrows, the sword four', 'b4s-muster-sword', 'b5s-muster-mitts-sword'], ['Muster Barrows, the tank four', 'b3-muster-tank', 'b5s-muster-mitts-tank']],
+  ["#33 the same, 24 seeds", 'pace', ['Muster Barrows, the sword four', 'b5s-muster-sword24', 'b5s-muster-mitts24'], null],
   ["#26 Thrower's Ring (healer): Earth rune shields you cast 30% stronger", 'pace', ['Muster Barrows, the healer', 'b3-muster-mixed', 'b5s-muster-ring-healer'], ['Muster Barrows, the tank (+ Shelter)', 'b5s-muster-tank-shelter', 'b5s-muster-ring-tank']],
   ["#42 Night Carter's Boots (healer): a wind-up at an ally under half lands at half", 'pace', ['the Bone Wing', 'b5-bone-mixed', 'b5s-bone-boots'], ['the Flooded Wing, the axes four', 'b5-flood-axes', 'b5s-flood-boots']],
   ["#42 the same, Pyre Field", 'pace', ['Pyre Field', 'b3-pyre-mixed', 'b5s-pyre-boots'], null],
@@ -442,6 +443,12 @@ const ROWS5S = [
 ];
 /* the shapes batch 5's build tried on a row out of band (b5w-*: temporary ids on a scratch copy, batch5.sh): [label, kind, plain, worn] */
 const VARIANTS5S = [
+  ["#8 Stable Troll's Maul, 25% a wind-up (Carter's Rest, 36 seeds)", 'pace', 'b5s-carters-stagger36', 'b5w-carters-maul25'],
+  ["#8 Stable Troll's Maul, 40% a wind-up (Carter's Rest, 36 seeds)", 'pace', 'b5s-carters-stagger36', 'b5w-carters-maul40'],
+  ["#48 Troll Picker's Hooks, Gash hits 2 or more (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks2'],
+  ["#48 Troll Picker's Hooks, Gash hits 3 or more: the next Rend doubled (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks100'],
+  ['#38 Drowned Signet, a monster hits an ally under 45%: Sickened (takes 10% more, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-sick'],
+  ['#38 Drowned Signet, the same: its armor a quarter less (Armor Break, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-armor'],
 ];
 /* [label, the plain four on Bold, worn on Bold, the plain four on Steady]: the worn four against the plain stance that keeps more */
 const BOLD5 = [

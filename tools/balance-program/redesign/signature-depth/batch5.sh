@@ -137,3 +137,14 @@ run b5s-flood-boots         catacomb_flooded_wing 160 $A --signatures -,-,-,nigh
 run b5s-pyre-boots          pyre_field 80 $X --signatures -,-,-,night_carters_boots
 SEEDS=36 run b5s-carters-apron36    carters_rest 117 $X --signatures -,-,-,brewers_apron
 SEEDS=4 run b5s-muster-candle       muster_barrows 60 $X --signatures -,-,the_cold_candle,-
+# (24 seeds where 12 read in band with se over 3: the Mitts on the sword four)
+SEEDS=24 run b5s-muster-sword24     muster_barrows 60 $S
+SEEDS=24 run b5s-muster-mitts24     muster_barrows 60 $S --signatures teamsters_mitts,-,-,-
+# (the shapes, b5w-*: temporary ids on a scratch copy, ROOT=<copy>, each a real row with its number or line moved; sum.mjs VARIANTS5S)
+SEEDS=36 run b5w-carters-maul25     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures zz_maul25,-,-,-
+SEEDS=36 run b5w-carters-maul40     carters_rest 117 $X --add-moves stagger@t,-,-,- --signatures zz_maul40,-,-,-
+run b5w-muster-hooks2       muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks2,-,-,-
+# (a scratch status zz_whetted100 beside Whetted: the next Rend doubled)
+run b5w-muster-hooks100     muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks100,-,-,-
+run b5w-muster-signet-sick  muster_barrows 60 $X --signatures -,zz_signet_sick,-,-
+run b5w-muster-signet-armor muster_barrows 60 $X --signatures -,zz_signet_armor,-,-

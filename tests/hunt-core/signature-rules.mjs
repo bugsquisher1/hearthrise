@@ -151,7 +151,7 @@ async function load(root) {
   M.SA = await imp('src/core/hunt/signature-auras.js');
   M.SCO = await imp('src/core/hunt/signature-costs.js');
   M.FS = await imp('src/core/hunt/fall-save.js');
-  /* (batch 5: a Signature's raise and aim, a monster's wind-up, the settle's reward credit) */
+  /* (batch 5: a Signature's raise, a monster's wind-up, the settle's reward credit) */
   M.SCA = await imp('src/core/hunt/signature-casts.js');
   M.MSD = await imp('src/data/monster-spells.js');
   M.MSP = await imp('src/core/hunt/monster-spells.js');

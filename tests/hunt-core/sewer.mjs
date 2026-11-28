@@ -71,6 +71,7 @@ async function load(root) {
   M.vit = await imp('src/core/vitals.js');
   M.gathering = await imp('src/data/gathering.js');
   M.recipes = await imp('src/data/recipes.js');
+  M.trades = await imp('src/data/trades.js');
   M.tally = await imp('src/data/tally-tasks.js');
   M.items = await imp('src/data/items.js');
   M.abilities = await imp('src/data/abilities.js');
@@ -256,7 +257,7 @@ function tallyFact(held, paid, weight = true) {
 /* The facts of that hero at Level L, in town, everything else fresh (`more` overrides). */
 function tutAt(M, T, L, more) {
   const lr = M.blessings.BLESSING;
-  return { levelXp: M.xp.charXpForLevel(L), charLevel: L, skillLevel: L, skillXp: { farming: 0, cooking: 0, melee: 0 }, huntId: null, endReason: null,
+  return { levelXp: M.xp.charXpForLevel(L), charLevel: L, skillLevel: L, tradeXp: { farming: 0, cooking: 0 }, skillXp: { melee: 0 }, huntId: null, endReason: null,
     visited: new Set(), unitKinds: new Set(), self: 0, name: 'Corliss', slots: T.slots, stored: [], discipline: T.discipline, role: T.role,
     stance: M.rules.ROLE_DEFAULTS[T.role].stance, store: T.store, carried: { ...M.kit.START_INVENTORY }, bag: { ...M.kit.START_INVENTORY },
     stacks: Object.keys(M.kit.START_INVENTORY).length, bagCap: 100, bankStacks: 0, lootRules: {}, weapon: T.weapon,
@@ -288,7 +289,7 @@ function walkChain(M, T, extra) {
     to_the_cellar: () => set({ huntId: 'mill_cellar', visited: new Set([...f.visited, 'mill_cellar']) }),
     first_kill: () => set({ levelXp: 3 }),
     first_level: () => L(2),
-    plant_land: () => set({ skillXp: { ...f.skillXp, farming: 28 }, landPlanted: true }),
+    plant_land: () => set({ tradeXp: { ...(f.tradeXp || {}), farming: 28 }, landPlanted: true }),
     bar_intro: () => { read('bar_intro'); L(3); },
     why_it_waits: () => read('why_it_waits'),
     spell_runes: () => save(f.slots.map((s) => (s && s.type === 'ability' && s.usable === false
@@ -307,7 +308,7 @@ function walkChain(M, T, extra) {
     leave_cellar: () => set({ huntId: null, endReason: 'left', sellable: 5 }),
     sell_loot: () => set({ sellable: 0 }),
     loot_rules: () => set({ lootRules: { rat_tail: 'sell' } }),
-    cook_catch: () => set({ skillXp: { ...f.skillXp, cooking: 30 } }),
+    cook_catch: () => set({ tradeXp: { ...(f.tradeXp || {}), cooking: 30 } }),
     styles: () => read('styles'),
     bless: () => set({ blessings: { ...f.blessings, held: f.blessings.of, prices: [] } }),
     /* the Roads (switch on): Spend as suggested spends every point left */
@@ -703,11 +704,12 @@ const cases = {
         /* the kit's seed, a crop a Farming 1 hero may plant (hr_farm_plant has no hunt check: doable in the cellar wait) */
         const crop = M.gathering.CROPS[s.ring.crop];
         if (!crop || !(kit[crop.seed] > 0) || crop.req > 1) return s.id + ': the kit cannot plant ' + s.ring.crop;
-      } else if (d.kind === 'skill_xp') {
-        /* the kit holds the recipe's input, at level 1, and the step is in town (a bench does not run in a hunt) */
-        const r = (M.recipes.ARTISAN_RECIPES[d.skill] || []).find((x) => x.id === s.ring.work);
-        if (!r || (r.req || 1) > 1 || !(kit[r.input] > 0)) return s.id + ': the kit cannot ' + s.ring.work;
-        if (!town(s)) return s.id + ': ' + d.skill + ' is asked for while a hunt may run';
+      } else if (d.kind === 'trade_xp') {
+        /* the kit holds the job's input, its job opens at trade Level 1, and the step is in town (a job does not run in a hunt; the bench cut) */
+        const j = M.trades.KIT_RECIPES.find((x) => x.id === s.ring.job);
+        const face = j && M.trades.jobFaces().find((x) => x.id === j.id);
+        if (!j || M.trades.recipeLevel(j.kind, j.band) > 1 || !face || !face.inputs.every((i) => kit[i] > 0)) return s.id + ': the kit cannot ' + s.ring.job;
+        if (!town(s)) return s.id + ': ' + d.trade + ' is asked for while a hunt may run';
       } else if (d.kind === 'tally_taken') {
         /* Tamsin takes no task while the hero hunts; hers is a solo task on a ground this chain enters next */
         const t = M.tally.tallyTask(d.task);
@@ -817,7 +819,7 @@ const cases = {
     for (const [set, [weapon, shield, carriedRunes]] of Object.entries(sets)) {
       const K = tutKit(M, null, weapon, shield);
       const T = carriedRunes ? carriedOnly(K, carriedRunes) : K;
-      const L3 = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, read: new Set() });
+      const L3 = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), tradeXp: { farming: 28, cooking: 0 }, skillXp: { melee: 0 }, landPlanted: true, read: new Set() });
       const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
       const intro = say(L3);
       if (!intro || intro.id !== 'bar_intro') return set + ': at Level 3 in the Cellar the card is ' + (intro && intro.id);
@@ -986,7 +988,7 @@ const cases = {
   },
   /* WHY IT WAITS (designer 2026-11-05): the words are the server's slots', on the real default bars, Got it to finish, never asked twice. */
   'why-it-waits': (M) => {
-    const up = (T, more) => { const f = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, read: new Set(['bar_intro']), ...more }); return { f, c: M.tut.currentCard(f) }; };
+    const up = (T, more) => { const f = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), tradeXp: { farming: 28, cooking: 0 }, skillXp: { melee: 0 }, landPlanted: true, read: new Set(['bar_intro']), ...more }); return { f, c: M.tut.currentCard(f) }; };
     const mage = tutKit(M, null, 'practice_wand', 'practice_spellbook'), healer = tutKit(M, null, 'practice_staff');
     /* the bow's default set ends with Flame Volley on its own count (2+ in its area) since the balance audit's fix 7 (lane/d-audit-fixes-sim, 2026-11-19),
        so a new bow meets the card on that slot, as a caster does on its first area spell */
@@ -1008,7 +1010,7 @@ const cases = {
     /* AN AREA MOVE UNDER ITS UNLOCK waits for the level, not its count (v0.2.129: Raking Shot on the Ranger's default bar
        brought the count card to a new bow). At Ranged 10 it is a real count wait and the card names it. */
     const bow = tutKit(M, null, 'practice_bow');
-    const at10 = up(bow, { skillXp: { farming: 28, cooking: 0, melee: 0, ranged: M.xp.skillXpForLevel('ranged', 10) } });
+    const at10 = up(bow, { tradeXp: { farming: 28, cooking: 0 }, skillXp: { melee: 0, ranged: M.xp.skillXpForLevel('ranged', 10) } });
     const rk = at10.c && at10.c.id === 'why_it_waits' ? M.tut.cardFor(at10.c, at10.f) : null;
     if (!rk || bow.slots[rk.barSlot].id !== 'raking_shot' || rk.text !== 'Press slot ' + (rk.barSlot + 1) + ' to change when it fires') return 'bow at Ranged 10: the card reads ' + JSON.stringify(rk && [rk.text, rk.barSlot]);
     /* the words stay true of a bar the player changed: runes of their own, no second spell, a bigger number, a struck slot, the slot switched off */
@@ -1184,13 +1186,13 @@ const cases = {
     if (early && early.id === 'home') return 'the house card spoke before the stamina ran out: ' + JSON.stringify(early.text);
     const home = say(R({ ...after, endReason: 'stamina', home: homeNext, bag: { normal_log: 3 } }));
     if (!home || home.id !== 'home' || home.text !== 'Chop 27 Normal Log while stamina refills' || home.anchor !== 'crafting'
-        || !home.ring || home.ring.skill !== 'woodcutting' || home.ring.work !== 'normal_tree' || home.ring.count !== 27) return 'the house card reads ' + JSON.stringify(home && [home.text, home.anchor, home.ring]);
+        || !home.ring || home.ring.job !== 'log_b0' || home.ring.count !== 27) return 'the house card reads ' + JSON.stringify(home && [home.text, home.anchor, home.ring]);
     const juice = say(R({ ...after, home: { owned: true, next: null }, land: { ready: { turnip: 2 } }, bag: {} }));
-    if (!juice || juice.id !== 'harvest_juice' || juice.text !== 'Farm → Harvest, then cook Turnip Juice') return 'the juice card reads ' + JSON.stringify(juice && juice.text);
+    if (!juice || juice.id !== 'harvest_juice' || juice.text !== 'Farm → Harvest, then press Turnip Juice') return 'the juice card reads ' + JSON.stringify(juice && juice.text);
     if (juice.anchor !== 'farm') return 'crops ready and the juice card points at ' + juice.anchor;
     /* Harvested: "Cook your turnips", so the ring goes to the bench's press; it stayed on the Farm, with nothing left to press there (door panel 2026-11-04) */
     const cook = say(R({ ...after, home: { owned: true, next: null }, land: { ready: {} }, bag: { turnip: 3 } }));
-    if (!cook || cook.id !== 'harvest_juice' || cook.text !== 'Gathering and crafting → Cooking → ' + M.recipes.ARTISAN_RECIPES.cooking.find((r) => r.id === 'press_turnip_juice').name || cook.anchor !== 'crafting' || !cook.ring || cook.ring.skill !== 'cooking' || cook.ring.work !== 'press_turnip_juice') return 'the harvested juice card points at ' + JSON.stringify(cook && [cook.anchor, cook.ring, cook.text]);
+    if (!cook || cook.id !== 'harvest_juice' || cook.text !== 'Work → Jobs → ' + M.trades.KIT_RECIPES.find((r) => r.id === 'drink_b0').name || cook.anchor !== 'crafting' || !cook.ring || cook.ring.job !== 'drink_b0') return 'the harvested juice card points at ' + JSON.stringify(cook && [cook.anchor, cook.ring, cook.text]);
     /* own juice in the bag: asked once a hunt has bought the store's drinks (a Mage's twenty minutes), never for a hero who
        hardly drinks (played 10-31: a sword hero drank one store juice in twelve hours and the card hid What next for days) */
     const storeJuice = (n) => [{ item: 'thin_turnip_juice', source: 'store', count: n }];
@@ -1238,37 +1240,21 @@ const cases = {
     const worn = (equipment) => died({ state: { level_xp: M.xp.charXpForLevel(5) }, level: srvLevel(M, M.xp.charXpForLevel(5)), equipment, hunt: { session_id: 's', hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left' }, hero: {}, pose: { units: [] } } }, { read: [] }).id;
     if (worn({ weapon: 'practice_staff' }) !== 'no_defense') return 'through the envelope a staff-only hero in town sees ' + worn({ weapon: 'practice_staff' });
     if (worn({ ...M.kit.START_EQUIPMENT }) === 'no_defense') return 'through the envelope the kit\'s sword and shield hero is told Defense is not training';
-    /* The first-hour rung: at the cloak's Level with the pelts, the card rings the recipe; any Crafting XP ends it */
+    /* THE FIRST-HOUR RUNG DROPS (the bench cut, lane/bench-cut-data 2026-11-28; 09-crafting 4.13): the Graypelt Cloak is a Gray Wolf's
+       Rare and Klappa's Klub a Gray Whelp's Scarce row, so no card stitches or reforges either, and the Equip upgrades card wears them */
     const cloak = M.items.ITEMS.graypelt_cloak;
-    const stitch = (M.recipes.ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'graypelt_cloak');
-    if (!cloak || !stitch || !(stitch.req <= 1) || !(cloak.reqLv > 1 && cloak.reqLv < 15)) return 'the first-hour rung is gone (a cloak worn between Level 2 and 14, made at Crafting 1)';
-    const atCloak = { ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45, wolf_pelt: stitch.inputs.wolf_pelt }, levelXp: M.xp.charXpForLevel(cloak.reqLv), charLevel: cloak.reqLv };
+    if (!cloak || !(cloak.reqLv > 1 && cloak.reqLv < 15)) return 'the first-hour rung is gone (a cloak worn between Level 2 and 14)';
+    const atCloak = { ...juiced, carried: { ...juiced.carried, chalked_fire_rune: 45, wolf_pelt: 12 }, levelXp: M.xp.charXpForLevel(cloak.reqLv), charLevel: cloak.reqLv };
     const sc = say(R(atCloak));
-    if (!sc || sc.id !== 'stitch_cloak' || sc.text !== 'Gathering and crafting → Crafting → ' + stitch.name || !(stitch.inputs.wolf_pelt > 0) || !(sc.ring && sc.ring.work === stitch.id)) return 'the cloak card reads ' + JSON.stringify(sc && { id: sc.id, text: sc.text, ring: sc.ring });
-    if (say(R({ ...atCloak, carried: { ...atCloak.carried, wolf_pelt: stitch.inputs.wolf_pelt - 1 } }))) return 'the cloak card asked with too few pelts';
-    if (say(R({ ...atCloak, skillXp: { ...atCloak.skillXp, crafting: 30 } }))) return 'the cloak card is up after a craft';
-    /* Klappa's Club (Tyler 2026-11-03): a club hero at its Level hears the whole way; a hero of any other weapon hears nothing; the card stays
-       with the hero's hands empty (taken off to reforge, or reforged and not yet worn), and moves to the bag once the club is made */
+    if (sc && (sc.id === 'stitch_cloak' || /Stitch/.test(sc.text || ''))) return 'a card still stitches the cloak: ' + JSON.stringify(sc && { id: sc.id, text: sc.text });
     const kclub = M.items.ITEMS.klappas_club;
-    const reforge = (M.recipes.ARTISAN_RECIPES.smithing || []).find((r) => r.output === 'klappas_club');
     const atClub = { ...atCloak, carried: { ...juiced.carried, chalked_fire_rune: 45 }, levelXp: M.xp.charXpForLevel(kclub.reqLv), charLevel: kclub.reqLv, weapon: 'practice_club' };
     const kc = say(R(atClub));
-    if (!kc || kc.id !== 'klappas_club' || kc.text !== 'Gathering and crafting → Smithing → ' + reforge.name
-      || !(kc.ring && kc.ring.work === reforge.id) || kc.anchor !== 'crafting') return 'the club card reads ' + JSON.stringify(kc && { id: kc.id, text: kc.text, ring: kc.ring, anchor: kc.anchor });
-    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(kclub.reqLv - 1), charLevel: kclub.reqLv - 1 })) || {}).id === 'klappas_club') return 'the club card came before its Level';
-    if ((say(R({ ...atClub, weapon: 'practice_sword' })) || {}).id === 'klappas_club') return 'the club card asked a sword hero';
-    if ((say(R(atClub, 'klappas_club')) || {}).id === 'klappas_club') return 'the club card is up after its Got it';
-    const emptied = { ...atClub, weapon: null, carried: { ...atClub.carried, practice_club: 1 } };
-    if ((say(R(emptied)) || {}).id !== 'klappas_club') return 'the club card left when the hero took the club off to reforge it';
-    const forged = { ...atClub, weapon: null, carried: { ...atClub.carried, klappas_club: 1 } };
-    const kb = say(R(forged));
-    if (!kb || kb.id !== 'klappas_club' || kb.anchor !== 'inventory' || !kb.text.includes('Equip') || !kb.hooks.some((h) => h.includes('.hw-pick[data-item="klappas_club"]'))) return 'reforged and empty-handed, the card reads ' + JSON.stringify(kb && { id: kb.id, text: kb.text, anchor: kb.anchor });
-    if ((say(R({ ...atClub, weapon: 'klappas_club' })) || {}).id === 'klappas_club') return 'the club card is up with the club in hand';
-    if ((say(R({ ...atClub, levelXp: M.xp.charXpForLevel(16), charLevel: 16 })) || {}).id === 'klappas_club') return 'the club card is up past the first day\'s grounds';
-    /* What next names the rung and how it is made, for every role, below its Level (the line that said "Level 12: Grayjaw's Ruff") */
+    if (kc && (kc.id === 'klappas_club' || /Reforge/.test(kc.text || ''))) return 'a card still reforges the club: ' + JSON.stringify(kc && { id: kc.id, text: kc.text });
+    /* What next names the rung below its Level, for every role, and never a bench (the line that said "Level 12: Grayjaw's Ruff") */
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {
       const g = whatNext(M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false }));
-      if (!g.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n + ', made in Crafting') || !(stitch.inputs.wolf_pelt > 0)) return role + ': What next reads ' + JSON.stringify(g);
+      if (!g.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n) || /, made (at|in) /.test(g)) return role + ': What next reads ' + JSON.stringify(g);
     }
     /* NO BENCH MAKES A WEAPON (Tyler 2026-11-18, lane/d-drop-homes): every role's next tier leads with a drop, so no What next gear line names a bench
        (a Level 12 Ranger read "Longbow, made at Crafting 15" until the recipe was cut). Each role, below tiers 2, 3 and 4. */
@@ -1279,17 +1265,7 @@ const cases = {
       const gear = lines(L, role).filter((x) => /^Next gear at Level /.test(x));
       if (!gear.length || gear.some((x) => /, made (at|in) /.test(x))) return role + ' at Level ' + L + ': What next names a bench for its next weapon: ' + JSON.stringify(gear);
     }
-    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15). No made piece leads a gear
-       line since the cut, so the rule is read on a FIXTURE row (the old Longbow recipe, Crafting 15) planted on the live bench list and taken off. */
-    const fixture = Object.freeze({ id: 'fixture_string_longbow', name: 'String Longbow', icon: '🏹', inputs: Object.freeze({ oak_plank: 3, silk_thread: 2 }), output: 'longbow', xp: 110, req: 15, ms: 3600 });
-    const crafts = M.recipes.ARTISAN_RECIPES.crafting;
-    crafts.push(fixture);
-    /* (a Level under the bow's wear, 12-targets 8.3: the old Level 12 under 15) */
-    const bowUnder = M.items.ITEMS.longbow.reqLv - 1;
-    let g12;
-    try { g12 = lines(bowUnder, 'ranger'); } finally { crafts.splice(crafts.indexOf(fixture), 1); }
-    const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + fixture.req;
-    if (!g12.includes(bowLine)) return 'ranger at Level ' + bowUnder + ' with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
+    /* (the "made at <bench> <Level>" gear line retired with the bench cut, 2026-11-28: no bench makes a piece, so What next never says it) */
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('Buy a third hero slot for 15,000 gp')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
@@ -1357,17 +1333,13 @@ const cases = {
     if ((say(rich(M.tut.ROLL_LEVEL, 15000, { huntId: 'mosslight_glade' })) || {}).id === 'purse_goal') return 'the gold card came up in a hunt';
     if ((say(rich(10, 15000)) || {}).id !== 'purse_goal') return 'at Level 10 with 15,000 gp the House\'s own card stands ahead of the gold card: ' + (say(rich(10, 15000)) || {}).id;
     if ((say(rich(10, 15000, {}, 'purse_goal')) || {}).id !== 'home') return 'past the gold card at Level 10 the card is ' + (say(rich(10, 15000, {}, 'purse_goal')) || {}).id;
-    /* KLAPPA'S CLUB, THEN GOLD (walk-through 11-03: a club hero at Level 5 with the next hero's price): one card at a time, the club's first, and the gold waits while its hands are empty
-       mid-job; a sword hero goes straight to the gold; a second hero keeps the club, its own state, and skips the gold, a read another hero has had */
+    /* THE GOLD CARD FOR A CLUB HERO (walk-through 11-03; the bench cut, 2026-11-28: the Klub drops, so no club card stands ahead): a club hero
+       at Level 5 with the next hero's price meets the gold card as a sword hero does, and a second hero skips it, a read another hero has had */
     const clubRich = { ...atClub, gold: 15000, slotCost: 15000, slotsOwned: 2, home: { owned: false, next: DEED }, chest: CHEST };
-    if ((say(R(clubRich)) || {}).id !== 'klappas_club') return 'a rich club hero at Level 5 meets ' + (say(R(clubRich)) || {}).id + ' before the club';
-    if ((say(R({ ...clubRich, weapon: null, carried: { ...clubRich.carried, klappas_club: 1 } })) || {}).id !== 'klappas_club') return 'the gold card cut in with the hero\'s hands empty mid-reforge';
-    if ((say(R(clubRich, 'klappas_club')) || {}).id !== 'purse_goal') return 'past the club a rich hero meets ' + (say(R(clubRich, 'klappas_club')) || {}).id;
-    if ((say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id !== 'purse_goal') return 'with the club worn a rich hero meets ' + (say(R({ ...clubRich, weapon: 'klappas_club' })) || {}).id;
+    if ((say(R(clubRich)) || {}).id !== 'purse_goal') return 'a rich club hero at Level 5 meets ' + (say(R(clubRich)) || {}).id + ', not the gold card';
     if ((say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id !== 'purse_goal') return 'a rich sword hero meets ' + (say(R({ ...clubRich, weapon: 'practice_sword' })) || {}).id;
     const vetClub = { ...clubRich, roster: [{ slot: 0, level: kclub.reqLv, name: 'New', open: true, hunting: false }, { slot: 1, level: M.tut.KNOWN_LEVEL + 1, name: 'Old', open: false, hunting: false }], self: 0 };
-    if ((say(R(vetClub)) || {}).id !== 'klappas_club') return 'a second hero with the club meets ' + (say(R(vetClub)) || {}).id;
-    if ((say(R(vetClub, 'klappas_club')) || {}).id === 'purse_goal') return 'a second hero is told what gold buys again';
+    if ((say(R(vetClub)) || {}).id === 'purse_goal') return 'a second hero is told what gold buys again';
     /* A CARD THAT ASKS NEVER WALLS: Hunt together (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt) finishes on its Got it, and what is behind it comes */
     const walled = { ...rich(M.tut.ROLL_LEVEL, 15000), roster: [{ slot: 0, level: 16, name: 'A', open: true, hunting: false }, { slot: 1, level: 1, name: 'Bree', open: true, hunting: false }], self: 0 };
     if ((say(walled) || {}).id !== 'party_own') return 'the Hunt together setup put up ' + (say(walled) || {}).id;
@@ -1384,7 +1356,7 @@ const cases = {
     const T = tutKit(M, 'tank');
     /* in town, home from the first hunt (the card waits for town: audit 2026-11-18 A4), the weapon card read */
     const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { visited: new Set(['mill_cellar']), read: new Set(['styles']),
-      skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, land, ...(more || {}) }));
+      tradeXp: { farming: 28, cooking: 0 }, skillXp: { melee: 0 }, landPlanted: true, land, ...(more || {}) }));
     const id = (land, more) => (at(land, more) || {}).id;
     if (id({ ready: {}, empty: 1 }) !== 'plant_land') return 'one plot planted, one bare, seeds held: the card is ' + id({ ready: {}, empty: 1 });
     /* PLANT YOUR LAND WAITS FOR TOWN AND SAYS WHERE (audit 2026-11-18 A4: two minutes into the first hunt it asked for a seed "in each empty
@@ -1393,13 +1365,13 @@ const cases = {
     for (const read of [new Set(), new Set(['bar_intro']), new Set(['bar_intro', 'rats_count'])]) {
       if ((cellar({ read }) || {}).id === 'plant_land') return 'two minutes into the first hunt the coach asks for a seed (read: ' + [...read].join(', ') + ')';
     }
-    const card = at({ ready: {}, empty: 2 }, { landPlanted: false, skillXp: { farming: 0, cooking: 0, melee: 0 } });
+    const card = at({ ready: {}, empty: 2 }, { landPlanted: false, tradeXp: { farming: 0, cooking: 0 }, skillXp: { melee: 0 } });
     const said = card ? M.tut.cardFor(card, tutAt(M, T, 2, { visited: new Set(['mill_cellar']) })) : null;
     if (!said || said.id !== 'plant_land' || !/^Town → Farm \(J\) → /.test(said.text)) return 'in town the farm card reads ' + JSON.stringify(said && [said.id, said.text]) + ' (it names the Town menu\'s Farm)';
     if (M.tut.coachIcon(card, () => false) !== 'farm') return 'the farm card does not ring the Farm\'s way with its window shut';
     if (id({ ready: {}, empty: 0 }) === 'plant_land') return 'every open plot planted, yet "Plant your land" is still up';
     if (id({ ready: {}, empty: 1 }, { bag: { ...M.kit.START_INVENTORY, turnip_seed: 0 } }) === 'plant_land') return 'no seed left to plant, yet "Plant your land" is still up';
-    if (id({ ready: {}, empty: 2 }, { skillXp: { farming: M.gathering.CROPS.turnip.xp, cooking: 0, melee: 0 } }) === 'plant_land') return 'a harvested field came back bare and walled the chain';
+    if (id({ ready: {}, empty: 2 }, { tradeXp: { farming: M.gathering.CROPS.turnip.xp, cooking: 0 }, skillXp: { melee: 0 } }) === 'plant_land') return 'a harvested field came back bare and walled the chain';
     /* the field not sent (an older server): Farming XP still finishes it, as before */
     if (id(null, { landPlanted: null }) === 'plant_land') return 'with no field section, a hero with Farming XP is asked to plant';
     const tsb = await import(pathToFileURL(join(M.root, 'src/session/tutorial-sections.js')).href + V);
@@ -2242,8 +2214,6 @@ const mutants = [
     edits: [['src/shell/launcher-coach.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
-  { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Klub',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Klub',\n"]] },
   /* QA gate 2026-11-17: a free Tower fall raised "Defeated" and a Bless upsell; the Tower had no tip */
   { name: 'a free-death mode raises the death card', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
@@ -2316,7 +2286,7 @@ const mutants = [
   { name: 'Decide once is back before the second hunt', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "{ knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow:", "{ knowledge: true, gotIt: true, when: [IN_TOWN], inWindow:"]] },
   { name: 'Cook your catch is back before the second hunt', case: 'tutorial-town-chain',
-    edits: [['src/data/hunt-tutorial.js', "{ gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },", "{ gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },"]] },
+    edits: [['src/data/hunt-tutorial.js', "{ gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { job: 'meal_b0' },", "{ gotIt: true, when: [IN_TOWN], ring: { job: 'meal_b0' },"]] },
   { name: 'Decide once asks for every stack again', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "inWindow: 'Press This hunt, then set one item to Sell'", "inWindow: 'Press This hunt, then set each item to Sell'"]] },
   { name: 'Eat on time lowers the own food and leaves the store food eating first', case: 'tutorial-bar-chain',
@@ -2376,11 +2346,8 @@ const mutants = [
     edits: [['src/session/tutorial-sections.js', "SKILLS_DEF[id].cat === 'artisan'", "SKILLS_DEF[id].cat !== 'combat'"]] },
   { name: 'the own-juice card asks a hero who hardly drinks (core-loop 10-31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
-  { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "const madeKey = made ? (made.req > 1 ? 'coach.goal_gear_made_at' : 'coach.goal_gear_made')", "const madeKey = made ? ('coach.goal_gear_made')"]] },
-  /* lane/d-drop-homes (Tyler 2026-11-18: no bench makes a weapon): a forge row for the Iron Sword back on the bench, and What next tells a tank to make it */
-  { name: 'a weapon recipe back on the bench (What next sends a tank to Smithing)', case: 'tutorial-reactive',
-    edits: [['src/data/style-gear.js', "'klappas_club', 120, 1, 3000),", "'klappas_club', 120, 1, 3000),\n    r('forge_iron_sword', 'Forge Iron Sword', '⚔️', { iron_bar: 6, normal_plank: 2 }, 'iron_sword', 120, 15, 3400),"]] },
+  /* ("What next hides a made piece's bench level" and "a weapon recipe back on the bench" retired with the bench cut, 2026-11-28: no bench
+     row is left to plant, and the gear line has no "made in" words to hide) */
   { name: 'the day-one goals wait for Level 8 again (about two hours in)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'const DAY_ONE_LEVEL = 7;', 'const DAY_ONE_LEVEL = 8;']] },
   { name: 'the Hearth card waits for more fuel than the Cellar leaves', case: 'tutorial-reactive',
@@ -2393,16 +2360,8 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', 'unarmoured: (p, f) => known(f.armoured, (a) => a === false),', 'unarmoured: (p, f) => known(f.armoured, (a) => a === null),']] },
   { name: 'the envelope says every hero wears armor (the worn set unread)', case: 'tutorial-reactive',
     edits: [['src/session/tutorial-sections.js', 'armoured: eq ? wearsArmour(eq, ITEMS) : undefined,', 'armoured: eq ? true : undefined,']] },
-  { name: 'the cloak card asks with any pelt', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', 'c[p.item] >= (p.n || 1)', 'c[p.item] > 0']] },
-  { name: 'the club card asks every weapon', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "f.weapon === p.item || (!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", 'true']] },
-  { name: 'the club card leaves a hero empty-handed once the club is made', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "(!f.weapon && (f.carried[p.item] > 0 || f.carried[p.made] > 0))", "(!f.weapon && f.carried[p.item] > 0)"]] },
   { name: 'the ring stays on the bench when the words have moved to the bag', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "...(said.anchor ? { anchor: said.anchor } : {}), ", '']] },
-  { name: 'What next names the cloak but not how it is made', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "const madeKey = made ? (made.req > 1", "const madeKey = false ? (made.req > 1"]] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: CELLAR },", "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' },"]] },
   { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',
@@ -2532,7 +2491,7 @@ const mutants = [
   { name: 'the house card speaks before the stamina runs out', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'stamina_ended' }, { kind: 'home_unowned' }", "{ kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }"]] },
   { name: 'the house card sends the hero gathering with no count', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', 'ring: { skill: node.skill, work: node.id, count: n } };', 'ring: { skill: node.skill, work: node.id } };']] },
+    edits: [['src/data/hunt-tutorial.js', 'ring: { job: job.id, count: n } };', 'ring: { job: job.id } };']] },
   { name: 'a day-one card jumps the chain (placed before it)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  /* ── F. Day one: each waits for the chain, then starts on its own fact ── */\n", ''],
       ['src/data/hunt-tutorial.js', "  /* ── B. The first hunt, the bar while it fights ────────────────────── */\n",

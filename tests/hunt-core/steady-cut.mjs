@@ -93,7 +93,8 @@ const cases = {
     if (fed.armorPm !== 50) return 'a 5% food snaps to ' + fed.armorPm;
     if (fed.def !== bare.def) return 'a food moved the to-hit roll: ' + fed.def + ' against ' + bare.def;
     const rows = Object.entries(M.ITEMS).filter(([, it]) => it.buff && it.buff.type === 'defense');
-    if (rows.length < 2) return 'the cut foods are gone';
+    /* (one since the bench cut, 2026-11-28: the River Chowder left with the feasts, the Frostfin Supper is band 6's meal) */
+    if (rows.length < 1) return 'the cut foods are gone';
     for (const [id, it] of rows) {
       if (it.buff.magnitude < 3 || it.buff.magnitude > 7) return id + ' cuts ' + it.buff.magnitude + '%, outside a cape step';
       const words = M.descriptions[id] || '';
@@ -137,7 +138,7 @@ const mutants = [
   { name: 'a food reads nothing on the hook', case: 'a-food-cuts-and-never-guards', edits: [[MI, " + Math.round((Number(bonus && bonus('steady')) || 0) * 1000);", ";"]] },
   { name: 'the buff back on its old flat key', case: 'a-food-cuts-and-never-guards', edits: [['src/core/buffs.js', "defense: { label: 'Damage cut', bonusKey: 'steady', isPercent: true, glyph: 'uiShield' },", "defense: { label: 'Defense', bonusKey: 'defense', isPercent: false, isFlat: true, glyph: 'uiShield' },"]] },
   { name: 'a Frostfin Supper past a cape step', case: 'a-food-cuts-and-never-guards', edits: [['src/data/items.js', "buff:{type:'defense', magnitude:5,", "buff:{type:'defense', magnitude:12,"]] },
-  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A thick chowder of silverfin, potato and carrot. For five minutes, you take a little less damage from every hit'", "'A thick chowder of silverfin, potato and carrot, a hearty pot that stiffens your guard'"]] },
+  { name: 'the words still promise guard', case: 'a-food-cuts-and-never-guards', edits: [['src/data/item-descriptions.js', "'A hot frostfin dinner. For six minutes after you eat it, you take a little less damage from every hit'", "'A hot frostfin dinner, a hearty plate that stiffens your guard'"]] },
   { name: 'a cape guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70 }', 'reqLv: 22 }'], ['src/data/gear-stats.generated.js', '"houndskin_cloak": f({', '"houndskin_cloak": f({ defB: 4, strB: 1 }), "houndskin_cloak~shipped": f({']] },
   /* a piece's stats are the generated table's (src/data/gear-stats.generated.js, lane/gear-catalogue-steps): a planted guard edits it */
   { name: 'a stud guards again', case: 'guard-is-a-shields-alone', edits: [['src/data/gear-stats.generated.js', '"copper_studs": f({', '"copper_studs": f({ defB: 1, atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 }), "copper_studs~shipped": f({']] },

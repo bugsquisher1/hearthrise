@@ -179,10 +179,11 @@ const cases = {
     const lee = Math.floor((took * 300) / 1000);
     if (!(took > 10) || back !== lee) return 'Reave took ' + took + ' and healed ' + back + ', want ' + lee;
     if (tookW !== took || backW !== lee - Math.floor((lee * 300) / 1000)) return 'Reave on a Withered caster healed ' + backW + ', want ' + (lee - Math.floor((lee * 300) / 1000));
-    /* A WORN LIFE LEECH (src/core/hunt/imbue-leech.js, 21 D-18; lane/imbue-engine): 20 permille of a 5,000 HP blow is 100 back, 70 Withered */
+    /* A WORN LIFE LEECH (src/core/hunt/imbue-leech.js, 21 D-18; lane/imbue-engine): 20 permille of a 5,000 HP blow is 100 back, 70 Withered
+       (a hero at its band's own Level, so the contest curve leaves it whole: 21 D-21) */
     const worn = (withered) => {
       const x = oneHero(M, { hp: 10, maxHp: 1000 }, {}, [{ x: 13, y: 3, hp: 50000, maxHp: 50000 }]);
-      Object.assign(x.h, { heroLv: 60, imbues: [{ id: 'life_leech', band: 50, kind: 'leech', untilMs: null }] });
+      Object.assign(x.h, { heroLv: 50, imbues: [{ id: 'life_leech', band: 50, kind: 'leech', untilMs: null }] });
       if (withered) wither(M, x.inst, x.h);
       M.damage.landHit(x.inst, x.sc, x.h, x.w.units[1], 5000, null, { id: 'basic', exact: true }, false);
       const h = of(x.sc, 'heal').find((e) => e.ability === 'life_leech');

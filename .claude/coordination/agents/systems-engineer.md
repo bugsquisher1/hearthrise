@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-28 · lane/imbue-d21-d22 (21 11.6: the Leech and the conversion on the contest curve, Fire Edge's waiting row)
+1. *Merge the moving base before reading a ceiling.* typecheck-ratchet, edge-bundle and SITE-10 all read red on the brief's base; two of those reds were another lane's work in flight (sig4-followups), and after the merge only my own +20 B gzip and +982 B edge remained.
+2. *The town path is minified gzip, so measure it exactly.* Comments cost nothing there; code does. `--boot-path-raise` into the baseline then `git checkout` the file gives the exact bytes. Folding imbueRows to one branch a row (no `continue`, the channel test once, no `set` copy) took my +20 B to 0 without a raise and is clearer code.
+3. *A restructure that leans on a data invariant makes the invariant a rule.* One branch a row lets a conversion reach holdsOn, which is only safe because a conversion has no condition; validateImbues now refuses one, with a plant in IM-1 and a mutant.
+4. *A candidate anchored on the line you build dies with it.* im-krell-curve edited `leechOf`'s old return; on the new tree it would throw. It now plays the set on the tree, and its why says so.
+
 ## 2026-11-27 · lane/p1-dealt-rows (12-targets 8.11 item 2: a guarantee is dealt under personal loot)
 1. *A deterministic deal is only as fair as its key is mixed.* (monster unit + swing) mod n: my first synthetic test fed arithmetic sequences (unit +1, swing every 7th kill) and read 29/29/29/14%; real play is mixed by the fight's dice. Measured on the real settle (Muster four, 3 secrets x 4 h): 975 Big Bones for 975 kills carrying it, seats 24.7/27.0/23.4/24.9%. Test with seeded gaps, and measure the real engine before trusting a rotation.
 2. *Move an event's shape into one exported function, keep the old anchor.* `drops.js dropEvent` now builds the drop event for a rolled and a dealt unit; returning `({ ... })` kept drop-tables.mjs's "the roller reveals nothing" anchor live without editing that slow guard, and the mutant now bites both paths.

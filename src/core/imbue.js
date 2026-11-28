@@ -13,13 +13,15 @@
 //   it fires   { slice: 'consumable', raises, steps: fire x c, room: IMBUE.steps x c, key }   its channel, and its condition holds on this
 //              blow: its measured fire size (the row's `fire`, a rule row with none its rated steps), counted OVER its rated room (21 D-17)
 //   it waits   { slice: 'consumable', raises, steps: IMBUE.steps x c, key, holds: false }       any other blow: it takes its room (21 D-11)
-//   converts   { slice: 'consumable', raises: 'offense', steps, key }                          a conversion (Fire Edge) on a hero's blow at
-//              a monster: stepsOf(1 + sharePm / 1000 x (the target's percent for its element / the blow's - 1)), a gain the clamp holds,
-//              a cost whole (21 D-18); no contest curve (it is a share of the blow, which already reads the hero); its room elsewhere
+//   converts   { slice: 'consumable', raises: 'offense', steps: n x c, key }                   a conversion (Fire Edge) on a hero's blow at
+//              a monster, n = stepsOf(1 + sharePm / 1000 x (the target's percent for its element / the blow's - 1)) (21 D-21): a gain
+//              the clamp holds, a cost whole (21 D-18); n 0 (a target neutral to its element, a blow already of it) waits (21 D-22)
 // so the slice's clamp (src/core/power-ledger.js: the cap of 6, the rated rooms reserved, the firing steps over them) holds three
 // imbuements, a draught and a damage meal together, and a draught on top of three imbuements adds nothing (21 D-1, D-11).
-// THE LEECH (leechOf, leechPay; played by src/core/hunt/imbue-leech.js on every blow its wearer lands): leech.pm permille of the HP the
-// blow took, the remainder carried on the unit to the next blow (21 D-18). It takes its room on every channel and writes no steps.
+// THE LEECH (leechOf, leechPay; played by src/core/hunt/imbue-leech.js on every blow its wearer lands): leech.pm x c permille of the HP the
+// blow took (rounded whole, at least 1: a band 50 Life Leech heals 20 to Level 50, 19 at 60, 17 at 97, 12 at 200; 21 D-21), the remainder
+// carried on the unit to the next blow (21 D-18). It takes its room on every channel and writes no steps.
+// THE CARDS' {pct} is the hero's own number (21 11.6.3): a Leech leechOf(...).pm / 10, a conversion sharePm / 10 x c.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ════════════════════════════════════════════════════════════════════════
@@ -110,23 +112,20 @@ export function convertMult(convert, toPm, blowPm) {
  * THE LEDGER ROWS a worn set writes on one blow or heal in `channel` ('offense', 'defense', 'heal'), for a hero of Level `heroLevel`.
  * `ctx`: { role (the role id of the monster struck, or striking), element (the blow's element id), convert? (on a hero's blow at a monster:
  * convert row -> its whole steps, the amount pipeline's) }. One row a worn imbuement: it fires when its channel is this one and its
- * condition holds (its fire size over its rated room), a conversion on a blow ctx can price it on writes its steps, else it waits
- * (holds: false) and takes its room. [] with none.
+ * condition holds (its fire size over its rated room), a conversion on a blow ctx can price it on writes its steps x c when they are not
+ * 0, else it waits (holds: false) and takes its room. [] with none.
  */
 export function imbueRows(worn, channel, ctx, heroLevel) {
-  const set = Array.isArray(worn) ? worn : null;
-  if (!set || !set.length) return [];
+  if (!Array.isArray(worn) || !worn.length) return [];
   const out = [];
-  for (const w of set) {
+  for (const w of worn) {
     const r = own(IMBUE_RULES, w.id) ? IMBUE_RULES[w.id] : null;
     const steps = r ? imbueStepsAt(w.band, heroLevel) : 0;
     if (!steps) continue;
-    if (r.convert && r.raises === channel && ctx && typeof ctx.convert === 'function') {
-      const n = ctx.convert(r.convert);
-      if (n) out.push({ slice: 'consumable', raises: channel, steps: n, key: r.key });
-      continue;
-    }
-    if (r.raises === channel && holdsOn(r, ctx)) {
+    /* a conversion (no condition, so it never fires) writes n x c, or waits on a blow it does not change (n 0) */
+    const on = r.raises === channel, n = on && r.convert && ctx && typeof ctx.convert === 'function' ? ctx.convert(r.convert) : 0;
+    if (n) out.push({ slice: 'consumable', raises: channel, steps: (steps * n) / IMBUE.steps, key: r.key });
+    else if (on && holdsOn(r, ctx)) {
       /* fire x c: the measured fire size at the band's contest curve (c = steps / IMBUE.steps), its room the rated steps (D-17) */
       const fire = Number.isInteger(r.fire) ? r.fire : IMBUE.steps;
       out.push({ slice: 'consumable', raises: channel, steps: (steps * fire) / IMBUE.steps, room: steps, key: r.key });
@@ -136,12 +135,14 @@ export function imbueRows(worn, channel, ctx, heroLevel) {
 }
 
 /** THE LEECH a worn set plays (21 D-18): { id, of ('hp' | 'mana'), pm } of its first imbuement with a leech the hero can wear at Level
-    `heroLevel` (imbueStepsAt: no more than wearAhead under its band), or null. One a kind is worn (wornImbuesOf), so there is one. */
+    `heroLevel` (imbueStepsAt: no more than wearAhead under its band), or null. One a kind is worn (wornImbuesOf), so there is one.
+    pm: leech.pm x c, rounded whole, at least 1 (21 D-21). */
 export function leechOf(worn, heroLevel) {
   if (!Array.isArray(worn)) return null;
   for (const w of worn) {
     const r = w && own(IMBUE_RULES, w.id) ? IMBUE_RULES[w.id] : null;
-    if (r && r.leech && whole(r.leech.pm) && imbueStepsAt(w.band, heroLevel) > 0) return { id: w.id, of: r.leech.of, pm: whole(r.leech.pm) };
+    const pm = r && r.leech ? whole(r.leech.pm) : 0, steps = pm ? imbueStepsAt(w.band, heroLevel) : 0;
+    if (steps) return { id: w.id, of: r.leech.of, pm: Math.round((pm * steps) / IMBUE.steps) || 1 };
   }
   return null;
 }

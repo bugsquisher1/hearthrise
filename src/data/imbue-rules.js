@@ -9,7 +9,8 @@
 // itself: a conversion or a leech), key (the stacking key: one of a key counts, and never a Trait's key, which tests/imbue.mjs IM-1 holds since the Traits are hidden data no
 // src file but gear-steps.js imports), part (an item id: the part it is
 // made from, a body's own drop on its pack), best ({ ground, seat }: where its 2 steps are sized, 04 guard 1), tip (the tooltip, {pct} the
-// hero's own number), and the rule fields convert / leech where they apply }. The slot is the kind's (IMBUE_SLOTS). D-8: no row keys on a
+// hero's own number at its band's curve c, 21 11.6.3: a firing row's from its fire x c steps, a Leech src/core/imbue.js leechOf's pm / 10,
+// a conversion sharePm / 10 x c), and the rule fields convert / leech where they apply }. The slot is the kind's (IMBUE_SLOTS). D-8: no row keys on a
 // monster family.
 // THE BAND of a made imbuement is its part's: the entry Level of the ground whose pack carries the part (imbueBandOf). A hero above it gets
 // it weaker by the contest curve, and a hero more than wearAhead under it cannot wear it (src/core/imbue.js imbueStepsAt).
@@ -25,8 +26,9 @@
 // A LEECH (D-18) heals the wearer `leech.pm` permille of the HP each of its blows takes (mana for a Mana Leech), through the heal cut, never
 // past max, the fraction carried to the next blow so a small hit still pays; it takes its room and no steps. A CONVERSION (Fire Edge, D-18)
 // resolves `convert.sharePm` of each blow against the target's percent for its element in place of the blow's own: one offense row of
-// stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it. Both in
-// the engine (lane/imbue-engine): src/core/hunt/imbue-leech.js, src/core/imbue.js convertMult.
+// stepsOf(1 + share x (that percent / the blow's - 1)) steps, a gain on a target weak to it, a whole cost on one that resists it, and on a
+// blow it does not change it waits on its room (D-22). Both read the band's contest curve like every row (D-21). Both in the engine:
+// src/core/hunt/imbue-leech.js, src/core/imbue.js leechOf, imbueRows and convertMult.
 // LIFE. Quality sets life, not strength (D-7): plain 20, fine 25, master 30 hunted hours (lifeRungPm 250 a rung over plain).
 //
 // v0.3.0 (21 D-12). Every row's part and best ground is on a ground v0.3.0 opens (a pack with status 'open'), so a company can make an
@@ -124,6 +126,7 @@ export function validateImbues(rows = IMBUE_RULES) {
     if (r.when && !(Number.isInteger(r.fire) && r.fire >= IMBUE.steps && r.fire <= IMBUE.fireMax)) out.push(id + ': a condition fires at ' + r.fire + ' steps, not a whole number from its rated ' + IMBUE.steps + ' to ' + IMBUE.fireMax + ' (D-17)');
     if (!r.when && r.fire !== null) out.push(id + ': a rule row has no condition to fire on, so no fire size');
     if (r.convert && !ELEMENTS.includes(r.convert.element)) out.push(id + ': converts to ' + r.convert.element + ', no element the data names');
+    if (r.convert && r.when) out.push(id + ': a conversion answers itself, so it takes no condition (it writes its steps or waits, D-22)');
     const home = PART_HOME.get(r.part);
     if (!home) out.push(id + ': part ' + r.part + ' is in no ground pack');
     else if (home.ground === r.best.ground) out.push(id + ': its part comes from its own best ground; every imbuement makes a trade between two grounds');

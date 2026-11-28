@@ -95,10 +95,31 @@
 // the shim's HRCLOCK line (missing or short = HARNESS, never green), and every
 // red names exit code, signal, spawn error, the file that refused and its line.
 //
+// SHARDS (2026-11-28, lane/ci-midnight-shard). One replay of the 902-file chain took 189-193 s on the fallback run
+// 46117646677 and up to 246 s on a slow runner (46132371081), twice the 11-17 figure, so half the arms plus the proof
+// no longer fit one job: 34.6 of 35 min on 46117646677, cancelled at 35 on 46132371081, and the job that set both
+// runs' tail. `--shard=K/N` runs every Nth arm from the Kth, `--selftest --shard=K/N` every Nth proof unit; the
+// control and the probe run in every shard, so a shard's red means what the whole run's does. The arms, the proof
+// units and the dealing rule are tests/_utc-arms.mjs; tests/utc-midnight-shards.mjs (no database, client-guards) is
+// red when smoke.yml's shards do not hold each exactly once or a job they run in is booked past 75% of its timeout.
+//
 // Exit: 0 green · 1 the chain cannot rebuild at some hour of the day ·
-//       2 harness (the control arm failed, or a mutation could not be planted).
+//       2 harness (the control arm failed, a mutation could not be planted, or a shard holds nothing).
 //
 // No credentials; production untouched.
+//
+// ci-step: utc-midnight-replay | UTC midnight replay, arms 1 of 5 - the chain applies at every second of the day
+// ci-run: node tests/utc-midnight-replay.mjs --shard=1/5
+// ci-step: utc-midnight-replay-2 | UTC midnight replay, arms 2 of 5 - the chain applies at every second of the day
+// ci-run: node tests/utc-midnight-replay.mjs --shard=2/5
+// ci-step: utc-midnight-replay-3 | UTC midnight replay, arms 3 of 5 - the chain applies at every second of the day
+// ci-run: node tests/utc-midnight-replay.mjs --shard=3/5
+// ci-step: utc-midnight-replay-4 | UTC midnight replay, arms 4 of 5 and proof 1 of 2 - the chain applies at every second of the day
+// ci-run: node tests/utc-midnight-replay.mjs --shard=4/5
+// ci-run: node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest --shard=1/2
+// ci-step: utc-midnight-replay-5 | UTC midnight replay, arms 5 of 5 and proof 2 of 2 - the chain applies at every second of the day
+// ci-run: node tests/utc-midnight-replay.mjs --shard=5/5
+// ci-run: node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest --shard=2/2
 // ════════════════════════════════════════════════════════════════════════
 
 import { spawnSync } from 'node:child_process';
@@ -107,6 +128,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { ARMS, PROOF_UNITS, armsOf, parseShard, shardOf } from './_utc-arms.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -149,29 +171,14 @@ const PROBE_SQL = "    raise exception 'HRPROBE now=%', now();\n";
 const PROBE_OFFSET = 3600;
 // Must equal the shim's own midnight; asserted against the shim text below.
 const SHIM_MIDNIGHT = Date.parse('2026-09-18T00:00:00.000Z');
-/* The sweep, in seconds of the FIXTURE's clock relative to midnight. It runs to
-   +9 and not to +3 because the band the security review measured was not a
-   boundary artefact: a 15-kill claim needs ≈6.9 s of window at the 600 ms kill
-   floor, and a 40-kill one ≈18.5 s, so a fixture that re-acquires a literal
-   magnitude goes red for the first several SECONDS of a day, not the first
-   moment of it. The label is EXACT since 2026-10-11: the arm offset puts the
-   target file's transaction on second k to the millisecond, and file i of the
-   chain on k + (i − target) ms, so every arm also replays EVERY file of the
-   chain within ±0.3 s of that second — on any machine, at any load. (Before,
-   the label was only the intended second: ~1.2 s of jitter idle, tens of
-   seconds loaded.) */
-const SWEEP = [-3, -2, -1, 0, 1, 2, 3, 5, 7, 9];
-
-/* The fixed arms keep the coarse coverage the hand-measured window bought:
-   00:02:30 and 00:04:30 sit inside [00:00, 00:05), the window of the FIVE-minute
-   backdates, and 00:25:00 covers the THIRTY-minute ones
-   (2026-09-02-renown-kill-faucet.sql lines 672/719). +3600 is the control. */
-const ARMS = [
-  { name: 'replay at 00:02:30 UTC', off: 150, window: true },
-  { name: 'replay at 00:04:30 UTC', off: 270, window: true },
-  { name: 'replay at 00:25:00 UTC (covers the 30-minute fixture backdates)', off: 1500, window: true },
-  { name: 'CONTROL — replay at 01:00:00 UTC (must be green)', off: 3600, window: false },
-];
+/* The sweep (SWEEP), the fixed window arms and the control (ARMS), the proof units and how a shard deals them are in
+   tests/_utc-arms.mjs, which tests/utc-midnight-shards.mjs reads too. */
+const SHARD = (() => {
+  const sh = parseShard(process.argv);
+  if (sh && sh.bad) { console.error(`  HARNESS: bad ${sh.bad} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
+  return sh;
+})();
+const secondsSince = (t) => Math.round((Date.now() - t) / 1000);
 
 let bad = 0;
 let harness = 0;
@@ -381,7 +388,13 @@ function probeFixtureDelay() {
 
 async function base() {
   console.log('\nUTC MIDNIGHT REPLAY — the chain must rebuild at every hour of the day\n');
+  if (!shardOf(armsOf(0), SHARD).length) {
+    console.error(`  HARNESS: --shard=${SHARD.k}/${SHARD.n} holds none of the ${armsOf(0).length} arms, so it would prove only the control`);
+    harness = 1;
+    return;
+  }
   const control = ARMS.find((a) => !a.window);
+  const t0 = Date.now();
   const c = replayAt(control.off);
   if (c.code !== 0 || !c.clock || !c.clock.pins || c.clock.targetAt === null) {
     console.error(`  HARNESS: the ${control.name} arm is not green, so no in-window red means anything.`);
@@ -390,7 +403,7 @@ async function base() {
     return;
   }
   CHAIN_LEN = c.clock.pins;
-  ok(control.name, true, `(${CHAIN_LEN} files, each on an injected clock)`);
+  ok(control.name, true, `(${CHAIN_LEN} files, each on an injected clock, ${secondsSince(t0)} s)`);
   const probe = probeFixtureDelay();
   if (probe.err) {
     console.error(`  HARNESS: ${probe.err}`);
@@ -400,24 +413,16 @@ async function base() {
   console.log(`  ..    probed: the §4 block (file #${probe.index}) reads now() ${Math.round(probe.skew * 1e6)} µs after its injected pin\n`);
   // The arm offset puts the TARGET file exactly on k; file i sits at k + (i − index) ms.
   const arm = (label, off) => {
+    const t = Date.now();
     const r = replayAt(off);
     const v = verdict(r, label);
-    if (v !== 'harness') ok(label, v === 'green', v === 'green' ? '' : `→ ${describe(r)}`);
+    if (v !== 'harness') ok(label, v === 'green', v === 'green' ? `(${secondsSince(t)} s)` : `→ ${describe(r)}`);
   };
-  const arms = SWEEP.map((k) => [`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`, k - probe.index / 1000])
-    .concat(ARMS.filter((x) => x.window).map((a) => [a.name, a.off]));
-  /* --shard=K/N (smoke.yml, 2026-10-24: 14 replays of ~40 s were 87% of one job's budget): every Nth arm from
-     the Kth. The control and the probe run in every shard, so each shard's reds mean what the whole run's do. */
-  const sh = SHARD ? arms.filter((_, i) => i % SHARD.n === SHARD.k - 1) : arms;
+  const arms = armsOf(probe.index);
+  const sh = shardOf(arms, SHARD);
   if (SHARD) console.log(`  ..    shard ${SHARD.k}/${SHARD.n}: ${sh.length} of ${arms.length} arms\n`);
   for (const [label, off] of sh) arm(label, off);
 }
-const SHARD = (() => {
-  const a = process.argv.find((x) => x.startsWith('--shard='));
-  const m = a && /^--shard=(\d+)\/(\d+)$/.exec(a);
-  if (a && (!m || +m[1] < 1 || +m[1] > +m[2])) { console.error(`  HARNESS: bad ${a} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
-  return m ? { k: +m[1], n: +m[2] } : null;
-})();
 
 /* Plant `find` → `replace`, replay at the given offsets, restore byte-for-byte.
    Returns the two results, or sets `harness` if the mutation could not be planted
@@ -435,25 +440,15 @@ function mutate(find, replace, offsets) {
   return res;
 }
 
-async function selftest() {
-  console.log('\nUTC MIDNIGHT REPLAY — MUTATION PROOF\n');
-  const probe = probeFixtureDelay();
-  if (probe.err) {
-    console.error(`  HARNESS: ${probe.err}`);
-    harness = 1;
-    return;
-  }
-  // A few seconds INTO the day: the stamps are day-clamped and the cap is small,
-  // which is exactly where a fixture that had gone soft would stop biting.
-  const boundary = 2 - probe.index / 1000;
+/* A red in a mutation arm must be the FIXTURE's red — a GATE raised by the
+   mutated file — never a crash, which would read as "caught" for any reason. */
+const caughtBy = (r) => {
+  if (r.code === 0) return false;
+  const m = r.out.match(/(\S+\.sql) failed to apply: ([^\n]*)/);
+  return !!m && m[1] === MIG_NAME && /GATE\(/.test(m[2]);
+};
 
-  /* A red in a mutation arm must be the FIXTURE's red — a GATE raised by the
-     mutated file — never a crash, which would read as "caught" for any reason. */
-  const caughtBy = (r) => {
-    if (r.code === 0) return false;
-    const m = r.out.match(/(\S+\.sql) failed to apply: ([^\n]*)/);
-    return !!m && m[1] === MIG_NAME && /GATE\(/.test(m[2]);
-  };
+function proveClamp(boundary) {
   const clamp = mutate(CLAMPED, UNCLAMPED, [boundary, 3600]);
   if (clamp) {
     ok('un-anchoring every §4 stamp turns the just-after-midnight arm RED with a fixture GATE',
@@ -461,7 +456,9 @@ async function selftest() {
     ok('...and the 01:00 UTC control stays GREEN (a clock guard, not a broken one)',
       clamp[1].code === 0, clamp[1].code === 0 ? '' : `→ ${describe(clamp[1])}`);
   }
+}
 
+function proveS1(boundary) {
   const s1 = mutate(S1_FIX, S1_DEFECT, [boundary, 3600]);
   if (s1) {
     ok('the S1 defect (a zero-claim call forgives the settle) is RED just after midnight',
@@ -469,7 +466,9 @@ async function selftest() {
     ok('...and RED at 01:00 too — the day-anchored fixtures still assert the economy property',
       caughtBy(s1[1]), `→ ${s1[1].code !== 0 ? describe(s1[1]) : '(it stayed green)'}`);
   }
+}
 
+function provePins() {
   /* 2026-10-11: THE CLOCK-INJECTION PROOF. A replay whose pins never land (the
      seam in schema-replay.mjs removed or bypassed) must be classified HARNESS,
      not green — otherwise a refactor silently turns every arm back into a
@@ -491,7 +490,9 @@ async function selftest() {
     ok('...while a replay that reports a refused file IS red',
       verdict(refused, 'the refused replay') === 'red');
   }
+}
 
+function provePlant() {
   // S-UM-2 mutation proof (this fix). Planted with mode='copy' explicitly —
   // never 'auto' — so the byte we flip lands in a temp COPY, never through a
   // symlink back into a tracked migration (that hazard is S-UM-1, above).
@@ -518,6 +519,39 @@ async function selftest() {
       rmSync(dir, { recursive: true, force: true });
     }
   }
+}
+
+/* The proof units (tests/_utc-arms.mjs PROOF_UNITS, the order a shard deals them in) and the function that proves each. */
+const PROVE = { clamp: proveClamp, pins: provePins, s1: proveS1, plant: provePlant };
+const PROOFS = PROOF_UNITS.map((u) => ({ ...u, run: PROVE[u.name] }));
+
+async function selftest() {
+  console.log('\nUTC MIDNIGHT REPLAY — MUTATION PROOF\n');
+  const unproved = PROOFS.filter((u) => typeof u.run !== 'function').map((u) => u.name);
+  const unlisted = Object.keys(PROVE).filter((n) => !PROOF_UNITS.some((u) => u.name === n));
+  if (unproved.length || unlisted.length) {
+    console.error(`  HARNESS: tests/_utc-arms.mjs PROOF_UNITS and this file's proofs differ (no proof for: ${unproved.join(', ') || '-'}; `
+      + `not listed: ${unlisted.join(', ') || '-'}), so a shard could deal a unit nothing proves or never deal one`);
+    harness = 1;
+    return;
+  }
+  const units = shardOf(PROOFS, SHARD);
+  if (!units.length) {
+    console.error(`  HARNESS: --shard=${SHARD.k}/${SHARD.n} holds none of the ${PROOFS.length} proof units`);
+    harness = 1;
+    return;
+  }
+  const probe = probeFixtureDelay();
+  if (probe.err) {
+    console.error(`  HARNESS: ${probe.err}`);
+    harness = 1;
+    return;
+  }
+  if (SHARD) console.log(`  ..    shard ${SHARD.k}/${SHARD.n}: ${units.map((u) => u.name).join(', ')} (${units.length} of ${PROOFS.length} proof units)\n`);
+  // A few seconds INTO the day: the stamps are day-clamped and the cap is small,
+  // which is exactly where a fixture that had gone soft would stop biting.
+  const boundary = 2 - probe.index / 1000;
+  for (const u of units) u.run(boundary);
 }
 
 if (process.argv.includes('--selftest')) await selftest();

@@ -794,6 +794,7 @@ MEASURED on `lane/signatures-batch-5` (the hunt engine of `set/v0.2.144` 1786d8b
 - **A damage raise on one strike is small on these cells.** Rend +40% after a big Gash read 0.0 and 1.7; at Gash's own two monsters 3.7. The axes' Rend is a share of their damage, the axes a share of the four's.
 - **Repetition, audited.** Blunted keeps #4, #23 and #42's new rule (the wind-up's caster). Braced is new (a hero's next blow taken). Kindled's key carries #16, #20, #24 and the Hooks' Whetted. The `windup` moment carries #42 and #47, one moment and two effects.
 
+## How Signatures work
 
 - **What it is:** a named piece with one fixed rule nothing else gives. No roll, no ranks. Every move and every rune family has one. 16 more are procs, auras, low-health effects, loot hooks, utility, unique stats and one pair.
 - **How rare:** rarer than any Very Rare. Target: one given Signature in about 30 to 60 hunted hours of farming its home.

@@ -74,10 +74,12 @@
 --   than the bench's (one item, named by the server's pointer). LIGHTING trade_jobs opens 1073's two verbs and its sweep, ON THE
 --   PRE-EA SECURITY LIST (13-security-list.md S-10, S-27, S-28, S-33 and S-34, the cut's row).
 --
--- ── COST (100x: 2,000 accounts x 4 heroes) ───────────────────────────────────
--- Less than before: a hearth settle reads one helper instead of the 160-bench jsonb; no bench tax read or write on any settle; the
---   town read loses one section; a harvest writes one company row (and none of 1059's trigger fan-out
---   ever ships). §6 is one pass at the apply: at most one ledger row an account.
+-- ── COST: LIGHTING trade_jobs RAISES IT, AND IT IS AN OPEN BLOCKER (rule 10; MEASURED 2026-11-28 on PGlite) ───────────────────────
+-- 1073's section quotes every recipe (129) in every envelope. A new company's hr_state_of: 22.4 ms dark, 65.2 ms lit. tests/per-player-cost
+--   town_hour_bench: 1,596 ms of settle CPU a hero-hour on the base, 3,594 here, past the ratchet (3,097): RED, its baseline not raised.
+--   (Moving the section's feed read behind an ok quote, byte-equal on 72 hero states, saved 8%.) The fix is the section's contract: quote
+--   on the Work window's ask, not in every envelope (1073 with its client reader), before this file applies. Statements, rows and ledger
+--   rows a settle do not move. The bench tax's and the 160-bench jsonb's reads leave; a harvest writes one company row. §6 is one pass.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Not reversible as a whole (a cut, CLAUDE.md section 1): the removed skills and items are in the ledger rows of §6 by account, so a

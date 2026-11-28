@@ -775,13 +775,14 @@ begin
     into v_last from public.trade_jobs t where t.user_id = p_user and t.slot = p_slot and t.settled_at is not null
    order by t.settled_at desc limit 1;
   for r in select x.* from public.hr_trade_recipes x join public.hr_trade_kinds k on k.kind = x.kind where k.ships = 'v030' order by x.trade, x.band, x.recipe loop
-    /* the whole-day job the start would take: as many sets as bag + Storage feed, at most the day's count */
-    v_feed := null;
-    select min(floor((coalesce((select i.qty from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = e.key), 0)
-                      + coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = e.key), 0)) / greatest(1, e.value::bigint)))::bigint
-      into v_feed from jsonb_each_text(r.inputs) e;
     v_q := public.hr_trade_job_quote(p_user, p_slot, r.recipe, null);
     if coalesce(v_q->>'ok', 'false') = 'true' then
+      /* read only for an open recipe (lane/bench-cut-server): nothing else reads v_feed, and most of a company's recipes are locked */
+      /* the whole-day job the start would take: as many sets as bag + Storage feed, at most the day's count */
+      v_feed := null;
+      select min(floor((coalesce((select i.qty from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = e.key), 0)
+                        + coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = e.key), 0)) / greatest(1, e.value::bigint)))::bigint
+        into v_feed from jsonb_each_text(r.inputs) e;
       v_count := least((v_q->>'count_cap')::bigint, coalesce(v_feed, (v_q->>'count_cap')::bigint));
       if v_count < 1 then v_q := jsonb_build_object('ok', false, 'error', 'short_inputs', 'count_cap', (v_q->>'count_cap')::bigint);
       else

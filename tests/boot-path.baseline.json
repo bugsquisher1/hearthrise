@@ -128,6 +128,12 @@
         "gzipBytes": 206861,
         "on": "2026-11-27",
         "why": "lane/no-named-trait-bases: the plain-ladder tables (PLAIN_PIECES, SHIELD_LADDER) in the game half"
+      },
+      {
+        "modules": 13,
+        "gzipBytes": 206926,
+        "on": "2026-11-28",
+        "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
       }
     ],
     "town": [
@@ -598,6 +604,18 @@
         "gzipBytes": 985112,
         "on": "2026-11-28",
         "why": "e5-borrowing: talent-rows borrow list and grantsOf read by the Talents window and town pick (+0.6 KB)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985124,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend: the fourth borrow band in talents.js, read by the Talents window"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985213,
+        "on": "2026-11-28",
+        "why": "borrow-price-card: the card's price line strings in src/data/text/talents.js (+0.1 KB, the text table rides the sign-in bundle)"
       }
     ]
   }

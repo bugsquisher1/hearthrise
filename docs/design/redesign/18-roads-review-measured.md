@@ -220,10 +220,13 @@ Beside them, two rules change a V0 but not whether a move casts: a borrowed ally
 | Greater Mend, the same, at −30% | 447.2 | +31.5 (1.8) | +22.5 (1.4) | 31.5 | 460 | 18, 0 | +17.3% | 0 / 0 |
 | Greater Mend, the same, at −50% | 447.2 | +18.0 (1.9) | +7.6 (2.7) | 18.0 | 458 | 18, 0 | +16.1% | 0 / 0 |
 | Circle of Renewal, the sword with no healer (N) | 447.2 | +2.0 (2.3) | +1.8 (1.5) | **2.0** | 214 | 18, 5 | +6.4% | 0 / 0 |
+| Greater Mend, the sword with no healer, at −75% (lane/designer-greater-mend) | 447.2 | +7.0 (2.4) | +0.4 (1.8) | 7.0 | 450 | 18, 0 | +13.6% | 0 / 0 |
+| **Greater Mend, the sword with no healer, at −80% (the fourth band)** | 447.2 | +6.0 (1.6) | −1.4 (1.1) | **6.0** | 448 | 18, 0 | +13.9% | 0 / 0 |
+| Greater Mend, the hammer beside a healer, at −80% | 606.0 | −9.3 (2.0) | −8.5 (1.9) | 0 | 335 | 39, 0 | +3.6% | 0 / 0 |
 
 - **The heal rule works on cast count, as intended.** The sword's Greater Mend fell from 1,421 casts an hour (section 7, no rule) to 464, and its value from +97.4 to +40.3. Beside a healer it is +7.5 (it was +49.9 on the hammer before the rule, section 1). Under the rule the value now moves with power: 70% power reads 31.5 and half power 18.0 of 40.3.
 - **19 V4 passes on its own cell** (the hammer beside a healer, 10 steps or less): 7.5 ± 3.2.
-- **17's band does not.** Its V0 is "what the move adds to a four that lacks it", a four with no healer, and that reads 40.3: past the last band, so Greater Mend stays unoffered (`BORROW_VALUES` 40.3, the catalogue unchanged). That is the ledger's own fallback (20 "Known risks"). At −50% it is still 18, so no band of today's table lands it at 10 or less. The designer's call, with the measured menu in CONFLICTS 2026-11-27 (E5).
+- **17's band does not.** Its V0 is "what the move adds to a four that lacks it", a four with no healer, and that reads 40.3: past the last band, so Greater Mend stays unoffered (`BORROW_VALUES` 40.3, the catalogue unchanged). That is the ledger's own fallback (20 "Known risks"). At −50% it is still 18, so no band of today's table lands it at 10 or less. The designer's call, with the measured menu in CONFLICTS 2026-11-27 (E5). **RULED (lane/designer-greater-mend, `19` "Decision: the borrowed heal in a four with no healer"):** a fourth band, V0 20 to 50 at −80% at a border, never at Havora. Greater Mend reads 6.0 ± 1.6 there and opens at 120; `1064` regenerated STAGED, its two town rows open at 120.
 - **Circle of Renewal falls into the free band** on Mend's clock (2.0, was 7.1): free at a border and −30% at Havora, opening at 30 and 20 (was 80 and 60). `1064` regenerated STAGED, two option rows.
 
 ## Files

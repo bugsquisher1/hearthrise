@@ -23,7 +23,8 @@
 //   VALUE           V = work-hours x townWageShare x wage(item step) x life factor (13-market 3.2); item step = band x tierSteps + the
 //                   quality rung's steps (a 'step' good) or the band's step with a longer life (a 'life' good, a tool)
 //   STORE           ask = ceil(storeCeiling x V of the Plain good at (the hero's band step - lagSteps)), bid = floor(floorShare x V)
-//                   (09 4.6): a tier behind, at 1.5x
+//                   (09 4.6): a tier behind, at 1.5x. A JOB GOOD'S VENDOR SALE is at most its inputs' sale + floorShare x V of its job's
+//                   own work (jobSaleBounds, read by the edge's vendorPriceOf)
 //   TOOLS           life = toolHours x (1 + lifeRung x quality) work-hours; speed 1 at or above the job's band, behindPm(steps) under it
 //                   (09 3.7: wear counts work, never the clock)
 //   THE JOB         settleJob(): one closed-form calculation from the job's seed (09 6: "attempts from elapsed time, yield and quality from
@@ -294,6 +295,26 @@ export function storeAsk(kind, heroStep) {
 }
 /** What the store bids for one unit: floorShare x V (the floor; the account's day budget is storeBudget hours of wage). */
 export const storeBid = (kind, band, q = 0) => Math.floor((TRADE_PM.floorShare * value(kind, band, q)) / 1000);
+
+/* WHAT A JOB GOOD MAY SELL FOR (lane/job-goods-vendor, systems, 2026-11-27; HANDOFFS kit-bands-2-3 item 5). A job adds its own work to
+   its inputs, and the floor pays floorShare of V for work (storeBid). So the NPC vendor never pays more for a job good than its inputs
+   sell for plus the floor's pay for the work its job adds: no job turns goods into more gold at the vendor than the floor pays for its
+   hours, at any band, whatever book value (`v`) the good carries. supabase/functions/hr-accrue/catalogue.js vendorPriceOf caps every sale
+   by it (the price the edge pays and hr_hunt_vendor_value generates); tests/vendor-shop-arbitrage.mjs holds it. */
+/** The floor's pay for the work a job adds to one good: floorShare x V of the kind's own work at the band's step (storeBid's own slice). */
+export const workBid = (kind, band) => Math.floor((TRADE_PM.floorShare * valueAt(kind.ownUh, bandStep(band))) / 1000);
+/** Every job good's sale bound, from the job recipes: `{ face: [{ recipe, inputs: [[item, n], ...], workBid }] }`, null-prototype and
+    frozen. A face more than one recipe makes keeps every row, and the sale takes the lowest. */
+export function jobSaleBounds(cat = null) {
+  const c = cat || tradeCatalogue();
+  const out = Object.create(null);
+  for (const r of jobRecipes(c)) {
+    const row = Object.freeze({ recipe: r.id, inputs: Object.freeze(Object.entries(r.inputs).map((e) => Object.freeze(e))), workBid: workBid(c.kinds[r.kind], r.band) });
+    (out[r.face] || (out[r.face] = [])).push(row);
+  }
+  for (const f of Object.keys(out)) Object.freeze(out[f]);
+  return Object.freeze(out);
+}
 
 /* ── TOOLS (09 3.7) ───────────────────────────────────────────────────── */
 

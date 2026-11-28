@@ -150,8 +150,11 @@ const cases = {
     const sh = T.borrowBand('shelter', 'border');
     /* the table on one method (lane/roads-v0-remeasure, 18 section 7): Shelter 1.4 free at a border, opening at the floor */
     if (!sh || sh.penaltyPm !== 0 || sh.opensAt !== 20) return 'Shelter at a border: ' + JSON.stringify(sh);
-    /* (lane/e5-borrowing: under the heal rule a sword with no healer still reads +40.3 held, past the last band, so it stays unoffered) */
-    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered though measured past the last band';
+    /* the fourth band (lane/designer-greater-mend, 19 L6): Greater Mend's 40.3 (a sword with no healer, lane/e5-borrowing) lends at a
+       fifth of its power at a border, opening at 120 (V 8.06), and never at Havora */
+    const gm = T.borrowBand('greater_mend', 'border');
+    if (!(M.TD.BORROW_VALUES.greater_mend > 20) || !gm || gm.penaltyPm !== 800 || gm.opensAt !== 120) return 'Greater Mend at a border: ' + JSON.stringify(gm);
+    if (T.borrowBand('greater_mend', 'havora') !== null) return 'Greater Mend is offered at Havora';
     /* the borrowed Circle of Renewal on Mend's clock (2.0): free at a border, opening at 30 */
     const cr = T.borrowBand('circle_of_renewal', 'border');
     if (!cr || cr.penaltyPm !== 0 || cr.opensAt !== 30) return 'Circle of Renewal at a border: ' + JSON.stringify(cr);
@@ -187,11 +190,25 @@ const cases = {
       if (!moves.some((m) => T.borrowBand(m, 'border'))) return n.id + ' lends nothing: ' + moves.join(', ');
     }
     if (!TD.validate(TD.TALENT_NODES, { values: { ...TD.BORROW_VALUES, rend: null } }).some((s) => /rend has no measured V0/.test(s))) return 'validate passed an unmeasured town move';
+    /* A PICK THAT LENDS NOTHING (a move measured past the last band) is refused not_offered at the spend, before the points (the server's
+       order), and in a saved build. Since the fourth band (lane/designer-greater-mend) no town move is past it, so the refusal is proven
+       where one is planted (the not_offered mutants measure Greater Mend at 60), and the map's rule is that none is */
+    const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold' };
+    const town = 'border.shield_restoration.town';
+    if (T.borrowBand('greater_mend', 'border') === null) {
+      if (T.spendProblem(b, town, 'use_greater_mend', 60) !== 'not_offered') return 'a town pick that lends nothing answered ' + T.spendProblem(b, town, 'use_greater_mend', 60);
+      if (T.spendProblem(b, town, 'use_greater_mend', 5) !== 'not_offered') return 'not_offered is asked after the points: ' + T.spendProblem(b, town, 'use_greater_mend', 5);
+      if (!T.buildProblems({ ...b, [town]: 'use_greater_mend' }, 60).some((p) => p.node === town && p.why === 'not_offered')) return 'a saved build kept a town pick that lends nothing';
+    }
+    /* THE MAP'S RULE (the designer, 19 L6): a town names no move it cannot lend, so no option on its card is a dead pick */
+    const dead = towns.flatMap((n) => n.options.map((o) => (o.effects.find((e) => e.kind === 'borrow') || {}).move).filter((m) => !T.borrowBand(m, 'border')).map((m) => n.id + ':' + m));
+    if (dead.length) return 'a town names a move it cannot lend: ' + dead.join(', ');
     /* A SIDE THAT GETS NOTHING: a hero of one of the town's two countries for whom every move it names is its own weapon's or not offered
        still pays a point for nothing. OPEN with the designer (CONFLICTS 2026-11-23, lane/roads-borrow-values): a list that
        only shrinks (a new one is red; one that now lends is taken off). lane/roads-wave3 took two off: Club · Dual Axe lends the axes
-       Stagger, Sword · Club lends the sword Stagger */
-    const NOTHING = ['border.shield_restoration.town:shield', 'border.destruction_restoration.town:destruction'];
+       Stagger, Sword · Club lends the sword Stagger; lane/designer-greater-mend the last two (the fourth band lends Shield and
+       Destruction Greater Mend at their Restoration towns) */
+    const NOTHING = [];
     const nothing = [];
     for (const n of towns) for (const d of n.countries) {
       const moves = n.options.map((o) => (o.effects.find((e) => e.kind === 'borrow') || {}).move);
@@ -200,13 +217,7 @@ const cases = {
     const grew = nothing.filter((s) => !NOTHING.includes(s)), stale = NOTHING.filter((s) => !nothing.includes(s));
     if (grew.length) return 'a town lends nothing to a hero of one of its countries: ' + grew.join(', ');
     if (stale.length) return 'a town side now lends: take it off NOTHING: ' + stale.join(', ');
-    const b = { 'challenge.r1': true, 'challenge.r2': true, 'challenge.r3': true, 'challenge.x1': 'long_hold' };
-    const town = 'border.shield_restoration.town';
-    if (T.borrowBand('greater_mend', 'border') !== null) return 'Greater Mend is offered at a border: no town pick lends nothing to try';
-    if (T.spendProblem(b, town, 'use_greater_mend', 60) !== 'not_offered') return 'a town pick that lends nothing answered ' + T.spendProblem(b, town, 'use_greater_mend', 60);
-    if (T.spendProblem(b, town, 'use_greater_mend', 5) !== 'not_offered') return 'not_offered is asked after the points: ' + T.spendProblem(b, town, 'use_greater_mend', 5);
     if (T.spendProblem(b, town, 'use_shelter', 60) !== null) return 'the town\'s lending pick was refused: ' + T.spendProblem(b, town, 'use_shelter', 60);
-    if (!T.buildProblems({ ...b, [town]: 'use_greater_mend' }, 60).some((p) => p.node === town && p.why === 'not_offered')) return 'a saved build kept a town pick that lends nothing';
     if (T.buildProblems({ ...b, [town]: 'use_shelter' }, 60).length) return 'a saved build with a lending pick reads ' + JSON.stringify(T.buildProblems({ ...b, [town]: 'use_shelter' }, 60));
     return null;
   },
@@ -458,10 +469,13 @@ const mutants = [
   { name: 'a borrow pays no penalty', case: 'borrow-opens', edits: [[TR, "  const f = (1000 + (mod.outPm || 0)) * (1000 - (mod.penaltyPm || 0));", '  const f = (1000 + (mod.outPm || 0)) * 1000;']] },
   { name: 'a town move left unmeasured', case: 'town-values', edits: [['src/data/talents.js', '  rend: 7.1,\n', '  rend: null,\n']] },
   { name: 'validate takes an unmeasured value', case: 'town-values', edits: [['src/data/talents.js', "if (!(typeof v === 'number' && Number.isFinite(v) && v >= 0)) out.push('borrow '", "if (false) out.push('borrow '"]] },
-  { name: 'the spend buys a pick that lends nothing', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", '']] },
+  { name: 'the spend buys a pick that lends nothing', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", ''], ['src/data/talents.js', '  greater_mend: 40.3,\n', '  greater_mend: 60,\n']] },
   { name: 'not_offered asked after the points', case: 'town-values', edits: [[T, "  if (!offered(n, pick)) return 'not_offered';\n", ''],
-    [T, "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n", "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n  if (!offered(n, pick)) return 'not_offered';\n"]] },
-  { name: 'a saved build keeps a pick that lends nothing', case: 'town-values', edits: [[T, "    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });\n", '']] },
+    [T, "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n", "  if (pointsSpent(nodes) + 1 > pointsAt(level)) return 'no_points';\n  if (!offered(n, pick)) return 'not_offered';\n"], ['src/data/talents.js', '  greater_mend: 40.3,\n', '  greater_mend: 60,\n']] },
+  { name: 'a saved build keeps a pick that lends nothing', case: 'town-values', edits: [[T, "    if (!offered(n, v)) out.push({ node: id, why: 'not_offered' });\n", ''], ['src/data/talents.js', '  greater_mend: 40.3,\n', '  greater_mend: 60,\n']] },
+  /* lane/designer-greater-mend: the fourth band, and the map's rule that a town names no move it cannot lend */
+  { name: 'the fourth band left out', case: 'borrow-opens', edits: [['src/data/talents.js', '  Object.freeze({ upTo: 50, borderPm: 800, havoraPm: null }),\n', '']] },
+  { name: 'a town names a move past the last band', case: 'town-values', edits: [['src/data/talents.js', '  greater_mend: 40.3,\n', '  greater_mend: 60,\n']] },
   { name: 'a town lends a club hero only its own moves', case: 'town-values', edits: [['src/data/talents.js', "...border('club', 'dual_axe', ['rend', 'stagger'],", "...border('club', 'dual_axe', ['turning_cut', 'stagger'],"]] },
   { name: 'a pick whose move never reads its field', case: 'every-node-lands', edits: [['src/data/talents.js', "[mod('rend', { statusMs: 3000 })]", "[mod('power_strike', { statusMs: 3000 })]"]] },
   { name: 'a reaction on a move that lands no blow', case: 'every-node-lands', edits: [['src/data/talents.js', "{ of: 'turning_cut', pm: 10, to: 'self' }", "{ of: 'challenge', pm: 10, to: 'self' }"]] },

@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 2e5ff92362a60bac8b82d7a27759cd44f432f97b54d65cfb9435e2a6a742d4d0
+--   digest: 21459f2f05d336a8cef59a329ac04559bb71238033c664b03341505fa9f811ca
 --   79 supplies, 168 hunts (named + training), 48 limits, 18 end reasons,
---   715 vendor values, 49 store supplies paid per use, 5 target modes,
+--   717 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 25 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/r8-hunting-day, backend-architect, 2026-11-22; Tyler 2026-11-22: "10 without premium 12 with"). It carries
@@ -1947,8 +1947,8 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('houndskin_cloak', 155),
   ('hunter_necklace', 90),
   ('ice_cutters_boots', 201),
-  ('imbue_brute_edge', 428),
-  ('imbue_fire_edge', 436),
+  ('imbue_brute_edge', 216),
+  ('imbue_fire_edge', 224),
   ('imbue_fire_ward', 100),
   ('imbue_life_leech', 104),
   ('imbue_mana_leech', 120),
@@ -2015,6 +2015,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('midwifes_hat', 33),
   ('millwrights_mallet', 72),
   ('mirewort_drops', 112),
+  ('mithril_arrowheads', 40),
   ('mithril_arrows', 1),
   ('mithril_axe', 120),
   ('mithril_bar', 50),
@@ -2192,6 +2193,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('spider_eye', 220),
   ('spidereye_studs', 70),
   ('spidersilk_choker', 140),
+  ('steel_arrowheads', 20),
   ('steel_arrows', 1),
   ('steel_axe', 74),
   ('steel_bar', 25),
@@ -2398,7 +2400,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 48
      or (select count(*) from public.hr_hunt_end_reasons) <> 18
-     or (select count(*) from public.hr_hunt_vendor_value) <> 715
+     or (select count(*) from public.hr_hunt_vendor_value) <> 717
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

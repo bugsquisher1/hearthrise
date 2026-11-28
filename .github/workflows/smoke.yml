@@ -1136,7 +1136,7 @@ jobs:
           node tests/imbue.mjs
           node tools/mutant-gate.mjs node tests/imbue.mjs --mutate
       # tests/kit-recipes.mjs
-      - name: Kit trades bands 0 and 1 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
+      - name: Kit trades bands 0 to 3 - each band whole, its chains closed on jobs alone, a batch of 20 or fewer, rung by band, every face sourced and used, the store the fallback
         if: ${{ !cancelled() }}
         run: |
           node tests/kit-recipes.mjs
@@ -6044,7 +6044,10 @@ jobs:
   # hunting a Trait ground in one party, 2% of the tabs open (a 4-vCPU runner holds the tick's closed load, not the watched doors' isolates
   # too: run 45993601381), the world tick on the chain's own dials. Red (exit 1) when a fixture
   # passes its baseline, when a hunt's settle waits past its flush by the 32 s look-ahead, when journal rows, statements or row writes
-  # a hero-hour pass the fixtures' blend by 25%, or when the conservation audit is red. Its own job and its own scratch server: three
+  # a hero-hour pass the fixtures' blend by 25%, when more than a fifth of the tick bodies' selectors defer on the engine budget (the
+  # engine fit), or when the conservation audit is red. THE RUNNER IS NORMALISED (lane/rel-cost-lt): the budget and, on a runner slower
+  # than beta-load's LT_REF, the accounts scale by per-player-cost's calibration read in the same step, so a slow runner reads as
+  # the reference and a slow engine still reads red. Its own job and its own scratch server: three
   # edges' pools and the builders need more than pg-replay's default 30 connections (HR_PG_MAX_CONNECTIONS), and it runs beside the
   # matrix, so it moves no release's wall clock. Its pure verdicts are proved by beta-load --selftest in the pg17 job.
   # ESTIMATED before the first run: install + chain template ~2 min, per-player-cost --lit ~3 (a cold PGlite replay), world (1,000

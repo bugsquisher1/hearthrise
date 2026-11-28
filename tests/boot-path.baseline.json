@@ -586,6 +586,24 @@
         "gzipBytes": 984086,
         "on": "2026-11-27",
         "why": "lane/designer-bd9: the 16 re-cut band rows in danger.js (game half)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 984518,
+        "on": "2026-11-28",
+        "why": "kit-bands-2-3: band 2-3 job recipes and faces in trades.js and job-faces.js, read by the town work window"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985112,
+        "on": "2026-11-28",
+        "why": "e5-borrowing: talent-rows borrow list and grantsOf read by the Talents window and town pick (+0.6 KB)"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 985124,
+        "on": "2026-11-28",
+        "why": "designer-greater-mend: the fourth borrow band in talents.js, read by the Talents window"
       }
     ]
   }

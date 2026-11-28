@@ -227,6 +227,17 @@ Sizes: S = under a day, M = 1 to 2 days, L = 3 to 5 days, XL = over a week of la
 | A2 | Art: the Roads map (countries, trunks, stones, towns, vows as standing stones) | Art Director | R-UI layout | L | Sample read before the full map |
 | RP | Report readers (19 L7): healing by source, damage taken by seat, supplies by depth | Systems | E2 | M | Two different builds read differently |
 
+**E5 status (lane/e5-borrowing, systems, 2026-11-27): the engine is BUILT and STAGED; Greater Mend stays unborrowable.** The engine plays the one borrow list the server's build lends (`hr_talents_view` nodes through `grantsOf`, never a client list): the native weapon's blow, a borrowed heal on Mend's clock, Magic at Mend's rate, an ally heal or ward at the healer's 7 tiles, no native unlock, a lent Challenge from any seat. Measured on the real engine (18 section 7c, 12 seeds x 8 h, Muster Level 60 Steady):
+
+| Reading | Held delta (se) | Pace steps (se) | Verdict |
+|---|---|---|---|
+| Greater Mend, the hammer beside a healer (19 V4's cell) | +7.5 (3.2) | +7.1 (2.9) | 10 or less: V4 passes |
+| Greater Mend, a sword in a four with no healer (17's V0 cell) | +40.3 (2.6) | +29.0 (2.6) | Past the last band: not offered |
+| The same at −50% | +18.0 (1.9) | +7.6 (2.7) | Still over 10 |
+| Circle of Renewal, the same sword | +2.0 (2.3) | +1.8 (1.5) | Free band, opens at 30 (`1064` regenerated STAGED) |
+
+So "Borrowed Greater Mend is 10 steps or less" held beside a healer and failed without one at full power. **RULED (game designer, lane/designer-greater-mend, 2026-11-27; `19` "Decision: the borrowed heal in a four with no healer"):** a fourth band lends a V0 of 20 to 50 at −80% at a border and never at Havora. Greater Mend reads +6.0 ± 1.6 held without a healer at that price, so E5's check holds on both cells and Greater Mend is borrowable in v0.3.0 from Level 120 (`1064` regenerated STAGED). Not built: a borrowed shot's own arrows (Raking Shot, V0 0).
+
 ### Band 5: Signatures and the first hour
 
 | # | Lane | Owner | Depends on | Size | Done when |
@@ -293,7 +304,7 @@ v0.3.0 ships when every line below is true.
 **Known risks:**
 - R10 is the widest lane and blocks most of the others, so it gets started first.
 - T1 is the largest new server surface.
-- V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback.
+- V4 (the heal rule) decides whether borrowing heals ships at all. If it fails, Greater Mend stays unborrowable in v0.3.0, which is the ledger's own fallback. (Settled 2026-11-27: it passes beside a healer at full power and without one at the fourth band's −80%, so Greater Mend ships borrowable from Level 120.)
 - The Challenge made a tank's four 63 steps shallower (`23` section 3). MV lands before R-S so the Shield country isn't built on it.
 
 ## Changes from the first-hour rewrite

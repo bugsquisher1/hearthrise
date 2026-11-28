@@ -70,6 +70,7 @@ import { elementPermille } from '../elements.js';
 import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js';
 import { engagedFoesOf, alliesByIdOf, livingHeroesOf } from './unit-index.js';
 import { sideOf, isHero, isMonster } from './sides.js';
+import { rowFor } from './talent-rows.js';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -491,6 +492,14 @@ const share = (v, max) => (int(max) > 0 ? { n: int(v), d: int(max) } : { n: 1, d
 /* The living units on `u`'s side by id (sides.js): the party a condition about allies reads. In a hunt, the living heroes. */
 const alliesOf = (inst, u) => alliesByIdOf(inst, sideOf(u));
 
+/* THE TILES A SLOT'S ALLIES ARE READ WITHIN: its move's reach as the hero casts it (a borrowed ally heal's native reach, talent-rows.js
+   lend: Greater Mend lent to a sword reads the healer's 7 tiles, as its target rule does), else the hero's range */
+const slotReach = (cx) => {
+  const a = cx.slot && cx.slot.action;
+  const r = a && a.type === 'ability' && cx.u ? rowFor(cx.u, a.id) : null;
+  return r && Number.isInteger(r.reach) ? r.reach : cx.h && cx.h.range;
+};
+
 /* "Whose": `lowest` = the lowest share among living heroes the hero can reach (it
    included); `self` = the hero itself (a heal aimed at yourself, roadmap p23); a role
    id = the first living hero of that role. Null = nobody. */
@@ -499,7 +508,7 @@ function allyOf(cx, subject, stat) {
   const all = alliesOf(cx.inst, cx.u);
   if (subject === 'self') return cx.u.alive ? cx.u : null;
   if (subject && subject !== 'lowest') return all.find((a) => a.role === subject) || null;
-  const pool = all.filter((a) => (stat === 'hp' || int(a.maxMana) > 0) && (a === cx.u || reaches(cx.inst, cx.u, cx.h && cx.h.range, a)));
+  const pool = all.filter((a) => (stat === 'hp' || int(a.maxMana) > 0) && (a === cx.u || reaches(cx.inst, cx.u, slotReach(cx), a)));
   return pool.sort((a, b) => (int(a[stat]) * int(b[max]) - int(b[stat]) * int(a[max])) || a.id - b.id)[0] || null;
 }
 

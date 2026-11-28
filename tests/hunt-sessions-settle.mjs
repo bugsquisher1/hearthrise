@@ -3453,10 +3453,10 @@ const DB_ARMS = {
        Dry at Enter, emptied by the end, or not running at Enter (a stale count from an older hunt included): idle, and the
        journal says why. The engine then spends exactly the count (the stop settles the run first, set-activity.js).
        BOTH PATHS, the same rows: the browser closed (the tick's door) and the hunt viewed (the player's door). */
-    const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
-    if (!need || Object.keys(need).length !== 1) return [...problems, 'CONTROL: hr_bench_inputs() does not name one input for cook_shrimp'];
-    const IN = Object.keys(need)[0]; const NEED = Number(need[IN]);
-    const BENCH = { kind: 'artisan', id: 'cook_shrimp' };
+    const need = await one(db, `select public.hr_hearth_fuel_of('fuel_pithwood')`);   // the bench is cut (1079): a hearth run is the one artisan run left
+    if (need !== 'pithwood') return [...problems, 'CONTROL: hr_hearth_fuel_of does not name fuel_pithwood\'s one fuel'];
+    const IN = need; const NEED = 1;
+    const BENCH = { kind: 'artisan', id: 'fuel_pithwood' };
     const stock = async () => Number(await one(db, `select (coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)
                                                         + coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0))::text`, [UID, IN]));
     /* `count`: the run's own ("All" = none); `bag` / `storage`: actions of stock at Enter; `loot`: actions landed in the bag
@@ -3511,13 +3511,13 @@ const DB_ARMS = {
         wrote[c.tag] = { ...wrote[c.tag], [path]: JSON.stringify([s.active, left ?? null, res && { ...res, at: null }, ev && { ...ev, at: null }]) };
         if (c.want === null) {
           if (s.active !== 'idle:') problems.push(`${tag}: the death left the hero ${s.active}, not idle`);
-          if (!res || res.resumed !== false || res.id !== 'cook_shrimp' || res.why !== c.why || 'left' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted a refusal saying ${c.why}`);
+          if (!res || res.resumed !== false || res.id !== 'fuel_pithwood' || res.why !== c.why || 'left' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted a refusal saying ${c.why}`);
           if (ev !== null) problems.push(`${tag}: the ended event's resume is ${JSON.stringify(ev)}, not null`);
           continue;
         }
-        if (s.active !== 'artisan:cook_shrimp' || left !== c.want) problems.push(`${tag}: the death left the hero ${s.active} with ${left} left, not cooking with ${c.want}`);
-        if (!res || res.resumed !== true || res.id !== 'cook_shrimp' || res.left !== c.want || 'why' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted ${c.want} left`);
-        if (!ev || ev.kind !== 'artisan' || ev.id !== 'cook_shrimp' || ev.left !== c.want) problems.push(`${tag}: the ended event's resume is ${JSON.stringify(ev)}`);
+        if (s.active !== 'artisan:fuel_pithwood' || left !== c.want) problems.push(`${tag}: the death left the hero ${s.active} with ${left} left, not cooking with ${c.want}`);
+        if (!res || res.resumed !== true || res.id !== 'fuel_pithwood' || res.left !== c.want || 'why' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted ${c.want} left`);
+        if (!ev || ev.kind !== 'artisan' || ev.id !== 'fuel_pithwood' || ev.left !== c.want) problems.push(`${tag}: the ended event's resume is ${JSON.stringify(ev)}`);
         /* what the engine reads the run's count from (envelope.js activeLeft) */
         const shown = (await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]))?.bench_run?.left ?? null;
         if (shown !== c.want) problems.push(`${tag}: the bench_run section says ${shown} left, not ${c.want}`);
@@ -3589,9 +3589,9 @@ const DB_ARMS = {
      A run the engine itself finished in that last collect is not picked up. */
   ITINERARY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
-    if (!need || Object.keys(need).length !== 1) return ['CONTROL: hr_bench_inputs() does not name one input for cook_shrimp'];
-    const IN = Object.keys(need)[0]; const NEED = Number(need[IN]);
+    const need = await one(db, `select public.hr_hearth_fuel_of('fuel_pithwood')`);   // the bench is cut (1079): a hearth run is the one artisan run left
+    if (need !== 'pithwood') return ['CONTROL: hr_hearth_fuel_of does not name fuel_pithwood\'s one fuel'];
+    const IN = need; const NEED = 1;
     const exec = makeExec(db);
     const stock = async () => Number(await one(db, `select (coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)
                                                         + coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0))::text`, [UID, IN]));
@@ -3613,7 +3613,7 @@ const DB_ARMS = {
        hunt's choice. */
     const CASES = [
       { tag: 'never picked, the bench stopped for the hunt', hero: { ...DOOMED, inv: { [IN]: 20 * NEED } }, stop: { count: 7 }, loot: 50,
-        want: { choice: 'job', state: 'resumed', active: 'artisan:cook_shrimp', left: 7 } },
+        want: { choice: 'job', state: 'resumed', active: 'artisan:fuel_pithwood', left: 7 } },
       { tag: 'never picked, the last collect finished the run', hero: { ...DOOMED, inv: { [IN]: 20 * NEED } }, stop: { count: 2, ago: 30 }, loot: 50,
         want: { choice: 'job', state: 'waited', why: 'no_count', active: 'idle:' }, once: true },
       { tag: 'never picked, gathering', hero: { ...DOOMED, running: { kind: 'gather', id: 'shrimp_s', left: 100000 } },
@@ -3638,7 +3638,7 @@ const DB_ARMS = {
         await db.query('rollback'); await db.query('begin');
         const tag = `${path}, ${c.tag}`;
         let shown = null;
-        const h = await hunter(db, M, { ...c.hero, ...(c.stop ? { running: { kind: 'artisan', id: 'cook_shrimp', left: c.stop.count } } : {}),
+        const h = await hunter(db, M, { ...c.hero, ...(c.stop ? { running: { kind: 'artisan', id: 'fuel_pithwood', left: c.stop.count } } : {}),
           beforeEnter: async () => {
             if (c.pick) { const r = await pick(UID, c.pick[0], c.pick[1]); if (!r || r.ok !== true) throw new Error(`${tag}: the pick answered ${JSON.stringify(r)}`); }
             if (!c.stop) return;
@@ -3650,8 +3650,8 @@ const DB_ARMS = {
             const stop = await M.SA.runSetActivity({ exec, user: UID, slot: 0, intentId: idem(), activity: { kind: 'idle' } });
             if (!stop || stop.status !== 200) throw new Error(`${tag}: the stop before Enter answered ${stop && stop.status} ${JSON.stringify(stop && stop.body).slice(0, 200)}`);
           } });
-        if (c.stop && !c.stop.ago && (!shown || shown.kind !== 'artisan' || shown.id !== 'cook_shrimp' || shown.left !== c.stop.count)) {
-          problems.push(`${tag}: the page's job before Enter was ${JSON.stringify(shown)}, not cook_shrimp with ${c.stop.count} left`);
+        if (c.stop && !c.stop.ago && (!shown || shown.kind !== 'artisan' || shown.id !== 'fuel_pithwood' || shown.left !== c.stop.count)) {
+          problems.push(`${tag}: the page's job before Enter was ${JSON.stringify(shown)}, not fuel_pithwood with ${c.stop.count} left`);
         }
         const frozen = await one(db, `select jsonb_build_object('choice', after_choice, 'skill', after_skill) from public.hunt_sessions where id = $1`, [h.sid]);
         if (!frozen || frozen.choice !== c.want.choice || (frozen.skill ?? null) !== (c.want.skill ?? null)) problems.push(`${tag}: the hunt froze ${JSON.stringify(frozen)}`);

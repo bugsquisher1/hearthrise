@@ -29,6 +29,9 @@
 //              browser and the server's sweep a while after the end: the same goods by quality, XP and work day on both, and both are
 //              settleJob on the stored seed. Twice: a whole-count Cook Shrimp, and a band 2 imbuement the day cuts short (work_cap, the
 //              rest refunded)
+//   TJ-COMPANY ONE COMPANY, TWO HEROES, BOTH DOORS (re-aimed from company-trades' CT-SHARED, lane/bench-cut-server): hero 0's job is
+//              collected with the window open, hero 1's by the sweep with the browser closed; company_trade_xp ends at the sum of both,
+//              each hero's section and a hero made afterwards read that one total, and no hero's own skill row moves
 //   TJ-STOP    a stop an hour in lands exactly the first hour of the seeded sequence, hands every unattempted set back to Storage
 //              (trade_refund) and their share of the fee (fee - ceil(fee x attempted / count), one trade_fee_refund credit: 09 4.11
 //              row 5), and the restart is a new job with a new seed
@@ -376,6 +379,44 @@ const ARMS = {
     return p;
   },
 
+  async 'TJ-COMPANY'(db) {
+    const p = [];
+    await lit(db);
+    await pin(db, at('06:00'));
+    const u = await makeHero(db);
+    await makeHero(db, u, 1);
+    await setPurse(db, u, 50000000);
+    const r = RECIPES.find((x) => x.id === 'meal_b0');
+    for (const [item, per] of Object.entries(r.inputs)) await setBank(db, u, item, per * 400);
+    const skills = () => one(db, "select coalesce(jsonb_object_agg(slot || ':' || skill_id, xp), '{}'::jsonb) from public.player_skills where user_id = $1 and slot in (0, 1)", [u]);
+    const before = js(await skills()), x0 = await tradeXp(db, u, r.trade);
+    const jobs = [];
+    for (const [slot, count] of [[0, 20], [1, 35]]) {
+      const qt = await quote(db, u, r.id, count, slot);
+      const st = await start(db, u, r.id, count, Number(qt && qt.fee), idem(), slot);
+      if (!st || st.ok !== true) return ['hero ' + slot + ' could not start: ' + js(st) + ' on ' + js(qt)];
+      jobs.push(await openJob(db, u, slot));
+    }
+    const ends = [await trueEnd(db, jobs[0]), await trueEnd(db, jobs[1])];
+    const want = jobs.map((j, i) => Number(expected(j, ends[i] - new Date(j.started_at).getTime()).xp));
+    await pin(db, new Date(ends[0]).toISOString());
+    const got = await end(db, u, false, 0);
+    const mid = await tradeXp(db, u, r.trade);
+    await pin(db, new Date(ends[1] + 30 * MIN).toISOString());
+    const sw = await sweep(db);
+    const total = await tradeXp(db, u, r.trade);
+    if (!got || got.ok !== true || !sw || sw.settled !== 1) p.push('viewed ' + js(got && got.error) + ', closed ' + js(sw));
+    if (!(want[0] > 0 && want[1] > want[0])) p.push('CONTROL: the two jobs are not two different sums: ' + js(want));
+    if (mid !== x0 + want[0] || total !== x0 + want[0] + want[1]) p.push('the company reads ' + x0 + ' -> ' + mid + ' -> ' + total + ', want +' + want.join(' +'));
+    await makeHero(db, u, 2);
+    for (const slot of [0, 1, 2]) {
+      const t = ((await section(db, u, slot)) || {}).trades;
+      if (!t || !t[r.trade] || Number(t[r.trade].xp) !== total) p.push('hero ' + slot + ' reads ' + js(t && t[r.trade]) + ', not the company\'s ' + total);
+    }
+    if (js(await skills()) !== before) p.push('a job moved a hero\'s own skill row');
+    return p;
+  },
+
   async 'TJ-STOP'(db) {
     const p = [];
     await lit(db);
@@ -700,8 +741,12 @@ const MUTANTS = [
     find: 'd.danger_held is not null and g.band >= p_band);', repl: 'd.danger_held is not null and g.band <= p_band);' },
   { arm: 'TJ-ORDER', name: 'a gathering hero is not busy', fn: 'public.hr_trade_job_start(integer,text,integer,bigint,uuid)',
     find: "if v_st.active_kind <> 'idle' or v_h.id is not null", repl: "if v_h.id is not null" },
+  { arm: 'TJ-COMPANY', name: 'a hero\'s credit replaces the company\'s total', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
+    find: 'do update set xp = x.xp + excluded.xp, updated_at = now();', repl: 'do update set xp = excluded.xp, updated_at = now();' },
+  { arm: 'TJ-COMPANY', name: 'a second hero\'s credit is dropped', fn: 'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)',
+    find: 'on conflict (user_id, trade_id) do update set xp = x.xp + excluded.xp, updated_at = now();', repl: 'on conflict (user_id, trade_id) do nothing;' },
   { arm: 'TJ-ORDER', name: 'every band is open', fn: 'public.hr_trade_band_open(uuid,integer)',
-    find: 'select coalesce(p_band, -1) = 0 or exists', repl: 'select true or exists' },
+    find: 'return coalesce(p_band, -1) = 0 or exists', repl: 'return true or exists' },
   { arm: 'TJ-ORDER', name: 'the fee is never re-quoted', fn: 'public.hr_trade_job_start(integer,text,integer,bigint,uuid)',
     find: 'if v_fee <> p_fee then', repl: 'if false then' },
   { arm: 'TJ-ORDER', name: 'the trade Level never gates', fn: 'public.hr_trade_job_quote(uuid,integer,text,integer)',

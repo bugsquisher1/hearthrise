@@ -10,12 +10,11 @@
 --   (the work day) and the data lane's regenerated 1065-named-pieces-items-catalogue.generated.sql
 --   (hr_activities keeps only the Great Hearth's fuel_* runs, hr_skills only the combat skills and Inner Flame). Applied as ONE
 --   transaction by the apply tool; never begin/commit here. Ends with its §8 self-check, then §9 lights trade_jobs.
--- EDGE: EDGE FIRST (release-plan: after). hr-accrue moves in the same merge (09 4.17, the edge lane): set_activity refuses `gather`
---   and allows `artisan` only for a fuel run; the bench tax's proposal and the gather channel retire. It deploys at the release's one
---   edge point, before this file: a NEW edge on the OLD database proposes no bench_tax and no gather, which the old hr_apply accepts,
---   and accrues no gather or bench pointer until §6 idles them (their work since the last settle is the cut's). An OLD edge on this
---   database (a rollback) finds no town pointer to accrue but a hearth run, its bench_tax count is refused bad_delta (§2: not a delta
---   key any more), and a gather or bench start it proposes is refused by hr_apply's catalogue check (no such hr_activities row).
+-- EDGE: EDGE FIRST (release-plan: after; the release has one edge point, right after 1054). hr-accrue moves in the same merge (09 4.17,
+--   the edge lane). ASSUMED, NOT PROVEN HERE (that edge is not built): between the edge point and this apply a hero still holds a gather
+--   or bench pointer on the old hr_apply. The old bench tax refuses a TAXED bench window with no `bench_tax` key (bench_tax_missing), and
+--   hr_require_settled refuses a write while a pointer's window is unpaid, so the edge lane MUST prove such a hero can be settled or
+--   idled (start a hunt, take a job) before this file runs. A hearth run is untaxed (hr_bench_tax_due_mg 0), so it settles either way.
 -- CLIENT: the envelope loses `bench_tax` (section), `work_day.trades` and `unlocked_recipes` (1032 amended in place, below); the Skills
 --   window reads the company's trades from `trade_jobs.trades`; the Work window is the Jobs list, the work blocks and the hearth.
 --
@@ -43,10 +42,10 @@
 --    NOT restated, read and left: hr_hunt_after_job, hr_hunt_resume, hr_resume_plan, hr_activity_left, hr_town_station_for,
 --    hr_hearth_errand and hr_players_online* key on hr_activities rows and pointer kinds, so the data lane's catalogue cuts them;
 --    hr_unlock_buy's req_skill block is inert (no offer names a skill); hr_daily_task_set_for and hr_daily_harvest_ready are gone.
--- §6 HELD STATE THE CUT REMOVES, JOURNALLED (one `admin` player_ledger row an account, intent one_town_work_cut; nothing converts):
---    every player_skills row whose skill hr_skills no longer has (meta skills: the XP removed by skill); every stack of an item hr_items
---    no longer has, wherever the account holds it (bag, Storage, worn, the hunt bag, company stock, a market listing; meta items);
---    every gather pointer and every artisan pointer that is no hearth run to idle, with its errand and last-activity notes.
+-- §6 THE OLD TRADES' SKILL ROWS leave, journalled (one `admin` player_ledger row an account, intent one_town_work_cut, the XP by hero and
+--    skill; 4.12's server row: nothing converts). Every gather pointer, and every artisan pointer that is no hearth run, goes to idle
+--    with its errand and last-activity notes. NO ITEM AND NO LISTING IS DELETED: §0 refuses (STRANDED) while any bag, Storage, worn
+--    slot, hunt bag, company stock, market listing or clan store holds an item the catalogue no longer has, as 1032 did.
 -- §7 DROPPED: the bench tax (hr_bench_tax_settle / _view / _keep / _due_mg / _mg, the view hr_bench_tax_fees, the table
 --    hr_bench_tax_rates, the `bench_tax` section; its two player_state columns stay inert until 1040 is applied: §7 (a)); hr_bench_inputs(); the recipe
 --    verbs (hr_recipe_learn, hr_recipe_learn__ungated, hr_recipes_of, their baseline and GM wall rows). The company's old trades
@@ -58,7 +57,7 @@
 --   (company_trades, its fold, hr_trade_row_sync, hr_trade_lock, hr_trade_is, the work_day section's `trades`), its self-check on a
 --   level-1 town job of either kind; 1073-k1-job-slice.sql's §9 reads the switch lit once this file has run (a retried apply).
 --   RETRY PINS: 1040-rested-bank-cut.sql accepts this file's hr_apply, 1017-tend-the-field.sql this file's three farm verbs.
--- ERROR TAXONOMY: no new code. A stale engine's `bench_tax` is bad_delta; `bench_tax_bad` and `bench_tax_purse` are never answered again.
+-- ERROR TAXONOMY: no new code. A stale engine's `bench_tax` is unknown_delta_key; `bench_tax_bad` and `bench_tax_purse` are never answered again.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ────────────────────────────────────────────────
 -- hr_apply's lock order is unchanged (the hero -> the depot -> bag rows -> Storage rows -> the purse, last); the take now names one
@@ -90,7 +89,7 @@
 
 -- ── §0 PRECONDITIONS, THE PINS, AND NOTHING STRANDED ON A SHARED SURFACE ─────────────────────────────────────────────────────
 do $mig$
-declare v_md5 text; v_n bigint;
+declare v_md5 text; v_n bigint; v_t text; v_ids text;
 begin
   if to_regclass('public.company_trade_xp') is null or to_regclass('public.trade_jobs') is null or to_regclass('public.hr_trade_kinds') is null
      or to_regprocedure('public.hr_trade_level_of(uuid,text)') is null or to_regprocedure('public.hr_trade_level(bigint)') is null
@@ -133,11 +132,17 @@ begin
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = 'public.hr_farm_tend_view(uuid,integer)'::regprocedure;
   if v_md5 is distinct from '9900fb185cc4883e3687cf14719443b2' and v_md5 is distinct from '186d6d2878c6f4576defaf839fdb7a96' then
     raise exception 'PIN: hr_farm_tend_view is neither 1017-tend-the-field.sql''s image nor this file''s own (md5 %): another file moved it; re-derive', v_md5; end if;
-  -- NOTHING STRANDED ON A SHARED SURFACE: a clan's store is many players' (clan_ledger is its journal, not this file's to write)
-  if to_regclass('public.clan_stores') is not null then
-    select count(*) into v_n from public.clan_stores c where not exists (select 1 from public.hr_items i where i.item_id = c.item_id);
-    if v_n <> 0 then raise exception 'STRANDED: % clan store row(s) hold an item the catalogue no longer has: a human decides', v_n; end if;
-  end if;
+  -- NOTHING STRANDED (1032-approved-cuts.sql's rule). Nothing rules what a held good of a removed item becomes, and "not in hr_items"
+  -- would also match a catalogue mistake, so this file deletes no player's item and no listing: it refuses, naming the place and the
+  -- items, and a human decides. The whole file rolls back with it (the bench stays, trade_jobs stays dark).
+  for v_t in select x.t from unnest(array['player_inventory', 'account_bank', 'player_equipment', 'hunt_bag', 'company_stock',
+                                          'market_listings', 'clan_stores']) as x(t) loop
+    if to_regclass('public.' || v_t) is not null then
+      execute format('select count(*), string_agg(distinct h.item_id, '', '') from public.%I h
+                       where not exists (select 1 from public.hr_items i where i.item_id = h.item_id)', v_t) into v_n, v_ids;
+      if v_n <> 0 then raise exception 'STRANDED: % row(s) of public.% hold an item the catalogue no longer has (%): a human decides', v_n, v_t, left(v_ids, 300); end if;
+    end if;
+  end loop;
 end $mig$;
 
 
@@ -3510,57 +3515,30 @@ AS $function$
 $function$;
 
 
--- ── §6 HELD STATE THE CUT REMOVES, JOURNALLED (nothing converts: 09 4.11 row 1, CLAUDE.md section 1) ─────────────────────────────
--- One pass, one `admin` ledger row an account that held anything: the old trades' XP by skill, every stack of an item the catalogue
--- no longer has by item (bag, Storage, worn, an open hunt's bag, company stock, a market listing), then the pointers. A retried apply
--- finds nothing and writes nothing.
+-- ── §6 THE OLD TRADES' SKILL ROWS, JOURNALLED, AND THE POINTERS (nothing converts: 09 4.11 row 1, 4.12 server row) ─────────────
+-- Every player_skills row whose skill hr_skills no longer has leaves, one `admin` ledger row an account (intent one_town_work_cut, the
+-- XP removed by skill). Refused while ANY catalogue skill a hero still needs is missing: the combat skills and Inner Flame must be there,
+-- so an empty or broken hr_skills can never read as "every skill left". A retried apply finds nothing and writes nothing.
 do $mig$
-declare
-  r record; v_skills jsonb; v_items jsonb; v_list jsonb; v_rows bigint := 0; v_accts int := 0;
+declare r record; v_skills jsonb; v_slot int; v_accts int := 0;
 begin
-  for r in
-    select u.user_id, (select min(ps.slot) from public.player_state ps where ps.user_id = u.user_id) as slot
-      from (select s.user_id from public.player_skills s where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id)
-            union select i.user_id from public.player_inventory i where not exists (select 1 from public.hr_items t where t.item_id = i.item_id)
-            union select b.user_id from public.account_bank b where not exists (select 1 from public.hr_items t where t.item_id = b.item_id)
-            union select e.user_id from public.player_equipment e where not exists (select 1 from public.hr_items t where t.item_id = e.item_id)
-            union select h.user_id from public.hunt_bag h where not exists (select 1 from public.hr_items t where t.item_id = h.item_id)
-            union select c.user_id from public.company_stock c where not exists (select 1 from public.hr_items t where t.item_id = c.item_id)
-            union select m.user_id from public.market_listings m where not exists (select 1 from public.hr_items t where t.item_id = m.item_id)) u
-     order by u.user_id
-  loop
+  if (select count(*) from public.hr_skills k where k.skill_id in ('melee', 'ranged', 'magic', 'defense', 'inner_flame')) <> 5 then
+    raise exception 'PRECONDITION: hr_skills lacks a combat skill or Inner Flame; refusing to read it as the list of skills that left'; end if;
+  for r in select distinct s.user_id from public.player_skills s
+            where s.skill_id in ('mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'crafting', 'smithing', 'runecrafting')
+              and not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id) loop
     with gone as (delete from public.player_skills s
-                   where s.user_id = r.user_id and not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id)
-               returning s.skill_id, s.xp)
-    select jsonb_object_agg(g.skill_id, g.xp) into v_skills from (select skill_id, sum(xp)::bigint as xp from gone group by skill_id) g;
-    with d1 as (delete from public.player_inventory i where i.user_id = r.user_id
-                  and not exists (select 1 from public.hr_items t where t.item_id = i.item_id) returning i.item_id, i.qty),
-         d2 as (delete from public.account_bank b where b.user_id = r.user_id
-                  and not exists (select 1 from public.hr_items t where t.item_id = b.item_id) returning b.item_id, b.qty),
-         d3 as (delete from public.player_equipment e where e.user_id = r.user_id
-                  and not exists (select 1 from public.hr_items t where t.item_id = e.item_id) returning e.item_id, 1::bigint as qty),
-         d4 as (delete from public.hunt_bag h where h.user_id = r.user_id
-                  and not exists (select 1 from public.hr_items t where t.item_id = h.item_id) returning h.item_id, h.qty_left as qty),
-         d5 as (delete from public.company_stock c where c.user_id = r.user_id
-                  and not exists (select 1 from public.hr_items t where t.item_id = c.item_id) returning c.item_id, c.qty)
-    select jsonb_object_agg(g.item_id, g.qty) into v_items
-      from (select x.item_id, sum(x.qty)::bigint as qty
-              from (select * from d1 union all select * from d2 union all select * from d3 union all select * from d4 union all select * from d5) x
-             group by x.item_id) g;
-    with d as (delete from public.market_listings m where m.user_id = r.user_id
-                 and not exists (select 1 from public.hr_items t where t.item_id = m.item_id) returning m.id, m.item_id, m.qty, m.fee)
-    select jsonb_agg(jsonb_build_object('listing', d.id, 'item_id', d.item_id, 'qty', d.qty, 'fee', d.fee) order by d.id) into v_list from d;
-    delete from public.player_item_rules p where p.user_id = r.user_id and not exists (select 1 from public.hr_items t where t.item_id = p.item_id);
-    if (v_skills is not null or v_items is not null or v_list is not null) and r.slot is not null then
-      insert into public.player_ledger (user_id, slot, kind, intent, meta)
-        values (r.user_id, r.slot, 'admin', 'one_town_work_cut',
-                jsonb_strip_nulls(jsonb_build_object('skills', v_skills, 'items', v_items, 'listings', v_list,
-                  'why', '09-crafting.md 4.11 row 1: the job slice is the town work; the old bench, its trades and its goods leave, nothing converts')));
-      v_rows := v_rows + 1;
-    end if;
+                   where s.user_id = r.user_id
+                     and s.skill_id in ('mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'crafting', 'smithing', 'runecrafting')
+                     and not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id)
+               returning s.slot, s.skill_id, s.xp)
+    select jsonb_object_agg(g.slot::text || ':' || g.skill_id, g.xp), min(g.slot) into v_skills, v_slot from gone g;
+    insert into public.player_ledger (user_id, slot, kind, intent, meta)
+      values (r.user_id, v_slot, 'admin', 'one_town_work_cut', jsonb_build_object('skills', v_skills,
+              'why', '09-crafting.md 4.11 row 1: the job slice is the town work; the old trades leave, nothing converts'));
     v_accts := v_accts + 1;
   end loop;
-  raise notice 'one-town-work cut: % account(s) held old trades or goods the catalogue no longer has, % journalled', v_accts, v_rows;
+  raise notice 'one-town-work cut: % account(s) held old trade rows, each journalled', v_accts;
 end $mig$;
 
 -- THE POINTERS. A gather pointer, and an artisan pointer that is no hearth run, go to idle (the work since its last settle is the
@@ -3654,7 +3632,8 @@ begin
     raise exception 'VERIFY(a): the boards still list an old trade: %', public.hr_lb_skills(); end if;
 
   -- (b) THE HELD STATE: no hero row names a skill or an item the catalogue no longer has, and no pointer names the bench
-  if exists (select 1 from public.player_skills s where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id))
+  if exists (select 1 from public.player_skills s where s.skill_id in ('mining', 'woodcutting', 'fishing', 'farming', 'cooking', 'crafting', 'smithing', 'runecrafting')
+                and not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id))
      or exists (select 1 from public.player_inventory i where not exists (select 1 from public.hr_items x where x.item_id = i.item_id))
      or exists (select 1 from public.account_bank b where not exists (select 1 from public.hr_items x where x.item_id = b.item_id))
      or exists (select 1 from public.player_equipment e where not exists (select 1 from public.hr_items x where x.item_id = e.item_id))

@@ -2994,7 +2994,7 @@ begin
     from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure and prosecdef;
   if v_n is distinct from 1 then raise exception 'VERIFY(e): hr_apply carries % WORK-BLOCKS-MIDNIGHT edits or is no security definer (want 1)', v_n; end if;
   if md5(replace((select prosrc from pg_proc where oid = 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)'::regprocedure), chr(13), ''))
-     <> '10bfc07dd1c5bc243d847824bc7ca149' then
+     not in ('10bfc07dd1c5bc243d847824bc7ca149', '1fa68e8369dfa6ae73d105f8815932a9') then   -- this file's, or 1079-one-town-work-cut.sql's (it keeps this edit; the count above is 1)
     raise exception 'VERIFY(e): hr_apply is not this file''s image'; end if;
   if position('hr_work_fold(p_day, p_used, p_from, p_to, p_base, p_extra, p_today, ''{}''::jsonb)' in
               (select prosrc from pg_proc where oid = 'public.hr_work_fold(date,bigint,timestamp with time zone,timestamp with time zone,bigint,bigint,date)'::regprocedure)) = 0 then

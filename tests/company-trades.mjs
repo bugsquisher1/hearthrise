@@ -18,8 +18,8 @@
 //              seven-argument one its answer with none); workStopMs is where the day runs out: the fold to it fits and a minute past
 //              it does not; workStateOf reads the section's `bought` (yesterday's kept, today's and later dropped).
 //   (CT-SHARED RETIRED, lane/bench-cut-server 2026-11-28, 09-crafting.md 4.17: its subject, 1059's projection of company_trades onto
-//              every hero's player_skills row, never ships; the company's one trade store is company_trade_xp, and one company
-//              crediting it on both doors is tests/trade-jobs.mjs TJ-BOTH. Its unique catch, the trigger's fan-out, left with the trigger.)
+//              every hero's player_skills row, never ships; the company's one trade store is company_trade_xp. Its unique catch, two
+//              heroes of one company crediting one total on both doors, is RE-AIMED: tests/trade-jobs.mjs TJ-COMPANY and its mutants.)
 //   CT-OPEN    WINDOW OPEN: a hero with 10 minutes of town work left mines; a viewed settle four minutes in continues, the next one ends
 //              the job at the day's end (journal `work_cap`), the day's work reads its cap to the action, and nothing pays after.
 //   CT-CLOSED  BROWSER CLOSED: the same on the world tick (10 s polls folded into 90 s flushes, the day carried between polls): the

@@ -6,7 +6,6 @@
       "bag_rules",
       "bank",
       "bench_run",
-      "bench_tax",
       "blessings",
       "boss_halls",
       "bounty",
@@ -84,7 +83,6 @@
       "trade_jobs",
       "training",
       "traits",
-      "unlocked_recipes",
       "version",
       "vitals",
       "watched",
@@ -118,5 +116,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-27"
+  "generatedAt": "2026-11-28"
 }

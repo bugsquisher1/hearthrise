@@ -57,7 +57,6 @@
   "hr_party_hold_set(p_slot integer, p_seat integer, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
   "hr_party_leave_together_set(p_slot integer, p_on boolean, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
   "hr_put_client_state(p_slot integer, p_patch jsonb, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
-  "hr_recipe_learn(p_item text, p_slot integer, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
   "hr_set_presence_quiet(p_slot integer, p_quiet boolean)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
   "hr_storage_chest_build(p_slot integer, p_chest text, p_price bigint, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",
   "hr_tally_accept(p_slot integer, p_task text, p_weight text, p_idem uuid)": "pinned 2026-11-19 (rule 11 lands): answers without the envelope, so the client re-reads with hr_load",

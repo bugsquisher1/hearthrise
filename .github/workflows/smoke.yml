@@ -7665,6 +7665,8 @@ jobs:
         run: |
           node tools/gen-jewelry.mjs --check
           node tools/mutant-gate.mjs node tools/gen-jewelry.mjs --selftest
+          node tests/jewelry-rolls.mjs
+          node tools/mutant-gate.mjs node tests/jewelry-rolls.mjs --mutate
           node tests/jewelry-sources.mjs
           node tools/mutant-gate.mjs node tests/jewelry-sources.mjs --mutate
           node tools/world-art/jewelry-icons.mjs --check
@@ -8330,6 +8332,12 @@ jobs:
         run: npm install --no-audit --no-fund
 
       # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/one-town-work-cut.mjs
+      - name: Bench cut - the hearth's Storage take, nothing of a player's goods deleted, the old trades journalled, the switch lit last
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/one-town-work-cut.mjs
+          node tools/mutant-gate.mjs node tests/one-town-work-cut.mjs --mutate
       # tests/time-offer-card.mjs
       - name: Block offer card - shown when the server offers, buttons off until it answers, gone for good after an answer
         if: ${{ !cancelled() }}

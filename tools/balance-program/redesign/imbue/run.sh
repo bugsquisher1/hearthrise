@@ -7,6 +7,7 @@
 # from hour 4, 12 seeds paired on the same dice. Each set against the same four wearing nothing:
 #   k-plain / k-fire   Krell's Hold, Level 97: Brute Edge 70, Fire Ward 45, Life Leech 50 (im-krell-fire: the tree since items 1 and 2)
 #   k-curve            the same as ruled (lane/designer-imbue-i3, 21 D-21): the Life Leech read at its band by the contest curve (im-krell-curve)
+#                      (since lane/imbue-d21-d22 the engine's own Leech line: a fresh k-fire and k-curve play one set)
 #   m-plain / m-fire   Muster Barrows, Level 60: Brute Edge 70, Fire Ward 45, Mana Leech 55 (im-muster-fire)
 #
 # The Krell's Hold steps play KSEEDS (36) seeds: on 12 the plain four drew four seeds trapped one fall down (held 28 to 32) and the set

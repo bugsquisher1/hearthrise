@@ -9,7 +9,8 @@
 // Life Leech: HP, through the heal cut (heal-cut.js healTaken: Withered), never past max HP; a `heal` event naming the imbuement, from the
 // hero to itself (the tally's self heal, tally.js). Mana Leech: mana, never past max mana, carried on the blow's `dmg` event as `back` (the
 // tally's mana in). The remainder is carried whatever the cap took, so a 30 HP swing at 20 permille pays 0, 1, 0, 1, 1 over five blows.
-// No contest curve: the share is of the blow, which already reads the hero (21 D-18); a Leech past wearAhead under its band plays nothing.
+// pm reads its band by the contest curve like every imbuement (21 D-21, imbue.js leechOf: leech.pm x c, whole, at least 1; a band 50 Life
+// Leech heals 20 permille to Level 50, 17 at 97, 12 at 200); a Leech past wearAhead under its band plays nothing.
 //
 // PERSISTED on the unit as `leechMilli` (world-state.js composes it), like `shield`: the carry survives every settle cut, so a closed hunt
 // (90 s windows) and a viewed one (30 s windows) heal the same HP on the same blows (world-step#split-parity; tests/worn-imbues-db.mjs).

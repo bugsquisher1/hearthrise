@@ -1,7 +1,7 @@
 {
  "schema": "hearthrise.balance-candidate/1",
  "id": "im-krell-fire",
- "why": "lane/designer-imbue-calls (21 section 11 rulings D-16 to D-18), the tree since lane/imbue-engine built items 1 and 2: every hero of the four wears brute_edge (band 70), fire_ward (band 45), life_leech (band 50); each conditional imbuement fires at its measured fire size x the contest curve (Brute Edge 5, Fire Ward 11) over its rated room of 2, and the Life Leech heals 20 permille of each blow its wearer lands, the remainder carried. I3 on Krell's Hold: a set of three that all fire",
+ "why": "lane/designer-imbue-calls (21 section 11 rulings D-16 to D-18), the tree since lane/imbue-engine built items 1 and 2: every hero of the four wears brute_edge (band 70), fire_ward (band 45), life_leech (band 50); each conditional imbuement fires at its measured fire size x the contest curve (Brute Edge 5, Fire Ward 11) over its rated room of 2, and the Life Leech heals 20 permille x the contest curve of each blow its wearer lands (17 at Level 97 since lane/imbue-d21-d22, 21 D-21), the remainder carried. I3 on Krell's Hold: a set of three that all fire",
  "base": "tree",
  "edits": [
   {

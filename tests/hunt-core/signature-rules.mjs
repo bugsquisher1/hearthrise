@@ -103,7 +103,7 @@
 //                     within 1 tile is Parried at once; not one at an ally 2 tiles off, nor by a monster out of reach
 //   gash-whetted      Troll Picker's Hooks (`min`, Whetted): a Gash that Bleeds 3 Whets the wearer's next Rend +40%; 2 nothing
 //   power-braced      #33 Teamster's Mitts (Braced, a hero's `once` on the taken side): Power Strike Braces, the next blow at half, spent
-//   earth-shell-raise #26 Thrower's Ring (`raise`): Earth rune shells +30%; a Water heal and an Earth strike as written
+//   earth-shell-raise #26 Thrower's Ring (`raise`): Earth rune shells twice as strong; a Water heal and an Earth strike as written
 //   windup-blunt      #42 Night Carter's Boots (`windup`): a wind-up begun at an ally under half Blunts its caster, the landing at half
 //   circle-again      #18 Brewer's Apron (a heal `to: 'again'`): Circle of Renewal heals the hurt ally lowest on health a second time
 //   rune-save         #25 The Cold Candle (`saves.of`): Frost Lance alone saves its rune, Hoarfrost pays (case above, reshaped)
@@ -1477,7 +1477,7 @@ const cases = {
     return null;
   },
   'earth-shell-raise': (M) => {
-    /* #26 Thrower's Ring (re-specced: a standing raise): the wearer's Earth rune shells land 30% more (Protective Ward); its Water heals, and
+    /* #26 Thrower's Ring (re-specced: a standing raise): the wearer's Earth rune shells land twice as much (Protective Ward; 30% until its reading, lane/signatures-batch-5); its Water heals, and
        an Earth rune strike (Stagger, on a hammer wearing the ring), land as written */
     const play = (worn, move, role) => {
       const u = H(M, 1, 10, 3, role, { mana: 9000, maxMana: 9000, maxHit: 60, hp: 1000, maxHp: 1000 }), a = H(M, 2, 11, 3, 'tank', { hp: 500, maxHp: 50000 });
@@ -1496,14 +1496,14 @@ const cases = {
     const [wW, wP, hW, hP, sW, sP] = [play(true, 'protective_ward', 'healer'), play(false, 'protective_ward', 'healer'), play(true, 'greater_mend', 'healer'),
       play(false, 'greater_mend', 'healer'), play(true, 'stagger', 'melee_dps'), play(false, 'stagger', 'melee_dps')];
     if (!(wP.shield > 0) || !(hP.hp > 500) || !(sP.power > 0)) return 'CONTROL: ' + JSON.stringify([wP, hP, sP]);
-    if (wW.power !== Math.floor((wP.power * 1300) / 1000) || !(wW.shield > wP.shield)) return 'the Ring\'s Protective Ward cast at ' + wW.power + ' for a shell of ' + wW.shield + ' (want 30% over ' + wP.power + ', more than ' + wP.shield + ')';
+    if (wW.power !== Math.floor((wP.power * 2000) / 1000) || !(wW.shield > wP.shield)) return 'the Ring\'s Protective Ward cast at ' + wW.power + ' for a shell of ' + wW.shield + ' (want twice ' + wP.power + ', more than ' + wP.shield + ')';
     if (hW.power !== hP.power || hW.hp !== hP.hp) return 'a Water heal under the Ring: ' + JSON.stringify([hW, hP]);
     if (sW.power !== sP.power) return 'an Earth rune strike under the Ring cast at ' + sW.power + ' (want ' + sP.power + ': shells only)';
     /* (every shell today spends an Earth rune, so the family is read on a planted shell of another: a Water rune ward) */
     const u = H(M, 1, 10, 3, 'healer');
     wear(M, u, 'throwers_ring');
     const ward = M.AD.ABILITIES.protective_ward;
-    if (M.SCA.castRaiseOf(u, ward) !== 300 || M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) !== 0) return 'the Ring raises an Earth ward by ' + M.SCA.castRaiseOf(u, ward) + ' and a Water one by ' + M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) + ' (want 300, 0)';
+    if (M.SCA.castRaiseOf(u, ward) !== 1000 || M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) !== 0) return 'the Ring raises an Earth ward by ' + M.SCA.castRaiseOf(u, ward) + ' and a Water one by ' + M.SCA.castRaiseOf(u, Object.assign({}, ward, { rune: M.AD.ABILITIES.greater_mend.rune })) + ' (want 1000, 0)';
     return null;
   },
   'windup-blunt': (M) => {
@@ -1926,7 +1926,7 @@ const mutants = [
   { name: 'a standing raise is never read', case: 'earth-shell-raise', edits: [[AB, "+ (typeof u.signature === 'string' ? castRaiseOf(u, row) : 0);", '+ 0;']] },
   { name: 'a raise reads every Earth cast', case: 'earth-shell-raise', edits: [[SCA, " || (r.of === 'shell' && !shells(row))) return 0;", ') return 0;']] },
   { name: 'a raise reads any family', case: 'earth-shell-raise', edits: [[SCA, 'if (!r || familyOf(row) !== r.family ||', 'if (!r ||']] },
-  { name: 'the Ring at 50%', case: 'earth-shell-raise', edits: [[SG, "raise: { family: 'earth', pm: 300, of: 'shell' }", "raise: { family: 'earth', pm: 500, of: 'shell' }"]] },
+  { name: 'the Ring at 30%', case: 'earth-shell-raise', edits: [[SG, "raise: { family: 'earth', pm: 1000, of: 'shell' }", "raise: { family: 'earth', pm: 300, of: 'shell' }"]] },
   { name: 'a wind-up queues no moment', case: 'windup-blunt', edits: [[MSP, "  if (isHero(t)) for (const h of reactorsOf(inst)) if (h !== t && isAlly(h, t)) queueOn(inst, h, 'windup', { t, src: u });\n", '']] },
   { name: 'a wind-up at the wearer counts', case: 'windup-blunt', edits: [[MSP, 'if (h !== t && isAlly(h, t)) queueOn(inst, h, \'windup\'', 'if (isAlly(h, t) || h === t) queueOn(inst, h, \'windup\'']] },
   { name: 'the Boots read any ally\'s wind-up', case: 'windup-blunt', edits: [[SG, "{ on: 'windup', belowPm: 500, do: 'status', status: 'blunted' }", "{ on: 'windup', do: 'status', status: 'blunted' }"]] },

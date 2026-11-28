@@ -43,6 +43,8 @@ if [ -n "$REPLAY" ]; then
   SEEDS=2 run b5r-muster-bracers   muster_barrows 60 $X --signatures -,brood_bracers,-,-
   SEEDS=2 run b5r-muster-leggings  muster_barrows 60 $X --signatures -,-,-,lychgate_leggings
   SEEDS=2 RISK=bold run b5r-muster-cloak muster_barrows 60 $X --signatures -,-,-,hearth_masons_cloak
+  # (lane/signatures-batch-5: the row it raised, Thrower's Ring at twice as strong, against b5w-muster-ring100's first two seeds)
+  SEEDS=2 run b5r-muster-ring      muster_barrows 60 $X --signatures -,-,-,throwers_ring
   exit 0
 fi
 # ── THE PLAINS PLAYED HERE ──
@@ -147,5 +149,9 @@ run b5w-muster-hooks2       muster_barrows 60 $A --add-moves gash@t,-,-,- --sign
 # (a scratch status zz_whetted100 beside Whetted: the next Rend doubled)
 run b5w-muster-hooks100     muster_barrows 60 $A --add-moves gash@t,-,-,- --signatures zz_hooks100,-,-,-
 run b5w-muster-ring100      muster_barrows 60 $X --signatures -,-,-,zz_ring100
+# (the Breeches with no reach to the ally: a monster beside the sword winding up at any other hero, the tip's own words; on the sword four
+#  no ally stands within a tile of the sword, so `within: 1` never fires there)
+run b5w-roost-breeches-any  wyvern_roost 140 $SW --add-moves parry@t,-,-,- --signatures zz_breeches_any,-,-,-
+run b5w-pyre-breeches-any   pyre_field 80 $S --add-moves parry@t,-,-,- --signatures zz_breeches_any,-,-,-
 run b5w-muster-signet-sick  muster_barrows 60 $X --signatures -,zz_signet_sick,-,-
 run b5w-muster-signet-armor muster_barrows 60 $X --signatures -,zz_signet_armor,-,-

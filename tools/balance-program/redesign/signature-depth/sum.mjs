@@ -435,19 +435,24 @@ const ROWS5S = [
   ['#29 Fledgling Claw (axes): Bleed to 6, as built, Gash on the bar', 'pace', ['Muster Barrows', 'b5s-muster-axes-gash', 'b5s-muster-claw'], ['the Flooded Wing', 'b5s-flood-axes-gash', 'b5s-flood-claw']],
   ["#33 Teamster's Mitts (sword): Power Strike, the next blow you take at half", 'pace', ['Muster Barrows, the sword four', 'b4s-muster-sword', 'b5s-muster-mitts-sword'], ['Muster Barrows, the tank four', 'b3-muster-tank', 'b5s-muster-mitts-tank']],
   ["#33 the same, 24 seeds", 'pace', ['Muster Barrows, the sword four', 'b5s-muster-sword24', 'b5s-muster-mitts24'], null],
-  ["#26 Thrower's Ring (healer): Earth rune shields you cast 30% stronger", 'pace', ['Muster Barrows, the healer', 'b3-muster-mixed', 'b5s-muster-ring-healer'], ['Muster Barrows, the tank (+ Shelter)', 'b5s-muster-tank-shelter', 'b5s-muster-ring-tank']],
-  ["#42 Night Carter's Boots (healer): a wind-up at an ally under half lands at half", 'pace', ['the Bone Wing', 'b5-bone-mixed', 'b5s-bone-boots'], ['the Flooded Wing, the axes four', 'b5-flood-axes', 'b5s-flood-boots']],
-  ["#42 the same, Pyre Field", 'pace', ['Pyre Field', 'b3-pyre-mixed', 'b5s-pyre-boots'], null],
+  /* (RAISED by the size bar's rule: read from its shape's report, REPLAY=1 plays its first two seeds by its real id) */
+  ["#26 Thrower's Ring (healer): Earth rune shields you cast twice as strong", 'pace', ['Muster Barrows, the healer', 'b3-muster-mixed', 'b5w-muster-ring100'], null],
+  ["#42 Night Carter's Boots (healer): a wind-up at an ally under half lands at half", 'pace', ['Pyre Field', 'b3-pyre-mixed', 'b5s-pyre-boots'], ['the Flooded Wing, the axes four', 'b5-flood-axes', 'b5s-flood-boots']],
+  ["#42 the same, its third ground", 'pace', ['the Bone Wing', 'b5-bone-mixed', 'b5s-bone-boots'], null],
   ["#18 Brewer's Apron (healer): Circle of Renewal heals the lowest hurt ally again, 36 seeds", 'pace', ["Carter's Rest, its home", 'b4-carters-mixed36', 'b5s-carters-apron36'], null],
   ['#25 The Cold Candle (mage, coin): Frost Lance uses no runes, by its real id', 'coin', ['Muster Barrows', 'b3-muster-mixed4', 'b5s-muster-candle'], null],
 ];
 /* the shapes batch 5's build tried on a row out of band (b5w-*: temporary ids on a scratch copy, batch5.sh): [label, kind, plain, worn] */
 const VARIANTS5S = [
+  ["#26 Thrower's Ring as specced, 30% stronger (Muster, the healer)", 'pace', 'b3-muster-mixed', 'b5s-muster-ring-healer'],
+  ["#26 the same, the tank four's tank (+ Shelter) (Muster)", 'pace', 'b5s-muster-tank-shelter', 'b5s-muster-ring-tank'],
   ["#8 Stable Troll's Maul, 25% a wind-up (Carter's Rest, 36 seeds)", 'pace', 'b5s-carters-stagger36', 'b5w-carters-maul25'],
   ["#8 Stable Troll's Maul, 40% a wind-up (Carter's Rest, 36 seeds)", 'pace', 'b5s-carters-stagger36', 'b5w-carters-maul40'],
   ["#48 Troll Picker's Hooks, Gash hits 2 or more (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks2'],
   ["#48 Troll Picker's Hooks, Gash hits 3 or more: the next Rend doubled (Muster)", 'pace', 'b5s-muster-axes-gash', 'b5w-muster-hooks100'],
   ["#26 Thrower's Ring, Earth rune shields 100% stronger (Muster, the healer)", 'pace', 'b3-muster-mixed', 'b5w-muster-ring100'],
+  ['#47 Ledgehide Breeches, a monster beside you winding up at any other hero (no reach to the ally) (Wyvern Roost)', 'pace', 'b5s-roost-sword-parry', 'b5w-roost-breeches-any'],
+  ['#47 the same (Pyre Field)', 'pace', 'b5s-pyre-sword-parry', 'b5w-pyre-breeches-any'],
   ['#38 Drowned Signet, a monster hits an ally under 45%: Sickened (takes 10% more, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-sick'],
   ['#38 Drowned Signet, the same: its armor a quarter less (Armor Break, 6 s) (Muster, the ranger)', 'pace', 'b3-muster-mixed', 'b5w-muster-signet-armor'],
 ];

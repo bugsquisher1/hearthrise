@@ -240,8 +240,10 @@ export const SIGNATURES = Object.freeze({
     reacts: [{ on: 'cast', family: 'ice', do: 'boon', to: 'self', status: 'stoked' }] }),
   throwers_ring: sig({ id: 'throwers_ring', n: 26, name: 'Thrower\'s Ring', slot: 'ring', family: 'earth',
     home: { kind: 'monster', id: 'slate_thrower' }, best: { seat: 'healer', ground: 'muster_barrows' },
-    tip: 'Earth rune shields you cast are 30% stronger',
-    raise: { family: 'earth', pm: 300, of: 'shell' }, reacts: [] }),
+    /* (RAISED from 30%, lane/signatures-batch-5: 30% read -3.9 (3.1) pace steps on the Muster healer, twice as strong 7.7 (3.3): 15 "Batch
+       5, built and measured") */
+    tip: 'Earth rune shields you cast are twice as strong',
+    raise: { family: 'earth', pm: 1000, of: 'shell' }, reacts: [] }),
   the_cold_candle: sig({ id: 'the_cold_candle', n: 25, name: 'The Cold Candle', slot: 'necklace', family: 'ice',
     home: { kind: 'monster', id: 'keeper_dunn' }, best: { seat: 'mage', ground: 'muster_barrows' },
     tip: 'Frost Lance uses no runes',
@@ -271,7 +273,7 @@ export const SIGNATURES = Object.freeze({
     tip: 'Your target boss below 25% health: you and your party deal 15% more damage for 10 s (once per boss)',
     reacts: [{ on: 'hit', boss: true, belowPm: 250, do: 'boon', to: 'party', status: 'emboldened', pw: 1500, ms: 10000, clockMs: 600000, per: 'target' }] }),
   night_carters_boots: sig({ id: 'night_carters_boots', n: 42, name: 'Night Carter\'s Boots', slot: 'boots',
-    home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'healer', ground: 'catacomb_bone_wing' },
+    home: { kind: 'monster', id: 'night_carter' }, best: { seat: 'healer', ground: 'pyre_field' },
     tip: 'When a monster winds up a blow at an ally below half health, that blow lands at half',
     reacts: [{ on: 'windup', belowPm: 500, do: 'status', status: 'blunted' }] }),
   bulls_tooth: sig({ id: 'bulls_tooth', n: 43, name: 'Bull\'s Tooth', slot: 'earrings',

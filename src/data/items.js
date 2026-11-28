@@ -676,7 +676,7 @@ export const ITEMS={
   /* bands 2 and 3's heads (lane/kit-bands-2-3, 09 4.14): forged from one Steel or one Mithril Bar, booked under it the same way */
   steel_arrowheads: {n:'Steel Arrowheads', icon:'🔺', v:100},
   mithril_arrowheads: {n:'Mithril Arrowheads', icon:'🔺', v:200},
-  /* band 4's rock and head (lane/kit-bands-4-5, 09 4.15): Rune Ore smelts to one Rune Bar, booked a tenth of it like Mithril Ore; the head
+  /* band 4's rock and head (lane/kit-bands-4-5, 09 4.15): Rune Ore smelts to one Rune Bar, booked between Mithril Ore's 40 and Emberstone Ore's 55; the head
      is forged from one Rune Bar and booked under it the same way */
   rune_ore: {n:'Rune Ore', icon:'🔷', v:50},
   rune_arrowheads: {n:'Rune Arrowheads', icon:'🔺', v:400},

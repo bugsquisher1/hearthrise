@@ -15,6 +15,9 @@
 --     stays a null column with no reader while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay, since that file writes it.
 --   hr_item_levels (395 gear rows: the iL a scale ground's drop carries, else its Level requirement)
 --   hr_imbue_rules (5 rows), hr_imbue_levers (1 row), hr_loot_rules (1 row), hr_carry_rules (1 row)
+--     hr_imbue_levers.ramp_level has no reader once 1078-imbue-fee-timer.sql lands (the fee reads the band, 21 D-19). It stays, written,
+--     while 1063-flame-temper-catalogue.generated.sql (STAGED) is in the replay: that file's insert names it (not null) and its piece and
+--     ramp hr_imbue_fee(int, int), which 1063-flame-temper.sql, 1071 and 1077 call before 1078 drops it, reads it.
 -- Internal twins (no client role): hr_flame_decay_ppm, hr_flame_room_mpts, hr_flame_burst_mpts, hr_flame_luck_pm, hr_flame_top_rank_pm,
 --   hr_flame_level_of, hr_flame_decay, hr_flame_worth_mpts, hr_flame_burn_units, hr_flame_stoke_clamp, hr_flame_walk (the settle's walk,
 --   lane/f1-inner-flame: 1074-inner-flame-luck.sql reads it); hr_temper_rank_mh, hr_temper_rank_cap,
@@ -839,10 +842,13 @@ returns bigint language sql stable set search_path = public, pg_catalog as $fn$
               else (v.hours::bigint * 3600000 * (1000 + v.life_rung_pm * (array_position(v.qualities, p_quality) - 1))) / 1000 end
     from public.hr_imbue_levers v where v.id = 1
 $fn$;
-create or replace function public.hr_imbue_fee(p_item_level int, p_hero_level int)
+-- THE APPLY FEE AT THE BAND (src/core/imbue.js applyFee; lane/imbue-fee-timer, 21 D-19): fee_hours_pm of wage at the imbuement's band, no
+-- ramp, whole gold up. Never the worn piece's item Level nor the hero's Level. hr_imbue_apply charges it and the section `imbues` shows it
+-- (1078-imbue-fee-timer.sql), so the price a player reads is the price the verb takes. 1063's catalogue's hr_imbue_fee(int, int), the piece
+-- and ramp fee, stays callable for 1063-flame-temper.sql, 1071 and 1077 in the replay and is dropped by 1078.
+create or replace function public.hr_imbue_fee(p_band int)
 returns bigint language sql stable set search_path = public, pg_catalog as $fn$
-  select ceil(v.fee_hours_pm::numeric * public.hr_wage(greatest(1, coalesce(p_item_level, 1)))
-              * least(v.ramp_level, greatest(0, coalesce(p_hero_level, 0))) / (1000::numeric * v.ramp_level))::bigint
+  select ceil(v.fee_hours_pm::numeric * public.hr_wage(greatest(1, coalesce(p_band, 1))) / 1000::numeric)::bigint
     from public.hr_imbue_levers v where v.id = 1
 $fn$;
 -- THE BAND LOCK (src/core/imbue.js imbueStepsAt, which counts 0 past it): an imbuement of band b is worn by a hero of Level L only when
@@ -886,7 +892,7 @@ begin
       'public.hr_flame_walk(bigint,bigint,bigint,jsonb,jsonb,integer,jsonb)',
       'public.hr_temper_rank_mh(text,integer)', 'public.hr_temper_rank_cap(integer)', 'public.hr_temper_rank_quote(text,integer,integer)',
       'public.hr_temper_seat_price(text,integer,integer)', 'public.hr_temper_kit_at(integer)', 'public.hr_imbue_life_ms(text)',
-      'public.hr_imbue_fee(integer,integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
+      'public.hr_imbue_fee(integer)', 'public.hr_imbue_wearable(integer,integer)', 'public.hr_hero_chance(double precision,integer,integer)', 'public.hr_pity_chance(double precision,bigint)',
       'public.hr_pity_after(bigint,double precision,boolean)', 'public.hr_carry_fee(integer,integer)'] loop
     execute format('revoke execute on function %s from public, anon, authenticated, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
@@ -1248,80 +1254,24 @@ begin
     if public.hr_imbue_life_ms(v_r.q) <> v_r.ms then raise exception 'VERIFY(m): a % imbuement lasts % ms in SQL, % in JS', v_r.q, public.hr_imbue_life_ms(v_r.q), v_r.ms; end if;
   end loop;
   for v_r in select * from (values
-    (1, 0, 0::bigint),
-    (1, 39, 1009::bigint),
-    (1, 40, 1035::bigint),
-    (1, 79, 2044::bigint),
-    (1, 80, 2069::bigint),
-    (1, 120, 3104::bigint),
-    (1, 199, 5147::bigint),
-    (1, 200, 5173::bigint),
-    (1, 500, 5173::bigint),
-    (20, 0, 0::bigint),
-    (20, 39, 1089::bigint),
-    (20, 40, 1116::bigint),
-    (20, 79, 2205::bigint),
-    (20, 80, 2232::bigint),
-    (20, 120, 3348::bigint),
-    (20, 199, 5553::bigint),
-    (20, 200, 5580::bigint),
-    (20, 500, 5580::bigint),
-    (60, 0, 0::bigint),
-    (60, 39, 1277::bigint),
-    (60, 40, 1310::bigint),
-    (60, 79, 2586::bigint),
-    (60, 80, 2619::bigint),
-    (60, 120, 3928::bigint),
-    (60, 199, 6514::bigint),
-    (60, 200, 6546::bigint),
-    (60, 500, 6546::bigint),
-    (80, 0, 0::bigint),
-    (80, 39, 1383::bigint),
-    (80, 40, 1419::bigint),
-    (80, 79, 2801::bigint),
-    (80, 80, 2837::bigint),
-    (80, 120, 4255::bigint),
-    (80, 199, 7055::bigint),
-    (80, 200, 7091::bigint),
-    (80, 500, 7091::bigint),
-    (100, 0, 0::bigint),
-    (100, 39, 1498::bigint),
-    (100, 40, 1536::bigint),
-    (100, 79, 3034::bigint),
-    (100, 80, 3072::bigint),
-    (100, 120, 4608::bigint),
-    (100, 199, 7642::bigint),
-    (100, 200, 7680::bigint),
-    (100, 500, 7680::bigint),
-    (120, 0, 0::bigint),
-    (120, 39, 1623::bigint),
-    (120, 40, 1664::bigint),
-    (120, 79, 3286::bigint),
-    (120, 80, 3328::bigint),
-    (120, 120, 4991::bigint),
-    (120, 199, 8277::bigint),
-    (120, 200, 8318::bigint),
-    (120, 500, 8318::bigint),
-    (200, 0, 0::bigint),
-    (200, 39, 2233::bigint),
-    (200, 40, 2290::bigint),
-    (200, 79, 4522::bigint),
-    (200, 80, 4580::bigint),
-    (200, 120, 6869::bigint),
-    (200, 199, 11391::bigint),
-    (200, 200, 11448::bigint),
-    (200, 500, 11448::bigint),
-    (400, 0, 0::bigint),
-    (400, 39, 4961::bigint),
-    (400, 40, 5088::bigint),
-    (400, 79, 10048::bigint),
-    (400, 80, 10175::bigint),
-    (400, 120, 15262::bigint),
-    (400, 199, 25310::bigint),
-    (400, 200, 25437::bigint),
-    (400, 500, 25437::bigint)) p(il, l, g) loop
-    if public.hr_imbue_fee(v_r.il, v_r.l) <> v_r.g then raise exception 'VERIFY(n): the imbue fee at item Level % hero Level % is % in SQL, % in JS', v_r.il, v_r.l, public.hr_imbue_fee(v_r.il, v_r.l), v_r.g; end if;
+    (0, 5173::bigint),
+    (1, 5173::bigint),
+    (20, 5580::bigint),
+    (45, 6166::bigint),
+    (50, 6290::bigint),
+    (55, 6417::bigint),
+    (69, 6786::bigint),
+    (70, 6813::bigint),
+    (71, 6840::bigint),
+    (100, 7680::bigint),
+    (120, 8318::bigint),
+    (200, 11448::bigint),
+    (400, 25437::bigint)) p(b, g) loop
+    if public.hr_imbue_fee(v_r.b) is distinct from v_r.g then
+      raise exception 'VERIFY(n): the imbue fee at band % is % in SQL, % in src/core/imbue.js applyFee', v_r.b, public.hr_imbue_fee(v_r.b), v_r.g; end if;
   end loop;
+  if has_function_privilege('authenticated', 'public.hr_imbue_fee(integer)', 'execute') or has_function_privilege('anon', 'public.hr_imbue_fee(integer)', 'execute') then
+    raise exception 'VERIFY(n): a client role runs the imbue fee twin'; end if;
   for v_r in select * from (values
     ('0.5'::float8::float8, 1, 0, '0.5'::float8::float8),
     ('0.5'::float8::float8, 4, 0, '0.125'::float8::float8),

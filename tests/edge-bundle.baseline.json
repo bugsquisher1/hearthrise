@@ -670,9 +670,14 @@
         "why": "signatures-batch-3 on the set with designer-imbue-calls: 15 Signature rules (signature-rules.js, reactions.js, abilities.js) plus their data"
       },
       {
-        "bytes": 4028560,
+        "bytes": 4020595,
         "on": "2026-11-28",
-        "why": "lane/imbue-engine on the set with signatures-batch-3 (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
+        "why": "designer-sig-batch4: reshaped Signature rows and the stoked status (signatures.js, statuses.js)"
+      },
+      {
+        "bytes": 4030299,
+        "on": "2026-11-28",
+        "why": "lane/imbue-engine on the set with imbue-fee-timer and signatures batch 4 (21 D-17, D-18): src/core/hunt/imbue-leech.js (the worn Leech's carried heal, a new persisted unit field) and src/core/imbue.js's fire size over the rated room, the conversion and the leech rule, with power-ledger.js's room clamp"
       }
     ]
   }

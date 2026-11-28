@@ -8,6 +8,8 @@
 
 export const TALENTS_TEXT = Object.freeze({
   tab: 'Talents',
+  /* the door while the map and its stylesheet load (src/shell/windows/talents.js) */
+  loading: 'Loading the map…',
   /* the points line: the server's points less its spent ones */
   points: 'Points: {count}',
   points_none: 'Points: 0',

@@ -25,13 +25,50 @@
 // until the hunt ends (off): the view plays the server's own windows a poll behind,
 // as it does before a start point lands, and the site is asked whether it serves a
 // newer build (`stale`: src/app/new-version.js raises the reload banner if so).
+//
+// THE ENGINE LOADS WHEN A HUNT IS VIEWED (lane/boot-path-diet, 2026-11-27). The prediction is the whole instance engine
+// (src/core/combat-sim.js and what only a hunt runs: Signature rules, reactions, the reward, trait and personal-loot rolls),
+// which a hero in town never runs; on the boot path every sign-in paid for it (tools/build-site.mjs SITE-10,
+// tests/module-preload.mjs MP-7). It is fetched the first time a viewed hero's hunt is open (join, from). Until it lands
+// `engine` is IDLE and predicts nothing, so the view plays the server's own windows exactly as it does before a start point
+// lands; a start point that came meanwhile is kept and seeds the engine when it arrives. `engine` keeps its identity (the
+// session's `live`, src/shell/hud-predict.js and the scene hold it): the engine's methods are copied onto it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { createLiveEngine } from '../hunt-view/live-engine.js';
 import { worldDiff } from '../hunt-view/live-diff.js';
 import { ITEMS } from '../data/items.js';
 import { MONSTERS } from '../data/monsters.js';
 import { SESSION_CONFIG } from './config.js';
+
+/* Not a literal import(): play.html's preload list (tests/module-preload.mjs MP-5) names every literal one, and every page would
+   fetch the engine. At this module's own stamp, so the engine's imports are the page's own instances (src/shell/windows/talents.js). */
+const ENGINE_URL = new URL('../hunt-view/live-engine.js', import.meta.url).href + new URL(import.meta.url).search;
+/* After a fetch that failed, the next viewed answer tries again at most this often (ms): a lost file never becomes a request a poll. */
+const ENGINE_RETRY_MS = 30000;
+let createEngine = null;
+let engineLoad = null;
+let engineFailedAt = -Infinity;
+
+/**
+ * Fetch the prediction's engine: once, and again after a failure at most every ENGINE_RETRY_MS. Resolves true once it is here.
+ * A LiveLink made after it resolved holds the engine from its first answer (the tests await it before they make one).
+ * @returns {Promise<boolean>}
+ */
+export function loadLiveEngine() {
+  if (createEngine) return Promise.resolve(true);
+  if (!engineLoad && Date.now() - engineFailedAt >= ENGINE_RETRY_MS) {
+    engineLoad = import(ENGINE_URL).then((m) => { createEngine = m.createLiveEngine; return true; },
+      () => { engineLoad = null; engineFailedAt = Date.now(); return false; });
+  }
+  return engineLoad || Promise.resolve(false);
+}
+
+/* The engine before it has loaded: no prediction runs, none ended, none failed, nothing seeded (the methods the link and its
+   readers call unguarded; every other reader asks `typeof engine.x === 'function'` first). */
+const IDLE = Object.freeze({
+  running: () => false, ended: () => false, stalled: () => false, failed: () => null, seededUntil: () => null,
+  seed: () => false, stop() {}, catchingUp: () => false, behindMs: () => 0,
+});
 
 export class LiveLink {
   /**
@@ -40,7 +77,13 @@ export class LiveLink {
    *   `asked`: `want` rose between answers (a held verdict went against the prediction): arm the next ask now
    */
   constructor(o) {
-    this.engine = createLiveEngine({ items: ITEMS, monsters: MONSTERS });
+    /** The prediction's engine: IDLE until it has loaded (_arm), then the engine itself, the same object throughout. */
+    this.engine = Object.assign({}, IDLE);
+    this._armed = false;
+    this._fetching = false;
+    /** The start point that came before the engine did (_take): it seeds the engine when it lands. */
+    this._pending = null;
+    if (createEngine) this._arm();
     this._tl = o.timeline;
     this._now = o.now;
     this._emit = o.emit;
@@ -69,6 +112,23 @@ export class LiveLink {
     this.settledToMs = null;
   }
 
+  /* THE ENGINE ON NEED: a viewed hero's hunt is open (join, from). */
+  _need() {
+    if (this._armed || this._fetching) return;
+    this._fetching = true;
+    loadLiveEngine().then((ok) => { this._fetching = false; if (ok) this._arm(); });
+  }
+
+  /* The engine is here: its methods onto `engine`, and the start point that came first, if the hunt is still viewed (off clears it). */
+  _arm() {
+    if (this._armed) return;
+    Object.assign(this.engine, createEngine({ items: ITEMS, monsters: MONSTERS }));
+    this._armed = true;
+    const p = this._pending;
+    this._pending = null;
+    if (p) this.from({ hunt_live: p });
+  }
+
   running() { return this.engine.running(); }
   /** The prediction ran to the instance's end (every member left) and waits for the server to close the hunt. */
   ended() { return this.engine.ended(); }
@@ -87,6 +147,7 @@ export class LiveLink {
    */
   join(pose) {
     if (this.failure !== null || this.engine.running() || this.engine.stalled()) return;
+    this._need();
     const live = SESSION_CONFIG.liveDelayMs;
     this._joining = true;
     this._tl.setDelay(live);
@@ -108,6 +169,7 @@ export class LiveLink {
   off() {
     if (this.engine.running() || this.engine.stalled() || this._joining) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
     this.want = false; this._tries = 0; this._joining = false; this.failure = null; this._catching = null; this._held = null;
+    this._pending = null;
   }
 
   /*
@@ -130,6 +192,7 @@ export class LiveLink {
 
   /** One server answer while a hunt is open. */
   from(body) {
+    this._need();
     this.hold(body.hunt && body.hunt.pose);   // joining: the answer's snapshot forgets what the server no longer lists
     const before = this.engine.seededUntil();
     this._take(body);
@@ -152,6 +215,8 @@ export class LiveLink {
     const now = this._tl.serverNowAt(this._now());
     if (body.hunt_live) {
       this.want = false;
+      /* the engine still on its way: the newest start point waits for it (_arm) */
+      if (!this._armed) { this._pending = body.hunt_live; return; }
       /* Not started, or out of seeds: (re)start from the server's world. A start point from an older
          commit leaves the prediction behind the clock, and advance() eases it on (catchUp). */
       if (!this.engine.running() && !this.engine.ended()) {

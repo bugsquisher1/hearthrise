@@ -46,7 +46,7 @@ Labels. CONFIRMED means read in the code at the baseline. MEASURED means a playe
 <!-- GENERATED:CENSUS (tools/balance-program/levers.mjs --write) -->
 | | Count |
 |---|---|
-| Top-level bindings in the rule code that hold a typed number | 758 (in 263 files, 17591 typed numbers) |
+| Top-level bindings in the rule code that hold a typed number | 758 (in 263 files, 17595 typed numbers) |
 | Claimed by a lever | 324 |
 | Claimed by a not-a-lever reason | 434 |
 | Unclaimed | 0 |
@@ -260,7 +260,7 @@ These are coverage gaps for BL-1 and the sensitivity lane. Each gap's reason is 
 | not-built | `spawn.gather-nodes` Gather nodes on hunting grounds | Spawn pacing and encounter composition | the hunt-gathering engine is not built |
 | not-built | `spell.answers` The answers to a wind-up: Parried's window and the push bound | Spell coefficients, costs, cooldowns and areas | no played bar slots Parry or Stagger yet: both are the player's picks, off every default bar (23 section 9 step 8 re-runs the move table) |
 | not-built | `spell.status-keys` Stacking keys: how one effect's sources count | Spell coefficients, costs, cooldowns and areas | no hero carries an add-key status yet |
-| not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
+| not-built | `spell.statuses-hidden` The hidden statuses (E2): Poison, Armor Break, Weakened, Silenced, Burning Ground, Guarded, Emboldened, Renewing, and the engine pieces: Mending, Echo, Sapped, Frozen Ground, Blunted, Kindled, Steeped, Stoked | Spell coefficients, costs, cooldowns and areas | hidden: no move, Trait or Signature lands them yet (the Roads, the Wraps) |
 | not-built | `temper.steps` Temper on steps: ranks by Level, price in hours of wage, the re-seat | Equipment stats and progression | the switch temper_steps is off and the Temper Kit is not an item. T1 measured with tools/balance-program/candidates/temper-5.json |
 | not-in-runs | `amount.blow-top` A hero's blow at a gap of 0, by weapon type | Base damage coefficients | played by the V1 probe. No matrix run plans a stance |
 | not-in-runs | `amount.defense-split` Armor and ward by armor weight | Armor and mitigation | played by the V1 probe. No matrix run plans a stance |

@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-27",
- "digest": "1103c120fc1de6a6531bf9c8261ce29a4fa7eb07aec1b0b975531dac2e04c8f8",
+ "generated": "2026-11-28",
+ "digest": "69cba105df2b2acb78e7d1397251800a8a3e8c9a225604fb2507e575dc6e52c3",
  "counts": {
   "relations": 386,
   "functions": 1004,
@@ -910,7 +910,7 @@
    "hr_hunt_weapon_of(p_user uuid, p_slot integer)",
    "hr_hunt_world_shape_moved()",
    "hr_imbue_apply(p_slot integer, p_equip_slot text, p_imbue text, p_price bigint, p_idem uuid)",
-   "hr_imbue_fee(p_item_level integer, p_hero_level integer)",
+   "hr_imbue_fee(p_band integer)",
    "hr_imbue_life_ms(p_quality text)",
    "hr_imbue_wearable(p_band integer, p_level integer)",
    "hr_imbues_view(p_user uuid, p_slot integer)",

@@ -152,6 +152,12 @@
         "gzipBytes": 206936,
         "on": "2026-11-28",
         "why": "designer-imbue-calls: imbue-rules.js fire sizes and validator (21 D-17)"
+      },
+      {
+        "modules": 10,
+        "gzipBytes": 202022,
+        "on": "2026-11-28",
+        "why": "a cut locked in"
       }
     ],
     "town": [
@@ -658,6 +664,18 @@
         "gzipBytes": 987635,
         "on": "2026-11-28",
         "why": "signatures-batch-3: 15 dark Signature rules in signature-rules.js/reactions.js on the client engine's import path (+2.1 KB); an import() pass for dark engine rules is owed"
+      },
+      {
+        "modules": 25,
+        "gzipBytes": 987639,
+        "on": "2026-11-28",
+        "why": "imbue-fee-timer: applyFee(band) in imbue.js on the town path (+<0.1 KB); lane/boot-path-diet is moving dark imbue code off this path"
+      },
+      {
+        "modules": 18,
+        "gzipBytes": 962290,
+        "on": "2026-11-28",
+        "why": "a cut locked in"
       }
     ]
   }

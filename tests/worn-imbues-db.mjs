@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // tests/worn-imbues-db.mjs — THE IMBUEMENTS A HERO WEARS ARE THE SERVER'S, AND RUN OUT AT ONE INSTANT ON BOTH DOORS (1077-worn-imbues.sql,
-// lane/worn-imbues, backend-architect, 2026-11-27; 21-flame-temper-imbue-loot.md sections 3 and 10, CLAUDE.md §1, §4 both paths, §6).
+// lane/worn-imbues, backend-architect, 2026-11-27; 21-flame-temper-imbue-loot.md sections 3 and 10, CLAUDE.md §1, §4 both paths, §6). Their
+// hours run only while worn and their fee is the band's (1078-imbue-fee-timer.sql, lane/imbue-fee-timer, 2026-11-28; 21 section 11, D-19, D-20).
 // The engine's half (the run-out instant, heroSetup's set surviving the engine's re-read) is tests/imbue.mjs IM-8.
 //
 //   node tests/worn-imbues-db.mjs            the guard
 //   node tests/worn-imbues-db.mjs --mutate   the proof: each planted SQL or edge defect turns its case red
-//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths|partyEnd|leech>   one case, or with --mutate that case's mutants
+//   node tests/worn-imbues-db.mjs --only <dark|projection|bothPaths|partyEnd|fee|leech>   one case, or with --mutate that case's mutants
 //                                            (WI_TRACE=1 prints the lit and dark fights)
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick (browser closed, the `fire` door, the 90 s flush) and the viewed hello
@@ -24,18 +25,24 @@
 //   WI-2 BOTH PATHS, AND THE RUN-OUT: lit, the closed hunt (three 90 s windows) and the viewed one (nine 30 s windows) from one anchor store
 //        the SAME world, bags, Level XP, tallies (damage dealt, taken, healed, kills) and worn rows; the Edge ran out inside a window on
 //        both doors (its row gone, the Ward's 270 s shorter); every live start point the viewer was handed carries the Edge to the one
-//        instant anchor + 90.037 s, then not at all; and the fight differs from the same four dark (the imbuements played).
+//        instant anchor + 90.037 s, then not at all; and the fight differs from the same four dark (the imbuements played). ONLY WHILE
+//        WORN (D-20): on both doors the second hero's Life Leech on a bare head and the third's Brute Edge in its helmet (another kind's
+//        slot) keep every hour: the fight plays neither, so neither runs.
 //   WI-3 THE PROJECTION: the read hands the leader its three, in equip-slot order, and every other hero its Edge alone (not a row on a
 //        bare head, not one in another kind's slot); the plan hands each hero each one to the read's settled_to plus its msLeft.
 //   WI-4 IN TOWN: lit, an apply while the hero hunts answers hunt_open and journals nothing.
 //   WI-5 A PARTY END MID-WINDOW (lane/imbue-timer-door): lit, the third hero's pool runs out at +100 s, inside a window on both doors,
-//        while the other three hunt on to 270 s: on each door its session settles to its end + 1 ms and its helmet row loses exactly
-//        that, the leader's rows lose the whole 270 s, and the two doors store the same heroes (CONFLICTS 2026-11-27 worn imbuements (5)).
-//   WI-6 A LIT LEECH FOUR (lane/imbue-engine, 21 D-18): every hero wears a Life Leech on a helmed head; the closed hunt (three 90 s windows)
+//        while the other three hunt on to 270 s: on each door its session settles to its end + 1 ms and its body's Fire Ward loses exactly
+//        that (its helmet's Edge, in another kind's slot, nothing), the leader's rows lose the whole 270 s, and the two doors store the
+//        same heroes (CONFLICTS 2026-11-27 worn imbuements (5)).
+//   WI-6 THE FEE AT THE BAND (D-19): lit, in town, the section shows Brute Edge at applyFee(70) = 6,813 on a Bronze and a Mithril sword
+//        at Levels 60 and 200; a price read off the worn piece is quote_changed and moves nothing; the band's price applies on each piece.
+//   WI-7 A LIT LEECH FOUR (lane/imbue-engine, 21 D-18): every hero wears a Life Leech on a helmed head; the closed hunt (three 90 s windows)
 //        and the viewed one (nine 30 s windows) store the same world and heroes (bags, Level XP, tallies), every hero healed by its Leech,
 //        and the stored world carries each hero's carry (src/core/hunt/imbue-leech.js leechMilli, 0 to 999 thousandths).
 //
 // mutant-anchors: supabase/migrations/1077-worn-imbues.sql supabase/functions/hr-accrue/hunt-settle.js src/core/combat-sim.js
+// mutant-anchors: supabase/migrations/1078-imbue-fee-timer.sql supabase/migrations/1069-gear-phase-b-flame-temper-catalogue.generated.sql
 // mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js supabase/migrations/2027-03-21-scaled-hunts.sql
 // mutant-anchors: src/core/hunt/world-state.js src/core/hunt/damage.js src/data/imbue-rules.js
 // ci-step: db-replay | Worn imbuements - the read's projection, both paths with a run-out mid-window, applied in town only (1077)
@@ -62,13 +69,13 @@ const LONG_MS = 72000000;
 const TANK = Object.freeze({ weapon: 'mithril_sword', shield: 'coppercap_shield', body: 'mithril_platebody', helmet: 'steel_helm' });
 const HAMMER = Object.freeze({ weapon: 'mithril_warhammer', shield: null, body: 'mithril_platebody', helmet: 'steel_helm' });
 const gearOf = (i) => (i === 0 ? TANK : i === 1 ? { ...HAMMER, helmet: null } : HAMMER);
-/* WI-6's four: every head helmed, so every hero's Leech sits on a piece and plays */
+/* WI-7's four: every head helmed, so every hero's Leech sits on a piece and plays */
 const helmedOf = (i) => (i === 0 ? TANK : HAMMER);
 const one = async (db, sql, params) => { const r = await db.query(sql, params); const row = r.rows[0]; return row ? row[Object.keys(row)[0]] : null; };
 const exec = (db) => async (text, params) => { await db.exec('set role hr_engine'); try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); } };
 
 /* the held step and the stance (danger-db's planWith), the worn rows, and the switch as the four enters. `leech`: every hero wears a Life
-   Leech on its helmet and nothing else (WI-6) in place of the mixed rows */
+   Leech on its helmet and nothing else (WI-7) in place of the mixed rows */
 const fixture = ({ lit, leech }) => async ({ db, uids, asUser, one: q, idem: id }) => {
   for (const uid of uids) {
     await db.query('insert into public.hunt_density (user_id, slot, hunt_id, density, danger_held) values ($1, 0, $2, 0, $3) on conflict (user_id, slot, hunt_id) do update set danger_held = excluded.danger_held', [uid, GROUND, HELD]);
@@ -139,7 +146,7 @@ async function dark(boot) {
   await r.db.query('begin');
   try {
     await r.db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [r.users[0]]);
-    const fee = Number(await one(r.db, "select public.hr_imbue_fee(public.hr_worn_level($1::uuid, 0, 'weapon'), public.hr_level_of($1::uuid, 0))", [r.users[0]]));
+    const fee = Number(await one(r.db, "select public.hr_imbue_fee(band) from public.hr_imbue_rules where imbue_id = 'brute_edge'"));
     const a = await one(r.db, "select public.hr_imbue_apply(0, 'weapon', 'brute_edge', $1::bigint, $2::uuid)", [fee, crypto.randomUUID()]);
     if (!a || a.error !== 'hunt_open' || !a.session) problems.push('WI-4 an apply while hunting answered ' + JSON.stringify(a).slice(0, 200));
     EVIDENCE.push('WI-4 an apply mid-hunt answered ' + (a && a.error));
@@ -203,6 +210,16 @@ async function bothPaths(boot, o = {}) {
       const got = await wornOf(r.db, r.users[0]);
       if (got !== want) problems.push('WI-2 the ' + name + ' leader\'s worn rows after the hunt are ' + got);
     }
+    /* ONLY WHILE WORN (1078-imbue-fee-timer.sql, 21 D-20): a row the fight never plays runs nothing on either door. The second hero's Life
+       Leech sits on a bare head and the third hero's helmet holds a Brute Edge (another kind's slot): each keeps every hour of 270 s */
+    const keeps = [[1, [{ equip_slot: 'helmet', imbue_id: 'life_leech', ms: String(LONG_MS) }], 'a Life Leech on a bare head'],
+      [2, [{ equip_slot: 'helmet', imbue_id: 'brute_edge', ms: String(LONG_MS) }], 'a Brute Edge in its helmet (another kind\'s slot)']];
+    for (const [name, r] of [['closed', closed], ['viewed', viewed]]) {
+      for (const [i, rows, what] of keeps) {
+        const got = await wornOf(r.db, r.users[i]);
+        if (got !== JSON.stringify(rows)) problems.push('WI-2 the ' + name + ' seat ' + (i + 1) + ' hero holds ' + got + ' of ' + what + ' after 270 s, want ' + JSON.stringify(rows) + ' (it plays nothing, so its hours do not run)');
+      }
+    }
     /* every live start point the viewer was handed: the Edge to the one instant, while it stands, then gone */
     const lives = (viewed.evidence.answers || []).map((x) => x.hunt_live).filter(Boolean);
     let carried = 0, after = 0;
@@ -244,6 +261,8 @@ async function partyEnd(boot, o = {}) {
         r = await door(db, which, { lit: true, edgeRoot: edge && edge.root, afterEnter: async (run) => {
           await db.query('update public.player_state set party_leave_together = false where user_id = any($1::uuid[]) and slot = 0', [run.users]);
           await db.query('update public.player_state set stamina_ms = $2, stamina_at = to_timestamp($3 / 1000.0) where user_id = $1 and slot = 0', [run.users[2], END_MS, ANCHOR]);
+          /* the witness: a Fire Ward on its worn body (its helmet's Brute Edge sits in another kind's slot, so it plays and runs nothing) */
+          await db.query(`insert into public.hero_worn_imbue (user_id, slot, equip_slot, imbue_id, band, quality, ms_left) values ($1, 0, 'body', 'fire_ward', 45, 'plain', $2)`, [run.users[2], LONG_MS]);
         } });
       } catch (e) { problems.push('WI-5 the ' + name + ' hunt did not settle: ' + String(e && e.message).slice(0, 200)); continue; }
       if (Number(r.inst.refusals) !== 0) problems.push('WI-5 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
@@ -255,9 +274,10 @@ async function partyEnd(boot, o = {}) {
         problems.push('WI-5 CONTROL: the ' + name + ' third hero did not end mid-window by its pool (' + JSON.stringify(s) + ')'); continue;
       }
       if (s.to_ms !== s.end_ms + 1) problems.push('WI-5 the ' + name + ' third hero\'s hunt settled to +' + s.to_ms + ' ms, ended at +' + s.end_ms);
-      /* its Edge ran out at +90.037 s (before its end); its helmet row lost exactly the time it hunted, to its own end */
+      /* its Edge ran out at +90.037 s (before its end); its body's Ward lost exactly the time it hunted, to its own end; its helmet's
+         Edge (another kind's slot) lost nothing (1078-imbue-fee-timer.sql: only a row the fight plays runs) */
       const worn = await wornOf(r.db, r.users[2]);
-      const want = JSON.stringify([{ equip_slot: 'helmet', imbue_id: 'brute_edge', ms: String(LONG_MS - (s.end_ms + 1)) }]);
+      const want = JSON.stringify([{ equip_slot: 'body', imbue_id: 'fire_ward', ms: String(LONG_MS - (s.end_ms + 1)) }, { equip_slot: 'helmet', imbue_id: 'brute_edge', ms: String(LONG_MS) }]);
       if (worn !== want) problems.push('WI-5 the ' + name + ' third hero (ended at +' + s.end_ms + ' ms) keeps ' + worn + ', want ' + want);
       /* the leader hunted the whole 270 s: its Ward and Leech lost all of it */
       const lead = JSON.stringify([{ equip_slot: 'body', imbue_id: 'fire_ward', ms: String(LONG_MS - SPAN_MS) }, { equip_slot: 'helmet', imbue_id: 'life_leech', ms: String(LONG_MS - SPAN_MS) }]);
@@ -275,7 +295,7 @@ async function partyEnd(boot, o = {}) {
   return problems;
 }
 
-/* WI-6 A LIT LEECH FOUR, BOTH PATHS (lane/imbue-engine, 21 D-18): every hero wears a Life Leech (band 50) on a helmed head. Its heal is
+/* WI-7 A LIT LEECH FOUR, BOTH PATHS (lane/imbue-engine, 21 D-18): every hero wears a Life Leech (band 50) on a helmed head. Its heal is
    floor((took x 20 + carry) / 1000) a blow, the remainder carried on the unit (src/core/hunt/imbue-leech.js leechMilli, persisted with
    the world): a closed hunt (three 90 s windows) and a viewed one (nine 30 s windows) cut the carry at different boundaries, so they store
    the same world and the same heroes (bags, Level XP, each tally's healing) only if the carry rides every stored world. Each hero healed
@@ -287,21 +307,83 @@ async function leech(boot, o = {}) {
     const closed = await door((await boot()).db, 'fire', { lit: true, leech: true, edgeRoot: edge && edge.root });
     const viewed = await door((await boot()).db, 'viewed', { lit: true, leech: true, edgeRoot: edge && edge.root });
     for (const [name, r] of [['browser closed', closed], ['hunt viewed', viewed]]) {
-      if (Number(r.inst.refusals) !== 0) problems.push('WI-6 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
-      if (Number(r.inst.to_ms) !== ANCHOR + SPAN_MS) problems.push('WI-6 CONTROL: ' + name + ' settled to ' + r.inst.to_ms + ', want ' + (ANCHOR + SPAN_MS));
+      if (Number(r.inst.refusals) !== 0) problems.push('WI-7 ' + name + ': ' + r.inst.refusals + ' window(s) refused');
+      if (Number(r.inst.to_ms) !== ANCHOR + SPAN_MS) problems.push('WI-7 CONTROL: ' + name + ' settled to ' + r.inst.to_ms + ', want ' + (ANCHOR + SPAN_MS));
     }
     const a = await stateOf(closed.db), b = await stateOf(viewed.db);
-    if (closed.inst.world !== viewed.inst.world) problems.push('WI-6 the doors stored different worlds (the Leech\'s carry did not survive a window cut)');
-    if (a !== b) problems.push('WI-6 the doors stored different heroes:\n      closed ' + a.slice(0, 400) + '\n      viewed ' + b.slice(0, 400));
+    if (closed.inst.world !== viewed.inst.world) problems.push('WI-7 the doors stored different worlds (the Leech\'s carry did not survive a window cut)');
+    if (a !== b) problems.push('WI-7 the doors stored different heroes:\n      closed ' + a.slice(0, 400) + '\n      viewed ' + b.slice(0, 400));
     /* the Leech played on every seat: its healing is the tally's life_leech source */
     const leeched = JSON.parse(a).map((s) => { const h = s.tally && s.tally[3]; return Number((h && h.bySource && h.bySource.life_leech) || 0); });
-    if (leeched.length !== 4 || leeched.some((n) => !(n > 0))) problems.push('WI-6 a hero\'s Leech healed nothing: ' + JSON.stringify(leeched));
+    if (leeched.length !== 4 || leeched.some((n) => !(n > 0))) problems.push('WI-7 a hero\'s Leech healed nothing: ' + JSON.stringify(leeched));
     /* the carry rides the stored world (thousandths, 0 to 999 a hero) */
     const carries = decodeStored(JSON.parse(closed.inst.world)).units.filter((u) => u.side === 'hero').map((u) => u.leechMilli);
-    if (!carries.every((c) => Number.isInteger(c) && c >= 0 && c < 1000) || !carries.some((c) => c > 0)) problems.push('WI-6 the stored world carries ' + JSON.stringify(carries) + ' as the heroes\' carry');
-    EVIDENCE.push('WI-6 a Leech four: doors ' + (closed.inst.world === viewed.inst.world && a === b ? 'store one world and the same heroes' : 'DIFFER') + '; healed by the Leech '
+    if (!carries.every((c) => Number.isInteger(c) && c >= 0 && c < 1000) || !carries.some((c) => c > 0)) problems.push('WI-7 the stored world carries ' + JSON.stringify(carries) + ' as the heroes\' carry');
+    EVIDENCE.push('WI-7 a Leech four: doors ' + (closed.inst.world === viewed.inst.world && a === b ? 'store one world and the same heroes' : 'DIFFER') + '; healed by the Leech '
       + JSON.stringify(leeched) + ' HP a seat over 270 s; the stored carries ' + JSON.stringify(carries));
   } finally { if (edge) edge.done(); }
+  return problems;
+}
+
+/* WI-6 THE FEE AT THE BAND (1078-imbue-fee-timer.sql, lane/imbue-fee-timer; 21 D-19): lit and in town, a Level 60 hero with a Bronze sword,
+   then a Mithril one, then the same pieces at Level 200, is shown Brute Edge (band 70) at applyFee(70), 6,813 gold (tests/imbue.mjs IM-3
+   pins the JS); a price read off the Mithril sword's item Level is quote_changed and moves nothing; the band's price applies on the cheap
+   piece and again on the dear one, each burning exactly 6,813 in one shop row. The section and the verb read one function. */
+async function fee(boot) {
+  const problems = [];
+  const { db } = await boot();
+  const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
+  const M = await H.loadEdge(H.ROOT);
+  const { applyFee } = await import('../src/core/imbue.js');
+  const { imbueBandOf } = await import('../src/data/imbue-rules.js');
+  const { goldOf } = await import('./_gold.mjs');
+  const uid = H.UIDS[0], band = imbueBandOf('brute_edge'), want = applyFee(band);
+  if (band !== 70 || want !== 6813) return ['WI-6 CONTROL: Brute Edge is band ' + band + ' at ' + want + ' gold (IM-3 holds 6,813 at band 70)'];
+  /* one transaction, rolled back: the signed-in subject (set_config local) holds for the probe and every apply */
+  return H.inTx(db, () => feeIn(db, H, M, { uid, want, goldOf, problems }));
+}
+async function feeIn(db, H, M, { uid, want, goldOf, problems }) {
+  await H.character(db, M, uid, { level: 60, gold: 10000000 });
+  await db.query("update public.hr_flags set enabled = true where key = 'imbuements'");
+  await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'imbue_brute_edge', 2) on conflict (user_id, slot, item_id) do update set qty = excluded.qty", [uid]);
+  const wear = (item) => db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', $2)
+    on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [uid, item]);
+  const level = (L) => db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [uid, M.XP.charXpForLevel(L)]);
+  const shown = async () => { const s = await one(db, 'select public.hr_imbues_view($1::uuid, 0)', [uid]); return s && s.fees ? Number(s.fees.brute_edge) : null; };
+  const purse = () => goldOf((sql, p) => db.query(sql, p).then((r) => r.rows), uid, 0);
+  const shopRows = async () => (await db.query("select intent, gold::text as gold from public.player_ledger where user_id = $1 and intent like 'imbue\\_apply:%' order by at, id", [uid])).rows;
+  const apply = async (price) => {
+    await db.query('delete from public.hr_rate_counters where user_id = $1', [uid]);
+    await db.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
+    return (await one(db, "select public.hr_imbue_apply(0, 'weapon', 'brute_edge', $1::bigint, $2::uuid)", [price, crypto.randomUUID()])) || {};
+  };
+  for (const [item, L] of [['bronze_sword', 60], ['mithril_sword', 60], ['mithril_sword', 200], ['bronze_sword', 200]]) {
+    await wear(item); await level(L);
+    const got = await shown();
+    if (got !== want) problems.push('WI-6 the section shows Brute Edge at ' + got + ' on a ' + item + ' at Level ' + L + ', want ' + want);
+  }
+  await level(60);
+  const g0 = await purse();
+  const pieceFee = Number(await one(db, "select public.hr_imbue_fee(item_level) from public.hr_item_levels where item_id = 'mithril_sword'"));
+  if (!(pieceFee > 0) || pieceFee === want) return [...problems, 'WI-6 CONTROL: a price read off the Mithril sword is ' + pieceFee + ', not apart from the band\'s ' + want];
+  await wear('mithril_sword');
+  const off = await apply(pieceFee);
+  if (off.error !== 'quote_changed' || await purse() !== g0 || (await shopRows()).length) {
+    problems.push('WI-6 a price read off the worn Mithril sword (' + pieceFee + ') answered ' + JSON.stringify({ ...off, imbues: undefined }).slice(0, 160) + ', want quote_changed and nothing moved');
+  }
+  await wear('bronze_sword');
+  const cheap = await apply(want);
+  await wear('mithril_sword');
+  const dear = await apply(want);
+  const rows = await shopRows();
+  const g1 = await purse();
+  if (cheap.ok !== true || dear.ok !== true || g1 !== g0 - 2 * want || rows.length !== 2
+      || rows.some((x) => x.intent !== 'imbue_apply:brute_edge:' + want || Number(x.gold) !== -want)) {
+    problems.push('WI-6 the band\'s price on a Bronze then a Mithril sword answered ' + JSON.stringify([cheap.ok ? 'ok' : cheap.error, dear.ok ? 'ok' : dear.error])
+      + ', the purse moved ' + (g0 - g1) + ' (want ' + 2 * want + '), journalled ' + JSON.stringify(rows));
+  }
+  EVIDENCE.push('WI-6 the fee: Brute Edge shown at ' + want + ' on a Bronze and a Mithril sword at Levels 60 and 200; the piece\'s price ' + pieceFee + ' answered ' + off.error
+    + '; charged ' + (g0 - g1) + ' for two applies');
   return problems;
 }
 
@@ -330,12 +412,23 @@ const MUTANTS = [
   { name: 'the edge settles an ended hero to its window\'s end', edits: [['supabase/functions/hr-accrue/accrue-hunt.js',
     'const settledTo = hs.endedReason ? hs.endedAtMs + 1 : Math.max(hs.nextSwingAtMs, fromMs + 1);', 'const settledTo = hs.endedReason ? toMs : Math.max(hs.nextSwingAtMs, fromMs + 1);']],
     want: /^WI-5/, test: partyEnd },
-  /* WI-6 (lane/imbue-engine): the carry dropped from the stored world (the shape unmoved: a field missing from encode), and the Leech gone */
+  /* WI-7 (lane/imbue-engine): the carry dropped from the stored world (the shape unmoved: a field missing from encode), and the Leech gone */
   { name: 'the Leech\'s carry is never stored with the world', edits: [['src/core/hunt/world-state.js',
     "const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));", "const row = (part, obj) => FIELDS[part].map(([name]) => copy(name === 'leechMilli' ? 0 : obj[name]));"]],
-    want: /^WI-6/, test: leech },
+    want: /^WI-7/, test: leech },
   { name: 'the Leech never reaches the blow', edits: [['src/core/hunt/damage.js', '&& r.dmg > 0 ? leechOn(source, target, r.dmg) : null;', '&& r.dmg > 0 ? null : null;']],
-    want: /^WI-6/, test: leech },
+    want: /^WI-7/, test: leech },
+  /* 1078-imbue-fee-timer.sql: the timer only while worn (WI-2, both doors), and the fee at the band (WI-6) */
+  { name: 'the timer runs an imbuement on a bare slot', fn: 'public.hr_flame_temper_settle()',
+    find: '        join public.player_equipment e on e.user_id = w.user_id and e.slot = w.slot and e.equip_slot = w.equip_slot\n', repl: '', want: /^WI-2/, test: bothPaths },
+  { name: 'the timer runs an imbuement in another kind\'s slot', fn: 'public.hr_flame_temper_settle()',
+    find: 'join public.hr_imbue_rules r on r.imbue_id = w.imbue_id and r.equip_slot = w.equip_slot', repl: 'join public.hr_imbue_rules r on r.imbue_id = w.imbue_id', want: /^WI-2/, test: bothPaths },
+  { name: 'the apply prices the worn piece', fn: 'public.hr_imbue_apply(integer,text,text,bigint,uuid)',
+    find: 'v_fee := public.hr_imbue_fee(i.band);', repl: 'v_fee := public.hr_imbue_fee(v_il);', want: /^WI-6/, test: fee },
+  { name: 'the section prices the worn piece', fn: 'public.hr_imbues_view(uuid,integer)',
+    find: 'public.hr_imbue_fee(i.band)', repl: 'public.hr_imbue_fee(public.hr_worn_level(p_user, p_slot, i.equip_slot))', want: /^WI-6/, test: fee },
+  { name: 'the fee twin reads ten steps under the band', fn: 'public.hr_imbue_fee(integer)',
+    find: 'public.hr_wage(greatest(1, coalesce(p_band, 1)))', repl: 'public.hr_wage(greatest(1, coalesce(p_band, 1) - 10))', want: /^WI-6/, test: fee },
 ];
 
 async function main() {
@@ -368,10 +461,10 @@ async function main() {
   const boot = () => bootReplay();
   /* one case's replays at a time (an unclosed replay is ~300 MB) */
   const problems = [];
-  for (const c of [dark, projection, bothPaths, partyEnd, leech].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
+  for (const c of [dark, projection, bothPaths, partyEnd, fee, leech].filter((f) => !only || f.name === only)) { problems.push(...await c(boot)); await closeReplays(); }
   for (const e of EVIDENCE) console.log('  ' + e);
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window, applied in town only, a party end mid-window, a Leech four on both paths)');
+  console.log(problems.length ? 'worn-imbues-db: ' + problems.length + ' FAILED' : 'worn-imbues-db: green (dark, the projection, both paths with a run-out mid-window and a bare slot kept, applied in town only, a party end mid-window, a Leech four on both paths, the fee at the band)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

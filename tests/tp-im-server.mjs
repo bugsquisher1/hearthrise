@@ -17,7 +17,9 @@
 // server's twins are generated from (src/data/temper.js, src/core/temper-steps.js, src/core/trades.js, src/core/imbue.js).
 //   TP-RETIRED  THE OLD RUNGS LEAVE (D-15), on production's shape: a ladder, its offer and a hero's rung written as the 2027 Tempering files
 //               wrote them, with a room rung beside them; re-applying 1071 deletes exactly the Tempering rows (the room rung stays),
-//               the envelope carries no `temper`, hr_perks_of answers no `temper` key, and hr_unlock_buy answers unknown_offer for a rung
+//               the envelope carries no `temper`, hr_perks_of answers no `temper` key, and hr_unlock_buy answers unknown_offer for a rung.
+//               It re-applies 1071 WHERE IT APPLIES (a replay bounded at 1071, lane/imbue-fee-timer): its self-check calls the twins of its
+//               own day, which a later file may retire (1078-imbue-fee-timer.sql drops the piece-and-ramp hr_imbue_fee(int, int))
 //   TP-KIT      THE KIT A BAND AND THE BAND LOCK ARE THE JS ONES: hr_temper_kits is TEMPER_KITS (each named band, nothing else);
 //               hr_temper_kit_at is temperKitAt at every item Level 0..260; hr_imbue_wearable is imbueStepsAt > 0 over a band x Level grid
 //   TP-RANK     21 section 7.5's step 5, town: a Level 40 hero on Steel buys weapon rank 1 at rankQuote's fee and kits, in Fine Tempering
@@ -28,7 +30,8 @@
 //   TP-BOTH     BOTH PATHS (CLAUDE.md §4): a Level 40 hunter tempers its weapon mid-hunt from Storage; the next settle's perk read carries
 //               temperSteps { weapon: 1 } on the tick door (browser closed) and on the player door (hunt viewed) alike, and {} before
 //   IM-LOCK     THE BAND LOCK (item 3a): Brute Edge (band 70) on a Level 59 hero is band_locked and moves nothing, and the section says it
-//               is not wearable; at Level 60 it applies from Storage alone at applyFee's price, 20 hunted hours, and the section agrees
+//               is not wearable; at Level 60 it applies from Storage alone at applyFee's price (the band's, 1078), 20 hunted hours, and
+//               the section agrees
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
@@ -293,7 +296,8 @@ const ARMS = {
     await H.character(db, M, UID, { level: lock - 1, gold: 10000000 });
     await lit(db);
     await wear(db, slot, 'steel_sword');
-    const il = await ilOf(db, 'steel_sword');
+    /* the fee is the band's (1078-imbue-fee-timer.sql, 21 D-19), whatever the piece and the Level: worn-imbues-db WI-6 holds it on two pieces */
+    const fee = applyFee(band);
     /* the bench's item stands in as a real one (rolled back with the arm): a Remains good, held in Storage only */
     const stand = await one(db, 'select item_id from public.hr_flame_fuel order by item_id limit 1');
     await db.query('update public.hr_imbue_rules set item_id = $2 where imbue_id = $1', [id, stand]);
@@ -301,29 +305,38 @@ const ARMS = {
     const g0 = await purse(db), n0 = await ledgerCount(db);
     const sec0 = await one(db, 'select public.hr_imbues_view($1, 0)', [UID]);
     if (!sec0 || !sec0.wearable || sec0.wearable[id] !== false) p.push('at Level ' + (lock - 1) + ' the section reads wearable ' + JSON.stringify(sec0 && sec0.wearable));
-    const locked = await imbue(db, slot, id, applyFee(il, lock - 1));
+    const locked = await imbue(db, slot, id, fee);
     if (!locked || locked.error !== 'band_locked' || locked.band !== band || await purse(db) !== g0 || await ledgerCount(db) !== n0 || (await held(db, stand)).storage !== 2) {
       p.push('band ' + band + ' on a Level ' + (lock - 1) + ' hero answered ' + JSON.stringify(locked).slice(0, 160) + ', want band_locked and nothing moved');
     }
     await setLevel(db, lock);
     const sec1 = await one(db, 'select public.hr_imbues_view($1, 0)', [UID]);
-    if (!sec1 || !sec1.wearable || sec1.wearable[id] !== true || Number(sec1.fees[id]) !== applyFee(il, lock)) p.push('at Level ' + lock + ' the section reads ' + JSON.stringify(sec1 && { wearable: sec1.wearable, fees: sec1.fees }));
-    const ok = await imbue(db, slot, id, applyFee(il, lock));
+    if (!sec1 || !sec1.wearable || sec1.wearable[id] !== true || Number(sec1.fees[id]) !== fee) p.push('at Level ' + lock + ' the section reads ' + JSON.stringify(sec1 && { wearable: sec1.wearable, fees: sec1.fees }));
+    const ok = await imbue(db, slot, id, fee);
     const w = (await q(db, 'select imbue_id, band, quality, ms_left::text as ms from public.hero_worn_imbue where user_id = $1 and slot = 0 and equip_slot = $2', [UID, slot]))[0];
-    if (!ok || ok.ok !== true || await purse(db) !== g0 - applyFee(il, lock) || (await held(db, stand)).storage !== 1 || !w || w.imbue_id !== id || w.band !== band
+    if (!ok || ok.ok !== true || await purse(db) !== g0 - fee || (await held(db, stand)).storage !== 1 || !w || w.imbue_id !== id || w.band !== band
         || Number(w.ms) !== lifeMs('plain')) {
       p.push('at Level ' + lock + ' the apply answered ' + JSON.stringify(ok && { ...ok, envelope: undefined }).slice(0, 200) + ' wearing ' + JSON.stringify(w) + ', want '
-        + applyFee(il, lock) + ' gold, one from Storage, ' + lifeMs('plain') + ' ms');
+        + fee + ' gold, one from Storage, ' + lifeMs('plain') + ' ms');
     }
     return p;
   },
 };
 
+/* TP-RETIRED re-applies 1071, so it runs on a replay bounded at 1071 (booted once, on first use): the chain end holds what later files
+   made of 1071's day (1078 drops the fee twin 1071's self-check calls). Every other arm reads the chain end. */
+let AT_FILE = null;
+const atFile = async () => { if (!AT_FILE) AT_FILE = (await bootReplay({ upTo: FILE })).db; return AT_FILE; };
+const AT_FILE_ARMS = new Set(['TP-RETIRED']);
+
 async function runArms(db, M, only) {
   const out = {};
   for (const name of Object.keys(ARMS)) {
     if (only && !only.includes(name)) continue;
-    try { out[name] = await H.inTx(db, () => ARMS[name](db, M)); } catch (e) { out[name] = ['threw: ' + String(e && e.message).slice(0, 400)]; }
+    try {
+      const on = AT_FILE_ARMS.has(name) ? await atFile() : db;
+      out[name] = await H.inTx(on, () => ARMS[name](on, M));
+    } catch (e) { out[name] = ['threw: ' + String(e && e.message).slice(0, 400)]; }
   }
   return out;
 }

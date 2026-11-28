@@ -138,7 +138,7 @@ const exec = async (text, params) => {
 const one = async (sql, p) => (await db.query(sql, p)).rows[0];
 
 const holder = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
-await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
+await db.exec("update public.hr_tick_config set channels = array['combat','artisan']::text[],"
   + ' enabled = true, armed_channels = array[]::text[] where id;');
 
 const TS_COLS = (await db.query(
@@ -165,15 +165,19 @@ const fire = async (u) => (await runTick({
   exec, body: { op: 'tick', roster: [{ user_id: u, slot: 0 }], cadence_ms: CADENCE_MS, flush_ms: FLUSH_MS },
 })).body;
 
+/* The Hearth's fuel run, the tick's pointer channel since the one-town-work cut (gather before it): Bones now,
+   Lamp Jelly to re-point to, both far past what the arms can burn. */
 async function seed(u, kind) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
-  if (kind === 'gather') {
+  if (kind === 'artisan') {
     await db.exec(`insert into public.player_state (user_id, slot, hp, version,
                      accrued_to, active_kind, active_id, active_since)
                    values ('${u}', 0, 10, 1, now() - interval '95 seconds',
-                     'gather', 'normal_tree', now() - interval '2 hours')`);
+                     'artisan', 'fuel_bones', now() - interval '2 hours')`);
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
-                   values ('${u}', 0, 'woodcutting', 302288)`);
+                   values ('${u}', 0, 'inner_flame', 302288)`);
+    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
+                   values ('${u}', 0, 'bones', 100000), ('${u}', 0, 'lamp_jelly', 100000)`);
   }
   await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                  values ('${u}', 0, '${kind}', true, '${holder}', now() + interval '10 hours')`);
@@ -209,7 +213,7 @@ async function arm(id, u, kind, target, { microClock }) {
 
   // (2) THE RE-POINT, through the shipped intent, as hr_engine.
   const r = await runSetActivity({
-    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target, ...(kind === 'gather' ? { count: 100000 } : {}) },   // a gathering job always takes a count (1026-job-counts.sql)
+    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target },
   });
   if (r.status !== 200) { bad(`${id}-repoint`, `set_activity answered ${r.status} ${JSON.stringify(r.body)}`); return; }
   const st = await one(`select accrued_to = active_since as same, active_id from public.player_state
@@ -255,18 +259,16 @@ async function arm(id, u, kind, target, { microClock }) {
   //     In shadow nothing pays, so `player_state.accrued_to` still IS the
   //     re-point instant (moved by `travel` exactly as the shadow row was).
   const row = await one(`select s.window_from = ps.accrued_to as from_mark,
-                                s.delta#>>'{journal,meta,node}' as node, s.delta->'items' as items
+                                s.delta#>>'{journal,meta,recipe}' as recipe, s.delta->'items' as items
                            from public.hr_tick_shadow s
                            join public.player_state ps on ps.user_id = s.user_id and ps.slot = s.slot
                           where s.user_id = '${u}'
                           order by s.window_to asc offset ${before} limit 1`);
-  const onTarget = kind === 'gather'
-    ? row.node === target
-    : Object.keys(row.items || {}).some((k) => k.startsWith(target));
+  const onTarget = row.recipe === target;
   judge(`${id}-b`, row.from_mark === true && onTarget,
     `the first window after it starts AT the re-point instant (${repoint}) and prices ${target}`,
     `the resumed window starts at the re-point: ${row.from_mark}; prices the new target: ${onTarget} `
-    + `(node=${row.node}, items=${JSON.stringify(row.items)})`);
+    + `(recipe=${row.recipe}, items=${JSON.stringify(row.items)})`);
 
   // (5) And it keeps chaining — the next flush lands too.
   const n1 = await rowsOf(u);
@@ -277,21 +279,22 @@ async function arm(id, u, kind, target, { microClock }) {
 }
 
 const U = (n) => `00000000-0000-4000-8000-00000000d${String(n).padStart(3, '0')}`;
-await arm('R-G0', U(1), 'gather', 'oak_tree', { microClock: false });
-await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
+await arm('R-G0', U(1), 'artisan', 'fuel_lamp_jelly', { microClock: false });
+await arm('R-G', U(2), 'artisan', 'fuel_lamp_jelly', { microClock: true });
 /* R-C0 / R-C (the same re-point onto a combat target) retired in lane C2: a
    `combat` declaration is `hunt_required` and the solo combat channel is
    undriven, so there is no combat re-point and no combat tick window to stall.
    The truncation this file guards lives in tick.js's fence binding, which the
-   gather arms drive unchanged. */
+   artisan arms drive unchanged (R-G0 / R-G keep their ids: they were the gather
+   arms until the one-town-work cut). */
 
 /* R-A: THE MONEY PATH. Armed, a hero who started a job with a microsecond switch stamp and closed the browser is PAID
    by the next fire past the flush, and the mark moves (live: Andy's heroes were refused every fire, unpaid). */
 {
   const u = U(3);
-  await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[], armed_channels = array['gather']::text[] where id;");
-  await seed(u, 'gather');
-  const r = await runSetActivity({ exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind: 'gather', id: 'oak_tree', count: 100000 } });
+  await db.exec("update public.hr_tick_config set channels = array['combat','artisan']::text[], armed_channels = array['artisan']::text[] where id;");
+  await seed(u, 'artisan');
+  const r = await runSetActivity({ exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind: 'artisan', id: 'fuel_lamp_jelly' } });
   if (r.status !== 200) bad('R-A', `set_activity answered ${r.status} ${JSON.stringify(r.body)}`);
   else {
     const iv = `interval '${SUB_MS} microseconds'`;
@@ -302,7 +305,7 @@ await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
     const m0 = (await one(`select accrued_to::text as t from public.player_state where user_id = '${u}'`)).t;
     const f = await fire(u);
     const m1 = (await one(`select accrued_to::text as t from public.player_state where user_id = '${u}'`)).t;
-    const paid = Number((await one(`select count(*) as n from public.player_ledger where user_id = '${u}' and kind = 'gather' and meta->>'src' = 'tick'`)).n);
+    const paid = Number((await one(`select count(*) as n from public.player_ledger where user_id = '${u}' and kind = 'craft' and meta->>'src' = 'tick'`)).n);
     judge('R-A', paid === 1 && m1 !== m0,
       `armed: the first fire past the flush pays a hero whose mark carries microseconds (${m0} -> ${m1}, one tick row)`,
       `armed: the hero sat unpaid: mark ${m0} -> ${m1}, ${paid} tick rows, fire ${JSON.stringify(f.reasons)}`);

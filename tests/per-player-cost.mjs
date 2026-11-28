@@ -410,6 +410,13 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
   const led0 = await ledgerOf(db, fx); const paid0 = await paidMs(db, fx);
   /* cpu: every settle but the first (the engine's JIT and the plans' first touch), scaled back to the hours it covers */
   const per = []; const rows = []; const reads = []; let cpu = 0; let held = null; let polls = 0; let unsaved = null;
+  /* THE WATCHED SPAN ENDS AT ITS LAST SAVE (lane/rel-cost-lt, 2026-11-27). A dice event (a Rare, a Level, a death) saves at once and
+     restarts the 90 s flush, so the polls after the span's last save are unsaved. They used to be saved by one more settle and counted:
+     a whole save's hunt, supply and instance rows for one to five polls of hunt, +25% row writes a hero-hour on the Krell four from ONE
+     event on one seed (personal loot's Rare on seed 0, and the dark chain's own Rare on dice offset 4, MEASURED over 13 seeds). Every
+     number is now read at the last save: the saves, the confirms, the journal and the hours paid over the same complete flush cycles
+     (a renewal count). A span that ends on a save (the baseline's) reads exactly as before. `atSave` holds that reading. */
+  let atSave = null;
   const all0 = await tuples(db);
   for (let k = 1; k <= n; k++) {
     let s0 = stat.stmts; let t0 = await tuples(db); let r0 = await partyReads(db);
@@ -425,8 +432,10 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
       if (k > 1) cpu += cpuMs() - a;
       s0 = stat.stmts; t0 = await tuples(db); r0 = await partyReads(db);
       a = cpuMs();
-      /* THE FLUSH (lane/c-settle-flush): the poll of a running prediction CONFIRMS; it saves at the 90 s flush or at once on an event */
-      const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, confirm: true, ...(held === null ? {} : { have: held }) });
+      /* THE FLUSH (lane/c-settle-flush): the poll of a running prediction CONFIRMS; it saves at the 90 s flush or at once on an event
+         (a planted dice event, --selftest: this poll saves the way a Rare's would, plantedEvent) */
+      const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, ...(plantedEvent(plant, k, n) ? {} : { confirm: true }),
+        ...(held === null ? {} : { have: held }) });
       plantSlow(plant, a);
       if (k > 1) cpu += cpuMs() - a;
       if (v.outcome !== 'paid' && v.outcome !== 'confirmed') throw new Error(`poll ${k} neither saved nor confirmed: ${v.outcome}/${v.reason}`);
@@ -458,24 +467,61 @@ export async function measure(db, M, fx, door, plant, minSettles = null) {
     per.push(stat.stmts - s0);
     const rN = await partyReads(db);
     reads.push({ party: rN.party - r0.party, member: rN.member - r0.member, state: rN.state - r0.state });
+    if (door === 'watched') atSave = { stmts: stat.stmts, trips: stat.trips, all: await tuples(db), led: await ledgerOf(db, fx), paid: await paidMs(db, fx), cpu, polls };
   }
-  /* the polls the last flush has not reached yet are SAVED (no statement counted: their next flush is the steady state's), so the hours paid are
-     the hours polled and the rows written and journalled are over the same span */
-  if (unsaved !== null) await M.HS.settleHunt({ exec: makeExec(db), user: fx.heroes[0][0], slot: fx.heroes[0][1], mode: 'settle', bucket: null, grounds: groundsOf(M), atMs: unsaved });
-  const all1 = await tuples(db);
-  const written = Object.keys(all1).reduce((x, t) => x + (all1[t] - (all0[t] || 0)), 0);
   if (Math.max(per.length, polls) < (minSettles || n)) {
     const why = fx.sids.length ? (await q(db, 'select end_reason as r, count(*)::int as n from public.hunt_sessions where id = any ($1::uuid[]) group by 1', [fx.sids])).map((x) => `${x.r} x${x.n}`).join(', ') : 'the bench stopped';
     throw new Error(`the fixture ended after ${per.length} of ${n} settles (${why}): it no longer lasts a measurement`);
   }
-  const heroHours = (await paidMs(db, fx) - paid0) / 3600000;
-  if (!(heroHours > 0)) throw new Error('the fixture paid no time');
-  const led = await ledgerOf(db, fx) - led0;
-  return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
-    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), row_writes_a_hero_hour: r1(written / heroHours),
-    party_reads_a_settle: med(reads.map((x) => x.party)),
-    member_reads_a_settle: med(reads.map((x) => x.member)), state_reads_a_settle: med(reads.map((x) => x.state)),
-    settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (Math.max(per.length, polls) - 1) / Math.max(per.length, polls))) };
+  /* the span's numbers: at its last save when polls after it went unsaved (atSave, above), else at its end */
+  if (unsaved !== null && !atSave) throw new Error('the watched span saved nothing: no flush cycle to measure');
+  const end = unsaved !== null ? atSave
+    : { stmts: stat.stmts, trips: stat.trips, all: await tuples(db), led: await ledgerOf(db, fx), paid: await paidMs(db, fx), cpu, polls: Math.max(per.length, polls) };
+  /* ...then the unsaved polls are saved, uncounted, so a caller that reads the database after (tests/frame-delta.mjs, ledger-hours.mjs)
+     finds every polled second paid, as before */
+  if (unsaved !== null) await M.HS.settleHunt({ exec: makeExec(db), user: fx.heroes[0][0], slot: fx.heroes[0][1], mode: 'settle', bucket: null, grounds: groundsOf(M), atMs: unsaved });
+  const numbers = (e) => {
+    const heroHours = (e.paid - paid0) / 3600000;
+    if (!(heroHours > 0)) throw new Error('the fixture paid no time');
+    const written = Object.keys(e.all).reduce((x, t) => x + (e.all[t] - (all0[t] || 0)), 0);
+    return { statements_a_settle: med(per), statements_a_hero_hour: r1(e.stmts / heroHours), round_trips_a_hero_hour: r1(e.trips / heroHours),
+      ledger_rows_a_hero_hour: r1((e.led - led0) / heroHours), row_writes_a_settle: med(rows), row_writes_a_hero_hour: r1(written / heroHours),
+      party_reads_a_settle: med(reads.map((x) => x.party)),
+      member_reads_a_settle: med(reads.map((x) => x.member)), state_reads_a_settle: med(reads.map((x) => x.state)),
+      settle_cpu_ms_a_hero_hour: Math.round(e.cpu / (heroHours * (e.polls - 1) / e.polls)) };
+  };
+  const out = numbers(end);
+  /* --selftest's proof that the cut matters: a planted run also reads the span the old way, its unsaved polls saved and counted */
+  if (plant && unsaved !== null) {
+    Object.defineProperty(out, 'tailCounted', { enumerable: false, value: numbers({ stmts: stat.stmts, trips: stat.trips,
+      all: await tuples(db), led: await ledgerOf(db, fx), paid: await paidMs(db, fx), cpu, polls: Math.max(per.length, polls) }) });
+  }
+  return out;
+}
+
+/* ── THE WATCHED DOOR, READ ON THREE DICE (lane/rel-cost-lt, 2026-11-27) ─────────────────────────────────────────────────────
+   24 polls are 6.4 minutes of a four's hunt, and a dice event lands in some of them and not others: on the Krell four 2 of 26 spans
+   (13 dice offsets, dark and lit, MEASURED 2026-11-27) held one Rare. Read at its last save (measure, above) such a span still reads
+   +4% (the event 5 polls after a save) to +24% (1 poll after: a whole save for 16 s of hunt) where the long-run cost of Krell's Rare
+   rate is about +1%, so with personal loot's honest +6% a save the four had 10% of headroom and an event 1 to 4 polls after a save
+   read red. The watched door is measured on WATCHED_DICE (the uuid sequence rewound to DICE0 + each), every metric the MEDIAN: one
+   span's dice event is outvoted, a cost every span pays (a row, a statement, a save more a flush) is in all three. The closed doors
+   save every window, so a dice event moves no save there: one reading. */
+export const WATCHED_DICE = Object.freeze([0, 1, 2]);
+/* --selftest's line between a dice event read as its rate (+4%, MEASURED: the late event, cut at the last save) and one read as a
+   whole save (+16% to +24%: the same event with its unsaved poll counted, or one poll after a save on its own dice) */
+const EVENT_BAND = 0.1;
+/* THE PLANTED DICE EVENTS (--selftest): a poll that saves as a Rare's would (no `confirm`, so it saves whatever the flush says).
+   'dice_event' plants the worst place (one poll after a flush save, n - 5) on the first dice and the place that turned the Krell four
+   red (n - 1) on the others; 'event_often' an event every third poll on every dice (saves twice as often: a real cost, red). */
+const plantedEvent = (plant, k, n) => (plant === 'event_early' && k === n - 5) || (plant === 'event_late' && k === n - 1)
+  || (plant === 'event_often' && k % 3 === 0);
+const dicePlant = (plant, i) => (plant === 'dice_event' ? (i === 0 ? 'event_early' : 'event_late') : plant);
+/** Every metric's median over the dice's readings; the readings themselves ride along, unenumerated (never written). */
+function medianOf(readings) {
+  const out = Object.fromEntries(METRICS.map((k) => [k, med(readings.map((r) => r[k]))]));
+  Object.defineProperty(out, 'dice', { enumerable: false, value: readings });
+  return out;
 }
 
 /* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
@@ -519,12 +565,14 @@ async function unfence(db) {
    --only tower4, 37.7 --only L80: one settle count, a different paid-hours denominator). Rewound to the value read before the first
    fixture, each fixture plays the same swings whatever ran before it, whatever --only names and in every --selftest plant. */
 let DICE0 = null;
-async function rewindDice(db) {
+/** The uuid sequence back to DICE0 (+ `offset`: another set of dice, the watched door's WATCHED_DICE). */
+async function rewindDice(db, offset = 0) {
   if (DICE0 === null) [DICE0] = await q(db, 'select last_value::text as v, is_called as c from public.hr_test_uuid_seq');
-  await db.query(`select setval('public.hr_test_uuid_seq', $1::bigint, $2::boolean)`, [DICE0.v, DICE0.c]);
+  await db.query(`select setval('public.hr_test_uuid_seq', $1::bigint, $2::boolean)`, [String(BigInt(DICE0.v) + BigInt(offset)), DICE0.c]);
 }
 
-/** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
+/** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint, the watched door once on each of
+    WATCHED_DICE (its median, medianOf). `plant`: the selftest's defect. */
 async function measureAll(db, M, { plant = null, only = null } = {}) {
   const out = {};
   await db.query(`set track_functions = 'all'`);   // party_reads_a_settle (pg_stat_xact_user_functions)
@@ -532,14 +580,19 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
   try {
     for (const [name, f] of Object.entries(FIXTURES)) {
       if (only && !name.includes(only)) continue;
-      await rewindDice(db);
-      await db.query('savepoint fx');
-      try {
-        if (plant === 'unit_row') await db.exec(UNIT_ROW);
-        if (plant === 'member_unfenced') await unfence(db);
-        const fx = await f.build(db, M);
-        out[name] = await measure(db, M, fx, f.door, plant, f.minSettles);
-      } catch (e) { throw new Error(`${name}: ${e.message}`); } finally { await db.query('rollback to savepoint fx'); }
+      const dice = f.door === 'watched' ? WATCHED_DICE : [0];
+      const readings = [];
+      for (const [i, offset] of dice.entries()) {
+        await rewindDice(db, offset);
+        await db.query('savepoint fx');
+        try {
+          if (plant === 'unit_row') await db.exec(UNIT_ROW);
+          if (plant === 'member_unfenced') await unfence(db);
+          const fx = await f.build(db, M);
+          readings.push(await measure(db, M, fx, f.door, dicePlant(plant, i), f.minSettles));
+        } catch (e) { throw new Error(`${name}${dice.length > 1 ? ` (dice +${offset})` : ''}: ${e.message}`); } finally { await db.query('rollback to savepoint fx'); }
+      }
+      out[name] = readings.length === 1 ? readings[0] : medianOf(readings);
     }
   } finally { await db.query('rollback'); }
   return out;
@@ -717,6 +770,31 @@ async function main() {
       const hit = unf.red.filter((x) => x.startsWith(`${fx} member_reads_a_settle:`));
       arm(`MUTANT member_unfenced (the member read once a reference, not once a member): ${fx} is red`, hit.length === 1,
         hit.length ? hit[0].slice(fx.length + 1) : 'NOT red on member_reads_a_settle');
+    }
+    /* THE WATCHED DOOR'S DICE (lane/rel-cost-lt): one dice event in a span moves the watched four's row writes a hero-hour by under
+       EVENT_BAND of the same tree's clean reading, read at the last save and as the median of WATCHED_DICE; each half of that is
+       load-bearing (the same events read on one dice, or with the unsaved poll saved and counted, move it by more); an event every
+       third poll on every dice (twice the saves, a cost every span pays) is red against the baseline */
+    const wfx = CONCURRENCY.watched;
+    if ((!only || wfx.includes(only)) && cleanM[wfx] && cleanM[wfx].dice) {
+      const k = 'row_writes_a_hero_hour';
+      const rise = (m, c) => m[k] / c[k] - 1;
+      const pc = (x) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
+      const ev = (await measureAll(db, M, { plant: 'dice_event', only: wfx }))[wfx];
+      const evR = judge({ [wfx]: ev }, base, calibration);
+      arm(`CONTROL: a dice event in every span (one poll after a save on the first dice, the last poll but one on the others) moves the watched four under ${EVENT_BAND * 100}% and inside its baseline`,
+        evR.red.length === 0 && rise(ev, cleanM[wfx]) < EVENT_BAND,
+        `${k} ${ev[k]} (${pc(rise(ev, cleanM[wfx]))}; the dice ${ev.dice.map((d) => d[k]).join(' / ')})${evR.red.length ? '; ' + evR.red.join('; ') : ''}`);
+      const lone = rise(ev.dice[0], cleanM[wfx].dice[0]);
+      arm(`MUTANT one_dice: the event one poll after a save, read on its one dice (no median), moves it ${EVENT_BAND * 100}% or more`, lone >= EVENT_BAND, `${pc(lone)}`);
+      const tail = ev.dice[1].tailCounted;
+      const tl = tail ? rise(tail, cleanM[wfx].dice[1]) : NaN;
+      arm(`MUTANT tail_counted: the late event with its unsaved poll saved and counted (no cut at the last save) moves it ${EVENT_BAND * 100}% or more`,
+        tl >= EVENT_BAND, tail ? `${pc(tl)} (cut at the last save ${pc(rise(ev.dice[1], cleanM[wfx].dice[1]))})` : 'NO unsaved poll: the plant did not shift the flush');
+      const often = (await measureAll(db, M, { plant: 'event_often', only: wfx }))[wfx];
+      const oR = judge({ [wfx]: often }, base, calibration);
+      arm('MUTANT event_often: a dice event every third poll on every dice (twice the saves) is red', oR.red.some((x) => x.startsWith(`${wfx} ${k}:`)),
+        oR.red.filter((x) => x.startsWith(wfx + ' ')).map((x) => x.slice(wfx.length + 1)).join('; ') || `NOT red (${often[k]})`);
     }
     /* THE SMOKE ALARM: a settle four times slower (the engine's time burnt three times over, inside the timed settle) is red on one fixture;
        and the cap follows the machine: a settle 2.5x the baseline's is green on a machine whose calibration reads 2x, red on the same one */

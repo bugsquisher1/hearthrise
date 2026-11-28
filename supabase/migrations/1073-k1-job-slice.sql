@@ -12,7 +12,8 @@
 --   Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §9 self-check.
 -- EDGE: none. No engine file reads a job: the server settles it itself (§4), so either side of any hr-accrue deploy.
 -- CLIENT: the Work window's Jobs list (src/shell/windows/work-jobs.js), the start and end presses (src/session/trade-intents.js), the
---   section's reader (src/session/trade-sections.js). Dark (switch `trade_jobs` off at apply): the section is null and both verbs not_open.
+--   section's reader and the quote read's (src/session/trade-sections.js; the client lane's). Dark (switch `trade_jobs` off at apply):
+--   the section is null, both verbs and the read answer not_open.
 --
 -- ── THE RULE (09 4.9 and 6, the designer's spec) ───────────────────────────
 -- A job is ONE recipe (hr_trade_recipes: a kind at a band) worked by ONE resting hero for a count of attempts, at most a work day of them.
@@ -43,8 +44,15 @@
 --    hr_trade_band_open(user, band) -> boolean             band 0 always (09 4.9); any other band only with a depth record at that band
 --      or deeper: some hero of the account holds hunt_density.danger_held on a Danger scale ground of band >= it (hr_trade_ground_bands;
 --      the designer's ruling, HANDOFFS 2026-11-27 designer-kit-band1 item 4).
---    hr_trade_job_quote(user, slot, recipe, count) -> jsonb   the start's decision without a write, its refusals in the spec's order
---      after `busy`: bad_recipe · rung_locked · band_locked · work_cap · count_cap; ok { fee, count, count_cap, spent_ms, ends_at, ... }.
+--    hr_trade_open_of(user, slot, recipe or null) -> rows  THE GATES (lane/bench-cut-quotes): for one recipe or every one, in the spec's
+--      order, what shuts it (bad_recipe · rung_locked · band_locked · no_character · work_cap · count_cap) or null with its trade Level,
+--      the day's count cap and the day's stop. ONE rule and one statement: the start (one recipe) and the read (every recipe) both
+--      read it, so a quote on screen and the start's decision cannot be two rules. Each hero's reads (the work day, the stop, a trade's
+--      Level, a band's record, the items that exist) happen once, however many recipes.
+--    hr_trade_job_quote(user, slot, recipe, count) -> jsonb   the start's decision without a write: the gates, then
+--      count_cap; ok { fee, count, count_cap, spent_ms, ends_at, ... }.
+--    hr_trade_quotes_of(user, slot, recipe or null) -> jsonb  the Jobs list's rows (the read, and a refused start's fresh row): each
+--      recipe that ships with its whole-day quote, the count min(count_cap, what bag + Storage feed), its fee and its end.
 --    hr_trade_job_close(user, slot, at, early) -> jsonb    THE SETTLE, the caller holding the hero's lock. The job's true end E is
 --      least(started + the time of its count, hr_trade_work_stop(started)); it settles at least(at, E) when `early` (a stop), else only
 --      when E <= at (a finished job; otherwise ends_at is raised to E and it answers not_due). Elapsed -> attempts, goods by quality,
@@ -62,13 +70,24 @@
 --      · no_character · bad_recipe {why} (not a catalogue recipe, its kind ships later, or its face or an input is no item yet)
 --      · busy {doing} (the hero hunts, holds a town pointer, or holds a job) · rung_locked {level, need} · band_locked {band}
 --      · work_cap {left_ms} · count_cap {count_cap} · quote_changed {fee, count} · short_inputs {item_id, have, need, bag, storage}
---      · insufficient_gold (hr_apply's) · ok { job, envelope }.
+--      · insufficient_gold (hr_apply's) · ok { job, envelope }. A refusal of rung_locked, band_locked, work_cap, count_cap, quote_changed
+--      or short_inputs carries `quote`: the recipe's row as the read would answer it at that instant (THE STALE QUOTE, below).
 --      On ok: the inputs for p_count sets leave the hero's bag, then Storage (hr_materials_take, all or nothing); ONE hr_apply
 --      { gold: -fee } journalled (kind craft, or gather for a gathering job; intent trade_job:<recipe>:<count>:<fee>; meta.reason
 --      trade_fee) claims the key; the job row; ONE trade_in ledger row when inputs moved. A second press of the key answers the same job.
 --    hr_trade_job_end(p_slot, p_early, p_idem): p_early false collects a FINISHED job (not_due {ends_at} before the server says it is
 --      done, so a client clock ahead can never cut the last attempt); p_early true stops it now. Refusals: not_signed_in · not_open ·
 --      bad_slot · bad_idem · intent_mismatch · rate_limited · no_character · no_job · not_due · ok { result, envelope }.
+-- §4b THE READ hr_trade_job_quotes(p_slot) (authenticated, lane/bench-cut-quotes; asked when the Work window opens): the caller's own
+--    hero's quotes and nothing else's, 30 a minute an account (hr_rate_ok 'trade_quotes'), closed mode refused, no write but the rate
+--    counter. Refusals: not_signed_in · not_open · bad_slot · rate_limited · no_character. Ok { at, until (the next UTC midnight: the
+--    work day turns over, read again), version (the hero's), recipes [ { id, name, trade, kind, band, face, r_level, inputs, quote } ]
+--    (hr_trade_quotes_of), last (the newest settled job: its result), stock { <item>: { fine, master } } }.
+--    THE STALE QUOTE (CLAUDE.md §6). A quote is a number on a screen, never a price: the start reads nothing of it. Between the read and
+--    the press the inputs may leave Storage, the day may be spent, another hero may raise the trade's Level or a release may move the
+--    fee. The start re-prices under the hero's lock; if what the player saw (p_count, p_fee) is not what the server would take, it
+--    refuses before anything moves and answers the row's fresh quote in that refusal, so the screen is corrected by the answer itself
+--    and the next press sends the server's number. What the player saw is what is charged, or nothing is.
 -- §5 THE SWEEP hr_trade_jobs_sweep(p_limit, p_user) -> { seen, settled, busy, errors }, cron 'hr-trade-jobs' every minute: every open
 --    job whose ends_at has passed is collected exactly as hr_trade_job_end(false) would (hr_trade_job_close at its true end), so a job
 --    with the browser closed lands the same goods as one watched to its end. Never waits on a lock (try-lock the hero, its row, the
@@ -80,9 +99,9 @@
 -- §6 THE GUARD hr_trade_job_busy, BEFORE UPDATE OF active_kind ON player_state, when it leaves idle: a hero holding a job cannot start
 --    a hunt, a gathering job or a bench run (raises HRJ01 trade_job_open), so a job's hours are never also hunted or worked twice.
 -- §7 THE SECTION `trade_jobs` (hr_trade_jobs_view): { trades { <trade>: { xp, level } }, job (the open one: recipe, name, face, count,
---    started_at, ends_at, attempt_ms, fee; never its seed), last (the newest settled: its result), recipes [ { id, name, trade, kind,
---    band, face, r_level, inputs, quote } ] (quote: the server's whole-day job, the count min(count_cap, what bag + Storage feed) and
---    its fee, or the refusal the start would answer), stock { <item>: { fine, master } } }; null while the switch is off.
+--    started_at, ends_at, attempt_ms, fee; never its seed) }; null while the switch is off. It is in every envelope, so it holds what a
+--    running job and the trade Levels need on every screen and NOTHING A RECIPE: the quotes, the last result and the stock are the
+--    read's (§4b). A quote here is red (tests/trade-jobs.mjs TJ-LEAN): 129 of them made a town settle cost 2.2 times (lane/bench-cut-server).
 -- JOURNAL (player_ledger, one row each a job and reason, meta.reason and meta.recipe; never a row a tick): trade_fee (the start, the gold
 --   burned; via hr_apply), trade_in (inputs debited), trade_out (goods by face, band and quality; qty_in stamps the goods made),
 --   trade_return (sets handed back by a yield over 1000), trade_refund (the unattempted sets at a stop or the day's end),
@@ -102,7 +121,8 @@
 -- player_intents row. THE SWEEP NEVER WAITS: try-locks only, so it cannot join a deadlock with a party settle or a press.
 --
 -- ── EXPLOIT SURFACE DELTA ───────────────────────────────────────────────────
--- New: two client verbs that move inventory and burn gold, one cron. Nothing a client sends reaches another player: the goods land in
+-- New: two client verbs that move inventory and burn gold, one client read (the caller's own quotes, rate limited, moving nothing),
+-- one cron. Nothing a client sends reaches another player: the goods land in
 -- the presser's own Storage and company stock, the XP on its own account. Every number is the server's: the recipe row, the count cap,
 -- the fee (V), the seed (gen_random_uuid's CSPRNG, stored, never projected), the band (the recipe's), the dice (the generated roller).
 -- A stop cannot re-roll (the seed is spent, a prefix of one sequence) and cannot dodge the work day (the span is folded either way).
@@ -116,12 +136,19 @@
 -- A job is three writes (09 6): the start (hr_apply's row + the job row + trade_in), the settle (Storage and stock upserts, the XP row,
 -- player_state, at most four ledger rows). At most ~6 ledger rows a job, a job about a hero-day: ~48,000 rows a day at the extreme,
 -- ~15 MB, inside the prune. trade_jobs: one row a job, 30 days kept (~240,000 rows, ~70 MB). The sweep reads its partial index on
--- ends_at (open jobs only) each minute and settles only what is due. Dark, every envelope pays one hr_flags read; lit, the section quotes
--- 25 recipes from shared reads (a handful of PK lookups each). A fee refund is one more hr_apply and ledger row on a settle with
--- unattempted sets (a stop or the day's cap), never a row a tick.
+-- ends_at (open jobs only) each minute and settles only what is due. Dark, every envelope pays one hr_flags read; lit, a handful of
+-- primary-key reads (the open job, the trades' XP), the same for 129 recipes or 1,000. A fee refund is one more hr_apply and ledger row
+-- on a settle with unattempted sets (a stop or the day's cap), never a row a tick.
+-- THE QUOTES ARE THE READ'S (lane/bench-cut-quotes, MEASURED 2026-11-28 on PGlite, 129 recipes). In the envelope, a quote a recipe: a new
+-- company's section 44.9 ms (19 open recipes), a company with every recipe open 98.4 ms, 34.7 and 41.8 KB of envelope; the town hero of
+-- tests/per-player-cost.mjs 3,536 ms of settle CPU a hero-hour against 1,596 dark. WHERE IT WENT: 17.5 ms of it one slow thing in each
+-- quote (the "is it an item yet" check scanned all of hr_items for every recipe; one set-based anti-join is 1.0 ms), the rest the number
+-- of quotes (two work-day reads, a Level and a band an open recipe, 129 jsonb appends). hr_trade_open_of reads each once. The set-based
+-- read is __NEW_MS__ ms (new company) and __RICH_MS__ ms (every recipe open), and it is asked for, at most 30 times a minute an account, not
+-- built every settle. At 2,000 accounts opening the Work window 20 times a day: 40,000 reads, no row but the rate counter's.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Drop the cron 'hr-trade-jobs', the trigger hr_trade_job_busy, the section row, the two verbs (+ their baseline rows) and the internal
+-- Drop the cron 'hr-trade-jobs', the trigger hr_trade_job_busy, the section row, the two verbs and the read (+ their baseline rows) and the internal
 -- functions, then the three tables (a job's goods already moved stay where they landed; the ledger is history). The flag row may stay.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -143,7 +170,10 @@ begin
      or to_regprocedure('public.hr_record_rejection(uuid,integer,text,text,jsonb,bigint)') is null or to_regprocedure('public.hr_flag_on(text)') is null
      or to_regprocedure('public.hr_state_of(uuid,integer)') is null or to_regprocedure('public.hr_cron_ensure(text,text,text)') is null
      or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null or to_regclass('public.hr_client_rpc_baseline') is null
-     or to_regclass('public.hr_state_sections') is null or to_regclass('public.hunt_density') is null then
+     or to_regclass('public.hr_state_sections') is null or to_regclass('public.hunt_density') is null
+     or to_regprocedure('public.hr_access_check()') is null or to_regprocedure('public.hr_rate_ok(uuid,text,integer,interval)') is null
+     or to_regprocedure('public.hr_rate_sample_weight(bigint)') is null or to_regprocedure('public.hr_rate_over(uuid,text)') is null
+     or to_regprocedure('public.hr_utc_day_start(timestamp with time zone)') is null then
     raise exception 'PRECONDITION: a seam this file calls is missing'; end if;
   if not exists (select 1 from public.hr_trade_recipes) then raise exception 'PRECONDITION: hr_trade_recipes is empty'; end if;
 end $mig$;
@@ -258,8 +288,8 @@ create or replace function public.hr_trade_level_of(p_user uuid, p_trade text)
 returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
 begin
   -- K1 (1073-k1-job-slice.sql): the company's Level in a trade on 09's table.
-  -- plpgsql, not sql (lane/bench-cut-server, tests/settle-budget.mjs SB-3): once 1079 lights trade_jobs, the section quotes every recipe in
-  -- every envelope (about 130 calls a hero), and a SET-clause SQL function is re-planned per call on PostgreSQL 17; plpgsql keeps the plan.
+  -- plpgsql, not sql (lane/bench-cut-server, tests/settle-budget.mjs SB-3): the farm's section reads it in every envelope (1079), and a
+  -- SET-clause SQL function is re-planned per call on PostgreSQL 17; plpgsql keeps the plan.
   return public.hr_trade_level(coalesce((select x.xp from public.company_trade_xp x where x.user_id = p_user and x.trade_id = p_trade), 0));
 end $fn$;
 
@@ -269,49 +299,108 @@ begin
   -- K1 (1073-k1-job-slice.sql; 09 4.2 and 4.9): band 0 is open to every company; any other band only where a hero of the account holds
   -- a depth record (hunt_density.danger_held) on a Danger scale ground of THAT BAND OR DEEPER (the designer, 2026-11-27: bands 1 to 3
   -- have one or two grounds each, so a company that went from the Thicket to the Warrens would never open iron on an exact match).
-  -- plpgsql, not sql (lane/bench-cut-server, tests/settle-budget.mjs SB-3): once 1079 lights trade_jobs, the section quotes every recipe in
-  -- every envelope (about 130 calls a hero), and a SET-clause SQL function is re-planned per call on PostgreSQL 17; plpgsql keeps the plan.
+  -- plpgsql, not sql: a SET-clause SQL function is re-planned per call on PostgreSQL 17, and the read calls it once a band.
   return coalesce(p_band, -1) = 0 or exists (select 1 from public.hunt_density d join public.hr_trade_ground_bands g on g.hunt_id = d.hunt_id
                                               where d.user_id = p_user and d.danger_held is not null and g.band >= p_band);
 end $fn$;
 
+create or replace function public.hr_trade_open_of(p_user uuid, p_slot int, p_recipe text)
+returns table (recipe_id text, lv int, cap bigint, stop_at timestamptz, refusal jsonb)
+language plpgsql stable set search_path = public, pg_catalog as $fn$
+declare w jsonb; v_cap bigint; v_used bigint; v_stop timestamptz; v_day jsonb; v_lv jsonb; v_band jsonb;
+begin
+  -- K1 (1073-k1-job-slice.sql, lane/bench-cut-quotes): THE GATES of one recipe, or of every recipe (p_recipe null), in the spec's order.
+  -- The hero's own reads are made ONCE here (the work day, its stop, each trade's Level, each band's record), then one statement judges
+  -- every recipe asked. The items a recipe owes are one anti-join against hr_items, never a search a recipe: that search, scanning the
+  -- whole catalogue 129 times, was 17.5 of a new company's 44.9 ms (MEASURED, the header's COST).
+  w := public.hr_work_state(p_user, p_slot);
+  if w is null then v_day := jsonb_build_object('ok', false, 'error', 'no_character');
+  else
+    v_cap := (w->>'base_ms')::bigint + (w->>'extra_ms')::bigint;
+    v_used := case when w->>'day' = w->>'today' then (w->>'used_ms')::bigint else 0 end;
+    v_stop := public.hr_trade_work_stop(p_user, p_slot, now());
+    if v_stop <= now() then
+      v_day := jsonb_build_object('ok', false, 'error', 'work_cap', 'left_ms', greatest(0, v_cap - v_used), 'cap_ms', v_cap); end if;
+  end if;
+  select jsonb_object_agg(t.trade, public.hr_trade_level_of(p_user, t.trade)) into v_lv
+    from (select distinct x.trade from public.hr_trade_recipes x where p_recipe is null or x.recipe = p_recipe) t;
+  select jsonb_object_agg(b.band::text, public.hr_trade_band_open(p_user, b.band)) into v_band
+    from (select distinct x.band from public.hr_trade_recipes x where p_recipe is null or x.recipe = p_recipe) b;
+  return query
+  with owed as (
+    select n.recipe, min(n.item) as item
+      from (select x.recipe, x.face as item from public.hr_trade_recipes x where p_recipe is null or x.recipe = p_recipe
+            union all
+            select x.recipe, e.key from public.hr_trade_recipes x, jsonb_object_keys(x.inputs) e(key) where p_recipe is null or x.recipe = p_recipe) n
+     where not exists (select 1 from public.hr_items i where i.item_id = n.item)
+     group by n.recipe),
+  g as (
+    select r.recipe, r.kind, r.rung, l.lv0,
+           case when k.ships is distinct from 'v030' then jsonb_build_object('ok', false, 'error', 'bad_recipe', 'why', 'ships_later')
+                when o.item is not null then jsonb_build_object('ok', false, 'error', 'bad_recipe', 'why', 'item_owed', 'item_id', o.item)
+                when l.lv0 < r.r_level then jsonb_build_object('ok', false, 'error', 'rung_locked', 'trade', r.trade, 'level', l.lv0, 'need', r.r_level)
+                when not (v_band->>(r.band::text))::boolean then jsonb_build_object('ok', false, 'error', 'band_locked', 'band', r.band)
+                else v_day end as shut
+      from public.hr_trade_recipes r
+      left join public.hr_trade_kinds k on k.kind = r.kind
+      left join owed o on o.recipe = r.recipe
+     cross join lateral (select (v_lv->>r.trade)::int as lv0) l
+     where p_recipe is null or r.recipe = p_recipe)
+  /* ONE WORK DAY OF ATTEMPTS at the company's speed: the bound over the day's whole cap, the count unlimited */
+  select g.recipe, g.lv0, a.n, v_stop,
+         coalesce(g.shut, case when a.n < 1 then jsonb_build_object('ok', false, 'error', 'count_cap', 'count_cap', a.n) end)
+    from g
+   cross join lateral (select case when g.shut is null then
+                         coalesce((public.hr_trade_job_bound(g.kind, g.rung, g.lv0, false, 0, 1000, 100000, v_cap)->>'attempts')::bigint, 0) end as n) a;
+end $fn$;
+
 create or replace function public.hr_trade_job_quote(p_user uuid, p_slot int, p_recipe text, p_count int)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
-declare
-  r public.hr_trade_recipes%rowtype; k public.hr_trade_kinds%rowtype; w jsonb; v_lv int; v_cap bigint; v_used bigint; v_stop timestamptz;
-  v_count_cap bigint; v_full jsonb; v_one jsonb; v_missing text;
+declare r public.hr_trade_recipes%rowtype; g record; v_full jsonb; v_one jsonb;
 begin
-  -- K1 (1073-k1-job-slice.sql): THE START'S DECISION WITHOUT A WRITE (header §3). The refusals after `busy`, in the spec's order.
+  -- K1 (1073-k1-job-slice.sql): THE START'S DECISION WITHOUT A WRITE (header §3): the gates (hr_trade_open_of, the list's own), then the
+  -- count and its price. Refusals in the spec's order, after `busy`.
   select * into r from public.hr_trade_recipes where recipe = p_recipe;
   if not found then return jsonb_build_object('ok', false, 'error', 'bad_recipe', 'why', 'not_a_recipe'); end if;
-  select * into k from public.hr_trade_kinds where kind = r.kind;
-  if not found or k.ships <> 'v030' then return jsonb_build_object('ok', false, 'error', 'bad_recipe', 'why', 'ships_later'); end if;
-  select x.item into v_missing from (select r.face as item union all select key from jsonb_object_keys(r.inputs) key) x
-   where not exists (select 1 from public.hr_items i where i.item_id = x.item) order by 1 limit 1;
-  if v_missing is not null then return jsonb_build_object('ok', false, 'error', 'bad_recipe', 'why', 'item_owed', 'item_id', v_missing); end if;
-  v_lv := public.hr_trade_level_of(p_user, r.trade);
-  if v_lv < r.r_level then return jsonb_build_object('ok', false, 'error', 'rung_locked', 'trade', r.trade, 'level', v_lv, 'need', r.r_level); end if;
-  if not public.hr_trade_band_open(p_user, r.band) then return jsonb_build_object('ok', false, 'error', 'band_locked', 'band', r.band); end if;
-  w := public.hr_work_state(p_user, p_slot);
-  if w is null then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
-  v_cap := (w->>'base_ms')::bigint + (w->>'extra_ms')::bigint;
-  v_used := case when w->>'day' = w->>'today' then (w->>'used_ms')::bigint else 0 end;
-  v_stop := public.hr_trade_work_stop(p_user, p_slot, now());
-  if v_stop <= now() then
-    return jsonb_build_object('ok', false, 'error', 'work_cap', 'left_ms', greatest(0, v_cap - v_used), 'cap_ms', v_cap); end if;
-  /* ONE WORK DAY OF ATTEMPTS at the company's speed: the bound over the day's whole cap, the count unlimited */
-  v_count_cap := coalesce((public.hr_trade_job_bound(r.kind, r.rung, v_lv, false, 0, 1000, 100000, v_cap)->>'attempts')::bigint, 0);
-  /* p_count null: the section's probe (the recipe is open; how many the day allows), priced by the caller for its own count */
-  if p_count is null and v_count_cap >= 1 then
-    return jsonb_build_object('ok', true, 'level', v_lv, 'count_cap', v_count_cap, 'stop', v_stop); end if;
-  if p_count is null or p_count < 1 or p_count > v_count_cap then
-    return jsonb_build_object('ok', false, 'error', 'count_cap', 'count_cap', v_count_cap); end if;
-  v_full := public.hr_trade_job_bound(r.kind, r.rung, v_lv, false, 0, 1000, p_count, 1000000000000);
-  v_one := public.hr_trade_job_bound(r.kind, r.rung, v_lv, false, 0, 1000, 1, 1000000000000);
-  return jsonb_build_object('ok', true, 'recipe', r.recipe, 'kind', r.kind, 'trade', r.trade, 'stage', k.stage, 'face', r.face, 'band', r.band,
-    'rung', r.rung, 'r_level', r.r_level, 'level', v_lv, 'count', p_count, 'count_cap', v_count_cap, 'fee', public.hr_trade_job_fee(r.kind, r.band, p_count),
+  select * into g from public.hr_trade_open_of(p_user, p_slot, p_recipe);
+  if g.refusal is not null then return g.refusal; end if;
+  /* p_count null: how many the day allows, no count priced */
+  if p_count is null then return jsonb_build_object('ok', true, 'level', g.lv, 'count_cap', g.cap, 'stop', g.stop_at); end if;
+  if p_count < 1 or p_count > g.cap then
+    return jsonb_build_object('ok', false, 'error', 'count_cap', 'count_cap', g.cap); end if;
+  v_full := public.hr_trade_job_bound(r.kind, r.rung, g.lv, false, 0, 1000, p_count, 1000000000000);
+  v_one := public.hr_trade_job_bound(r.kind, r.rung, g.lv, false, 0, 1000, 1, 1000000000000);
+  return jsonb_build_object('ok', true, 'recipe', r.recipe, 'kind', r.kind, 'trade', r.trade,
+    'stage', (select k.stage from public.hr_trade_kinds k where k.kind = r.kind), 'face', r.face, 'band', r.band,
+    'rung', r.rung, 'r_level', r.r_level, 'level', g.lv, 'count', p_count, 'count_cap', g.cap, 'fee', public.hr_trade_job_fee(r.kind, r.band, p_count),
     'spent_ms', (v_full->>'spent_ms')::bigint, 'attempt_ms', (v_one->>'spent_ms')::bigint, 'inputs', r.inputs,
-    'ends_at', least(now() + ((v_full->>'spent_ms')::bigint * interval '1 millisecond'), v_stop));
+    'ends_at', least(now() + ((v_full->>'spent_ms')::bigint * interval '1 millisecond'), g.stop_at));
+end $fn$;
+
+create or replace function public.hr_trade_quotes_of(p_user uuid, p_slot int, p_recipe text)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
+  -- K1 (1073-k1-job-slice.sql, lane/bench-cut-quotes): THE JOBS LIST'S ROWS (header §3), every recipe that ships or one (p_recipe). The
+  -- quote is the whole-day job the start would take (as many sets as bag + Storage feed, at most the day's count) at the start's own
+  -- numbers for that count, or what shuts it. Read by hr_trade_job_quotes and by a refused start; never by the envelope (TJ-LEAN).
+  return coalesce((
+    select jsonb_agg(jsonb_build_object('id', r.recipe, 'name', r.name, 'trade', r.trade, 'kind', r.kind, 'band', r.band, 'face', r.face,
+             'r_level', r.r_level, 'inputs', r.inputs, 'quote',
+             case when g.refusal is not null then g.refusal
+                  when n.n < 1 then jsonb_build_object('ok', false, 'error', 'short_inputs', 'count_cap', g.cap)
+                  else jsonb_build_object('ok', true, 'count', n.n, 'count_cap', g.cap, 'level', g.lv,
+                         'fee', public.hr_trade_job_fee(r.kind, r.band, n.n::int), 'spent_ms', s.ms,
+                         'ends_at', least(now() + (s.ms * interval '1 millisecond'), g.stop_at)) end) order by r.trade, r.band, r.recipe)
+      from public.hr_trade_open_of(p_user, p_slot, p_recipe) g
+      join public.hr_trade_recipes r on r.recipe = g.recipe_id
+      join public.hr_trade_kinds k on k.kind = r.kind and k.ships = 'v030'
+     cross join lateral (select least(g.cap, coalesce(min(floor((coalesce(i.qty, 0) + coalesce(b.qty, 0)) / greatest(1, e.value::bigint)))::bigint, g.cap)) as n
+                           from jsonb_each_text(r.inputs) e
+                           left join public.player_inventory i on i.user_id = p_user and i.slot = p_slot and i.item_id = e.key
+                           left join public.account_bank b on b.user_id = p_user and b.item_id = e.key
+                          where g.refusal is null) n
+     cross join lateral (select case when g.refusal is null and n.n >= 1 then
+                           (public.hr_trade_job_bound(r.kind, r.rung, g.lv, false, 0, 1000, n.n::int, 1000000000000)->>'spent_ms')::bigint end as ms) s), '[]'::jsonb);
 end $fn$;
 
 create or replace function public.hr_trade_job_close(p_user uuid, p_slot int, p_at timestamptz, p_early boolean)
@@ -480,10 +569,14 @@ begin
      or exists (select 1 from public.trade_jobs t where t.user_id = v_uid and t.slot = p_slot and t.settled_at is null) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'busy',
              'doing', case when v_h.id is not null then 'hunt' when v_st.active_kind <> 'idle' then v_st.active_kind else 'trade_job' end)); end if;
-  if coalesce(v_q->>'ok', 'false') <> 'true' then return public.hr_note_rejection(c_verb, p_slot, v_q); end if;
+  -- THE PRICE IS THE SERVER'S, HERE, under the hero's lock: the quote the player saw is compared and never used. What it would not take is
+  -- refused before anything moves, and the refusal carries the row's fresh quote (header §4b, THE STALE QUOTE).
+  if coalesce(v_q->>'ok', 'false') <> 'true' then
+    return public.hr_note_rejection(c_verb, p_slot, v_q) || jsonb_build_object('quote', public.hr_trade_quotes_of(v_uid, p_slot, p_recipe)->0->'quote'); end if;
   v_fee := (v_q->>'fee')::bigint;
   if v_fee <> p_fee then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'fee', v_fee, 'count', p_count)); end if;
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'fee', v_fee, 'count', p_count))
+      || jsonb_build_object('quote', public.hr_trade_quotes_of(v_uid, p_slot, p_recipe)->0->'quote'); end if;
   for l in select key as item, value::bigint as per from jsonb_each_text(v_q->'inputs') loop
     v_need := v_need || jsonb_build_object(l.item, l.per * p_count);
   end loop;
@@ -503,7 +596,8 @@ begin
     if coalesce(v_a->>'replayed', 'false') = 'true' then raise exception using errcode = 'HRJ13', message = 'trade job: replayed'; end if;
   exception
     when sqlstate 'HRJ11' then
-      return public.hr_note_rejection(c_verb, p_slot, (v_take - 'error' - 'ok') || jsonb_build_object('ok', false, 'error', 'short_inputs'));
+      return public.hr_note_rejection(c_verb, p_slot, (v_take - 'error' - 'ok') || jsonb_build_object('ok', false, 'error', 'short_inputs'))
+        || jsonb_build_object('quote', public.hr_trade_quotes_of(v_uid, p_slot, p_recipe)->0->'quote');
     when sqlstate 'HRJ12' then return public.hr_note_rejection(c_verb, p_slot, v_a || jsonb_build_object('ok', false));
     when sqlstate 'HRJ13' then
       return jsonb_build_object('ok', true, 'replayed', true, 'job', (select to_jsonb(t) - 'seed' from public.trade_jobs t where t.user_id = v_uid and t.idem = p_idem));
@@ -548,6 +642,35 @@ begin
   insert into public.player_intents (user_id, intent_id, slot, intent, result)
   values (v_uid, p_idem, p_slot, v_verb, v_res) on conflict (user_id, intent_id) do nothing;
   return v_res || jsonb_build_object('envelope', public.hr_state_of(v_uid, p_slot));
+end $fn$;
+
+-- ── §4b THE READ: the Work window's quotes, on its ask (lane/bench-cut-quotes) ─────────────────────────────
+create or replace function public.hr_trade_job_quotes(p_slot int)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare c_limit constant int := 30; v_uid uuid := auth.uid(); v_ver bigint; v_w bigint;
+begin
+  -- K1 (1073-k1-job-slice.sql §4b): THE CALLER'S OWN HERO'S QUOTES, read on demand; writes nothing but its rate counter. A quote answered
+  -- here is never a price: hr_trade_job_start prices the job again.
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  perform public.hr_access_check();
+  if not public.hr_flag_on('trade_jobs') then return jsonb_build_object('ok', false, 'error', 'not_open'); end if;
+  if p_slot is null or p_slot < 0 or p_slot > 5 then return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
+  if not public.hr_rate_ok(v_uid, 'trade_quotes', c_limit, interval '1 minute') then
+    v_w := public.hr_rate_sample_weight(public.hr_rate_over(v_uid, 'trade_quotes') - c_limit);
+    if v_w > 0 then
+      perform public.hr_record_rejection(v_uid, p_slot, 'trade_quotes', 'rate_limited', jsonb_build_object('limit', c_limit, 'per', '1 minute'), v_w); end if;
+    return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  select ps.version into v_ver from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot;
+  if not found then return jsonb_build_object('ok', false, 'error', 'no_character'); end if;
+  return jsonb_build_object('ok', true, 'at', now(), 'until', public.hr_utc_day_start(now()) + interval '1 day', 'version', v_ver,
+    'recipes', public.hr_trade_quotes_of(v_uid, p_slot, null),
+    'last', (select jsonb_build_object('id', t.id, 'recipe', t.recipe, 'name', (select name from public.hr_trade_recipes where recipe = t.recipe),
+               'face', (select face from public.hr_trade_recipes where recipe = t.recipe), 'settled_at', t.settled_at, 'result', t.result)
+               from public.trade_jobs t where t.user_id = v_uid and t.slot = p_slot and t.settled_at is not null
+              order by t.settled_at desc limit 1),
+    'stock', (select coalesce(jsonb_object_agg(s.item_id, s.q), '{}'::jsonb) from (
+                select item_id, jsonb_build_object('fine', coalesce(sum(qty) filter (where quality = 1), 0), 'master', coalesce(sum(qty) filter (where quality = 2), 0)) q
+                  from public.company_stock where user_id = v_uid group by item_id) s));
 end $fn$;
 
 -- ── §5 THE SWEEP (browser closed: the server collects every finished job) ───
@@ -753,11 +876,10 @@ create trigger hr_trade_job_busy before update of active_kind on public.player_s
 -- ── §7 THE SECTION `trade_jobs` ──────────────────────────────────────────────
 create or replace function public.hr_trade_jobs_view(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
-declare
-  v_job jsonb; v_last jsonb; v_recipes jsonb := '[]'::jsonb; r record; v_q jsonb; v_feed bigint; v_count bigint; v_open public.trade_jobs%rowtype;
-  v_end timestamptz; v_full jsonb;
+declare v_job jsonb; v_open public.trade_jobs%rowtype; v_end timestamptz; v_full jsonb;
 begin
-  -- K1 (1073-k1-job-slice.sql): THE SECTION `trade_jobs` (header §7). Every number is the server's; the seed never leaves.
+  -- K1 (1073-k1-job-slice.sql): THE SECTION `trade_jobs` (header §7): the trades' XP and the open job, in every envelope. No quote, no
+  -- last result and no stock here (the read's, §4b): nothing in this body grows with the recipes (TJ-LEAN). The seed never leaves.
   if not public.hr_flag_on('trade_jobs') then return null; end if;
   select * into v_open from public.trade_jobs where user_id = p_user and slot = p_slot and settled_at is null;
   if found then
@@ -770,44 +892,15 @@ begin
       'attempt_ms', (public.hr_trade_job_bound(v_open.kind, v_open.rung, v_open.level, false, 0, 1000, 1, 1000000000000)->>'spent_ms')::bigint,
       'due', v_end <= now());
   end if;
-  select jsonb_build_object('id', t.id, 'recipe', t.recipe, 'name', (select name from public.hr_trade_recipes where recipe = t.recipe),
-           'face', (select face from public.hr_trade_recipes where recipe = t.recipe), 'settled_at', t.settled_at, 'result', t.result)
-    into v_last from public.trade_jobs t where t.user_id = p_user and t.slot = p_slot and t.settled_at is not null
-   order by t.settled_at desc limit 1;
-  for r in select x.* from public.hr_trade_recipes x join public.hr_trade_kinds k on k.kind = x.kind where k.ships = 'v030' order by x.trade, x.band, x.recipe loop
-    v_q := public.hr_trade_job_quote(p_user, p_slot, r.recipe, null);
-    if coalesce(v_q->>'ok', 'false') = 'true' then
-      /* read only for an open recipe (lane/bench-cut-server): nothing else reads v_feed, and most of a company's recipes are locked */
-      /* the whole-day job the start would take: as many sets as bag + Storage feed, at most the day's count */
-      v_feed := null;
-      select min(floor((coalesce((select i.qty from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = e.key), 0)
-                        + coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = e.key), 0)) / greatest(1, e.value::bigint)))::bigint
-        into v_feed from jsonb_each_text(r.inputs) e;
-      v_count := least((v_q->>'count_cap')::bigint, coalesce(v_feed, (v_q->>'count_cap')::bigint));
-      if v_count < 1 then v_q := jsonb_build_object('ok', false, 'error', 'short_inputs', 'count_cap', (v_q->>'count_cap')::bigint);
-      else
-        /* the start's own numbers for that count: the fee (hr_trade_job_fee) and the end (its time, cut by the day's stop) */
-        v_full := public.hr_trade_job_bound(r.kind, r.rung, (v_q->>'level')::int, false, 0, 1000, v_count::int, 1000000000000);
-        v_q := jsonb_build_object('ok', true, 'count', v_count, 'count_cap', (v_q->>'count_cap')::bigint, 'level', (v_q->>'level')::int,
-                 'fee', public.hr_trade_job_fee(r.kind, r.band, v_count::int), 'spent_ms', (v_full->>'spent_ms')::bigint,
-                 'ends_at', least(now() + ((v_full->>'spent_ms')::bigint * interval '1 millisecond'), (v_q->>'stop')::timestamptz));
-      end if;
-    end if;
-    v_recipes := v_recipes || jsonb_build_array(jsonb_build_object('id', r.recipe, 'name', r.name, 'trade', r.trade, 'kind', r.kind, 'band', r.band,
-                   'face', r.face, 'r_level', r.r_level, 'inputs', r.inputs, 'quote', v_q));
-  end loop;
   return jsonb_build_object(
     'trades', (select coalesce(jsonb_object_agg(t.trade, jsonb_build_object('xp', coalesce(x.xp, 0), 'level', public.hr_trade_level(coalesce(x.xp, 0)))), '{}'::jsonb)
                  from (select distinct trade from public.hr_trade_kinds where ships = 'v030') t
                  left join public.company_trade_xp x on x.user_id = p_user and x.trade_id = t.trade),
-    'job', v_job, 'last', v_last, 'recipes', v_recipes,
-    'stock', (select coalesce(jsonb_object_agg(s.item_id, s.q), '{}'::jsonb) from (
-                select item_id, jsonb_build_object('fine', coalesce(sum(qty) filter (where quality = 1), 0), 'master', coalesce(sum(qty) filter (where quality = 2), 0)) q
-                  from public.company_stock where user_id = p_user group by item_id) s));
+    'job', v_job);
 end $fn$;
 
 insert into public.hr_state_sections (key, fn, note) values
-  ('trade_jobs', 'hr_trade_jobs_view', '1073-k1-job-slice.sql: the kit trades'' jobs (the company''s trade Levels, the open job and its end, the last result, every recipe''s whole-day quote, the Fine and Master stock); null while trade_jobs is off')
+  ('trade_jobs', 'hr_trade_jobs_view', '1073-k1-job-slice.sql: the kit trades'' jobs (the company''s trade Levels, the open job and its end; the quotes are hr_trade_job_quotes'' on the Work window''s ask); null while trade_jobs is off')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §8 GRANTS (revoke before grant), THE BASELINE, THE CRON ─────────────────
@@ -816,6 +909,7 @@ declare v_sig text; v_role text;
 begin
   foreach v_sig in array array['public.hr_trade_work_stop(uuid,integer,timestamp with time zone)', 'public.hr_trade_level_of(uuid,text)',
                                'public.hr_trade_band_open(uuid,integer)', 'public.hr_trade_job_quote(uuid,integer,text,integer)',
+                               'public.hr_trade_open_of(uuid,integer,text)', 'public.hr_trade_quotes_of(uuid,integer,text)',
                                'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer,uuid)', 'public.hr_trade_jobs_prune(integer)',
                                'public.hr_trade_jobs_view(uuid,integer)', 'public.hr_trade_job_busy()', 'public.hr_trade_job_wants_block(uuid,integer)',
                                'public.hr_time_auto_buy(uuid,integer,text)', 'public.hr_time_auto_sweep(integer)'] loop
@@ -824,7 +918,8 @@ begin
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
     end loop;
   end loop;
-  foreach v_sig in array array['public.hr_trade_job_start(integer,text,integer,bigint,uuid)', 'public.hr_trade_job_end(integer,boolean,uuid)'] loop
+  foreach v_sig in array array['public.hr_trade_job_start(integer,text,integer,bigint,uuid)', 'public.hr_trade_job_end(integer,boolean,uuid)',
+                               'public.hr_trade_job_quotes(integer)'] loop
     execute format('revoke execute on function %s from public, anon, service_role', v_sig);
     foreach v_role in array array['hr_engine', 'hr_tick'] loop
       if exists (select 1 from pg_roles where rolname = v_role) then execute format('revoke all on function %s from %I', v_sig, v_role); end if;
@@ -836,7 +931,9 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_trade_job_start', 'p_slot integer, p_recipe text, p_count integer, p_fee bigint, p_idem uuid', 'authenticated',
    'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (a gold sink and an inventory debit) - start a kit-trade job: one catalogue recipe, a count up to one work day, the fee the server''s; inputs from the bag then Storage; refuses busy, rung_locked, band_locked, work_cap, count_cap, quote_changed, short_inputs; dark (trade_jobs); pre-EA Security list S-27'),
   ('hr_trade_job_end', 'p_slot integer, p_early boolean, p_idem uuid', 'authenticated',
-   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (inventory and trade XP credit) - collect a finished kit-trade job (not_due before the server says) or stop one now; the goods from the stored seed; dark (trade_jobs); pre-EA Security list S-27')
+   'added 1073-k1-job-slice.sql (lane/k1-job-slice): MONEY (inventory and trade XP credit) - collect a finished kit-trade job (not_due before the server says) or stop one now; the goods from the stored seed; dark (trade_jobs); pre-EA Security list S-27'),
+  ('hr_trade_job_quotes', 'p_slot integer', 'authenticated',
+   'added 1073-k1-job-slice.sql (lane/bench-cut-quotes): READ - the caller''s own hero''s whole-day quote of every recipe, its last job and its company''s Fine and Master stock, on the Work window''s ask; 30 a minute an account; writes nothing but its rate counter; a quote never prices a start; dark (trade_jobs); pre-EA Security list S-34')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
 do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'select public.hr_trade_jobs_sweep(500), public.hr_trade_jobs_prune(1000)'); end $mig$;
 
@@ -864,6 +961,10 @@ do $mig$ begin perform public.hr_cron_ensure('hr-trade-jobs', '* * * * *', 'sele
 --         answers not_working) and it ends past midnight
 -- (g) A JOB'S OWN DAY (lane/k1-server-fixes): a stop read on a later UTC day counts the work blocks bought on the job's day, both where
 --     that day's cap ends the work and where its block carries the work past midnight.
+-- (h) THE QUOTES ARE THE READ'S (lane/bench-cut-quotes): lit, the section is the trades and the job and nothing else; the read's row for
+--     every recipe is the start's own decision on that recipe at that count (fee, time, end, or the refusal); a fee the catalogue moved
+--     after the read is refused quote_changed with nothing moved and the fresh row in the refusal, and the fresh row's press is charged
+--     exactly the server's fee; an empty slot has no quotes; the 31st read in a minute is rate_limited.
 do $$
 declare
   v_u constant uuid := '000000c0-0000-4000-a000-000000c11073';
@@ -883,6 +984,7 @@ begin
   if exists (select 1 from unnest(array['anon', 'authenticated']) g(r),
                        unnest(array['public.hr_trade_work_stop(uuid,integer,timestamp with time zone)', 'public.hr_trade_level_of(uuid,text)',
                                     'public.hr_trade_band_open(uuid,integer)', 'public.hr_trade_job_quote(uuid,integer,text,integer)',
+                                    'public.hr_trade_open_of(uuid,integer,text)', 'public.hr_trade_quotes_of(uuid,integer,text)',
                                     'public.hr_trade_job_close(uuid,integer,timestamp with time zone,boolean)', 'public.hr_trade_jobs_sweep(integer,uuid)', 'public.hr_trade_jobs_prune(integer)',
                                     'public.hr_trade_jobs_view(uuid,integer)', 'public.hr_trade_job_wants_block(uuid,integer)',
                                     'public.hr_time_auto_buy(uuid,integer,text)', 'public.hr_time_auto_sweep(integer)']) f(s)
@@ -892,8 +994,10 @@ begin
      or has_function_privilege('anon', 'public.hr_trade_job_end(integer,boolean,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_trade_job_start(integer,text,integer,bigint,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.hr_trade_job_end(integer,boolean,uuid)', 'execute')
-     or (select count(*) from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_trade_job_start', 'hr_trade_job_end')) <> 2 then
-    raise exception 'VERIFY(a): the two verbs are not exactly the signed-in client''s'; end if;
+     or has_function_privilege('anon', 'public.hr_trade_job_quotes(integer)', 'execute')
+     or not has_function_privilege('authenticated', 'public.hr_trade_job_quotes(integer)', 'execute')
+     or (select count(*) from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_trade_job_start', 'hr_trade_job_end', 'hr_trade_job_quotes')) <> 3 then
+    raise exception 'VERIFY(a): the two verbs and the read are not exactly the signed-in client''s'; end if;
   if to_regclass('cron.job') is not null and not exists (select 1 from cron.job where jobname = 'hr-trade-jobs') then
     raise exception 'VERIFY(a): the sweep is not scheduled'; end if;
   -- the switch is dark until 1079-one-town-work-cut.sql lights it (its bridge helper marks that it has run: a retried apply finds it lit)
@@ -908,8 +1012,8 @@ begin
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(a)-harness: hr_create_character refused: %', v; end if;
     if public.hr_trade_job_start(0, 'meal_b0', 1, 0, '000000c0-0000-4000-a000-00000c107300')->>'error' is distinct from 'not_open'
        or public.hr_trade_job_end(0, false, '000000c0-0000-4000-a000-00000c107301')->>'error' is distinct from 'not_open'
-       or public.hr_trade_jobs_view(v_u, 0) is not null then
-      raise exception 'VERIFY(a): a dark verb or the section answered something'; end if;
+       or public.hr_trade_job_quotes(0)->>'error' is distinct from 'not_open' or public.hr_trade_jobs_view(v_u, 0) is not null then
+      raise exception 'VERIFY(a): a dark verb, the read or the section answered something'; end if;
 
     -- (b) the twin at a fresh hero's first instant: the whole day
     update public.player_state set work_day = null, work_ms = 0 where user_id = v_u and slot = 0;
@@ -1053,6 +1157,59 @@ begin
       raise exception 'VERIFY(e): the stop gave back % of the fee % (purse % from %)', v->>'fee_refund', q->>'fee',
         (select gold from public.account_wallet where user_id = v_u), v_g; end if;
 
+    -- (h) THE QUOTES ARE THE READ'S: the lean section, the read's rows against the start's decision, a stale quote, a stranger, the limit
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_trade_jobs_view(v_u, 0);
+    if (select array_agg(k order by k) from jsonb_object_keys(v) k) is distinct from array['job', 'trades'] then
+      raise exception 'VERIFY(h): the section carries %', (select array_agg(k order by k) from jsonb_object_keys(v) k); end if;
+    v := public.hr_trade_job_quotes(0);
+    if coalesce(v->>'ok', '') <> 'true' or (v->>'until')::timestamptz is distinct from public.hr_utc_day_start(now()) + interval '1 day'
+       or (v->>'version')::bigint is distinct from (select version from public.player_state where user_id = v_u and slot = 0)
+       or v->'last'->'result' is null or v->'stock' is null
+       or jsonb_array_length(v->'recipes') <> (select count(*) from public.hr_trade_recipes r join public.hr_trade_kinds k on k.kind = r.kind where k.ships = 'v030') then
+      raise exception 'VERIFY(h): the read answered % (% rows)', v - 'recipes', jsonb_array_length(v->'recipes'); end if;
+    v_n := 0;
+    for q in select x from jsonb_array_elements(v->'recipes') x loop
+      v_roll := public.hr_trade_job_quote(v_u, 0, q->>'id', (q->'quote'->>'count')::int);
+      if q->'quote'->>'ok' = 'true' then v_n := v_n + 1; end if;
+      if (case q->'quote'->>'ok' when 'true' then (v_roll->'fee', v_roll->'spent_ms', v_roll->'ends_at', v_roll->'level', v_roll->'count_cap')
+              is distinct from (q->'quote'->'fee', q->'quote'->'spent_ms', q->'quote'->'ends_at', q->'quote'->'level', q->'quote'->'count_cap')
+         when 'false' then case q->'quote'->>'error' when 'short_inputs' then v_roll->'count_cap' is distinct from q->'quote'->'count_cap'
+                                else v_roll is distinct from q->'quote' end
+         else true end) then
+        raise exception 'VERIFY(h): the list quotes % as %, the start decides %', q->>'id', q->'quote', v_roll; end if;
+    end loop;
+    if v_n < 1 then raise exception 'VERIFY(h): no recipe is open to the probe, so no price was compared'; end if;
+    -- a fee the catalogue moves between the read and the press: refused, nothing moved, the fresh row in the refusal, and its press pays it
+    q := (select x->'quote' from jsonb_array_elements(v->'recipes') x where x->>'id' = 'meal_b0');
+    v_g := (select gold from public.account_wallet where user_id = v_u);
+    v_stock := (select qty from public.account_bank where user_id = v_u and item_id = 'shrimp');
+    v_cap := (select job_fee_pm from public.hr_trade_levers);
+    update public.hr_trade_levers set job_fee_pm = 2 * v_cap;
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_trade_job_start(0, 'meal_b0', (q->>'count')::int, (q->>'fee')::bigint, gen_random_uuid());
+    if v->>'error' is distinct from 'quote_changed' or (select gold from public.account_wallet where user_id = v_u) <> v_g
+       or (select qty from public.account_bank where user_id = v_u and item_id = 'shrimp') <> v_stock
+       or exists (select 1 from public.trade_jobs where user_id = v_u and settled_at is null)
+       or (v->'quote'->>'fee')::bigint is not distinct from (q->>'fee')::bigint
+       or (v->'quote'->>'fee')::bigint is distinct from (public.hr_trade_job_quote(v_u, 0, 'meal_b0', (v->'quote'->>'count')::int)->>'fee')::bigint then
+      raise exception 'VERIFY(h): a stale quote (fee % for %) answered %', q->>'fee', q->>'count', v - 'envelope'; end if;
+    q := v->'quote';
+    v := public.hr_trade_job_start(0, 'meal_b0', (q->>'count')::int, (q->>'fee')::bigint, gen_random_uuid());
+    if coalesce(v->>'ok', '') <> 'true' or (select gold from public.account_wallet where user_id = v_u) <> v_g - (q->>'fee')::bigint then
+      raise exception 'VERIFY(h): the fresh quote''s press answered % (purse % from %)', v - 'envelope', (select gold from public.account_wallet where user_id = v_u), v_g; end if;
+    v := public.hr_trade_job_end(0, true, gen_random_uuid());
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(h): the probe''s job could not be stopped: %', v - 'envelope'; end if;
+    update public.hr_trade_levers set job_fee_pm = v_cap;
+    -- an empty slot of this account has no quotes; the limit
+    if public.hr_trade_job_quotes(1)->>'error' is distinct from 'no_character' or public.hr_trade_job_quotes(6)->>'error' is distinct from 'bad_slot' then
+      raise exception 'VERIFY(h): an empty slot answered %, a slot that cannot be %', public.hr_trade_job_quotes(1) - 'recipes', public.hr_trade_job_quotes(6) - 'recipes'; end if;
+    delete from public.hr_rate_counters where user_id = v_u;
+    for v_n in 1 .. 30 loop v := public.hr_trade_job_quotes(0); end loop;
+    if coalesce(v->>'ok', '') <> 'true' or public.hr_trade_job_quotes(0)->>'error' is distinct from 'rate_limited' then
+      raise exception 'VERIFY(h): thirty reads answered %, the next %', v - 'recipes', public.hr_trade_job_quotes(0) - 'recipes'; end if;
+    delete from public.hr_rate_counters where user_id = v_u;
+
     -- (f) THE STANDING WORK RULE BUYS FOR A RUNNING JOB (09 4.11 row 7): no job, not_working; a whole day's job with half the rule's lead
     --     of the day's work left. Which answer is right is the server's one clock (now() is one instant here), read the two ways the
     --     functions read it: the job's midnight as hr_trade_work_stop counts it (whole ms from the start), and the block's room as
@@ -1124,5 +1281,5 @@ begin
   if (select enabled from public.hr_flags where key = 'trade_jobs') is distinct from (to_regprocedure('public.hr_hearth_fuel_of(text)') is not null) then
     raise exception 'VERIFY(a): the probe moved the trade_jobs switch'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'k1-job-slice: a job starts on the server''s quote, refuses in order, settles from its seed on the sweep and on a collect, stops with its sets back; all green';
+  raise notice 'k1-job-slice: a job starts on the server''s quote, refuses in order, settles from its seed on the sweep and on a collect, stops with its sets back; the quotes are the read''s; all green';
 end $$;

@@ -26,10 +26,11 @@
 //       hitter: a +2% combat_xp buff pays, per skill, at least floor(2% of the bare XP).
 //       (The Trophy Room's rung 2 was the source until a home stopped granting XP,
 //       Master Design Reference §9, 2026-10-14.)
-//   X3  AWAY-1 PARITY, XP AND REMAINDER, on the GATHER pointer (lane C2: a fight
+//   X3  AWAY-1 PARITY, XP AND REMAINDER, on the HEARTH's fuel run (the town pointer
+//       since the one-town-work cut; the gather pointer before it. Lane C2: a fight
 //       is a hunt session, its split-settle parity is hunt-sessions-settle
-//       TICK-1). One span (computeAccrual) == the WORLD TICK (shadowTick, the
-//       delta folded as tick-contract folds it): identical XP and remainders.
+//       TICK-1). One span (computeAccrual) == the WORLD TICK (shadowTick, one
+//       window, one engine call): identical XP and remainders.
 //       Then a CHAINED world tick against the accrue path chained through a
 //       simulated hr_apply + hr_state_of round trip, window by window.
 //   X4  DRAWS ARE UNCHANGED. A seeded hunt (lane S1: an instance on a slime
@@ -45,8 +46,8 @@
 //       went with the Hitpoints skill, core rebuild 2026-10-19.) (The night ratios (6)/(7) and X8, the
 //       live-credit window, measured the away combat path the closed rebuild
 //       deleted — lane C2.)
-//   X9  the world-tick S4 fold: xp_frac is a FOLD_CHAIN_KEY, folds per skill (last
-//       window wins) and equals the chain's carried remainder.
+//   X9  RETIRED with the world-tick S4 fold (the gather channel's ledger fold, the
+//       one-town-work cut): the artisan channel settles one engine call a window.
 //   X5  CLAMPED AND SERVER-ONLY. A projected remainder outside [0,1) is clamped
 //       (a 900 cannot mint); the envelope reads it ONLY off skills.<id>.frac; the
 //       client residue does not carry it.
@@ -158,10 +159,6 @@ const JS_MUTANTS = [
     edits: [['export const PACE = { xp: 0.39,', 'export const PACE = { xp: 0.34,']] },
   { name: 'Melee XP per HP rescaled', arm: 'X7', file: 'src/data/core-model.js',
     edits: [['  hitXpPerDamage: 1.5,', '  hitXpPerDamage: 1.4,']] },
-  { name: 'the S4 fold stops at xp_frac', arm: 'X9', file: 'supabase/functions/hr-accrue/tick.js',
-    edits: [["'xp', 'xp_frac', 'gold',", "'xp', 'gold',"]] },
-  { name: 'xp_frac folded whole-map last-wins', arm: 'X9', file: 'supabase/functions/hr-accrue/tick-contract.js',
-    edits: [['      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }', '      if (ABSOLUTE_MAP.includes(k)) { out[k] = v; continue; }']] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',
     edits: [['    char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);\n', '']] },
 ];
@@ -196,12 +193,13 @@ async function load(base) {
   const member = await at('src/core/member.js');
   const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
-  const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
-  const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
+  /* THE HEARTH FIXTURE: a fuel run on Bones, its bag far past what an hour burns. */
+  const hearthFixture = { activeId: 'fuel_bones', hp: 50, maxHp: 50, skills: { inner_flame: 5000000, defense: 200000 },
+    inventory: { bones: 1000000 } };
   const { RESIDUE_FIELDS: residueFields } = await import(pathToFileURL(join(base, 'src', 'session', 'residue.js')).href + '?t=' + Date.now());
   return { prog, acc, member, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, core, pacing, buffs, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
+    xp, core, pacing, buffs, tick, hearthFixture, residueFields, FUEL_RUNS: cat.FUEL_RUNS };
 }
 
 async function mutantBase(m) {
@@ -242,7 +240,7 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
     activeKind: 'combat', activeId: monster || 'slime', capMs: 12 * 3600000, seed: seed ?? SEED,
     hp: 990, gold: 0, skills: { ...skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
     equipment: {}, inventory: {}, perks: perks || null,
-    items: L.ITEMS, monsters: L.MONSTERS, nodes: {},
+    items: L.ITEMS, monsters: L.MONSTERS,
   };
 }
 
@@ -375,32 +373,32 @@ async function runArms(L) {
   }
 
   // X3 ─ AWAY-1 parity, XP and remainder: one span == world tick == chained accrue.
-  //      On the GATHER pointer since lane C2 (closed rebuild): a fight is a hunt
-  //      session, and its split-settle parity — skills and xp_frac included — is
+  //      On the HEARTH's fuel run since the one-town-work cut (the gather pointer since lane C2, the closed
+  //      rebuild): a fight is a hunt session, and its split-settle parity — skills and xp_frac included — is
   //      tests/hunt-sessions-settle.mjs TICK-1 against the real hr_hunt_apply.
   {
     const SPAN = 3600000;
-    const g = L.gatherFixture;
+    const g = L.hearthFixture;
     const F0G = { [Object.keys(g.skills).find((k) => k !== 'defense')]: 0.7, defense: 0.3 };
-    const gatherInput = ({ fromMs, toMs, xpFrac, seed }) => ({
+    const hearthInput = ({ fromMs, toMs, xpFrac, seed }) => ({
       userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
-      activeKind: 'gather', activeId: g.activeId, capMs: 12 * 3600000, seed: seed ?? SEED,
+      activeKind: 'artisan', activeId: g.activeId, capMs: 12 * 3600000, seed: seed ?? SEED,
       hp: g.hp, maxHp: g.maxHp, gold: 0, skills: { ...g.skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
-      equipment: {}, inventory: {}, perks: null, toolCarry: null,
-      items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES,
+      equipment: {}, inventory: { ...g.inventory }, perks: null,
+      items: L.ITEMS, monsters: L.MONSTERS, recipes: L.FUEL_RUNS,
     });
-    const away = L.acc.computeAccrual(gatherInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }));
-    ok('X3', away.accrued === true && away.delta && away.delta.xp, `the gather span did not pay (${away.reason})`);
+    const away = L.acc.computeAccrual(hearthInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }));
+    ok('X3', away.accrued === true && away.delta && away.delta.xp, `the Hearth span did not pay (${away.reason})`);
     const awayXp = (away.delta && away.delta.xp) || {};
 
     // WORLD TICK, the same span: one window through shadowTick, seed pinned to the span's.
-    const cats = { items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES };
-    const char = L.shadow.hydrate({ ...gatherInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }),
-      items: undefined, monsters: undefined, nodes: undefined });
+    const cats = { items: L.ITEMS, monsters: L.MONSTERS, recipes: L.FUEL_RUNS };
+    const char = L.shadow.hydrate({ ...hearthInput({ fromMs: FROM, toMs: FROM + SPAN, xpFrac: F0G }),
+      items: undefined, monsters: undefined, recipes: undefined });
     char.xpFrac = { ...F0G };
     const tick1 = L.shadow.shadowTick(char, FROM, FROM + SPAN, cats, { seedOf: () => SEED });
     ok('X3', tick1.accrued === true, `the world-tick window did not accrue (${tick1.reason})`);
-    const folded = L.contract.foldDeltas([tick1.delta || {}]);
+    const folded = tick1.delta || {};   // one window, one engine call: nothing to fold
     ok('X3', JSON.stringify(sortKeys(folded.xp || {})) === JSON.stringify(sortKeys(awayXp)),
       `WORLD TICK XP ${JSON.stringify(sortKeys(folded.xp || {}))} != AWAY ${JSON.stringify(sortKeys(awayXp))}`);
     ok('X3', JSON.stringify(sortKeys(folded.xp_frac || {})) === JSON.stringify(sortKeys((away.delta && away.delta.xp_frac) || {})),
@@ -411,10 +409,10 @@ async function runArms(L) {
     // simulated with the column's own arithmetic (trunc to 6 places, numeric ->
     // JSON number). Same windows, same per-window seeds: identical throughout.
     const W = 10; const step = SPAN / W;
-    const tc = L.shadow.hydrate({ ...gatherInput({ fromMs: FROM, toMs: FROM + step, xpFrac: F0G }),
-      items: undefined, monsters: undefined, nodes: undefined });
+    const tc = L.shadow.hydrate({ ...hearthInput({ fromMs: FROM, toMs: FROM + step, xpFrac: F0G }),
+      items: undefined, monsters: undefined, recipes: undefined });
     tc.xpFrac = { ...F0G };
-    const db = { skills: { ...g.skills }, frac: { ...F0G } };
+    const db = { skills: { ...g.skills }, frac: { ...F0G }, inventory: { ...g.inventory } };
     const tickDeltas = [];
     let mark = FROM;
     for (let w = 0; w < W; w++) {
@@ -423,10 +421,11 @@ async function runArms(L) {
       const t = L.shadow.shadowTick(tc, mark, to, cats, { seedOf: () => seed });
       // the accrue path, re-hydrated from the "row" every window
       const env = { state: { accrued_to: new Date(mark).toISOString(), active_since: new Date(FROM).toISOString(),
-        active_kind: 'gather', active_id: g.activeId, hp: g.hp, max_hp: g.maxHp, gold: 0 },
+        active_kind: 'artisan', active_id: g.activeId, hp: g.hp, max_hp: g.maxHp, gold: 0 },
+        inventory: db.inventory,
         skills: Object.fromEntries(Object.keys(db.skills).map((k) => [k, { xp: db.skills[k], level: 1, frac: db.frac[k] || 0 }])) };
       const a = L.acc.computeAccrual({ userId: UID, slot: 0, nowMs: to, capMs: 12 * 3600000, seed, perks: null,
-        items: L.ITEMS, monsters: L.MONSTERS, nodes: L.GATHER_NODES, ...L.env.engineInputsFromEnvelope(env, to),
+        items: L.ITEMS, monsters: L.MONSTERS, recipes: L.FUEL_RUNS, ...L.env.engineInputsFromEnvelope(env, to),
         accruedToMs: mark, activeSinceMs: FROM });
       ok('X3', t.accrued === true && a.accrued === true, `window ${w}: tick ${t.reason} / accrue ${a.reason}`);
       if (!t.accrued || !a.accrued) break;
@@ -439,10 +438,12 @@ async function runArms(L) {
       L.shadow.advance(tc, t);
       // hr_apply, for the keys this arm reads
       for (const k of Object.keys(a.delta.xp || {})) db.skills[k] = (db.skills[k] || 0) + a.delta.xp[k];
+      for (const k of Object.keys(a.delta.items || {})) db.inventory[k] = (db.inventory[k] || 0) + a.delta.items[k];
       for (const k of Object.keys(a.delta.xp_frac || {})) db.frac[k] = Number(JSON.parse(JSON.stringify(trunc6(a.delta.xp_frac[k]))));
       mark = Date.parse(t.delta.accrued_to);
     }
-    const fold = L.contract.foldDeltas(tickDeltas);
+    /* each skill's LAST remainder across the windows (a window carries only the skills it moved) */
+    const fold = { xp_frac: Object.assign({}, ...tickDeltas.map((d) => d.xp_frac || {})) };
     ok('X3', tickDeltas.some((d) => d.xp_frac), 'CONTROL: no window moved a remainder — the chain arm proves nothing');
     for (const k of Object.keys(F0G)) {
       const last = (fold.xp_frac && k in fold.xp_frac) ? fold.xp_frac[k] : F0G[k];
@@ -516,50 +517,7 @@ async function runArms(L) {
       `(5) one grant of 1060 credited ${one.skills.melee} (${one.xpFrac.melee}), 100 of 10.6 credited `
       + `${s4.skills.melee} (${s4.xpFrac.melee}) — batching moved a unit`);
   }
-  // X9 ─ THE SCALE FOLD (world-tick S4) CARRIES THE REMAINDER. Eight gather
-  //      flush windows chained exactly as settleFolded chains them, then ONE
-  //      foldWindowIntents: the folded xp is the sum, the folded xp_frac is each
-  //      skill's LAST remainder (ABSOLUTE_MAP) and equals the chain's carried one,
-  //      and every window's keys are FOLD_CHAIN_KEYS — or the fold would stop at
-  //      every window that moved a remainder and S4 would never fold again.
-  {
-    const s0 = Object.assign({ activeKind: 'gather' }, L.gatherFixture, { xpFrac: { ...F0 } });
-    const from = Date.parse('2026-10-01T00:00:00.000Z');
-    s0.accruedToMs = from; s0.activeSinceMs = from;
-    const geom = { cadenceMs: 10000, flushMs: 90000, maxPolls: 64, holder: 'x9' };
-    let s = s0; let m = from; const wins = []; let last = s0;
-    for (let w = 0; w < 8; w++) {
-      const run = L.tg.settleGatherSession(s, m, m + 90000, geom);
-      if (!run.intents[0]) break;
-      wins.push(run.intents[0]); m = Date.parse(run.intents[0].args.p_window_to);
-      last = run.char; s = Object.assign({}, run.char, { accruedToMs: m });
-    }
-    /* PER SKILL, NOT PER MAP: a window carries only the skills it moved, so a
-       later window that did not move `strength` must not erase its remainder. */
-    const pf = L.contract.foldDeltas([{ xp_frac: { attack: 0.1, strength: 0.2 } }, { xp_frac: { attack: 0.3 } }]);
-    ok('X9', JSON.stringify(sortKeys(pf.xp_frac || {})) === '{"attack":0.3,"strength":0.2}',
-      `foldDeltas folded xp_frac to ${JSON.stringify(pf.xp_frac)} — want each skill's last remainder {attack:0.3, strength:0.2}`);
-    const moved = wins.filter((w) => w.args.p_delta.xp_frac).length;
-    ok('X9', wins.length === 8 && moved >= 2, `the gather chain settled ${wins.length} windows, ${moved} moved a remainder — the fold arm tests nothing`);
-    const stray = wins.flatMap((w) => Object.keys(w.args.p_delta)).filter((k) => !L.tick.FOLD_CHAIN_KEYS.includes(k));
-    ok('X9', stray.length === 0, `window keys outside FOLD_CHAIN_KEYS: ${[...new Set(stray)]} — the S4 fold stops at every such window`);
-    if (wins.length >= 2) {
-      const f = L.tg.foldWindowIntents({ userId: s0.userId, slot: 0, shard: 0, version: 1, holder: 'x9' }, wins).args.p_delta;
-      const sumXp = {}; const lastFrac = {};
-      for (const w of wins) {
-        for (const [k, v] of Object.entries(w.args.p_delta.xp || {})) sumXp[k] = (sumXp[k] || 0) + v;
-        Object.assign(lastFrac, w.args.p_delta.xp_frac || {});
-      }
-      ok('X9', JSON.stringify(sortKeys(f.xp || {})) === JSON.stringify(sortKeys(sumXp)),
-        `the fold's xp ${JSON.stringify(f.xp)} != the windows' sum ${JSON.stringify(sumXp)}`);
-      ok('X9', JSON.stringify(sortKeys(f.xp_frac || {})) === JSON.stringify(sortKeys(lastFrac)),
-        `the fold's xp_frac ${JSON.stringify(f.xp_frac)} != each skill's last remainder ${JSON.stringify(lastFrac)}`);
-      for (const k of Object.keys(lastFrac)) {
-        ok('X9', units(f.xp_frac[k]) === units(last.xpFrac[k]),
-          `${k}: the folded remainder ${f.xp_frac[k]} != the chain's carried ${last.xpFrac[k]}`);
-      }
-    }
-  }
+  // X9 ─ RETIRED with the world-tick S4 fold (the gather channel's ledger fold, the one-town-work cut).
   return fails;
 }
 

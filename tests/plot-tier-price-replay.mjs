@@ -99,6 +99,13 @@ async function run(db) {
   ok('P2', !!xp, `hr_xp_table has no row for farming ${PLOT_TIER_PRICES[2].farming}`);
   await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp) values ('${UID}', 0, 'farming', ${Number(xp ? xp.xp : 0)})
                  on conflict (user_id, slot, skill_id) do update set xp = excluded.xp;`);
+  /* since 1079-one-town-work-cut.sql the gate is the COMPANY's Farming on 09's table (hr_trade_level_of): seed it at the same Level */
+  await db.exec(`do $c$ begin
+                   if to_regclass('public.company_trade_xp') is not null and to_regclass('public.hr_trade_xp') is not null then
+                     insert into public.company_trade_xp (user_id, trade_id, xp)
+                       select '${UID}', 'farming', x.xp from public.hr_trade_xp x where x.level = ${PLOT_TIER_PRICES[2].farming}
+                       on conflict (user_id, trade_id) do update set xp = excluded.xp;
+                   end if; end $c$;`);
   const up = (await asUser(db, 'select public.hr_farm_upgrade_plot(0, $1::uuid, 2) as res', [uuid()])).res;
   ok('P2', up && up.ok === true, `the tier-2 upgrade at farming ${PLOT_TIER_PRICES[2].farming} was refused: ${JSON.stringify(up)}`);
   const after2 = await state();

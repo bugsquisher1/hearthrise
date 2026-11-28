@@ -158,7 +158,7 @@ async function boot(mutate, gateBlind) {
    the gold and the level. Every number is READ from the server's own tables
    (hr_plot_tier, hr_xp_table) — a Designer moving the ladder must never be
    able to make this projection guard vacuous or falsely red. */
-async function seed(db, uid, gold, farmXp) {
+async function seed(db, uid, gold, farmXp, farmLv = 1) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.player_state (user_id, slot, version)
                  values ('${uid}', 0, 1)
@@ -169,6 +169,13 @@ async function seed(db, uid, gold, farmXp) {
   await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                  values ('${uid}', 0, 'farming', ${farmXp})
                  on conflict (user_id, slot, skill_id) do update set xp=${farmXp};`);
+  /* since 1079-one-town-work-cut.sql the plot gate is the COMPANY's Farming on 09's table (hr_trade_level_of): the same Level there */
+  await db.exec(`do $c$ begin
+                   if to_regclass('public.company_trade_xp') is not null and to_regclass('public.hr_trade_xp') is not null then
+                     insert into public.company_trade_xp (user_id, trade_id, xp)
+                       select '${uid}', 'farming', x.xp from public.hr_trade_xp x where x.level = ${farmLv}
+                       on conflict (user_id, trade_id) do update set xp = excluded.xp;
+                   end if; end $c$;`);
 }
 
 async function asUser(db, uid, sql, params) {
@@ -202,7 +209,7 @@ async function runAll(db) {
   /* +1: one spare gold keeps the fixture about the projection rather than about
      the exact-balance edge of the purse debit. */
   const need = ladder.reduce((n, r) => n + Number(r.gold_cost), 0) + 1;
-  await seed(db, A, need, farmXp);
+  await seed(db, A, need, farmXp, reqLv);
 
   // ── Q-2: TWO REAL UPGRADES → plot_level 3, written only by the server ─────
   for (let i = 0; i < 2; i++) {

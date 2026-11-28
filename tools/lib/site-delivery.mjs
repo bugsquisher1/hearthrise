@@ -9,7 +9,8 @@
 //   minifyModules  every ES module of the site, one by one (esbuild transform), at TARGET. A classic script (no import or
 //                  export: the platform scripts, the glyph atlas), src/vendor/ (pinned by name and sha384) and AS_IS stay
 //                  byte for byte.
-//   bundleGame     the page's module graph from src/app/boot.js, with splitting: the sign-in half becomes boot.js and the
+//   minifyStylesheet  every src/ stylesheet, comments and whitespace out and nothing else (THE STYLESHEETS below).
+//   bundleGame    the page's module graph from src/app/boot.js, with splitting: the sign-in half becomes boot.js and the
 //                  chunks it imports, every literal import() becomes its own chunk under src/chunks/, and code two of them
 //                  share is one chunk, so each module still runs once. RUNTIME_MODULES (a module imported by a URL built at
 //                  run time) are entries too, at their own paths, sharing the same chunks. src/app/game-modules.js (the list
@@ -96,6 +97,66 @@ export function minifyModule(esbuild, text) {
   const next = esbuild.transformSync(text, options('esnext')).code;
   const parsed = esbuild.transformSync(text, { ...options('esnext'), minify: false }).code;
   return { code, drift: code !== next, parsed };
+}
+
+/* THE STYLESHEETS (lane/css-minify, 2026-11-28): every published src/**.css is served with its comments and its whitespace
+   gone, nothing else. Whitespace only, on purpose: esbuild's full CSS minify also merges and drops rules and rewrites values,
+   and measured on the 12 stylesheets that buys 80 bytes of gzip past this (125.7 -> 59.7 KB, full minify 59.6). No target, so
+   nothing is lowered. The repository keeps the source; every guard that reads CSS reads the source. build-site SITE-11 holds
+   each served stylesheet to its source rule for rule (cssRules), and holds it minified. */
+const CSS_OPTIONS = Object.freeze({ loader: 'css', minifyWhitespace: true, legalComments: 'none' });   // ASCII out: an escape stays an escape
+
+/** Is this site file a stylesheet the delivery minifies? */
+export const minifiableCss = (rel) => rel.startsWith('src/') && rel.endsWith('.css') && !rel.startsWith(VENDOR);
+
+/** One stylesheet, as served. */
+export const minifyStylesheet = (esbuild, text) => esbuild.transformSync(text, CSS_OPTIONS).code;
+
+/** A served stylesheet still written to be read: a comment, or a line break inside it. */
+export const cssUnminified = (text) => /\/\*|\n[\s\S]*\S/.test(text.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""'));
+
+/**
+ * A stylesheet as its ordered rules: one row per block (a style rule, an at-rule's block, a keyframe) and per statement at-rule,
+ * each "context | prelude | declarations", whitespace and comments squeezed out the same way on both sides. The source and
+ * its served copy must give the same rows in the same order: a rule dropped, merged, moved (cascade order), a selector or an
+ * @media / @supports / @container condition rewritten, or a declaration lost is a different row.
+ * @returns {string[]}
+ */
+export function cssRules(text) {
+  /* the spellings the printer picks and a reader cannot tell apart: a hex escape in either case, a string in either quote, url()
+     and an [attr=value] quoted or not, a space after a colon or around a combinator, a comma, a slash, a bracket */
+  const squeeze = (s) => s.replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, h) => '\\' + parseInt(h, 16).toString(16) + ' ').replace(/\s+/g, ' ').trim().replace(/ ?([,>+~/*()]) ?/g, '$1').replace(/ !/g, '!').replace(/: /g, ':')
+    .replace(/'((?:[^'"\\]|\\.)*)'/g, '"$1"').replace(/url\("([^"()\s]*)"\)/g, 'url($1)').replace(/=["'](-?[A-Za-z_][\w-]*)["']\]/g, '=$1]');
+  const decl = (s) => { const k = s.indexOf(':'); return k < 0 ? squeeze(s) : squeeze(s.slice(0, k)) + ':' + squeeze(s.slice(k + 1)); };
+  const rows = [], stack = [];
+  let buf = '', depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '/' && text[i + 1] === '*') { const end = text.indexOf('*/', i + 2); i = end < 0 ? text.length : end + 1; buf += ' '; continue; }
+    if (c === '"' || c === "'") {   // a string, its escapes kept, so a brace or a semicolon in it is text
+      let j = i + 1;
+      while (j < text.length && text[j] !== c) j += text[j] === '\\' ? 2 : 1;
+      buf += text.slice(i, j + 1); i = j; continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    if (depth > 0 || (c !== '{' && c !== '}' && c !== ';')) { buf += c; continue; }
+    if (c === '{') {
+      const frame = { at: rows.length, prelude: squeeze(buf), decls: [] };
+      rows.push(null);
+      stack.push(frame);
+    } else {
+      const top = stack[stack.length - 1];
+      if (buf.trim()) { if (top) top.decls.push(decl(buf)); else rows.push(squeeze(buf)); }   // a declaration, or a statement at-rule
+      if (c === '}' && top) {
+        stack.pop();
+        rows[top.at] = stack.map((f) => f.prelude).join(' > ') + ' | ' + top.prelude + ' | ' + top.decls.join(';');
+      }
+    }
+    buf = '';
+  }
+  if (stack.length || buf.trim()) rows.push('UNCLOSED | ' + stack.map((f) => f.prelude).join(' > ') + ' | ' + squeeze(buf));
+  return rows;
 }
 
 /** The path from a site file's folder back to the site root ('' at the root, '../' a folder down). */
